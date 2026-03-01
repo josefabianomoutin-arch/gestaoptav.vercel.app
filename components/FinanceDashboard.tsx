@@ -1,8 +1,9 @@
 
 import React, { useMemo, useState } from 'react';
-import type { FinancialRecord, StandardMenu, DailyMenus, Supplier, ThirdPartyEntryLog } from '../types';
+import type { FinancialRecord, StandardMenu, DailyMenus, Supplier, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset } from '../types';
 import MenuDashboard from './MenuDashboard';
 import AgendaChegadas from './AgendaChegadas';
+import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 
 interface FinanceDashboardProps {
   records: FinancialRecord[];
@@ -12,6 +13,9 @@ interface FinanceDashboardProps {
   dailyMenus?: DailyMenus;
   suppliers?: Supplier[];
   thirdPartyEntries?: ThirdPartyEntryLog[];
+  vehicleExitOrders?: VehicleExitOrder[];
+  vehicleAssets?: VehicleAsset[];
+  driverAssets?: DriverAsset[];
 }
 
 const PTRES_OPTIONS = ['380302', '380303', '380304', '380308', '380328'] as const;
@@ -28,9 +32,20 @@ const PTRES_DESCRIPTIONS: Record<string, string> = {
 const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
-type SubTab = 'recursos' | 'pagamentos' | 'saldos' | 'cardapio' | 'agenda';
+type SubTab = 'recursos' | 'pagamentos' | 'saldos' | 'cardapio' | 'agenda' | 'vehicles';
 
-const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ records, onLogout, user, standardMenu, dailyMenus, suppliers, thirdPartyEntries }) => {
+const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ 
+    records, 
+    onLogout, 
+    user, 
+    standardMenu, 
+    dailyMenus, 
+    suppliers, 
+    thirdPartyEntries,
+    vehicleExitOrders,
+    vehicleAssets,
+    driverAssets
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('pagamentos');
 
@@ -133,6 +148,12 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ records, onLogout, 
                     >
                         📅 Agenda de Chegadas
                     </button>
+                    <button 
+                        onClick={() => setActiveSubTab('vehicles')}
+                        className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'vehicles' ? 'bg-emerald-500 text-white shadow-lg' : 'hover:bg-indigo-800 text-emerald-200'}`}
+                    >
+                        🚗 Saída de Veículos
+                    </button>
                 </>
             )}
         </div>
@@ -163,7 +184,27 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ records, onLogout, 
             </div>
         )}
 
-        {activeSubTab !== 'saldos' && activeSubTab !== 'cardapio' && activeSubTab !== 'agenda' && (
+        {activeSubTab === 'vehicles' && vehicleExitOrders && vehicleAssets && driverAssets && (
+            <div className="animate-fade-in-up">
+                <AdminVehicleExitOrder 
+                    orders={vehicleExitOrders}
+                    vehicleAssets={vehicleAssets}
+                    driverAssets={driverAssets}
+                    onRegister={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                    onUpdate={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                    onDelete={() => Promise.resolve()}
+                    onRegisterVehicleAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                    onUpdateVehicleAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                    onDeleteVehicleAsset={() => Promise.resolve()}
+                    onRegisterDriverAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                    onUpdateDriverAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                    onDeleteDriverAsset={() => Promise.resolve()}
+                    readOnly={true}
+                />
+            </div>
+        )}
+
+        {activeSubTab !== 'saldos' && activeSubTab !== 'cardapio' && activeSubTab !== 'agenda' && activeSubTab !== 'vehicles' && (
             <div className="flex justify-center">
                 <div className="w-full max-w-2xl relative">
                     <span className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-400">

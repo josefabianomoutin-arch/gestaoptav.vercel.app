@@ -1,12 +1,17 @@
 
 import React, { useState, useMemo } from 'react';
-import type { Supplier, Delivery, ThirdPartyEntryLog } from '../types';
+import type { Supplier, Delivery, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset } from '../types';
+import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 
 interface SubportariaDashboardProps {
   suppliers: Supplier[];
   thirdPartyEntries: ThirdPartyEntryLog[];
   onUpdateThirdPartyEntry: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message: string }>;
   onLogout: () => void;
+  vehicleExitOrders: VehicleExitOrder[];
+  vehicleAssets: VehicleAsset[];
+  driverAssets: DriverAsset[];
+  onUpdateVehicleExitOrder: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
 }
 
 const formatDate = (dateString: string) => {
@@ -15,8 +20,18 @@ const formatDate = (dateString: string) => {
     return date.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
 };
 
-const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({ suppliers, thirdPartyEntries, onUpdateThirdPartyEntry, onLogout }) => {
+const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({ 
+    suppliers, 
+    thirdPartyEntries, 
+    onUpdateThirdPartyEntry, 
+    onLogout,
+    vehicleExitOrders,
+    vehicleAssets,
+    driverAssets,
+    onUpdateVehicleExitOrder
+}) => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [activeTab, setActiveTab] = useState<'agenda' | 'vehicles'>('agenda');
 
     const dailyAgenda = useMemo(() => {
         const list: { 
@@ -90,16 +105,31 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({ suppliers, 
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
                     </div>
                     <div>
-                        <h1 className="text-lg font-black uppercase italic tracking-tighter leading-none">Entrada e saídas</h1>
-                        <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest">segurança externa</p>
+                        <h1 className="text-lg font-black uppercase italic tracking-tighter leading-none">Segurança Externa</h1>
+                        <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest">Controle de Fluxo</p>
                     </div>
                 </div>
-                <button onClick={onLogout} className="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-black py-2 px-4 rounded-xl text-[10px] uppercase transition-all border border-red-900/50">Sair</button>
+                <div className="flex items-center gap-2">
+                    <button 
+                        onClick={() => setActiveTab('agenda')}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'agenda' ? 'bg-indigo-600 text-white' : 'text-indigo-300 hover:bg-white/5'}`}
+                    >
+                        Agenda
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('vehicles')}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'vehicles' ? 'bg-indigo-600 text-white' : 'text-indigo-300 hover:bg-white/5'}`}
+                    >
+                        Veículos
+                    </button>
+                    <button onClick={onLogout} className="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-black py-2 px-4 rounded-xl text-[10px] uppercase transition-all border border-red-900/50 ml-2">Sair</button>
+                </div>
             </header>
 
-            <main className="p-4 space-y-6 max-w-2xl mx-auto">
-                
-                {/* Seletor de Data Estilizado */}
+            <main className="p-4 space-y-6 max-w-4xl mx-auto">
+                {activeTab === 'agenda' ? (
+                    <>
+                        {/* Seletor de Data Estilizado */}
                 <div className="bg-white p-5 rounded-[2rem] shadow-lg border border-slate-200">
                     <div className="flex flex-col gap-4">
                         <div className="flex justify-between items-end">
@@ -211,17 +241,36 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({ suppliers, 
                 </div>
 
                 {/* Resumo Rápido no Rodapé */}
-                <div className="grid grid-cols-2 gap-4 pt-4">
-                    <div className="bg-green-600 p-5 rounded-[2rem] text-white shadow-lg flex flex-col items-center text-center">
-                        <p className="text-[10px] font-black uppercase opacity-60 mb-1">Confirmados</p>
-                        <p className="text-3xl font-black">{dailyAgenda.filter(d => d.arrivalTime || d.originalStatus === 'FATURADO' || d.originalStatus === 'concluido').length}</p>
+                    <div className="grid grid-cols-2 gap-4 pt-4">
+                        <div className="bg-green-600 p-5 rounded-[2rem] text-white shadow-lg flex flex-col items-center text-center">
+                            <p className="text-[10px] font-black uppercase opacity-60 mb-1">Confirmados</p>
+                            <p className="text-3xl font-black">{dailyAgenda.filter(d => d.arrivalTime || d.originalStatus === 'FATURADO' || d.originalStatus === 'concluido').length}</p>
+                        </div>
+                        <div className="bg-indigo-900 p-5 rounded-[2rem] text-white shadow-lg flex flex-col items-center text-center">
+                            <p className="text-[10px] font-black uppercase opacity-60 mb-1">Pendentes</p>
+                            <p className="text-3xl font-black">{dailyAgenda.filter(d => !d.arrivalTime && (d.originalStatus === 'AGENDADO' || d.originalStatus === 'agendado')).length}</p>
+                        </div>
                     </div>
-                    <div className="bg-indigo-900 p-5 rounded-[2rem] text-white shadow-lg flex flex-col items-center text-center">
-                        <p className="text-[10px] font-black uppercase opacity-60 mb-1">Pendentes</p>
-                        <p className="text-3xl font-black">{dailyAgenda.filter(d => !d.arrivalTime && (d.originalStatus === 'AGENDADO' || d.originalStatus === 'agendado')).length}</p>
+                    </>
+                ) : (
+                    <div className="animate-fade-in">
+                        <AdminVehicleExitOrder 
+                            orders={vehicleExitOrders}
+                            vehicleAssets={vehicleAssets}
+                            driverAssets={driverAssets}
+                            onRegister={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                            onUpdate={onUpdateVehicleExitOrder}
+                            onDelete={() => Promise.resolve()}
+                            onRegisterVehicleAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                            onUpdateVehicleAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                            onDeleteVehicleAsset={() => Promise.resolve()}
+                            onRegisterDriverAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                            onUpdateDriverAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                            onDeleteDriverAsset={() => Promise.resolve()}
+                            securityMode={true}
+                        />
                     </div>
-                </div>
-
+                )}
             </main>
 
             <style>{`

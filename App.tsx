@@ -752,6 +752,9 @@ const App: React.FC = () => {
              dailyMenus={dailyMenus}
              suppliers={suppliers}
              thirdPartyEntries={thirdPartyEntries}
+             vehicleExitOrders={vehicleExitOrders}
+             vehicleAssets={vehicleAssets}
+             driverAssets={driverAssets}
            />;
   }
 
@@ -810,6 +813,13 @@ const App: React.FC = () => {
           return { success: true, message: 'Atualizado' };
         }}
         onLogout={handleLogout} 
+        vehicleExitOrders={vehicleExitOrders}
+        vehicleAssets={vehicleAssets}
+        driverAssets={driverAssets}
+        onUpdateVehicleExitOrder={async (order) => {
+          await set(child(vehicleExitOrdersRef, order.id), order);
+          return { success: true, message: 'Atualizado' };
+        }}
       />
     );
   }

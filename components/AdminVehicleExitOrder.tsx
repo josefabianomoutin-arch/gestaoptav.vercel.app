@@ -15,12 +15,16 @@ interface AdminVehicleExitOrderProps {
     onRegisterDriverAsset: (asset: Omit<DriverAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
     onUpdateDriverAsset: (asset: DriverAsset) => Promise<{ success: boolean; message: string }>;
     onDeleteDriverAsset: (id: string) => Promise<void>;
+    readOnly?: boolean;
+    securityMode?: boolean;
 }
 
 const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({ 
     orders, onRegister, onUpdate, onDelete,
     vehicleAssets, onRegisterVehicleAsset, onUpdateVehicleAsset, onDeleteVehicleAsset,
-    driverAssets, onRegisterDriverAsset, onUpdateDriverAsset, onDeleteDriverAsset
+    driverAssets, onRegisterDriverAsset, onUpdateDriverAsset, onDeleteDriverAsset,
+    readOnly = false,
+    securityMode = false
 }) => {
     const [activeSubTab, setActiveSubTab] = useState<'orders' | 'assets'>('orders');
     const [activeAssetTab, setActiveAssetTab] = useState<'vehicles' | 'drivers'>('vehicles');
@@ -231,7 +235,9 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             destination: order.destination,
             fctNumber: order.fctNumber,
             companions: order.companions.length > 0 ? order.companions : [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
-            observations: order.observations || ''
+            observations: order.observations || '',
+            exitTime: order.exitTime || '',
+            returnTime: order.returnTime || ''
         });
         setIsModalOpen(true);
     };
@@ -267,33 +273,37 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                     <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tighter italic">Ordem de Saída de Veículo</h2>
                     <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mt-1">Gestão de Deslocamentos Oficiais</p>
                 </div>
-                <div className="flex gap-2">
-                    <button 
-                        onClick={() => setActiveSubTab('orders')}
-                        className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'orders' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                    >
-                        Ordens
-                    </button>
-                    <button 
-                        onClick={() => setActiveSubTab('assets')}
-                        className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'assets' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                    >
-                        Cadastros
-                    </button>
-                </div>
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => setActiveSubTab('orders')}
+                                            className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'orders' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                        >
+                                            Ordens
+                                        </button>
+                                        {!readOnly && !securityMode && (
+                                            <button 
+                                                onClick={() => setActiveSubTab('assets')}
+                                                className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'assets' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                            >
+                                                Cadastros
+                                            </button>
+                                        )}
+                                    </div>
             </div>
 
             {activeSubTab === 'orders' ? (
                 <>
-                    <div className="flex justify-end">
-                        <button 
-                            onClick={() => { setEditingOrder(null); setIsModalOpen(true); }}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 px-8 rounded-2xl transition-all shadow-lg shadow-indigo-100 active:scale-95 uppercase text-[10px] tracking-widest flex items-center gap-2"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                            Nova Ordem
-                        </button>
-                    </div>
+                    {!readOnly && !securityMode && (
+                        <div className="flex justify-end">
+                            <button 
+                                onClick={() => { setEditingOrder(null); setIsModalOpen(true); }}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 px-8 rounded-2xl transition-all shadow-lg shadow-indigo-100 active:scale-95 uppercase text-[10px] tracking-widest flex items-center gap-2"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                Nova Ordem
+                            </button>
+                        </div>
+                    )}
 
                     <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden">
                         <div className="overflow-x-auto">
@@ -305,6 +315,12 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                         <th className="p-4 text-left">Responsável</th>
                                         <th className="p-4 text-left">Destino</th>
                                         <th className="p-4 text-left">FCT</th>
+                                        {(securityMode || orders.some(o => o.exitTime || o.returnTime)) && (
+                                            <>
+                                                <th className="p-4 text-center">Saída</th>
+                                                <th className="p-4 text-center">Retorno</th>
+                                            </>
+                                        )}
                                         <th className="p-4 text-center">Ações</th>
                                     </tr>
                                 </thead>
@@ -322,17 +338,47 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                             </td>
                                             <td className="p-4 font-bold text-gray-600 uppercase">{order.destination}</td>
                                             <td className="p-4 font-mono text-gray-500">{order.fctNumber}</td>
+                                            {(securityMode || orders.some(o => o.exitTime || o.returnTime)) && (
+                                                <>
+                                                    <td className="p-4 text-center">
+                                                        <span className={`font-black text-xs ${order.exitTime ? 'text-indigo-600' : 'text-gray-300 italic'}`}>
+                                                            {order.exitTime || '--:--'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4 text-center">
+                                                        <span className={`font-black text-xs ${order.returnTime ? 'text-emerald-600' : 'text-gray-300 italic'}`}>
+                                                            {order.returnTime || '--:--'}
+                                                        </span>
+                                                    </td>
+                                                </>
+                                            )}
                                             <td className="p-4">
                                                 <div className="flex items-center justify-center gap-2">
-                                                    <button onClick={() => handlePrint(order)} className="p-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-colors" title="Imprimir">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                                                    </button>
-                                                    <button onClick={() => handleEdit(order)} className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors" title="Editar">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                    </button>
-                                                    <button onClick={() => { if(window.confirm('Excluir esta ordem?')) onDelete(order.id); }} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors" title="Excluir">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                    </button>
+                                                    {securityMode ? (
+                                                        <button 
+                                                            onClick={() => handleEdit(order)}
+                                                            className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                                                            title="Registrar Horários"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                        </button>
+                                                    ) : (
+                                                        <>
+                                                            <button onClick={() => handlePrint(order)} className="p-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-colors" title="Imprimir">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                                                            </button>
+                                                            {!readOnly && (
+                                                                <>
+                                                                    <button onClick={() => handleEdit(order)} className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors" title="Editar">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                                    </button>
+                                                                    <button onClick={() => { if(window.confirm('Excluir esta ordem?')) onDelete(order.id); }} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors" title="Excluir">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                        </>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -456,8 +502,12 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         <div className="p-4 md:p-6">
                             <div className="flex justify-between items-center mb-4 border-b pb-3">
                                 <div>
-                                    <h3 className="text-lg md:text-xl font-black text-gray-900 uppercase tracking-tighter italic">{editingOrder ? 'Editar Ordem' : 'Nova Ordem de Saída'}</h3>
-                                    <p className="text-gray-400 font-bold text-[8px] uppercase tracking-widest mt-0.5">Preencha os dados do deslocamento</p>
+                                    <h3 className="text-lg md:text-xl font-black text-gray-900 uppercase tracking-tighter italic">
+                                        {securityMode ? 'Registrar Horários' : editingOrder ? 'Editar Ordem' : 'Nova Ordem de Saída'}
+                                    </h3>
+                                    <p className="text-gray-400 font-bold text-[8px] uppercase tracking-widest mt-0.5">
+                                        {securityMode ? 'Informe os horários de saída e retorno' : 'Preencha os dados do deslocamento'}
+                                    </p>
                                 </div>
                                 <button onClick={() => setIsModalOpen(false)} className="p-1.5 bg-gray-100 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-500 transition-all">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -465,7 +515,35 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                             </div>
 
                             <form onSubmit={handleSubmit} className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                {securityMode ? (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Saída</label>
+                                            <input 
+                                                type="time" 
+                                                value={formData.exitTime || ''} 
+                                                onChange={e => setFormData({ ...formData, exitTime: e.target.value })}
+                                                className="w-full h-12 px-3 border-2 border-indigo-100 rounded-xl bg-indigo-50 font-black text-indigo-900 focus:bg-white focus:border-indigo-500 transition-all outline-none text-lg text-center"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Retorno</label>
+                                            <input 
+                                                type="time" 
+                                                value={formData.returnTime || ''} 
+                                                onChange={e => setFormData({ ...formData, returnTime: e.target.value })}
+                                                className="w-full h-12 px-3 border-2 border-emerald-100 rounded-xl bg-emerald-50 font-black text-emerald-900 focus:bg-white focus:border-emerald-500 transition-all outline-none text-lg text-center"
+                                            />
+                                        </div>
+                                        <div className="col-span-2 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                            <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Resumo da Ordem</p>
+                                            <p className="text-xs font-bold text-gray-700">{formData.vehicle} - {formData.plate}</p>
+                                            <p className="text-[10px] font-medium text-gray-500">{formData.responsibleServer}</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                                     <div className="space-y-1">
                                         <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Data</label>
                                         <input 
@@ -648,9 +726,11 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                         type="submit"
                                         className="flex-[2] h-10 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 uppercase text-[9px] tracking-widest active:scale-95"
                                     >
-                                        {editingOrder ? 'Salvar Alterações' : 'Confirmar Registro'}
+                                        {securityMode ? 'Salvar Horários' : editingOrder ? 'Salvar Alterações' : 'Confirmar Registro'}
                                     </button>
                                 </div>
+                                    </>
+                                )}
                             </form>
                         </div>
                     </div>
