@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, MenuRow, ContractItem, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem } from './types';
+import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, MenuRow, ContractItem, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder } from './types';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
@@ -26,6 +26,7 @@ const dailyMenusRef = ref(database, 'dailyMenus');
 const financialRecordsRef = ref(database, 'financialRecords');
 const thirdPartyEntriesRef = ref(database, 'thirdPartyEntries');
 const acquisitionItemsRef = ref(database, 'acquisitionItems');
+const vehicleExitOrdersRef = ref(database, 'vehicleExitOrders');
 
 const App: React.FC = () => {
   const [user, setUser] = useState<{ name: string; cpf: string; role: UserRole } | null>(null);
@@ -39,6 +40,7 @@ const App: React.FC = () => {
   const [financialRecords, setFinancialRecords] = useState<FinancialRecord[]>([]);
   const [thirdPartyEntries, setThirdPartyEntries] = useState<ThirdPartyEntryLog[]>([]);
   const [acquisitionItems, setAcquisitionItems] = useState<AcquisitionItem[]>([]);
+  const [vehicleExitOrders, setVehicleExitOrders] = useState<VehicleExitOrder[]>([]);
 
   useEffect(() => {
     onValue(suppliersRef, (snapshot) => {
@@ -85,6 +87,10 @@ const App: React.FC = () => {
     onValue(acquisitionItemsRef, (snapshot) => {
       const data = snapshot.val();
       setAcquisitionItems(data ? Object.values(data) : []);
+    });
+    onValue(vehicleExitOrdersRef, (snapshot) => {
+      const data = snapshot.val();
+      setVehicleExitOrders(data ? Object.values(data) : []);
     });
   }, []);
 
@@ -616,6 +622,17 @@ const App: React.FC = () => {
             return { success: true, message: 'Atualizado' };
         }}
         onDeleteThirdPartyEntry={async (id) => remove(child(thirdPartyEntriesRef, id))}
+        vehicleExitOrders={vehicleExitOrders}
+        onRegisterVehicleExitOrder={async (order) => {
+            const r = push(vehicleExitOrdersRef);
+            await set(r, { ...order, id: r.key });
+            return { success: true, message: 'Ordem de Saída registrada com sucesso!' };
+        }}
+        onUpdateVehicleExitOrder={async (order) => {
+            await set(child(vehicleExitOrdersRef, order.id), order);
+            return { success: true, message: 'Ordem de Saída atualizada com sucesso!' };
+        }}
+        onDeleteVehicleExitOrder={async (id) => remove(child(vehicleExitOrdersRef, id))}
         onCancelDeliveries={handleCancelDeliveries}
         onUpdateContractForItem={handleUpdateContractForItem}
         onUpdateAcquisitionItem={handleUpdateAcquisitionItem}
@@ -731,6 +748,17 @@ const App: React.FC = () => {
                  return { success: true, message: 'Atualizado' };
              }}
              onDeleteThirdPartyEntry={async (id) => remove(child(thirdPartyEntriesRef, id))}
+             vehicleExitOrders={vehicleExitOrders}
+             onRegisterVehicleExitOrder={async (order) => {
+                 const r = push(vehicleExitOrdersRef);
+                 await set(r, { ...order, id: r.key });
+                 return { success: true, message: 'Ok' };
+             }}
+             onUpdateVehicleExitOrder={async (order) => {
+                 await set(child(vehicleExitOrdersRef, order.id), order);
+                 return { success: true, message: 'Atualizado' };
+             }}
+             onDeleteVehicleExitOrder={async (id) => remove(child(vehicleExitOrdersRef, id))}
            />;
   }
 

@@ -172,4 +172,22 @@ export interface AcquisitionItem {
   category: 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA';
 }
 
+export interface VehicleExitOrder {
+  id: string;
+  date: string;
+  vehicle: string;
+  plate: string;
+  assetNumber: string;
+  responsibleServer: string;
+  serverRole: string;
+  destination: string;
+  fctNumber: string;
+  companions: { name: string; rg: string }[];
+  exitDate?: string;
+  exitTime?: string;
+  returnDate?: string;
+  returnTime?: string;
+  observations?: string;
+}
+
 export type UserRole = 'admin' | 'supplier' | 'almoxarifado' | 'itesp' | 'financeiro' | 'subportaria' | 'cardapio';
