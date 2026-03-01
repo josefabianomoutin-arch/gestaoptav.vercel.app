@@ -119,7 +119,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             <body>
                 <div class="header">
                     <h1>SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA</h1>
-                    <h2>Coordenadoria das Unidades Prisionais da Região Noroeste do Estado</h2>
+                    <h2>Coordenadoria das Unidades Prisionais da Região Norte do Estado</h2>
                     <h1 style="margin-top: 2px; font-size: 14pt;">PENITENCIÁRIA DE TAIÚVA</h1>
                 </div>
 
@@ -717,29 +717,29 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                         />
                                     </div>
                                 </div>
+                            </>
+                        )}
 
-                                <div className="flex gap-3 pt-1">
-                                    <button 
-                                        type="button"
-                                        onClick={() => setIsModalOpen(false)}
-                                        className="flex-1 h-10 bg-gray-100 text-gray-500 font-black rounded-xl hover:bg-gray-200 transition-all uppercase text-[9px] tracking-widest"
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button 
-                                        type="submit"
-                                        className="flex-[2] h-10 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 uppercase text-[9px] tracking-widest active:scale-95"
-                                    >
-                                        {securityMode ? 'Salvar Horários' : editingOrder ? 'Salvar Alterações' : 'Confirmar Registro'}
-                                    </button>
-                                </div>
-                                    </>
-                                )}
-                            </form>
+                        <div className="flex gap-3 pt-1">
+                            <button 
+                                type="button"
+                                onClick={() => setIsModalOpen(false)}
+                                className="flex-1 h-10 bg-gray-100 text-gray-500 font-black rounded-xl hover:bg-gray-200 transition-all uppercase text-[9px] tracking-widest"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                type="submit"
+                                className="flex-[2] h-10 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 uppercase text-[9px] tracking-widest active:scale-95"
+                            >
+                                {securityMode ? 'Salvar Horários' : editingOrder ? 'Salvar Alterações' : 'Confirmar Registro'}
+                            </button>
                         </div>
-                    </div>
+                    </form>
                 </div>
-            )}
+            </div>
+        </div>
+    )}
 
             {/* Vehicle Asset Modal */}
             {isVehicleModalOpen && (
