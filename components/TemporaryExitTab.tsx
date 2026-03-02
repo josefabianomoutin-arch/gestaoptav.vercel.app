@@ -36,6 +36,10 @@ const TemporaryExitTab: React.FC<TemporaryExitTabProps> = ({
   const [historyInmateId, setHistoryInmateId] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const bottomScrollRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const [tableWidth, setTableWidth] = useState(0);
 
   const isAdmin = user.role === 'admin';
   const currentSector = user.role as 'simic' | 'seguranca' | 'peculio' | 'reintegracao';
@@ -92,6 +96,34 @@ const TemporaryExitTab: React.FC<TemporaryExitTabProps> = ({
       return matchesSearch && matchesStatus && matchesPavilion;
     });
   }, [inmates, searchTerm, filterStatus, filterPavilion]);
+
+  React.useEffect(() => {
+    const updateWidth = () => {
+      if (tableRef.current) {
+        setTableWidth(tableRef.current.scrollWidth);
+      }
+    };
+    updateWidth();
+    // Small delay to ensure DOM is fully rendered
+    const timeoutId = setTimeout(updateWidth, 100);
+    window.addEventListener('resize', updateWidth);
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', updateWidth);
+    };
+  }, [filteredInmates, activeSubTab]);
+
+  const handleTopScroll = () => {
+    if (bottomScrollRef.current && topScrollRef.current) {
+      bottomScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+    }
+  };
+
+  const handleBottomScroll = () => {
+    if (topScrollRef.current && bottomScrollRef.current) {
+      topScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft;
+    }
+  };
 
   const pavilions = useMemo(() => {
     const p = new Set(inmates.map(i => i.pavilhao).filter(Boolean));
@@ -431,9 +463,24 @@ const TemporaryExitTab: React.FC<TemporaryExitTabProps> = ({
           </div>
 
           {/* Inmates List */}
-          <div className="bg-white rounded-[2rem] shadow-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
+          <div className="bg-white rounded-[2rem] shadow-xl overflow-hidden flex flex-col">
+            {/* Top Scrollbar */}
+            <div 
+              ref={topScrollRef} 
+              className="overflow-x-auto overflow-y-hidden custom-scrollbar" 
+              onScroll={handleTopScroll}
+              style={{ height: '12px' }}
+            >
+              <div style={{ width: tableWidth, height: '1px' }}></div>
+            </div>
+            
+            {/* Bottom Scrollbar (Table) */}
+            <div 
+              ref={bottomScrollRef}
+              className="overflow-x-auto custom-scrollbar"
+              onScroll={handleBottomScroll}
+            >
+              <table className="w-full" ref={tableRef}>
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
                     <th className="p-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Nome</th>
@@ -1012,6 +1059,10 @@ const TemporaryExitTab: React.FC<TemporaryExitTabProps> = ({
         .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
         .custom-scrollbar-main::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar-main::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar { height: 12px; width: 12px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; border: 2px solid #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
       `}</style>
     </div>
   );
