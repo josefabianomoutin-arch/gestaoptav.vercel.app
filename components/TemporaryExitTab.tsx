@@ -55,15 +55,17 @@ const TemporaryExitTab: React.FC<TemporaryExitTabProps> = ({
     }
   };
 
-  const calculateFinalStatus = (opinions: TemporaryExitInmate['opinions']): TemporaryExitInmate['finalStatus'] => {
+  const calculateFinalStatus = (opinions?: TemporaryExitInmate['opinions']): TemporaryExitInmate['finalStatus'] => {
     const sectors: (keyof TemporaryExitInmate['opinions'])[] = ['simic', 'seguranca', 'peculio', 'reintegracao'];
     
     let hasDesfavoravel = false;
     let hasPending = false;
     let favoravelCount = 0;
 
+    const safeOpinions = opinions || {};
+
     sectors.forEach(sector => {
-      const opinion = opinions[sector];
+      const opinion = safeOpinions[sector];
       if (!opinion || !opinion.status) {
         hasPending = true;
       } else if (opinion.status === 'Desfavorável') {
@@ -204,10 +206,10 @@ const TemporaryExitTab: React.FC<TemporaryExitTabProps> = ({
       'CONCLUSÃO': i.conclusao,
       'OBSERVAÇÕES GERAIS': i.observacoesGerais,
       'STATUS FINAL': i.finalStatus,
-      'SIMIC': i.opinions.simic?.status || 'PENDENTE',
-      'SEGURANÇA': i.opinions.seguranca?.status || 'PENDENTE',
-      'PECÚLIO': i.opinions.peculio?.status || 'PENDENTE',
-      'REINTEGRAÇÃO': i.opinions.reintegracao?.status || 'PENDENTE',
+      'SIMIC': i.opinions?.simic?.status || 'PENDENTE',
+      'SEGURANÇA': i.opinions?.seguranca?.status || 'PENDENTE',
+      'PECÚLIO': i.opinions?.peculio?.status || 'PENDENTE',
+      'REINTEGRAÇÃO': i.opinions?.reintegracao?.status || 'PENDENTE',
     }));
 
     const ws = XLSX.utils.json_to_sheet(dataToExport);
@@ -442,7 +444,7 @@ const TemporaryExitTab: React.FC<TemporaryExitTabProps> = ({
                       <td className="p-4 whitespace-nowrap">
                         <div className="flex justify-center gap-1">
                           {['simic', 'seguranca', 'peculio', 'reintegracao'].map(sector => {
-                            const opinion = inmate.opinions[sector as keyof typeof inmate.opinions];
+                            const opinion = inmate.opinions?.[sector as keyof typeof inmate.opinions];
                             let color = 'bg-gray-200 text-gray-400';
                             if (opinion?.status === 'Favorável') color = 'bg-emerald-500 text-white';
                             if (opinion?.status === 'Desfavorável') color = 'bg-rose-500 text-white';
@@ -835,16 +837,16 @@ const TemporaryExitTab: React.FC<TemporaryExitTabProps> = ({
                           onClick={() => setEditingInmate({
                             ...editingInmate, 
                             opinions: {
-                              ...editingInmate.opinions,
+                              ...(editingInmate.opinions || {}),
                               [currentSector]: { 
                                 status: 'Favorável', 
-                                observations: editingInmate.opinions[currentSector]?.observations || '',
+                                observations: editingInmate.opinions?.[currentSector]?.observations || '',
                                 timestamp: new Date().toISOString()
                               }
                             }
                           })}
                           className={`flex-1 h-14 rounded-2xl font-black uppercase text-xs transition-all flex items-center justify-center gap-2 ${
-                            editingInmate.opinions[currentSector]?.status === 'Favorável' ? 'bg-emerald-500 text-white shadow-lg scale-105' : 'bg-indigo-800 text-indigo-400 hover:bg-indigo-700'
+                            editingInmate.opinions?.[currentSector]?.status === 'Favorável' ? 'bg-emerald-500 text-white shadow-lg scale-105' : 'bg-indigo-800 text-indigo-400 hover:bg-indigo-700'
                           }`}
                         >
                           <CheckCircle className="h-5 w-5" /> Favorável
@@ -853,16 +855,16 @@ const TemporaryExitTab: React.FC<TemporaryExitTabProps> = ({
                           onClick={() => setEditingInmate({
                             ...editingInmate, 
                             opinions: {
-                              ...editingInmate.opinions,
+                              ...(editingInmate.opinions || {}),
                               [currentSector]: { 
                                 status: 'Desfavorável', 
-                                observations: editingInmate.opinions[currentSector]?.observations || '',
+                                observations: editingInmate.opinions?.[currentSector]?.observations || '',
                                 timestamp: new Date().toISOString()
                               }
                             }
                           })}
                           className={`flex-1 h-14 rounded-2xl font-black uppercase text-xs transition-all flex items-center justify-center gap-2 ${
-                            editingInmate.opinions[currentSector]?.status === 'Desfavorável' ? 'bg-rose-500 text-white shadow-lg scale-105' : 'bg-indigo-800 text-indigo-400 hover:bg-indigo-700'
+                            editingInmate.opinions?.[currentSector]?.status === 'Desfavorável' ? 'bg-rose-500 text-white shadow-lg scale-105' : 'bg-indigo-800 text-indigo-400 hover:bg-indigo-700'
                           }`}
                         >
                           <XCircle className="h-5 w-5" /> Desfavorável
@@ -873,13 +875,13 @@ const TemporaryExitTab: React.FC<TemporaryExitTabProps> = ({
                     <div className="space-y-3">
                       <label className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">Observações do Setor</label>
                       <textarea 
-                        value={editingInmate.opinions[currentSector]?.observations || ''}
+                        value={editingInmate.opinions?.[currentSector]?.observations || ''}
                         onChange={(e) => setEditingInmate({
                           ...editingInmate,
                           opinions: {
-                            ...editingInmate.opinions,
+                            ...(editingInmate.opinions || {}),
                             [currentSector]: {
-                              ...editingInmate.opinions[currentSector]!,
+                              ...(editingInmate.opinions?.[currentSector] || { status: '' as any, timestamp: '' }),
                               observations: e.target.value.toUpperCase()
                             }
                           }
@@ -897,7 +899,7 @@ const TemporaryExitTab: React.FC<TemporaryExitTabProps> = ({
                   <h4 className="text-sm font-black text-gray-800 uppercase mb-4">Resumo de Pareceres</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {['simic', 'seguranca', 'peculio', 'reintegracao'].map(s => {
-                      const op = editingInmate.opinions[s as keyof typeof editingInmate.opinions];
+                      const op = editingInmate.opinions?.[s as keyof typeof editingInmate.opinions];
                       return (
                         <div key={s} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
                           <p className="text-[9px] font-black text-gray-400 uppercase mb-1">{s}</p>
