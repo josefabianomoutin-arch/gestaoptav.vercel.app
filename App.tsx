@@ -911,6 +911,7 @@ const App: React.FC = () => {
           await set(child(vehicleExitOrdersRef, order.id), order);
           return { success: true, message: 'Atualizado' };
         }}
+        onDeleteThirdPartyEntry={async (id) => remove(child(thirdPartyEntriesRef, id))}
       />
     );
   }
