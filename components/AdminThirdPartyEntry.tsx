@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ThirdPartyEntryLog } from '../types';
 
 interface AdminThirdPartyEntryProps {
@@ -26,9 +26,52 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
         contractNumber: '',
         status: 'agendado',
         serviceDetails: '',
-        receiptTermDate: new Date().toISOString().split('T')[0]
+        receiptTermDate: new Date().toISOString().split('T')[0],
+        photo: ''
     });
     const [isSaving, setIsSaving] = useState(false);
+
+    const [isCameraActive, setIsCameraActive] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    const startCamera = async () => {
+        setIsCameraActive(true);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+        } catch (err) {
+            console.error("Error accessing camera:", err);
+            alert("Não foi possível acessar a câmera. Verifique as permissões.");
+            setIsCameraActive(false);
+        }
+    };
+
+    const stopCamera = () => {
+        if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+        }
+        setIsCameraActive(false);
+    };
+
+    const capturePhoto = () => {
+        if (videoRef.current && canvasRef.current) {
+            const context = canvasRef.current.getContext('2d');
+            if (context) {
+                canvasRef.current.width = videoRef.current.videoWidth;
+                canvasRef.current.height = videoRef.current.videoHeight;
+                context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
+                const photoData = canvasRef.current.toDataURL('image/jpeg');
+                setFormData({ ...formData, photo: photoData });
+                stopCamera();
+            }
+        }
+    };
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -59,7 +102,8 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
                     contractNumber: '',
                     status: 'agendado',
                     serviceDetails: '',
-                    receiptTermDate: new Date().toISOString().split('T')[0]
+                    receiptTermDate: new Date().toISOString().split('T')[0],
+                    photo: ''
                 });
             } else {
                 alert(res.message || 'Erro ao salvar');
@@ -82,7 +126,8 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
             serviceExecutionNumber: log.serviceExecutionNumber || '',
             contractNumber: log.contractNumber || '',
             serviceDetails: log.serviceDetails || '',
-            receiptTermDate: log.receiptTermDate || log.date
+            receiptTermDate: log.receiptTermDate || log.date,
+            photo: log.photo || ''
         });
         setEditingLogId(id);
         setIsModalOpen(true);
@@ -104,7 +149,8 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
             contractNumber: '',
             status: 'agendado',
             serviceDetails: '',
-            receiptTermDate: new Date().toISOString().split('T')[0]
+            receiptTermDate: new Date().toISOString().split('T')[0],
+            photo: ''
         });
         setIsModalOpen(true);
     };
@@ -165,6 +211,7 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
                     <table>
                         <thead>
                             <tr>
+                                <th>Foto</th>
                                 <th>Data/Hora</th>
                                 <th>Nº Execução</th>
                                 <th>Contrato</th>
@@ -179,6 +226,9 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
                         <tbody>
                             ${sortedLogs.map(log => `
                                 <tr>
+                                    <td style="text-align: center;">
+                                        ${log.photo ? `<img src="${log.photo}" style="width: 40px; height: 40px; border-radius: 50%; object-cover: cover;" />` : '-'}
+                                    </td>
                                     <td>${log.date.split('-').reverse().join('/')} ${log.time || ''}</td>
                                     <td>${log.serviceExecutionNumber || '-'}</td>
                                     <td>${log.contractNumber || '-'}</td>
@@ -242,6 +292,7 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
                 <table className="w-full text-sm">
                     <thead className="bg-gray-50 text-xs uppercase text-gray-500">
                         <tr>
+                            <th className="p-4 text-left">Foto</th>
                             <th className="p-4 text-left">Data/Hora</th>
                             <th className="p-4 text-left">Status</th>
                             <th className="p-4 text-left">Nº Execução</th>
@@ -257,6 +308,17 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
                     <tbody className="divide-y divide-gray-100">
                         {logs.length > 0 ? logs.sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || '')).map(log => (
                             <tr key={log.id} className="hover:bg-gray-50 transition-colors">
+                                <td className="p-4">
+                                    {log.photo ? (
+                                        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200 shadow-sm">
+                                            <img src={log.photo} alt="Face" className="w-full h-full object-cover" />
+                                        </div>
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-200">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                        </div>
+                                    )}
+                                </td>
                                 <td className="p-4">
                                     <p className="font-mono font-bold text-gray-700">{log.date.split('-').reverse().join('/')}</p>
                                     <p className="text-[10px] font-black text-gray-400">{log.time || '--:--'}</p>
@@ -301,7 +363,7 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
                             </tr>
                         )) : (
                             <tr>
-                                <td colSpan={9} className="p-12 text-center text-gray-400 italic">Nenhum registro de entrada encontrado.</td>
+                                <td colSpan={10} className="p-12 text-center text-gray-400 italic">Nenhum registro de entrada encontrado.</td>
                             </tr>
                         )}
                     </tbody>
@@ -482,6 +544,70 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
                                         onChange={e => setFormData({...formData, pestControlResponsible: e.target.value.toUpperCase()})}
                                         className="w-full border-2 border-gray-50 rounded-xl px-4 py-2.5 outline-none focus:border-gray-400 font-bold bg-gray-50 transition-all text-sm"
                                     />
+                                </div>
+                            </div>
+
+                            <div className="border-t pt-4 mt-2">
+                                <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Reconhecimento Facial (Teste)</label>
+                                <div className="flex flex-col items-center gap-4 bg-gray-50 p-6 rounded-3xl border-2 border-dashed border-gray-200">
+                                    {isCameraActive ? (
+                                        <div className="relative w-full max-w-[320px] aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl">
+                                            <video 
+                                                ref={videoRef} 
+                                                autoPlay 
+                                                playsInline 
+                                                className="w-full h-full object-cover"
+                                            />
+                                            <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3">
+                                                <button 
+                                                    type="button"
+                                                    onClick={capturePhoto}
+                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-full shadow-lg transition-all active:scale-90"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                </button>
+                                                <button 
+                                                    type="button"
+                                                    onClick={stopCamera}
+                                                    className="bg-red-500 hover:bg-red-600 text-white p-3 rounded-full shadow-lg transition-all active:scale-90"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : formData.photo ? (
+                                        <div className="relative w-full max-w-[200px] aspect-square bg-gray-200 rounded-2xl overflow-hidden shadow-lg group">
+                                            <img src={formData.photo} alt="Captured" className="w-full h-full object-cover" />
+                                            <button 
+                                                type="button"
+                                                onClick={() => setFormData({...formData, photo: ''})}
+                                                className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                            </button>
+                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button 
+                                                    type="button"
+                                                    onClick={startCamera}
+                                                    className="bg-white text-gray-900 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl"
+                                                >
+                                                    Tirar Outra
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <button 
+                                            type="button"
+                                            onClick={startCamera}
+                                            className="flex flex-col items-center gap-3 text-gray-400 hover:text-indigo-600 transition-colors"
+                                        >
+                                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-md border border-gray-100">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                            </div>
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Capturar Rosto</span>
+                                        </button>
+                                    )}
+                                    <canvas ref={canvasRef} className="hidden" />
                                 </div>
                             </div>
 

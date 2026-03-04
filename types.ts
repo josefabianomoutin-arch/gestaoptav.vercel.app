@@ -159,6 +159,7 @@ export interface ThirdPartyEntryLog {
   status: 'agendado' | 'concluido' | 'cancelado';
   arrivalTime?: string; // Horário real de chegada na subportaria
   receiptTermDate?: string;
+  photo?: string; // Reconhecimento Facial (Base64)
 }
 
 export interface AcquisitionItem {
