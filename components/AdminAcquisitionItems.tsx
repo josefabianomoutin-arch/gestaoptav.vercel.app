@@ -7,15 +7,17 @@ interface AdminAcquisitionItemsProps {
     category: 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA';
     onUpdate: (item: AcquisitionItem) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
+    contractItems?: string[]; // Lista de nomes de itens do contrato para vinculação
 }
 
-const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, category, onUpdate, onDelete }) => {
+const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, category, onUpdate, onDelete, contractItems = [] }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
 
     // Form state
     const [name, setName] = useState('');
+    const [contractItemName, setContractItemName] = useState('');
     const [comprasCode, setComprasCode] = useState('');
     const [becCode, setBecCode] = useState('');
     const [expenseNature, setExpenseNature] = useState('');
@@ -37,6 +39,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
         const item: AcquisitionItem = {
             id: editingId || `acq-${Date.now()}`,
             name: name.toUpperCase(),
+            contractItemName,
             comprasCode,
             becCode,
             expenseNature,
@@ -53,6 +56,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
 
     const resetForm = () => {
         setName('');
+        setContractItemName('');
         setComprasCode('');
         setBecCode('');
         setExpenseNature('');
@@ -66,6 +70,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
 
     const startEdit = (item: AcquisitionItem) => {
         setName(item.name);
+        setContractItemName(item.contractItemName || '');
         setComprasCode(item.comprasCode || '');
         setBecCode(item.becCode || '');
         setExpenseNature(item.expenseNature || '');
@@ -104,6 +109,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                     <thead>
                         <tr className="bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest">
                             <th className="p-5 text-left">Produto para aquisição</th>
+                            <th className="p-5 text-left">Produto do Contrato</th>
                             <th className="p-5 text-center">Cod. Compras / BEC</th>
                             <th className="p-5 text-center">Natureza de Despesa</th>
                             <th className="p-5 text-center">Unid.</th>
@@ -118,6 +124,9 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                         {filteredItems.map(item => (
                             <tr key={item.id} className="hover:bg-indigo-50/30 transition-colors group">
                                 <td className="p-5 font-black text-indigo-950 uppercase text-xs">{item.name}</td>
+                                <td className="p-5 font-bold text-gray-500 uppercase text-[10px] italic">
+                                    {item.contractItemName || <span className="text-red-300">Não vinculado</span>}
+                                </td>
                                 <td className="p-5 text-center">
                                     <div className="flex flex-col gap-1">
                                         <span className="text-[10px] font-bold text-gray-400">C: {item.comprasCode || '---'}</span>
@@ -178,7 +187,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                         </div>
                         <div className="p-8 space-y-5">
                             <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Nome do Produto</label>
+                                <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Nome do Produto para Aquisição</label>
                                 <input 
                                     type="text" 
                                     value={name} 
@@ -186,6 +195,17 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                     className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all"
                                     placeholder="Ex: ARROZ AGULHINHA"
                                 />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Vincular ao Produto do Contrato</label>
+                                <select 
+                                    value={contractItemName} 
+                                    onChange={e => setContractItemName(e.target.value)}
+                                    className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all appearance-none bg-white"
+                                >
+                                    <option value="">-- SELECIONE O ITEM DO CONTRATO --</option>
+                                    {contractItems.map(ci => <option key={ci} value={ci}>{ci}</option>)}
+                                </select>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>

@@ -159,7 +159,8 @@ export interface ThirdPartyEntryLog {
   status: 'agendado' | 'concluido' | 'cancelado';
   arrivalTime?: string; // Horário real de chegada na subportaria
   receiptTermDate?: string;
-  photo?: string; // Reconhecimento Facial (Base64)
+  photo?: string; // Foto de Cadastro (Base64)
+  entryPhoto?: string; // Foto capturada na entrada (Base64)
 }
 
 export interface AcquisitionItem {
@@ -173,6 +174,7 @@ export interface AcquisitionItem {
   stockBalance: number;
   unitValue?: number;
   category: 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA';
+  contractItemName?: string; // NOVO: Vinculação com item do contrato
 }
 
 export interface VehicleAsset {

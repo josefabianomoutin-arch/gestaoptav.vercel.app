@@ -142,6 +142,14 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         setIsDirty(true);
     };
 
+    const allContractItemNames = useMemo(() => {
+        const names = new Set<string>();
+        suppliers.forEach(s => {
+            (s.contractItems || []).forEach(ci => names.add(ci.name));
+        });
+        return Array.from(names).sort();
+    }, [suppliers]);
+
     const handleCustomPerCapitaChange = (itemName: string, value: string) => {
         setCustomPerCapita(prev => ({
             ...prev,
@@ -453,6 +461,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                         items={acquisitionItems} 
                         onUpdate={onUpdateAcquisitionItem} 
                         onDelete={onDeleteAcquisitionItem} 
+                        contractItems={allContractItemNames}
                     />
                 </div>
             )}

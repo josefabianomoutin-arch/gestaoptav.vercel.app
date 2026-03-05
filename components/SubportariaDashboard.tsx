@@ -123,7 +123,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
 
     const confirmArrival = async () => {
         if (verifyingLog) {
-            await handleMarkArrival(verifyingLog);
+            await handleMarkArrival(verifyingLog, capturedPhoto || undefined);
             setIsVerifying(false);
             setVerifyingLog(null);
             setCapturedPhoto(null);
@@ -190,9 +190,9 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
         return list.sort((a, b) => a.time.localeCompare(b.time));
     }, [suppliers, thirdPartyEntries, selectedDate]);
 
-    const handleMarkArrival = async (log: ThirdPartyEntryLog) => {
+    const handleMarkArrival = async (log: ThirdPartyEntryLog, entryPhoto?: string) => {
         const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        await onUpdateThirdPartyEntry({ ...log, arrivalTime: now });
+        await onUpdateThirdPartyEntry({ ...log, arrivalTime: now, entryPhoto: entryPhoto || log.entryPhoto });
     };
 
     return (
