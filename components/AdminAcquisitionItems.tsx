@@ -84,6 +84,12 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
 
     return (
         <div className="animate-fade-in space-y-6">
+            <style>{`
+                .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+            `}</style>
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-[2rem] shadow-xl border-b-4 border-indigo-600">
                 <div className="relative flex-1 w-full">
                     <input 
@@ -179,73 +185,73 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
             </div>
 
             {isAdding && (
-                <div className="fixed inset-0 bg-indigo-950/40 backdrop-blur-sm flex justify-center items-center z-[200] p-4">
-                    <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-in">
-                        <div className="bg-indigo-900 p-8 text-white">
-                            <h3 className="text-2xl font-black uppercase tracking-tighter">{editingId ? 'Editar Produto' : 'Novo Produto para Aquisição'}</h3>
-                            <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">{category}</p>
+                <div className="fixed inset-0 bg-indigo-950/40 backdrop-blur-sm flex justify-center items-center z-[200] p-2 md:p-4">
+                    <div className="bg-white w-full max-w-lg rounded-[1.5rem] shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[85vh]">
+                        <div className="bg-indigo-900 p-4 md:p-5 text-white flex-shrink-0">
+                            <h3 className="text-lg md:text-xl font-black uppercase tracking-tighter">{editingId ? 'Editar Produto' : 'Novo Produto para Aquisição'}</h3>
+                            <p className="text-indigo-200 text-[9px] font-bold uppercase tracking-widest mt-0.5">{category}</p>
                         </div>
-                        <div className="p-8 space-y-5">
+                        <div className="p-4 md:p-5 space-y-3 overflow-y-auto flex-1 custom-scrollbar">
                             <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Nome do Produto para Aquisição</label>
-                                <input 
-                                    type="text" 
+                                <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Nome do Produto para Aquisição</label>
+                                <textarea 
+                                    rows={2}
                                     value={name} 
                                     onChange={e => setName(e.target.value)} 
-                                    className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all"
+                                    className="w-full p-2.5 border-2 border-gray-100 rounded-lg focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all text-xs resize-none"
                                     placeholder="Ex: ARROZ AGULHINHA"
                                 />
                             </div>
                             <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Vincular ao Produto do Contrato</label>
+                                <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Vincular ao Produto do Contrato</label>
                                 <select 
                                     value={contractItemName} 
                                     onChange={e => setContractItemName(e.target.value)}
-                                    className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all appearance-none bg-white"
+                                    className="w-full p-2.5 border-2 border-gray-100 rounded-lg focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all appearance-none bg-white text-xs"
                                 >
                                     <option value="">-- SELECIONE O ITEM DO CONTRATO --</option>
                                     {contractItems.map(ci => <option key={ci} value={ci}>{ci}</option>)}
                                 </select>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Cód. Compras</label>
+                                    <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Cód. Compras</label>
                                     <input 
                                         type="text" 
                                         value={comprasCode} 
                                         onChange={e => setComprasCode(e.target.value)} 
-                                        className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all"
+                                        className="w-full p-2.5 border-2 border-gray-100 rounded-lg focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all text-xs"
                                         placeholder="Código Compras"
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Cód. BEC</label>
+                                    <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Cód. BEC</label>
                                     <input 
                                         type="text" 
                                         value={becCode} 
                                         onChange={e => setBecCode(e.target.value)} 
-                                        className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all"
+                                        className="w-full p-2.5 border-2 border-gray-100 rounded-lg focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all text-xs"
                                         placeholder="Código BEC"
                                     />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Natureza de Despesa</label>
+                                    <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Natureza de Despesa</label>
                                     <input 
                                         type="text" 
                                         value={expenseNature} 
                                         onChange={e => setExpenseNature(e.target.value)} 
-                                        className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all"
+                                        className="w-full p-2.5 border-2 border-gray-100 rounded-lg focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all text-xs"
                                         placeholder="Ex: 339030"
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Unidade</label>
+                                    <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Unidade</label>
                                     <select 
                                         value={unit} 
                                         onChange={e => setUnit(e.target.value)}
-                                        className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all appearance-none bg-white"
+                                        className="w-full p-2.5 border-2 border-gray-100 rounded-lg focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all appearance-none bg-white text-xs"
                                     >
                                         <option value="un">Unidade (un)</option>
                                         <option value="kg">Quilograma (kg)</option>
@@ -256,49 +262,49 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                     </select>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-3 gap-3">
                                 <div>
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Qtd. Adquirida</label>
+                                    <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Qtd. Adq.</label>
                                     <input 
                                         type="text" 
                                         value={acquiredQuantity} 
                                         onChange={e => setAcquiredQuantity(e.target.value)} 
-                                        className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all text-right font-mono"
+                                        className="w-full p-2.5 border-2 border-gray-100 rounded-lg focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all text-right font-mono text-xs"
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Saldo Estoque</label>
+                                    <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Saldo Est.</label>
                                     <input 
                                         type="text" 
                                         value={stockBalance} 
                                         onChange={e => setStockBalance(e.target.value)} 
-                                        className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all text-right font-mono"
+                                        className="w-full p-2.5 border-2 border-gray-100 rounded-lg focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all text-right font-mono text-xs"
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Valor Unitário</label>
+                                    <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Vlr. Unit.</label>
                                     <input 
                                         type="text" 
                                         value={unitValue} 
                                         onChange={e => setUnitValue(e.target.value)} 
-                                        className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all text-right font-mono"
+                                        className="w-full p-2.5 border-2 border-gray-100 rounded-lg focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none font-bold transition-all text-right font-mono text-xs"
                                     />
                                 </div>
                             </div>
-                            <div className="flex gap-4 pt-4">
-                                <button 
-                                    onClick={resetForm}
-                                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 font-black py-4 rounded-2xl transition-all uppercase text-xs tracking-widest"
-                                >
-                                    Cancelar
-                                </button>
-                                <button 
-                                    onClick={handleSave}
-                                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 uppercase text-xs tracking-widest"
-                                >
-                                    Salvar Produto
-                                </button>
-                            </div>
+                        </div>
+                        <div className="p-4 md:p-5 bg-gray-50 border-t border-gray-100 flex gap-3 flex-shrink-0">
+                            <button 
+                                onClick={resetForm}
+                                className="flex-1 bg-white border-2 border-gray-200 hover:bg-gray-100 text-gray-500 font-black py-2.5 rounded-lg transition-all uppercase text-[9px] tracking-widest"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={handleSave}
+                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2.5 rounded-lg shadow-lg transition-all active:scale-95 uppercase text-[9px] tracking-widest"
+                            >
+                                Salvar Produto
+                            </button>
                         </div>
                     </div>
                 </div>
