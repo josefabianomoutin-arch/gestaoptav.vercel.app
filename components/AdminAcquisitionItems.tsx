@@ -104,20 +104,20 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                 </button>
             </div>
 
-            <div className="bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-gray-100">
+            <div className="bg-white rounded-[2rem] shadow-2xl overflow-x-auto border border-gray-100">
                 <table className="w-full border-collapse">
                     <thead>
                         <tr className="bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest">
-                            <th className="p-5 text-left">Produto para aquisição</th>
-                            <th className="p-5 text-left">Produto do Contrato</th>
-                            <th className="p-5 text-center">Cod. Compras / BEC</th>
-                            <th className="p-5 text-center">Natureza de Despesa</th>
+                            <th className="p-5 text-left min-w-[250px]">Produto para aquisição</th>
+                            <th className="p-5 text-left min-w-[150px]">Produto do Contrato</th>
+                            <th className="p-5 text-center whitespace-nowrap">Cod. Compras / BEC</th>
+                            <th className="p-5 text-center whitespace-nowrap">Natureza de Despesa</th>
                             <th className="p-5 text-center">Unid.</th>
-                            <th className="p-5 text-right">Qtd. Adquirida</th>
-                            <th className="p-5 text-right">Saldo Estoque</th>
-                            <th className="p-5 text-right">Valor Unit.</th>
-                            <th className="p-5 text-right">Valor Total</th>
-                            <th className="p-5 text-center">Ações</th>
+                            <th className="p-5 text-right whitespace-nowrap">Qtd. Adquirida</th>
+                            <th className="p-5 text-right whitespace-nowrap">Saldo Estoque</th>
+                            <th className="p-5 text-right whitespace-nowrap">Valor Unit.</th>
+                            <th className="p-5 text-right whitespace-nowrap">Valor Total</th>
+                            <th className="p-5 text-center sticky right-0 bg-gray-900 z-10">Ações</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -148,10 +148,10 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                 <td className="p-5 text-right font-mono font-bold text-gray-600">
                                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unitValue || 0)}
                                 </td>
-                                <td className="p-5 text-right font-mono font-bold text-indigo-900">
+                                <td className="p-5 text-right font-mono font-bold text-indigo-900 whitespace-nowrap">
                                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((item.unitValue || 0) * item.stockBalance)}
                                 </td>
-                                <td className="p-5 text-center">
+                                <td className="p-5 text-center sticky right-0 bg-white group-hover:bg-indigo-50 transition-colors z-10 border-l border-gray-100 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                                     <div className="flex justify-center gap-2">
                                         <button 
                                             onClick={() => startEdit(item)}
@@ -171,7 +171,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                         ))}
                         {filteredItems.length === 0 && (
                             <tr>
-                                <td colSpan={9} className="p-10 text-center text-gray-400 font-medium italic">Nenhum produto cadastrado nesta categoria.</td>
+                                <td colSpan={10} className="p-10 text-center text-gray-400 font-medium italic">Nenhum produto cadastrado nesta categoria.</td>
                             </tr>
                         )}
                     </tbody>
