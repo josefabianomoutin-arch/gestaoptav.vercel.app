@@ -344,11 +344,12 @@ export interface ManageContractSuppliersModalProps {
     category?: string;
     comprasCode?: string;
     becCode?: string;
+    acquiredQuantity?: number;
     onClose: () => void;
     onSave: (assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string }[]) => Promise<void>;
 }
 
-export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModalProps> = ({ itemName, currentSuppliers, allSuppliers, unit, category, comprasCode, becCode, onClose, onSave }) => {
+export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModalProps> = ({ itemName, currentSuppliers, allSuppliers, unit, category, comprasCode, becCode, acquiredQuantity, onClose, onSave }) => {
     const [assignments, setAssignments] = useState(() => currentSuppliers.map(s => ({
         supplierCpf: s.supplierCpf,
         supplierName: s.supplierName,
@@ -368,6 +369,9 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
     
     // PPAIS specific: Total Meta
     const [totalMeta, setTotalMeta] = useState(() => {
+        if (category === 'PPAIS' && acquiredQuantity !== undefined) {
+            return String(acquiredQuantity).replace('.', ',');
+        }
         const sum = currentSuppliers.reduce((acc, s) => acc + s.amount, 0);
         return String(sum).replace('.', ',');
     });
