@@ -100,6 +100,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
     const [staffCount, setStaffCount] = useState<number>(0);
     const [inmateCount, setInmateCount] = useState<number>(0);
     const [customPerCapita, setCustomPerCapita] = useState<Record<string, string>>({});
+    const [seiProcessNumbers, setSeiProcessNumbers] = useState<Record<string, string>>({});
+    const [seiProcessDefinitions, setSeiProcessDefinitions] = useState<Record<string, string>>({});
     const [showComparison, setShowComparison] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -109,6 +111,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         setStaffCount(perCapitaConfig.staffCount || 0);
         setInmateCount(perCapitaConfig.inmateCount || 0);
         setCustomPerCapita(perCapitaConfig.customValues || {});
+        setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
+        setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
         setIsDirty(false);
     }, [perCapitaConfig]);
 
@@ -119,6 +123,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
             staffCount,
             inmateCount,
             customValues: customPerCapita,
+            seiProcessNumbers,
+            seiProcessDefinitions,
         };
         try {
             await onUpdatePerCapitaConfig(newConfig);
@@ -139,6 +145,16 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
 
     const handleInmateCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInmateCount(parseInt(e.target.value, 10) || 0);
+        setIsDirty(true);
+    };
+
+    const handleSeiNumberChange = (category: string, value: string) => {
+        setSeiProcessNumbers(prev => ({ ...prev, [category]: value }));
+        setIsDirty(true);
+    };
+
+    const handleSeiDefinitionChange = (category: string, value: string) => {
+        setSeiProcessDefinitions(prev => ({ ...prev, [category]: value }));
         setIsDirty(true);
     };
 
@@ -252,6 +268,28 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
     return (
         <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-7xl mx-auto border-t-8 border-green-500 animate-fade-in relative">
             
+            {(isDirty || saveSuccess) && (
+                <div className="sticky top-0 z-10 mb-6 -mx-6 -mt-6">
+                    {saveSuccess && (
+                        <div className="p-4 bg-green-100 border-b border-green-300 text-center font-semibold text-green-800 shadow-sm animate-fade-in">
+                            Dados salvos com sucesso na nuvem!
+                        </div>
+                    )}
+                    {isDirty && (
+                        <div className="p-4 bg-yellow-100 border-b border-yellow-300 rounded-t-2xl flex justify-between items-center shadow-sm animate-fade-in">
+                            <p className="font-semibold text-yellow-800">Você tem alterações não salvas.</p>
+                            <button 
+                                onClick={handleSave} 
+                                disabled={isSaving}
+                                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition-colors disabled:bg-gray-400"
+                            >
+                                {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
             <div className="flex flex-wrap gap-2 mb-8 border-b pb-4">
                 <button 
                     onClick={() => setActiveSubTab('CALCULO')}
@@ -299,29 +337,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
 
             {activeSubTab === 'CALCULO' ? (
                 <>
-                    {(isDirty || saveSuccess) && (
-                <div className="sticky top-0 z-10 mb-6 -mx-6 -mt-6">
-                    {saveSuccess && (
-                        <div className="p-4 bg-green-100 border-b border-green-300 text-center font-semibold text-green-800 shadow-sm animate-fade-in">
-                            Dados salvos com sucesso na nuvem!
-                        </div>
-                    )}
-                    {isDirty && (
-                        <div className="p-4 bg-yellow-100 border-b border-yellow-300 rounded-t-2xl flex justify-between items-center shadow-sm animate-fade-in">
-                            <p className="font-semibold text-yellow-800">Você tem alterações não salvas.</p>
-                            <button 
-                                onClick={handleSave} 
-                                disabled={isSaving}
-                                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition-colors disabled:bg-gray-400"
-                            >
-                                {isSaving ? 'Salvando...' : 'Salvar Alterações'}
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
-
-
             <div className="text-center mb-10">
                 <h2 className="text-3xl font-black text-green-900 uppercase tracking-tighter">Cálculo de Consumo Per Capita</h2>
                 <p className="text-gray-400 font-medium">Estime o consumo mensal por pessoa com base nos totais contratados.</p>
@@ -329,6 +344,29 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                     <p className="text-sm font-mono text-gray-600">
                         Fórmula: (Total / (Pop. Carcerária + (Servidores / 3))) / 4
                     </p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10 bg-green-50/30 p-4 rounded-xl border border-green-100">
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black text-green-600 uppercase tracking-widest ml-1">Número do Processo SEI (Geral)</label>
+                    <input 
+                        type="text"
+                        value={seiProcessNumbers['CALCULO'] || ''}
+                        onChange={(e) => handleSeiNumberChange('CALCULO', e.target.value)}
+                        placeholder="Ex: 00000.000000/0000-00" 
+                        className="input-field font-mono text-sm"
+                    />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black text-green-600 uppercase tracking-widest ml-1">Definição do Processo (Geral)</label>
+                    <input 
+                        type="text"
+                        value={seiProcessDefinitions['CALCULO'] || ''}
+                        onChange={(e) => handleSeiDefinitionChange('CALCULO', e.target.value)}
+                        placeholder="Ex: Gestão de per capita..." 
+                        className="input-field text-sm"
+                    />
                 </div>
             </div>
 
@@ -562,6 +600,30 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                         </h2>
                         <p className="text-gray-400 font-medium">Levantamento de informações iniciais para gestão de itens.</p>
                     </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 bg-indigo-50/30 p-4 rounded-xl border border-indigo-100">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Número do Processo SEI</label>
+                            <input 
+                                type="text"
+                                value={seiProcessNumbers[activeSubTab] || ''}
+                                onChange={(e) => handleSeiNumberChange(activeSubTab, e.target.value)}
+                                placeholder="Ex: 00000.000000/0000-00" 
+                                className="input-field font-mono text-sm"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Definição do Processo</label>
+                            <input 
+                                type="text"
+                                value={seiProcessDefinitions[activeSubTab] || ''}
+                                onChange={(e) => handleSeiDefinitionChange(activeSubTab, e.target.value)}
+                                placeholder="Ex: Aquisição de gêneros alimentícios..." 
+                                className="input-field text-sm"
+                            />
+                        </div>
+                    </div>
+
                     <AdminAcquisitionItems 
                         category={activeSubTab} 
                         items={acquisitionItems} 

@@ -70,6 +70,8 @@ export interface PerCapitaConfig {
   staffCount?: number;
   inmateCount?: number;
   customValues?: Record<string, string>;
+  seiProcessNumbers?: Record<string, string>;
+  seiProcessDefinitions?: Record<string, string>;
 }
 
 export interface CleaningLog {
