@@ -118,6 +118,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                 <table className="w-full border-collapse">
                     <thead>
                         <tr className="bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest">
+                            <th className="p-5 text-center w-12">#</th>
                             <th className="p-5 text-left min-w-[250px]">Produto para aquisição</th>
                             <th className="p-5 text-left min-w-[150px]">Produto do Contrato</th>
                             <th className="p-5 text-center whitespace-nowrap">Cod. Compras / BEC</th>
@@ -138,8 +139,9 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {filteredItems.map(item => (
+                        {filteredItems.map((item, index) => (
                             <tr key={item.id} className="hover:bg-indigo-50/30 transition-colors group">
+                                <td className="p-5 text-center font-bold text-gray-400">{index + 1}</td>
                                 <td className="p-5 font-black text-indigo-950 uppercase text-xs">{item.name}</td>
                                 <td className="p-5 font-bold text-gray-500 uppercase text-[10px] italic">
                                     {item.contractItemName || <span className="text-red-300">Não vinculado</span>}
