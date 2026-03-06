@@ -29,6 +29,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
     const [acquiredQuantity, setAcquiredQuantity] = useState('0');
     const [stockBalance, setStockBalance] = useState('0');
     const [unitValue, setUnitValue] = useState('0');
+    const [isSaving, setIsSaving] = useState(false);
 
     const filteredItems = items.filter(item => 
         item.category === category &&
@@ -36,6 +37,13 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
          item.comprasCode?.includes(searchTerm) ||
          item.becCode?.includes(searchTerm))
     );
+
+    const totalCategoryValue = useMemo(() => {
+        return filteredItems.reduce((sum, item) => {
+            const quantity = category === 'PPAIS' ? item.acquiredQuantity : item.stockBalance;
+            return sum + ((item.unitValue || 0) * quantity);
+        }, 0);
+    }, [filteredItems, category]);
 
     const topScrollRef = React.useRef<HTMLDivElement>(null);
     const bottomScrollRef = React.useRef<HTMLDivElement>(null);
@@ -158,23 +166,27 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
 
     const handleSave = async () => {
         if (!name) return;
+        setIsSaving(true);
+        try {
+            const item: AcquisitionItem = {
+                id: editingId || `acq-${Date.now()}`,
+                name: name.toUpperCase(),
+                contractItemName,
+                comprasCode,
+                becCode,
+                expenseNature,
+                unit,
+                acquiredQuantity: parseFloat(acquiredQuantity.replace(',', '.')) || 0,
+                stockBalance: parseFloat(stockBalance.replace(',', '.')) || 0,
+                unitValue: parseFloat(unitValue.replace(',', '.')) || 0,
+                category
+            };
 
-        const item: AcquisitionItem = {
-            id: editingId || `acq-${Date.now()}`,
-            name: name.toUpperCase(),
-            contractItemName,
-            comprasCode,
-            becCode,
-            expenseNature,
-            unit,
-            acquiredQuantity: parseFloat(acquiredQuantity.replace(',', '.')) || 0,
-            stockBalance: parseFloat(stockBalance.replace(',', '.')) || 0,
-            unitValue: parseFloat(unitValue.replace(',', '.')) || 0,
-            category
-        };
-
-        await onUpdate(item);
-        resetForm();
+            await onUpdate(item);
+            resetForm();
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const resetForm = () => {
@@ -214,15 +226,23 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
             `}</style>
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-[2rem] shadow-xl border-b-4 border-indigo-600">
-                <div className="relative flex-1 w-full">
-                    <input 
-                        type="text" 
-                        placeholder="Pesquisar produto..." 
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent focus:border-indigo-500 rounded-2xl outline-none font-bold transition-all shadow-inner"
-                    />
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <div className="flex flex-col flex-1 w-full gap-2">
+                    <div className="relative w-full">
+                        <input 
+                            type="text" 
+                            placeholder="Pesquisar produto..." 
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent focus:border-indigo-500 rounded-2xl outline-none font-bold transition-all shadow-inner"
+                        />
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    </div>
+                    <div className="flex items-center gap-2 px-2">
+                        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Valor Total da Categoria:</span>
+                        <span className="text-sm font-black text-indigo-900">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCategoryValue)}
+                        </span>
+                    </div>
                 </div>
                 <div className="flex gap-2">
                     <button 
@@ -477,15 +497,17 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                         <div className="p-4 md:p-5 bg-gray-50 border-t border-gray-100 flex gap-3 flex-shrink-0">
                             <button 
                                 onClick={resetForm}
-                                className="flex-1 bg-white border-2 border-gray-200 hover:bg-gray-100 text-gray-500 font-black py-2.5 rounded-lg transition-all uppercase text-[9px] tracking-widest"
+                                disabled={isSaving}
+                                className="flex-1 bg-white border-2 border-gray-200 hover:bg-gray-100 text-gray-500 font-black py-2.5 rounded-lg transition-all uppercase text-[9px] tracking-widest disabled:opacity-50"
                             >
                                 Cancelar
                             </button>
                             <button 
                                 onClick={handleSave}
-                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2.5 rounded-lg shadow-lg transition-all active:scale-95 uppercase text-[9px] tracking-widest"
+                                disabled={isSaving}
+                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2.5 rounded-lg shadow-lg transition-all active:scale-95 uppercase text-[9px] tracking-widest disabled:bg-gray-400"
                             >
-                                Salvar Produto
+                                {isSaving ? 'Salvando...' : 'Salvar Produto'}
                             </button>
                         </div>
                     </div>
