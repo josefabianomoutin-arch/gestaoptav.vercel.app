@@ -548,7 +548,7 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
                                         />
                                     </div>
                                     <div className="w-full md:w-28">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase block mb-0.5 ml-1">V. Unit. (R$)</label>
+                                        <label className="text-[8px] font-black text-gray-400 uppercase block mb-0.5 ml-1">V. Mediana (R$)</label>
                                         <input 
                                             type="text" 
                                             value={a.valuePerKg} 

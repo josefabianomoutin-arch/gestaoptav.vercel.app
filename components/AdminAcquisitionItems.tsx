@@ -124,8 +124,15 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                             <th className="p-5 text-center whitespace-nowrap">Natureza de Despesa</th>
                             <th className="p-5 text-center">Unid.</th>
                             <th className="p-5 text-right whitespace-nowrap">Qtd. Adquirida</th>
-                            <th className="p-5 text-right whitespace-nowrap">Saldo Estoque</th>
-                            <th className="p-5 text-right whitespace-nowrap">Valor Unit.</th>
+                            {category !== 'PPAIS' ? (
+                                <th className="p-5 text-right whitespace-nowrap">Saldo Estoque</th>
+                            ) : (
+                                <>
+                                    <th className="p-5 text-right whitespace-nowrap">Peso por Fornecedor</th>
+                                    <th className="p-5 text-right whitespace-nowrap">Valor por Fornecedor</th>
+                                </>
+                            )}
+                            <th className="p-5 text-right whitespace-nowrap">Valor da Mediana</th>
                             <th className="p-5 text-right whitespace-nowrap">Valor Total</th>
                             <th className="p-5 text-center sticky right-0 bg-gray-900 z-10">Ações</th>
                         </tr>
@@ -152,14 +159,32 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                 <td className="p-5 text-right font-mono font-bold text-indigo-600">
                                     {item.acquiredQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </td>
-                                <td className="p-5 text-right font-mono font-bold text-green-600">
-                                    {item.stockBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </td>
+                                {category !== 'PPAIS' ? (
+                                    <td className="p-5 text-right font-mono font-bold text-green-600">
+                                        {item.stockBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    </td>
+                                ) : (() => {
+                                    const supplierCount = suppliers.filter(s => 
+                                        (s.contractItems || []).some(ci => ci.name === item.name)
+                                    ).length || 1;
+                                    const weightPerSupplier = item.acquiredQuantity / supplierCount;
+                                    const valuePerSupplier = (item.unitValue || 0) * weightPerSupplier;
+                                    return (
+                                        <>
+                                            <td className="p-5 text-right font-mono font-bold text-indigo-600">
+                                                {weightPerSupplier.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            </td>
+                                            <td className="p-5 text-right font-mono font-bold text-indigo-900">
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valuePerSupplier)}
+                                            </td>
+                                        </>
+                                    );
+                                })()}
                                 <td className="p-5 text-right font-mono font-bold text-gray-600">
                                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unitValue || 0)}
                                 </td>
                                 <td className="p-5 text-right font-mono font-bold text-indigo-900 whitespace-nowrap">
-                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((item.unitValue || 0) * item.stockBalance)}
+                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((item.unitValue || 0) * (category === 'PPAIS' ? item.acquiredQuantity : item.stockBalance))}
                                 </td>
                                 <td className="p-5 text-center sticky right-0 bg-white group-hover:bg-indigo-50 transition-colors z-10 border-l border-gray-100 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                                     <div className="flex justify-center gap-2">
@@ -293,7 +318,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Vlr. Unit.</label>
+                                    <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Vlr. Mediana</label>
                                     <input 
                                         type="text" 
                                         value={unitValue} 

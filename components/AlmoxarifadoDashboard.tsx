@@ -463,7 +463,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 <th style="width: 80px;">QUANT.</th>
                                 <th style="width: 60px;">UNID.</th>
                                 <th>DESCRIÇÃO</th>
-                                <th style="width: 100px;">VR.UNIT.</th>
+                                <th style="width: 100px;">VR. MEDIANA</th>
                                 <th style="width: 120px;">VR. TOTAL</th>
                             </tr>
                         </thead>
@@ -682,7 +682,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                 <th className="border border-black p-1">QUANT.</th>
                                                 <th className="border border-black p-1">UNID.</th>
                                                 <th className="border border-black p-1">DESCRIÇÃO</th>
-                                                <th className="border border-black p-1">VR.UNIT.</th>
+                                                <th className="border border-black p-1">VR. MEDIANA</th>
                                                 <th className="border border-black p-1">VR. TOTAL</th>
                                             </tr>
                                         </thead>
