@@ -89,6 +89,14 @@ interface AdminDashboardProps {
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 
+const getWeekNumber = (d: Date): number => {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return weekNo;
+};
+
 const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   const { 
     suppliers = [], 
@@ -143,9 +151,47 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     return tabs.filter(t => t.id === 'temporaryExit');
   }, [props.user.role, tabs]);
 
+  const combinedSuppliers = useMemo(() => {
+    const producers = perCapitaConfig.ppaisProducers || [];
+    const mappedProducers: Supplier[] = producers.map(p => {
+        const weeks: number[] = [];
+        const year = 2026;
+        const monthNames = [
+            'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+            'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+        ];
+
+        Object.entries(p.monthlySchedule || {}).forEach(([monthName, weekOfMonthList]) => {
+            const monthIndex = monthNames.indexOf(monthName.toLowerCase());
+            if (monthIndex === -1) return;
+
+            const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+            const monthWeeks = new Set<number>();
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, monthIndex, day);
+                const weekOfYear = getWeekNumber(date);
+                const weekOfMonth = Math.ceil(day / 7);
+                if ((weekOfMonthList as number[]).includes(weekOfMonth)) {
+                    monthWeeks.add(weekOfYear);
+                }
+            }
+            weeks.push(...Array.from(monthWeeks));
+        });
+
+        return {
+            ...p,
+            deliveries: [], // Deliveries for producers might need to be fetched/merged if they exist
+            allowedWeeks: Array.from(new Set(weeks)),
+            initialValue: (p.contractItems || []).reduce((acc, curr) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
+        } as Supplier;
+    });
+
+    return [...suppliers, ...mappedProducers];
+  }, [suppliers, perCapitaConfig.ppaisProducers]);
+
   const filteredSuppliers = useMemo(() => {
-    return suppliers.filter(s => (s.name || '').toLowerCase().includes(supplierSearch.toLowerCase()));
-  }, [suppliers, supplierSearch]);
+    return combinedSuppliers.filter(s => (s.name || '').toLowerCase().includes(supplierSearch.toLowerCase()));
+  }, [combinedSuppliers, supplierSearch]);
 
   const handleExportFullBackup = () => {
     const fullBackup = {
@@ -265,10 +311,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
             )}
           </div>
         );
-      case 'contracts': return <AdminContractItems suppliers={suppliers} warehouseLog={warehouseLog} onUpdateContractForItem={onUpdateContractForItem} />;
+      case 'contracts': return <AdminContractItems suppliers={combinedSuppliers} warehouseLog={warehouseLog} onUpdateContractForItem={onUpdateContractForItem} />;
       case 'finance': return <AdminFinancialManager records={financialRecords} onSave={props.onSaveFinancialRecord} onDelete={props.onDeleteFinancialRecord} />;
-      case 'invoices': return <AdminInvoices suppliers={suppliers} warehouseLog={warehouseLog} onReopenInvoice={props.onReopenInvoice} onDeleteInvoice={props.onDeleteInvoice} onUpdateInvoiceItems={props.onUpdateInvoiceItems} onManualInvoiceEntry={props.onManualInvoiceEntry} />;
-      case 'schedule': return <AdminScheduleView suppliers={suppliers} thirdPartyEntries={thirdPartyEntries} onCancelDeliveries={props.onCancelDeliveries} onDeleteThirdPartyEntry={props.onDeleteThirdPartyEntry} />;
+      case 'invoices': return <AdminInvoices suppliers={combinedSuppliers} warehouseLog={warehouseLog} onReopenInvoice={props.onReopenInvoice} onDeleteInvoice={props.onDeleteInvoice} onUpdateInvoiceItems={props.onUpdateInvoiceItems} onManualInvoiceEntry={props.onManualInvoiceEntry} />;
+      case 'schedule': return <AdminScheduleView suppliers={combinedSuppliers} thirdPartyEntries={thirdPartyEntries} onCancelDeliveries={props.onCancelDeliveries} onDeleteThirdPartyEntry={props.onDeleteThirdPartyEntry} />;
       case 'perCapita': return <AdminPerCapita suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onUpdatePerCapitaConfig={props.onUpdatePerCapitaConfig} onUpdateContractForItem={onUpdateContractForItem} onUpdateAcquisitionItem={props.onUpdateAcquisitionItem} onDeleteAcquisitionItem={props.onDeleteAcquisitionItem} acquisitionItems={acquisitionItems} />;
       case 'cleaning': return <AdminCleaningLog logs={cleaningLogs} onRegister={props.onRegisterCleaningLog} onDelete={props.onDeleteCleaningLog} />;
       case 'thirdPartyEntry': return <AdminThirdPartyEntry logs={thirdPartyEntries} onRegister={props.onRegisterThirdPartyEntry} onUpdate={props.onUpdateThirdPartyEntry} onDelete={props.onDeleteThirdPartyEntry} />;

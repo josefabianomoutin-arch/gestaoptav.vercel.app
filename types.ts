@@ -71,7 +71,8 @@ export interface PpaisProducer {
   name: string;
   cpfCnpj: string;
   processNumber: string;
-  monthlySchedule: Record<string, boolean>; // true if active in that month
+  monthlySchedule: Record<string, number[]>; // month name -> array of week numbers (1-5)
+  contractItems?: ContractItem[];
 }
 
 export interface PerCapitaConfig {

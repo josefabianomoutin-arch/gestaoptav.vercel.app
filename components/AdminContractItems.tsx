@@ -645,6 +645,19 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
                                     <div className="flex-1 min-w-0">
                                         <p className="text-[8px] font-black text-gray-400 uppercase mb-0.5">Fornecedor</p>
                                         <p className="font-bold text-gray-800 uppercase text-[11px] truncate w-full">{a.supplierName}</p>
+                                        {(() => {
+                                            const s = allSuppliers.find(x => x.cpf === a.supplierCpf);
+                                            if (s?.allowedWeeks && s.allowedWeeks.length > 0) {
+                                                return (
+                                                    <div className="flex flex-wrap gap-0.5 mt-1">
+                                                        {s.allowedWeeks.map(w => (
+                                                            <span key={w} className="text-[7px] font-bold text-indigo-500 bg-indigo-50 px-1 rounded">S{w}</span>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                     </div>
                                     <div className="w-full md:w-28">
                                         <label className="text-[8px] font-black text-gray-400 uppercase block mb-0.5 ml-1">Meta ({unit.split('-')[0]})</label>

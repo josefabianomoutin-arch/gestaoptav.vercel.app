@@ -187,6 +187,36 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         setIsDirty(true);
     };
 
+    const ppaisAsSuppliers = useMemo(() => {
+        return ppaisProducers.map(p => ({
+            ...p,
+            deliveries: [],
+            allowedWeeks: [],
+            initialValue: (p.contractItems || []).reduce((acc, curr) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
+        } as Supplier));
+    }, [ppaisProducers]);
+
+    const handleUpdateContractForPpais = async (itemName: string, assignments: any[]) => {
+        const updatedProducers = ppaisProducers.map(producer => {
+            const assignment = assignments.find(a => a.supplierCpf === producer.cpf);
+            const newContractItems = (producer.contractItems || []).filter(ci => ci.name !== itemName);
+            if (assignment) {
+                newContractItems.push({
+                    name: itemName,
+                    totalKg: assignment.totalKg,
+                    valuePerKg: assignment.valuePerKg,
+                    unit: assignment.unit,
+                    category: assignment.category,
+                    comprasCode: assignment.comprasCode,
+                    becCode: assignment.becCode
+                });
+            }
+            return { ...producer, contractItems: newContractItems };
+        });
+        handleUpdateProducers(updatedProducers);
+        return { success: true, message: 'Contratos de produtores atualizados' };
+    };
+
     const allContractItemNames = useMemo(() => {
         const names = new Set<string>();
         suppliers.forEach(s => {
@@ -703,8 +733,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                             onUpdate={onUpdateAcquisitionItem} 
                             onDelete={onDeleteAcquisitionItem} 
                             contractItems={allContractItemNames}
-                            suppliers={suppliers}
-                            onUpdateContractForItem={onUpdateContractForItem}
+                            suppliers={activeSubTab === 'PPAIS' ? ppaisAsSuppliers : suppliers}
+                            onUpdateContractForItem={activeSubTab === 'PPAIS' ? handleUpdateContractForPpais : onUpdateContractForItem}
                         />
                     )}
                 </div>

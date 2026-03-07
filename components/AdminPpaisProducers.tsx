@@ -18,7 +18,7 @@ const AdminPpaisProducers: React.FC<AdminPpaisProducersProps> = ({ producers, on
     const [name, setName] = useState('');
     const [cpfCnpj, setCpfCnpj] = useState('');
     const [processNumber, setProcessNumber] = useState('');
-    const [monthlySchedule, setMonthlySchedule] = useState<Record<string, boolean>>({});
+    const [monthlySchedule, setMonthlySchedule] = useState<Record<string, number[]>>({});
 
     const filteredProducers = producers.filter(p => 
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -55,7 +55,8 @@ const AdminPpaisProducers: React.FC<AdminPpaisProducersProps> = ({ producers, on
             name: name.toUpperCase(),
             cpfCnpj,
             processNumber,
-            monthlySchedule
+            monthlySchedule,
+            contractItems: editingId ? producers.find(p => p.id === editingId)?.contractItems : []
         };
 
         let updatedProducers: PpaisProducer[];
@@ -75,11 +76,18 @@ const AdminPpaisProducers: React.FC<AdminPpaisProducersProps> = ({ producers, on
         }
     };
 
-    const toggleMonth = (month: string) => {
-        setMonthlySchedule(prev => ({
-            ...prev,
-            [month]: !prev[month]
-        }));
+    const toggleWeek = (month: string, week: number) => {
+        setMonthlySchedule(prev => {
+            const currentWeeks = prev[month] || [];
+            const newWeeks = currentWeeks.includes(week)
+                ? currentWeeks.filter(w => w !== week)
+                : [...currentWeeks, week].sort();
+            
+            return {
+                ...prev,
+                [month]: newWeeks
+            };
+        });
     };
 
     return (
@@ -150,20 +158,27 @@ const AdminPpaisProducers: React.FC<AdminPpaisProducersProps> = ({ producers, on
                     </div>
 
                     <div className="space-y-4 mb-8">
-                        <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest ml-1">Agenda de Entregas (Janeiro a Dezembro)</label>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest ml-1">Agenda de Entregas (Semanas por Mês)</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {months.map(month => (
-                                <button
-                                    key={month}
-                                    onClick={() => toggleMonth(month)}
-                                    className={`p-3 rounded-xl text-[10px] font-black uppercase transition-all border-2 ${
-                                        monthlySchedule[month] 
-                                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' 
-                                        : 'bg-white border-gray-100 text-gray-400 hover:border-emerald-200'
-                                    }`}
-                                >
-                                    {month}
-                                </button>
+                                <div key={month} className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                    <div className="text-[9px] font-black text-gray-400 uppercase mb-2 ml-1">{month}</div>
+                                    <div className="flex gap-1.5">
+                                        {[1, 2, 3, 4, 5].map(week => (
+                                            <button
+                                                key={week}
+                                                onClick={() => toggleWeek(month, week)}
+                                                className={`flex-1 py-2 rounded-lg text-[9px] font-black transition-all border-2 ${
+                                                    (monthlySchedule[month] || []).includes(week)
+                                                    ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' 
+                                                    : 'bg-white border-gray-200 text-gray-400 hover:border-emerald-200'
+                                                }`}
+                                            >
+                                                S{week}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             ))}
                         </div>
                     </div>
@@ -193,7 +208,7 @@ const AdminPpaisProducers: React.FC<AdminPpaisProducersProps> = ({ producers, on
                                 <th className="p-6 text-[10px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-100">Produtor</th>
                                 <th className="p-6 text-[10px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-100">Documento</th>
                                 <th className="p-6 text-[10px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-100">Processo</th>
-                                <th className="p-6 text-[10px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-100">Meses Ativos</th>
+                                <th className="p-6 text-[10px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-100">Agenda Semanal</th>
                                 <th className="p-6 text-[10px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-100 text-right">Ações</th>
                             </tr>
                         </thead>
@@ -211,15 +226,24 @@ const AdminPpaisProducers: React.FC<AdminPpaisProducersProps> = ({ producers, on
                                             <div className="font-bold text-sm text-indigo-600">{producer.processNumber}</div>
                                         </td>
                                         <td className="p-6">
-                                            <div className="flex flex-wrap gap-1">
-                                                {months.filter(m => producer.monthlySchedule?.[m]).length > 0 ? (
-                                                    months.filter(m => producer.monthlySchedule?.[m]).map(m => (
-                                                        <span key={m} className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-[9px] font-black uppercase">
-                                                            {m.substring(0, 3)}
-                                                        </span>
-                                                    ))
+                                            <div className="flex flex-col gap-2 max-w-[300px]">
+                                                {months.filter(m => (producer.monthlySchedule?.[m] || []).length > 0).length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {months.filter(m => (producer.monthlySchedule?.[m] || []).length > 0).map(m => (
+                                                            <div key={m} className="flex flex-col bg-emerald-50 border border-emerald-100 rounded-lg p-1.5 min-w-[60px]">
+                                                                <span className="text-[8px] font-black text-emerald-600 uppercase mb-1 border-b border-emerald-100 pb-0.5">{m.substring(0, 3)}</span>
+                                                                <div className="flex gap-0.5">
+                                                                    {(producer.monthlySchedule[m] || []).map(w => (
+                                                                        <span key={w} className="w-4 h-4 flex items-center justify-center bg-emerald-600 text-white rounded-[4px] text-[7px] font-black">
+                                                                            {w}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 ) : (
-                                                    <span className="text-gray-300 italic text-[10px]">Nenhum mês selecionado</span>
+                                                    <span className="text-gray-300 italic text-[10px]">Nenhum agendamento</span>
                                                 )}
                                             </div>
                                         </td>

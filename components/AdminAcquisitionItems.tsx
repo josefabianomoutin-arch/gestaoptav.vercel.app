@@ -315,7 +315,23 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                         {filteredItems.map((item, index) => (
                             <tr key={item.id} className="hover:bg-indigo-50/30 transition-colors group">
                                 <td className="p-5 text-center font-bold text-gray-400">{index + 1}</td>
-                                <td className="p-5 font-black text-indigo-950 uppercase text-xs">{item.name}</td>
+                                <td className="p-5">
+                                    <div className="font-black text-indigo-950 uppercase text-xs">{item.name}</div>
+                                    {category === 'PPAIS' && (
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                            {suppliers.filter(s => (s.contractItems || []).some(ci => ci.name === item.name)).map(s => (
+                                                <div key={s.cpf} className="flex flex-col bg-indigo-50/50 px-2 py-1 rounded-lg border border-indigo-100/50">
+                                                    <span className="text-[8px] font-black text-indigo-700 uppercase leading-tight">{s.name.split(' ')[0]}</span>
+                                                    <div className="flex gap-0.5 mt-0.5">
+                                                        {(s.allowedWeeks || []).map(w => (
+                                                            <span key={w} className="text-[7px] font-bold text-indigo-400">S{w}</span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </td>
                                 <td className="p-5 font-bold text-gray-500 uppercase text-[10px] italic">
                                     {item.contractItemName || <span className="text-red-300">Não vinculado</span>}
                                 </td>
