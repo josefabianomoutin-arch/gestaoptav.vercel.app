@@ -5,6 +5,8 @@ import type { Supplier, PerCapitaConfig, WarehouseMovement, AcquisitionItem } fr
 import { resolutionData } from './resolutionData';
 import AdminContractItems from './AdminContractItems';
 import AdminAcquisitionItems from './AdminAcquisitionItems';
+import AdminPpaisProducers from './AdminPpaisProducers';
+import type { PpaisProducer } from '../types';
 
 interface AdminPerCapitaProps {
   suppliers: Supplier[];
@@ -99,6 +101,7 @@ const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Jul
 
 const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog, perCapitaConfig, onUpdatePerCapitaConfig, onUpdateContractForItem, onUpdateAcquisitionItem, onDeleteAcquisitionItem, acquisitionItems }) => {
     const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA'>('CALCULO');
+    const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS'>('ITEMS');
     const [staffCount, setStaffCount] = useState<number>(0);
     const [inmateCount, setInmateCount] = useState<number>(0);
     const [customPerCapita, setCustomPerCapita] = useState<Record<string, string>>({});
@@ -106,6 +109,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
     const [seiProcessDefinitions, setSeiProcessDefinitions] = useState<Record<string, string>>({});
     const [monthlyQuota, setMonthlyQuota] = useState<Record<string, number>>({});
     const [monthlyResource, setMonthlyResource] = useState<Record<string, number>>({});
+    const [ppaisProducers, setPpaisProducers] = useState<PpaisProducer[]>([]);
     const [showComparison, setShowComparison] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -119,6 +123,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
         setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
         setMonthlyResource(perCapitaConfig.monthlyResource || {});
+        setPpaisProducers(perCapitaConfig.ppaisProducers || []);
         setIsDirty(false);
     }, [perCapitaConfig]);
 
@@ -133,6 +138,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
             seiProcessDefinitions,
             monthlyQuota,
             monthlyResource,
+            ppaisProducers,
         };
         try {
             await onUpdatePerCapitaConfig(newConfig);
@@ -173,6 +179,11 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         } else {
             setMonthlyResource(prev => ({ ...prev, [month]: numValue }));
         }
+        setIsDirty(true);
+    };
+
+    const handleUpdateProducers = (newProducers: PpaisProducer[]) => {
+        setPpaisProducers(newProducers);
         setIsDirty(true);
     };
 
@@ -663,15 +674,39 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                         </div>
                     </div>
 
-                    <AdminAcquisitionItems 
-                        category={activeSubTab} 
-                        items={acquisitionItems} 
-                        onUpdate={onUpdateAcquisitionItem} 
-                        onDelete={onDeleteAcquisitionItem} 
-                        contractItems={allContractItemNames}
-                        suppliers={suppliers}
-                        onUpdateContractForItem={onUpdateContractForItem}
-                    />
+                    {activeSubTab === 'PPAIS' && (
+                        <div className="flex gap-2 mb-8 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+                            <button 
+                                onClick={() => setPpaisSubTab('ITEMS')}
+                                className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${ppaisSubTab === 'ITEMS' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}
+                            >
+                                Itens de Aquisição
+                            </button>
+                            <button 
+                                onClick={() => setPpaisSubTab('PRODUCERS')}
+                                className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${ppaisSubTab === 'PRODUCERS' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}
+                            >
+                                Cadastro de Produtores
+                            </button>
+                        </div>
+                    )}
+
+                    {activeSubTab === 'PPAIS' && ppaisSubTab === 'PRODUCERS' ? (
+                        <AdminPpaisProducers 
+                            producers={ppaisProducers}
+                            onUpdate={handleUpdateProducers}
+                        />
+                    ) : (
+                        <AdminAcquisitionItems 
+                            category={activeSubTab} 
+                            items={acquisitionItems} 
+                            onUpdate={onUpdateAcquisitionItem} 
+                            onDelete={onDeleteAcquisitionItem} 
+                            contractItems={allContractItemNames}
+                            suppliers={suppliers}
+                            onUpdateContractForItem={onUpdateContractForItem}
+                        />
+                    )}
                 </div>
             )}
 

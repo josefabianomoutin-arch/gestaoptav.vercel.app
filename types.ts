@@ -66,6 +66,14 @@ export interface WarehouseMovement {
   barcode?: string; // NOVO CAMPO
 }
 
+export interface PpaisProducer {
+  id: string;
+  name: string;
+  cpfCnpj: string;
+  processNumber: string;
+  monthlySchedule: Record<string, boolean>; // true if active in that month
+}
+
 export interface PerCapitaConfig {
   staffCount?: number;
   inmateCount?: number;
@@ -74,6 +82,7 @@ export interface PerCapitaConfig {
   seiProcessDefinitions?: Record<string, string>;
   monthlyQuota?: Record<string, number>;
   monthlyResource?: Record<string, number>;
+  ppaisProducers?: PpaisProducer[];
 }
 
 export interface CleaningLog {
