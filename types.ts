@@ -72,6 +72,8 @@ export interface PerCapitaConfig {
   customValues?: Record<string, string>;
   seiProcessNumbers?: Record<string, string>;
   seiProcessDefinitions?: Record<string, string>;
+  monthlyQuota?: Record<string, number>;
+  monthlyResource?: Record<string, number>;
 }
 
 export interface CleaningLog {

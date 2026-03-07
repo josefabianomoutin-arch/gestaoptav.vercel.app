@@ -95,6 +95,8 @@ const isHortifrutiOrPerishable = (itemName: string): boolean => {
     return allKeywords.some(keyword => lowerItemName.includes(keyword));
 };
 
+const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
 const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog, perCapitaConfig, onUpdatePerCapitaConfig, onUpdateContractForItem, onUpdateAcquisitionItem, onDeleteAcquisitionItem, acquisitionItems }) => {
     const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA'>('CALCULO');
     const [staffCount, setStaffCount] = useState<number>(0);
@@ -102,6 +104,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
     const [customPerCapita, setCustomPerCapita] = useState<Record<string, string>>({});
     const [seiProcessNumbers, setSeiProcessNumbers] = useState<Record<string, string>>({});
     const [seiProcessDefinitions, setSeiProcessDefinitions] = useState<Record<string, string>>({});
+    const [monthlyQuota, setMonthlyQuota] = useState<Record<string, number>>({});
+    const [monthlyResource, setMonthlyResource] = useState<Record<string, number>>({});
     const [showComparison, setShowComparison] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -113,6 +117,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         setCustomPerCapita(perCapitaConfig.customValues || {});
         setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
         setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
+        setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
+        setMonthlyResource(perCapitaConfig.monthlyResource || {});
         setIsDirty(false);
     }, [perCapitaConfig]);
 
@@ -125,6 +131,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
             customValues: customPerCapita,
             seiProcessNumbers,
             seiProcessDefinitions,
+            monthlyQuota,
+            monthlyResource,
         };
         try {
             await onUpdatePerCapitaConfig(newConfig);
@@ -155,6 +163,16 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
 
     const handleSeiDefinitionChange = (category: string, value: string) => {
         setSeiProcessDefinitions(prev => ({ ...prev, [category]: value }));
+        setIsDirty(true);
+    };
+
+    const handleMonthlyValueChange = (type: 'quota' | 'resource', month: string, value: string) => {
+        const numValue = parseFloat(value) || 0;
+        if (type === 'quota') {
+            setMonthlyQuota(prev => ({ ...prev, [month]: numValue }));
+        } else {
+            setMonthlyResource(prev => ({ ...prev, [month]: numValue }));
+        }
         setIsDirty(true);
     };
 
@@ -347,26 +365,47 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10 bg-green-50/30 p-4 rounded-xl border border-green-100">
-                <div className="space-y-1">
-                    <label className="text-[10px] font-black text-green-600 uppercase tracking-widest ml-1">Número do Processo SEI (Geral)</label>
-                    <input 
-                        type="text"
-                        value={seiProcessNumbers['CALCULO'] || ''}
-                        onChange={(e) => handleSeiNumberChange('CALCULO', e.target.value)}
-                        placeholder="Ex: 00000.000000/0000-00" 
-                        className="input-field font-mono text-sm"
-                    />
+            <div className="grid grid-cols-1 gap-8 mb-10 bg-green-50/30 p-6 rounded-2xl border border-green-100">
+                <div>
+                    <h3 className="text-xs font-black text-green-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                        Cota Disponível por Mês
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        {months.map(month => (
+                            <div key={month} className="space-y-1">
+                                <label className="text-[9px] font-black text-green-600 uppercase tracking-tighter ml-1">{month}</label>
+                                <input 
+                                    type="number"
+                                    value={monthlyQuota[month] || ''}
+                                    onChange={(e) => handleMonthlyValueChange('quota', month, e.target.value)}
+                                    placeholder="0" 
+                                    className="w-full p-2 bg-white border border-green-200 rounded-lg font-mono text-xs focus:ring-2 focus:ring-green-400 outline-none transition-all"
+                                />
+                            </div>
+                        ))}
+                    </div>
                 </div>
-                <div className="space-y-1">
-                    <label className="text-[10px] font-black text-green-600 uppercase tracking-widest ml-1">Definição do Processo (Geral)</label>
-                    <input 
-                        type="text"
-                        value={seiProcessDefinitions['CALCULO'] || ''}
-                        onChange={(e) => handleSeiDefinitionChange('CALCULO', e.target.value)}
-                        placeholder="Ex: Gestão de per capita..." 
-                        className="input-field text-sm"
-                    />
+
+                <div className="pt-6 border-t border-green-200/50">
+                    <h3 className="text-xs font-black text-green-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Recurso Disponível por Mês
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        {months.map(month => (
+                            <div key={month} className="space-y-1">
+                                <label className="text-[9px] font-black text-green-600 uppercase tracking-tighter ml-1">{month}</label>
+                                <input 
+                                    type="number"
+                                    value={monthlyResource[month] || ''}
+                                    onChange={(e) => handleMonthlyValueChange('resource', month, e.target.value)}
+                                    placeholder="0" 
+                                    className="w-full p-2 bg-white border border-green-200 rounded-lg font-mono text-xs focus:ring-2 focus:ring-green-400 outline-none transition-all"
+                                />
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
 
