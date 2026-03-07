@@ -237,11 +237,21 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                         />
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                     </div>
-                    <div className="flex items-center gap-2 px-2">
-                        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Valor Total da Categoria:</span>
-                        <span className="text-sm font-black text-indigo-900">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCategoryValue)}
-                        </span>
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-1 px-2">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Valor Total da Categoria:</span>
+                            <span className="text-sm font-black text-indigo-900">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCategoryValue)}
+                            </span>
+                        </div>
+                        {(category === 'PPAIS' || category === 'PERECÍVEIS') && (
+                            <div className="flex items-center gap-2 border-l-2 border-indigo-100 pl-6">
+                                <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Média Mensal (Maio-Dez / 8 meses):</span>
+                                <span className="text-sm font-black text-emerald-700">
+                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCategoryValue / 8)}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div className="flex gap-2">
