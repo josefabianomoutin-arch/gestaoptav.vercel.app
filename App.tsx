@@ -191,6 +191,18 @@ const App: React.FC = () => {
       setUser({ name: supplier.name, cpf: supplier.cpf, role: 'supplier' });
       return true;
     }
+
+    const ppaisProducer = perCapitaConfig.ppaisProducers?.find(p => p.cpfCnpj.replace(/\D/g, '') === numericPass);
+    if (ppaisProducer) {
+      setUser({ name: ppaisProducer.name, cpf: ppaisProducer.cpfCnpj, role: 'producer' });
+      return true;
+    }
+
+    const pereciveisSupplier = perCapitaConfig.pereciveisSuppliers?.find(p => p.cpfCnpj.replace(/\D/g, '') === numericPass);
+    if (pereciveisSupplier) {
+      setUser({ name: pereciveisSupplier.name, cpf: pereciveisSupplier.cpfCnpj, role: 'pereciveis_supplier' });
+      return true;
+    }
     
     return false;
   };
@@ -239,71 +251,185 @@ const App: React.FC = () => {
   };
 
   const handleScheduleDelivery = async (supplierCpf: string, date: string, time: string) => {
-    const supplierRef = child(suppliersRef, supplierCpf);
-    await runTransaction(supplierRef, (currentData: Supplier) => {
+    // Check main suppliers
+    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+    if (isMainSupplier) {
+      const supplierRef = child(suppliersRef, supplierCpf);
+      await runTransaction(supplierRef, (currentData: Supplier) => {
+        if (currentData) {
+          const deliveries = currentData.deliveries || [];
+          deliveries.push({
+            id: `del-${Date.now()}`,
+            date,
+            time,
+            item: 'AGENDAMENTO PENDENTE',
+            invoiceUploaded: false
+          });
+          currentData.deliveries = deliveries;
+        }
+        return currentData;
+      });
+      return;
+    }
+
+    // Check Per Capita suppliers
+    await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
       if (currentData) {
-        const deliveries = currentData.deliveries || [];
-        deliveries.push({
-          id: `del-${Date.now()}`,
-          date,
-          time,
-          item: 'AGENDAMENTO PENDENTE',
-          invoiceUploaded: false
-        });
-        currentData.deliveries = deliveries;
+        const findAndAdd = (list: any[] | undefined) => {
+          const s = list?.find(p => p.cpfCnpj === supplierCpf);
+          if (s) {
+            const deliveries = s.deliveries || [];
+            deliveries.push({
+              id: `del-${Date.now()}`,
+              date,
+              time,
+              item: 'AGENDAMENTO PENDENTE',
+              invoiceUploaded: false
+            });
+            s.deliveries = deliveries;
+            return true;
+          }
+          return false;
+        };
+        if (!findAndAdd(currentData.ppaisProducers)) {
+          findAndAdd(currentData.pereciveisSuppliers);
+        }
       }
       return currentData;
     });
   };
 
   const handleCancelDeliveries = useCallback(async (supplierCpf: string, deliveryIds: string[]) => {
-    const supplierRef = child(suppliersRef, supplierCpf);
-    await runTransaction(supplierRef, (currentData: Supplier) => {
+    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+    if (isMainSupplier) {
+      const supplierRef = child(suppliersRef, supplierCpf);
+      await runTransaction(supplierRef, (currentData: Supplier) => {
+        if (currentData) {
+          currentData.deliveries = (currentData.deliveries || []).filter(d => !deliveryIds.includes(d.id));
+        }
+        return currentData;
+      });
+      return;
+    }
+
+    await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
       if (currentData) {
-        currentData.deliveries = (currentData.deliveries || []).filter(d => !deliveryIds.includes(d.id));
+        const findAndCancel = (list: any[] | undefined) => {
+          const s = list?.find(p => p.cpfCnpj === supplierCpf);
+          if (s) {
+            s.deliveries = (s.deliveries || []).filter((d: any) => !deliveryIds.includes(d.id));
+            return true;
+          }
+          return false;
+        };
+        if (!findAndCancel(currentData.ppaisProducers)) {
+          findAndCancel(currentData.pereciveisSuppliers);
+        }
       }
       return currentData;
     });
-  }, []);
+  }, [suppliers]);
 
   const handleFulfillAndInvoice = async (supplierCpf: string, placeholderIds: string[], invoiceData: any) => {
-    const supplierRef = child(suppliersRef, supplierCpf);
-    await runTransaction(supplierRef, (currentData: Supplier) => {
-      if (currentData) {
-        const sourceDelivery = (currentData.deliveries || []).find(d => placeholderIds.includes(d.id));
-        const date = sourceDelivery?.date || new Date().toISOString().split('T')[0];
-        const time = sourceDelivery?.time || '08:00';
-        currentData.deliveries = (currentData.deliveries || []).filter(d => !placeholderIds.includes(d.id));
-        invoiceData.fulfilledItems.forEach((item: any, idx: number) => {
-          currentData.deliveries.push({
-            id: `inv-${Date.now()}-${idx}`,
-            date: date,
-            time: time,
-            item: item.name,
-            kg: item.kg,
-            value: item.value,
-            invoiceUploaded: true,
-            invoiceNumber: String(invoiceData.invoiceNumber || '').trim()
+    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+    if (isMainSupplier) {
+      const supplierRef = child(suppliersRef, supplierCpf);
+      await runTransaction(supplierRef, (currentData: Supplier) => {
+        if (currentData) {
+          const sourceDelivery = (currentData.deliveries || []).find(d => placeholderIds.includes(d.id));
+          const date = sourceDelivery?.date || new Date().toISOString().split('T')[0];
+          const time = sourceDelivery?.time || '08:00';
+          currentData.deliveries = (currentData.deliveries || []).filter(d => !placeholderIds.includes(d.id));
+          invoiceData.fulfilledItems.forEach((item: any, idx: number) => {
+            currentData.deliveries.push({
+              id: `inv-${Date.now()}-${idx}`,
+              date: date,
+              time: time,
+              item: item.name,
+              kg: item.kg,
+              value: item.value,
+              invoiceUploaded: true,
+              invoiceNumber: String(invoiceData.invoiceNumber || '').trim()
+            });
           });
-        });
+        }
+        return currentData;
+      });
+      return;
+    }
+
+    await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+      if (currentData) {
+        const findAndFulfill = (list: any[] | undefined) => {
+          const s = list?.find(p => p.cpfCnpj === supplierCpf);
+          if (s) {
+            const sourceDelivery = (s.deliveries || []).find((d: any) => placeholderIds.includes(d.id));
+            const date = sourceDelivery?.date || new Date().toISOString().split('T')[0];
+            const time = sourceDelivery?.time || '08:00';
+            s.deliveries = (s.deliveries || []).filter((d: any) => !placeholderIds.includes(d.id));
+            invoiceData.fulfilledItems.forEach((item: any, idx: number) => {
+              s.deliveries.push({
+                id: `inv-${Date.now()}-${idx}`,
+                date: date,
+                time: time,
+                item: item.name,
+                kg: item.kg,
+                value: item.value,
+                invoiceUploaded: true,
+                invoiceNumber: String(invoiceData.invoiceNumber || '').trim()
+              });
+            });
+            return true;
+          }
+          return false;
+        };
+        if (!findAndFulfill(currentData.ppaisProducers)) {
+          findAndFulfill(currentData.pereciveisSuppliers);
+        }
       }
       return currentData;
     });
   };
 
   const handleMarkArrival = async (supplierCpf: string, deliveryId: string) => {
-    const supplierRef = child(suppliersRef, supplierCpf);
     const now = new Date();
     const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
     
-    await runTransaction(supplierRef, (currentData: Supplier) => {
-      if (currentData && currentData.deliveries) {
-        currentData.deliveries = currentData.deliveries.map(d => {
-          if (d.id === deliveryId) {
-            return { ...d, arrivalTime: currentTime };
+    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+    if (isMainSupplier) {
+      const supplierRef = child(suppliersRef, supplierCpf);
+      await runTransaction(supplierRef, (currentData: Supplier) => {
+        if (currentData && currentData.deliveries) {
+          currentData.deliveries = currentData.deliveries.map(d => {
+            if (d.id === deliveryId) {
+              return { ...d, arrivalTime: currentTime };
+            }
+            return d;
+          });
+        }
+        return currentData;
+      });
+      return;
+    }
+
+    await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+      if (currentData) {
+        const findAndMark = (list: any[] | undefined) => {
+          const s = list?.find(p => p.cpfCnpj === supplierCpf);
+          if (s && s.deliveries) {
+            s.deliveries = s.deliveries.map((d: any) => {
+              if (d.id === deliveryId) {
+                return { ...d, arrivalTime: currentTime };
+              }
+              return d;
+            });
+            return true;
           }
-          return d;
-        });
+          return false;
+        };
+        if (!findAndMark(currentData.ppaisProducers)) {
+          findAndMark(currentData.pereciveisSuppliers);
+        }
       }
       return currentData;
     });
@@ -312,45 +438,103 @@ const App: React.FC = () => {
   // --- GERENCIAMENTO DE NOTAS FISCAIS (ADMIN) ---
 
   const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string) => {
-    const supplierRef = child(suppliersRef, supplierCpf);
-    try {
-      await runTransaction(supplierRef, (currentData: Supplier) => {
-        if (currentData && currentData.deliveries) {
-          const existingForNf = currentData.deliveries.filter(d => d.invoiceNumber === invoiceNumber);
-          if (existingForNf.length === 0) return currentData;
+    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+    if (isMainSupplier) {
+      const supplierRef = child(suppliersRef, supplierCpf);
+      try {
+        await runTransaction(supplierRef, (currentData: Supplier) => {
+          if (currentData && currentData.deliveries) {
+            const existingForNf = currentData.deliveries.filter(d => d.invoiceNumber === invoiceNumber);
+            if (existingForNf.length === 0) return currentData;
 
-          const baseDate = newDate || existingForNf[0].date;
-          const baseTime = existingForNf[0].time;
-          const finalInvoiceNumber = newInvoiceNumber || invoiceNumber;
-          const finalReceiptTerm = receiptTermNumber !== undefined ? receiptTermNumber : existingForNf[0].receiptTermNumber;
-          const finalInvoiceDate = invoiceDate !== undefined ? invoiceDate : existingForNf[0].invoiceDate;
+            const baseDate = newDate || existingForNf[0].date;
+            const baseTime = existingForNf[0].time;
+            const finalInvoiceNumber = newInvoiceNumber || invoiceNumber;
+            const finalReceiptTerm = receiptTermNumber !== undefined ? receiptTermNumber : existingForNf[0].receiptTermNumber;
+            const finalInvoiceDate = invoiceDate !== undefined ? invoiceDate : existingForNf[0].invoiceDate;
 
-          // Remove itens antigos daquela nota
-          currentData.deliveries = currentData.deliveries.filter(d => d.invoiceNumber !== invoiceNumber);
+            // Remove itens antigos daquela nota
+            currentData.deliveries = currentData.deliveries.filter(d => d.invoiceNumber !== invoiceNumber);
 
-          // Insere novos itens editados
-          items.forEach((item, idx) => {
-            currentData.deliveries.push({
-              id: `inv-edit-${Date.now()}-${idx}`,
-              date: baseDate,
-              time: baseTime,
-              item: item.name,
-              kg: item.kg,
-              value: item.value,
-              invoiceUploaded: true,
-              invoiceNumber: String(finalInvoiceNumber || '').trim(),
-              invoiceDate: finalInvoiceDate,
-              barcode: barcode,
-              receiptTermNumber: finalReceiptTerm,
-              lots: [{
-                id: `lot-edit-${Date.now()}-${idx}`,
-                lotNumber: item.lotNumber || 'EDITADO',
-                initialQuantity: item.kg,
-                remainingQuantity: item.kg,
-                expirationDate: item.expirationDate
-              }]
+            // Insere novos itens editados
+            items.forEach((item, idx) => {
+              currentData.deliveries.push({
+                id: `inv-edit-${Date.now()}-${idx}`,
+                date: baseDate,
+                time: baseTime,
+                item: item.name,
+                kg: item.kg,
+                value: item.value,
+                invoiceUploaded: true,
+                invoiceNumber: String(finalInvoiceNumber || '').trim(),
+                invoiceDate: finalInvoiceDate,
+                barcode: barcode,
+                receiptTermNumber: finalReceiptTerm,
+                lots: [{
+                  id: `lot-edit-${Date.now()}-${idx}`,
+                  lotNumber: item.lotNumber || 'EDITADO',
+                  initialQuantity: item.kg,
+                  remainingQuantity: item.kg,
+                  expirationDate: item.expirationDate
+                }]
+              });
             });
-          });
+          }
+          return currentData;
+        });
+        return { success: true };
+      } catch (e) {
+        return { success: false, message: 'Erro ao gravar no banco de dados.' };
+      }
+      return;
+    }
+
+    try {
+      await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+        if (currentData) {
+          const findAndUpdate = (list: any[] | undefined) => {
+            const s = list?.find(p => p.cpfCnpj === supplierCpf);
+            if (s && s.deliveries) {
+              const existingForNf = s.deliveries.filter((d: any) => d.invoiceNumber === invoiceNumber);
+              if (existingForNf.length === 0) return false;
+
+              const baseDate = newDate || existingForNf[0].date;
+              const baseTime = existingForNf[0].time;
+              const finalInvoiceNumber = newInvoiceNumber || invoiceNumber;
+              const finalReceiptTerm = receiptTermNumber !== undefined ? receiptTermNumber : existingForNf[0].receiptTermNumber;
+              const finalInvoiceDate = invoiceDate !== undefined ? invoiceDate : existingForNf[0].invoiceDate;
+
+              s.deliveries = s.deliveries.filter((d: any) => d.invoiceNumber !== invoiceNumber);
+
+              items.forEach((item, idx) => {
+                s.deliveries.push({
+                  id: `inv-edit-${Date.now()}-${idx}`,
+                  date: baseDate,
+                  time: baseTime,
+                  item: item.name,
+                  kg: item.kg,
+                  value: item.value,
+                  invoiceUploaded: true,
+                  invoiceNumber: String(finalInvoiceNumber || '').trim(),
+                  invoiceDate: finalInvoiceDate,
+                  barcode: barcode,
+                  receiptTermNumber: finalReceiptTerm,
+                  lots: [{
+                    id: `lot-edit-${Date.now()}-${idx}`,
+                    lotNumber: item.lotNumber || 'EDITADO',
+                    initialQuantity: item.kg,
+                    remainingQuantity: item.kg,
+                    expirationDate: item.expirationDate
+                  }]
+                });
+              });
+              return true;
+            }
+            return false;
+          };
+          if (!findAndUpdate(currentData.ppaisProducers)) {
+            findAndUpdate(currentData.pereciveisSuppliers);
+          }
         }
         return currentData;
       });
@@ -361,44 +545,109 @@ const App: React.FC = () => {
   };
 
   const handleReopenInvoice = async (supplierCpf: string, invoiceNumber: string) => {
-    const supplierRef = child(suppliersRef, supplierCpf);
-    await runTransaction(supplierRef, (currentData: Supplier) => {
-      if (currentData && currentData.deliveries) {
-        const entriesForNf = currentData.deliveries.filter(d => d.invoiceNumber === invoiceNumber);
-        if (entriesForNf.length === 0) return currentData;
+    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+    if (isMainSupplier) {
+      const supplierRef = child(suppliersRef, supplierCpf);
+      await runTransaction(supplierRef, (currentData: Supplier) => {
+        if (currentData && currentData.deliveries) {
+          const entriesForNf = currentData.deliveries.filter(d => d.invoiceNumber === invoiceNumber);
+          if (entriesForNf.length === 0) return currentData;
 
-        const baseDate = entriesForNf[0].date;
-        const baseTime = entriesForNf[0].time;
+          const baseDate = entriesForNf[0].date;
+          const baseTime = entriesForNf[0].time;
 
-        // Remove itens faturados
-        currentData.deliveries = currentData.deliveries.filter(d => d.invoiceNumber !== invoiceNumber);
+          // Remove itens faturados
+          currentData.deliveries = currentData.deliveries.filter(d => d.invoiceNumber !== invoiceNumber);
 
-        // Volta para um agendamento pendente
-        currentData.deliveries.push({
-          id: `reopen-${Date.now()}`,
-          date: baseDate,
-          time: baseTime,
-          item: 'AGENDAMENTO PENDENTE',
-          invoiceUploaded: false
-        });
+          // Volta para um agendamento pendente
+          currentData.deliveries.push({
+            id: `reopen-${Date.now()}`,
+            date: baseDate,
+            time: baseTime,
+            item: 'AGENDAMENTO PENDENTE',
+            invoiceUploaded: false
+          });
+        }
+        return currentData;
+      });
+      return;
+    }
+
+    await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+      if (currentData) {
+        const findAndReopen = (list: any[] | undefined) => {
+          const s = list?.find(p => p.cpfCnpj === supplierCpf);
+          if (s && s.deliveries) {
+            const entriesForNf = s.deliveries.filter((d: any) => d.invoiceNumber === invoiceNumber);
+            if (entriesForNf.length === 0) return false;
+
+            const baseDate = entriesForNf[0].date;
+            const baseTime = entriesForNf[0].time;
+
+            s.deliveries = s.deliveries.filter((d: any) => d.invoiceNumber !== invoiceNumber);
+
+            s.deliveries.push({
+              id: `reopen-${Date.now()}`,
+              date: baseDate,
+              time: baseTime,
+              item: 'AGENDAMENTO PENDENTE',
+              invoiceUploaded: false
+            });
+            return true;
+          }
+          return false;
+        };
+        if (!findAndReopen(currentData.ppaisProducers)) {
+          findAndReopen(currentData.pereciveisSuppliers);
+        }
       }
       return currentData;
     });
   };
 
   const handleDeleteInvoice = async (supplierCpf: string, invoiceNumber: string) => {
-    const supplierRef = child(suppliersRef, supplierCpf);
-    await runTransaction(supplierRef, (currentData: Supplier) => {
-      if (currentData && currentData.deliveries) {
-        currentData.deliveries = currentData.deliveries.filter(d => d.invoiceNumber !== invoiceNumber);
+    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+    if (isMainSupplier) {
+      const supplierRef = child(suppliersRef, supplierCpf);
+      await runTransaction(supplierRef, (currentData: Supplier) => {
+        if (currentData && currentData.deliveries) {
+          currentData.deliveries = currentData.deliveries.filter(d => d.invoiceNumber !== invoiceNumber);
+        }
+        return currentData;
+      });
+      return;
+    }
+
+    await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+      if (currentData) {
+        const findAndDelete = (list: any[] | undefined) => {
+          const s = list?.find(p => p.cpfCnpj === supplierCpf);
+          if (s && s.deliveries) {
+            s.deliveries = s.deliveries.filter((d: any) => d.invoiceNumber !== invoiceNumber);
+            return true;
+          }
+          return false;
+        };
+        if (!findAndDelete(currentData.ppaisProducers)) {
+          findAndDelete(currentData.pereciveisSuppliers);
+        }
       }
       return currentData;
     });
   };
 
   const handleManualInvoiceEntry = async (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string) => {
-    const supplier = suppliers.find(s => s.cpf === supplierCpf);
-    if (!supplier) return { success: false, message: 'Fornecedor não encontrado.' };
+    let supplierName = '';
+    const mainSupplier = suppliers.find(s => s.cpf === supplierCpf);
+    if (mainSupplier) {
+      supplierName = mainSupplier.name;
+    } else {
+      const p = perCapitaConfig.ppaisProducers?.find(s => s.cpfCnpj === supplierCpf) || 
+                perCapitaConfig.pereciveisSuppliers?.find(s => s.cpfCnpj === supplierCpf);
+      if (p) supplierName = p.name;
+    }
+
+    if (!supplierName) return { success: false, message: 'Fornecedor não encontrado.' };
 
     try {
       // 1. Registrar no log do almoxarifado primeiro
@@ -411,7 +660,7 @@ const App: React.FC = () => {
             timestamp: new Date().toISOString(),
             date: invoiceDate || date,
             itemName: item.name,
-            supplierName: supplier.name,
+            supplierName: supplierName,
             lotNumber: item.lotNumber || 'MANUAL',
             quantity: item.kg,
             inboundInvoice: String(invoiceNumber || '').trim(),
@@ -427,37 +676,80 @@ const App: React.FC = () => {
       await Promise.all(logEntries.map(le => set(le.ref, le.entry)));
 
       // 2. Sincronizar com as entregas do fornecedor
-      const supplierRef = child(suppliersRef, supplierCpf);
-      await runTransaction(supplierRef, (currentData: Supplier) => {
-        if (currentData) {
-          const deliveries = currentData.deliveries || [];
-          logEntries.forEach((le, idx) => {
-            const item = items[idx];
-            deliveries.push({
-              id: `manual-${Date.now()}-${idx}`,
-              date,
-              time: '08:00',
-              item: item.name,
-              kg: item.kg,
-              value: item.value,
-              invoiceUploaded: true,
-              invoiceNumber: String(invoiceNumber || '').trim(),
-              invoiceDate: invoiceDate,
-              barcode: barcode,
-              receiptTermNumber: receiptTermNumber,
-              lots: [{
-                id: le.lotId,
-                lotNumber: item.lotNumber || 'MANUAL',
-                initialQuantity: item.kg,
-                remainingQuantity: item.kg,
-                expirationDate: item.expirationDate
-              }]
+      if (mainSupplier) {
+        const supplierRef = child(suppliersRef, supplierCpf);
+        await runTransaction(supplierRef, (currentData: Supplier) => {
+          if (currentData) {
+            const deliveries = currentData.deliveries || [];
+            logEntries.forEach((le, idx) => {
+              const item = items[idx];
+              deliveries.push({
+                id: `manual-${Date.now()}-${idx}`,
+                date,
+                time: '08:00',
+                item: item.name,
+                kg: item.kg,
+                value: item.value,
+                invoiceUploaded: true,
+                invoiceNumber: String(invoiceNumber || '').trim(),
+                invoiceDate: invoiceDate,
+                barcode: barcode,
+                receiptTermNumber: receiptTermNumber,
+                lots: [{
+                  id: le.lotId,
+                  lotNumber: item.lotNumber || 'MANUAL',
+                  initialQuantity: item.kg,
+                  remainingQuantity: item.kg,
+                  expirationDate: item.expirationDate
+                }]
+              });
             });
-          });
-          currentData.deliveries = deliveries;
-        }
-        return currentData;
-      });
+            currentData.deliveries = deliveries;
+          }
+          return currentData;
+        });
+      } else {
+        await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+          if (currentData) {
+            const findAndAdd = (list: any[] | undefined) => {
+              const s = list?.find(p => p.cpfCnpj === supplierCpf);
+              if (s) {
+                const deliveries = s.deliveries || [];
+                logEntries.forEach((le, idx) => {
+                  const item = items[idx];
+                  deliveries.push({
+                    id: `manual-${Date.now()}-${idx}`,
+                    date,
+                    time: '08:00',
+                    item: item.name,
+                    kg: item.kg,
+                    value: item.value,
+                    invoiceUploaded: true,
+                    invoiceNumber: String(invoiceNumber || '').trim(),
+                    invoiceDate: invoiceDate,
+                    barcode: barcode,
+                    receiptTermNumber: receiptTermNumber,
+                    lots: [{
+                      id: le.lotId,
+                      lotNumber: item.lotNumber || 'MANUAL',
+                      initialQuantity: item.kg,
+                      remainingQuantity: item.kg,
+                      expirationDate: item.expirationDate
+                    }]
+                  });
+                });
+                s.deliveries = deliveries;
+                return true;
+              }
+              return false;
+            };
+            if (!findAndAdd(currentData.ppaisProducers)) {
+              findAndAdd(currentData.pereciveisSuppliers);
+            }
+          }
+          return currentData;
+        });
+      }
 
       return { success: true };
     } catch (e) {
@@ -959,19 +1251,49 @@ const App: React.FC = () => {
     );
   }
 
-  const currentSupplier = suppliers.find(s => s.cpf === user.cpf);
-  if (currentSupplier) {
-    return (
-      <Dashboard 
-        supplier={currentSupplier} 
-        onLogout={handleLogout} 
-        onScheduleDelivery={handleScheduleDelivery}
-        onFulfillAndInvoice={handleFulfillAndInvoice}
-        onCancelDeliveries={handleCancelDeliveries}
-        emailModalData={null}
-        onCloseEmailModal={() => {}}
-      />
-    );
+  if (user.role === 'supplier') {
+    const currentSupplier = suppliers.find(s => s.cpf === user.cpf);
+    if (currentSupplier) {
+      return (
+        <Dashboard 
+          supplier={currentSupplier} 
+          onLogout={handleLogout} 
+          onScheduleDelivery={handleScheduleDelivery}
+          onFulfillAndInvoice={handleFulfillAndInvoice}
+          onCancelDeliveries={handleCancelDeliveries}
+          emailModalData={null}
+          onCloseEmailModal={() => {}}
+        />
+      );
+    }
+  }
+
+  if (user.role === 'producer' || user.role === 'pereciveis_supplier') {
+    const list = user.role === 'producer' ? perCapitaConfig.ppaisProducers : perCapitaConfig.pereciveisSuppliers;
+    const p = list?.find(s => s.cpfCnpj === user.cpf);
+    if (p) {
+      const mappedSupplier: Supplier = {
+        name: p.name,
+        cpf: p.cpfCnpj,
+        initialValue: 0,
+        contractItems: p.contractItems || [],
+        deliveries: p.deliveries || [],
+        allowedWeeks: []
+      };
+      return (
+        <Dashboard 
+          supplier={mappedSupplier} 
+          type={user.role === 'producer' ? 'PRODUTOR' : 'FORNECEDOR'}
+          monthlySchedule={p.monthlySchedule}
+          onLogout={handleLogout} 
+          onScheduleDelivery={handleScheduleDelivery}
+          onFulfillAndInvoice={handleFulfillAndInvoice}
+          onCancelDeliveries={handleCancelDeliveries}
+          emailModalData={null}
+          onCloseEmailModal={() => {}}
+        />
+      );
+    }
   }
 
   return <div className="p-10 text-center">Usuário não encontrado ou sem permissões.</div>;

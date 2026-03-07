@@ -13,6 +13,8 @@ const SIMULATED_TODAY = new Date('2026-04-30T00:00:00');
 
 interface DashboardProps {
   supplier: Supplier;
+  type?: 'PRODUTOR' | 'FORNECEDOR';
+  monthlySchedule?: Record<string, number[]>;
   onLogout: () => void;
   onScheduleDelivery: (supplierCpf: string, date: string, time: string) => void;
   onFulfillAndInvoice: (
@@ -33,6 +35,8 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ 
   supplier, 
+  type = 'PRODUTOR',
+  monthlySchedule,
   onLogout, 
   onScheduleDelivery, 
   onFulfillAndInvoice, 
@@ -46,10 +50,16 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [invoiceToFulfill, setInvoiceToFulfill] = useState<{ date: string; deliveries: Delivery[] } | null>(null);
   const [deliveriesToShow, setDeliveriesToShow] = useState<Delivery[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  
+
+  const panelTitle = type === 'PRODUTOR' ? 'Painel do Produtor 2026' : 'Painel do Fornecedor 2026';
+  const headerColor = type === 'PRODUTOR' ? 'text-green-800' : 'text-indigo-800';
+  const bannerColor = type === 'PRODUTOR' ? 'bg-indigo-600 border-indigo-800' : 'bg-emerald-600 border-emerald-800';
+  const bannerTextColor = type === 'PRODUTOR' ? 'text-indigo-200' : 'text-emerald-100';
+  const weekBadgeColor = type === 'PRODUTOR' ? 'bg-white text-indigo-800' : 'bg-white text-emerald-800';
+
   const handleDayClick = (date: Date) => {
     const dateString = date.toISOString().split('T')[0];
-    const deliveriesOnDate = supplier.deliveries.filter(d => d.date === dateString);
+    const deliveriesOnDate = (supplier.deliveries || []).filter(d => d.date === dateString);
     setSelectedDate(date);
     if (deliveriesOnDate.length > 0) {
       setDeliveriesToShow(deliveriesOnDate);
@@ -88,7 +98,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
   
   const pendingDailyInvoices = useMemo(() => {
-    const pending = supplier.deliveries.filter(d => {
+    const pending = (supplier.deliveries || []).filter(d => {
         const deliveryDate = new Date(d.date + 'T00:00:00');
         return d.item === 'AGENDAMENTO PENDENTE' && deliveryDate < SIMULATED_TODAY;
     });
@@ -104,7 +114,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (!selectedDate || !supplier.contractItems) return [];
     const currentMonth = selectedDate.getMonth();
     return supplier.contractItems.map(item => {
-        const deliveredThisMonth = supplier.deliveries
+        const deliveredThisMonth = (supplier.deliveries || [])
             .filter(d => d.item === item.name && new Date(d.date + 'T00:00:00').getMonth() === currentMonth)
             .reduce((sum, d) => sum + (d.kg || 0), 0);
         const isWithinContract = currentMonth <= 3;
@@ -117,8 +127,8 @@ const Dashboard: React.FC<DashboardProps> = ({
     <div className="min-h-screen text-gray-800 bg-gray-50 pb-20">
       <header className="bg-white shadow-md p-4 flex justify-between items-center sticky top-0 z-50">
         <div>
-          <h1 className="text-xl font-black text-green-800 uppercase tracking-tighter italic">Olá, {supplier.name.split(' ')[0]}!</h1>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Painel do Produtor 2026</p>
+          <h1 className={`text-xl font-black ${headerColor} uppercase tracking-tighter italic`}>Olá, {supplier.name.split(' ')[0]}!</h1>
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{panelTitle}</p>
         </div>
         <button onClick={onLogout} className="bg-red-50 text-red-600 font-black py-2 px-4 rounded-xl transition-all border border-red-100 text-[10px] uppercase tracking-widest active:scale-95">Sair</button>
       </header>
@@ -126,20 +136,31 @@ const Dashboard: React.FC<DashboardProps> = ({
       <main className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
         
         {/* Banner de Semanas Liberadas */}
-        <div className="bg-indigo-600 text-white p-5 rounded-3xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-4 border-b-8 border-indigo-800 animate-fade-in">
+        <div className={`${bannerColor} text-white p-5 rounded-3xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-4 border-b-8 animate-fade-in`}>
             <div className="flex items-center gap-4">
                 <div className="bg-white/20 p-3 rounded-2xl">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 </div>
                 <div>
                     <h2 className="text-lg font-black uppercase tracking-tight leading-none">Semanas Liberadas</h2>
-                    <p className="text-xs font-bold text-indigo-200 mt-1 uppercase tracking-widest">Suas janelas de entrega para 2026</p>
+                    <p className={`text-xs font-bold ${bannerTextColor} mt-1 uppercase tracking-widest`}>Suas janelas de entrega para 2026</p>
                 </div>
             </div>
             <div className="flex flex-wrap justify-center gap-2">
-                {supplier.allowedWeeks && supplier.allowedWeeks.length > 0 ? (
+                {monthlySchedule ? (
+                    Object.entries(monthlySchedule).filter(([_, weeks]) => (weeks as number[]).length > 0).map(([month, weeks]) => (
+                        <div key={month} className="flex items-center gap-1 bg-white/20 px-3 py-1.5 rounded-xl border border-white/30">
+                            <span className="text-[9px] font-black uppercase">{month.substring(0,3)}:</span>
+                            <div className="flex gap-1">
+                                {(weeks as number[]).map(w => (
+                                    <span key={w} className="bg-white text-gray-800 w-5 h-5 flex items-center justify-center rounded-lg text-[10px] font-black shadow-sm">{w}</span>
+                                ))}
+                            </div>
+                        </div>
+                    ))
+                ) : supplier.allowedWeeks && supplier.allowedWeeks.length > 0 ? (
                     supplier.allowedWeeks.sort((a,b) => a-b).map(w => (
-                        <span key={w} className="bg-white text-indigo-800 font-black px-4 py-2 rounded-xl text-sm shadow-md">Semana {w}</span>
+                        <span key={w} className={`${weekBadgeColor} font-black px-4 py-2 rounded-xl text-sm shadow-md`}>Semana {w}</span>
                     ))
                 ) : (
                     <span className="bg-green-400 text-green-950 font-black px-6 py-2 rounded-xl text-sm shadow-md uppercase">Calendário Livre</span>
@@ -161,9 +182,10 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="lg:col-span-2">
               <Calendar 
                 onDayClick={handleDayClick} 
-                deliveries={supplier.deliveries} 
+                deliveries={supplier.deliveries || []} 
                 simulatedToday={SIMULATED_TODAY} 
                 allowedWeeks={supplier.allowedWeeks}
+                monthlySchedule={monthlySchedule}
               />
           </div>
           <div className="space-y-6">

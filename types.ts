@@ -73,6 +73,7 @@ export interface PerCapitaSupplier {
   processNumber: string;
   monthlySchedule: Record<string, number[]>; // month name -> array of week numbers (1-5)
   contractItems?: ContractItem[];
+  deliveries?: Delivery[];
 }
 
 export interface PerCapitaConfig {
@@ -265,4 +266,4 @@ export interface TemporaryExitLog {
   details: string;
 }
 
-export type UserRole = 'admin' | 'supplier' | 'almoxarifado' | 'itesp' | 'financeiro' | 'subportaria' | 'cardapio' | 'infraestrutura' | 'ordem_saida' | 'simic' | 'seguranca' | 'peculio' | 'reintegracao' | 'readonly';
+export type UserRole = 'admin' | 'supplier' | 'producer' | 'pereciveis_supplier' | 'almoxarifado' | 'itesp' | 'financeiro' | 'subportaria' | 'cardapio' | 'infraestrutura' | 'ordem_saida' | 'simic' | 'seguranca' | 'peculio' | 'reintegracao' | 'readonly';

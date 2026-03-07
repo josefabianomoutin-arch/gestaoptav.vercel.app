@@ -7,7 +7,8 @@ interface CalendarProps {
   onDayClick: (date: Date) => void;
   deliveries: Delivery[];
   simulatedToday: Date;
-  allowedWeeks: number[];
+  allowedWeeks?: number[];
+  monthlySchedule?: Record<string, number[]>;
 }
 
 const getWeekNumber = (d: Date): number => {
@@ -18,7 +19,14 @@ const getWeekNumber = (d: Date): number => {
     return weekNo;
 };
 
-const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedToday, allowedWeeks }) => {
+const getWeekOfMonth = (date: Date): number => {
+  const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+  const firstDayOfWeek = firstDayOfMonth.getDay();
+  const offsetDate = date.getDate() + firstDayOfWeek - 1;
+  return Math.floor(offsetDate / 7) + 1;
+};
+
+const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedToday, allowedWeeks, monthlySchedule }) => {
 
   const deliveriesByDate = useMemo(() => {
     const map = new Map<string, Delivery[]>();
@@ -28,6 +36,21 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedTo
     });
     return map;
   }, [deliveries]);
+
+  const isDateAllowed = (date: Date) => {
+    if (monthlySchedule) {
+      const monthName = MONTHS_2026[date.getMonth()].name;
+      const allowedWeeksInMonth = monthlySchedule[monthName] || [];
+      if (allowedWeeksInMonth.length === 0) return true; // Se não definiu nada, libera tudo? Ou bloqueia tudo? 
+      // Geralmente se não definiu nada no per capita, libera tudo.
+      const weekOfMonth = getWeekOfMonth(date);
+      return allowedWeeksInMonth.includes(weekOfMonth);
+    }
+    
+    if (!allowedWeeks || allowedWeeks.length === 0) return true;
+    const weekNumber = getWeekNumber(date);
+    return allowedWeeks.includes(weekNumber);
+  };
 
   const generateMonthGrid = (month: number, year: number) => {
     const date = new Date(year, month, 1);
@@ -45,17 +68,16 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedTo
       const dateString = currentDate.toISOString().split('T')[0];
       const deliveriesOnThisDate = deliveriesByDate.get(dateString) || [];
       
-      const weekNumber = getWeekNumber(currentDate);
       const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 6 = Saturday
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
       const holidayName = HOLIDAYS_2026[dateString];
       const isHoliday = !!holidayName;
       
-      const isWeekAllowed = !allowedWeeks || allowedWeeks.length === 0 || allowedWeeks.includes(weekNumber);
+      const isAllowed = isDateAllowed(currentDate);
       
       const hasDeliveries = deliveriesOnThisDate.length > 0;
       // Não permite agendar em feriados nem finais de semana, a menos que já existam entregas registradas (por admin)
-      const isClickable = ((isWeekAllowed && !isWeekend && !isHoliday) || hasDeliveries);
+      const isClickable = ((isAllowed && !isWeekend && !isHoliday) || hasDeliveries);
       
       let dayClasses = "p-2 text-center border-r border-b border-gray-200 h-20 flex flex-col justify-center items-center relative transition-all";
 
@@ -136,7 +158,8 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedTo
                 for (let r = 0; r < totalRows; r++) {
                     const rowDate = new Date(2026, month.number, (r * 7) + 1 - firstDay.getDay() + 3);
                     const weekNum = getWeekNumber(rowDate);
-                    const isAllowed = !allowedWeeks || allowedWeeks.length === 0 || allowedWeeks.includes(weekNum);
+                    
+                    const isAllowed = isDateAllowed(rowDate);
                     
                     rows.push(
                         <React.Fragment key={`row-${r}`}>
