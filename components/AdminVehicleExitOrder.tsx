@@ -60,6 +60,15 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [gateTab, setGateTab] = useState<'manual' | 'camera'>('manual');
 
+    // Recognition UI State
+    const [recognitionStatus, setRecognitionStatus] = useState<'idle' | 'scanning' | 'confirming' | 'success' | 'error'>('idle');
+    const [scannedPlate, setScannedPlate] = useState<string | null>(null);
+    const [pendingOrder, setPendingOrder] = useState<VehicleExitOrder | null>(null);
+    const [actionType, setActionType] = useState<'exit' | 'return' | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [isAutoScanEnabled, setIsAutoScanEnabled] = useState(false);
+    const autoScanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
     useEffect(() => {
         if (securityMode) {
             setActiveSubTab('gate');
@@ -97,6 +106,11 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     }, [isCameraActive, cameraStream]);
 
     const stopCamera = () => {
+        if (autoScanIntervalRef.current) {
+            clearInterval(autoScanIntervalRef.current);
+            autoScanIntervalRef.current = null;
+        }
+        setIsAutoScanEnabled(false);
         if (cameraStream) {
             cameraStream.getTracks().forEach(track => track.stop());
             setCameraStream(null);
@@ -105,12 +119,16 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             videoRef.current.srcObject = null;
         }
         setIsCameraActive(false);
+        setRecognitionStatus('idle');
     };
 
     const captureAndRecognizePlate = async () => {
         if (!videoRef.current || !canvasRef.current || isProcessingPlate) return;
 
+        setRecognitionStatus('scanning');
         setIsProcessingPlate(true);
+        setErrorMessage(null);
+
         try {
             const context = canvasRef.current.getContext('2d');
             if (!context) return;
@@ -138,52 +156,101 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             console.log("Plate recognized:", plate);
 
             if (plate === 'NAOENCONTRADA' || plate.length < 7) {
-                alert("Placa não reconhecida. Tente novamente ou use o registro manual.");
+                if (!isAutoScanEnabled) {
+                    setRecognitionStatus('error');
+                    setErrorMessage("Placa não reconhecida. Tente novamente ou use o registro manual.");
+                } else {
+                    setRecognitionStatus('idle');
+                }
             } else {
-                // Try to find an order with this plate
-                // We look for orders from today or recent that are either:
-                // 1. Not left yet (Pending)
-                // 2. Left but not returned (Active)
+                setScannedPlate(plate);
                 
-                const today = new Date().toISOString().split('T')[0];
                 const matchingOrder = orders.find(o => 
                     o.plate.replace(/[^A-Z0-9]/g, '') === plate && 
                     (!o.exitTime || !o.returnTime)
                 );
 
                 if (matchingOrder) {
-                    const now = new Date();
-                    const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-                    const currentDate = now.toISOString().split('T')[0];
-
-                    if (!matchingOrder.exitTime) {
-                        if (window.confirm(`Registrar SAÍDA para o veículo ${matchingOrder.vehicle} (${matchingOrder.plate}) às ${currentTime}?`)) {
-                            await onUpdate({
-                                ...matchingOrder,
-                                exitTime: currentTime,
-                                exitDate: currentDate
-                            });
-                        }
-                    } else if (!matchingOrder.returnTime) {
-                        if (window.confirm(`Registrar RETORNO para o veículo ${matchingOrder.vehicle} (${matchingOrder.plate}) às ${currentTime}?`)) {
-                            await onUpdate({
-                                ...matchingOrder,
-                                returnTime: currentTime,
-                                returnDate: currentDate
-                            });
+                    setPendingOrder(matchingOrder);
+                    setActionType(!matchingOrder.exitTime ? 'exit' : 'return');
+                    setRecognitionStatus('confirming');
+                    // If auto-scan is on, we pause it to let user confirm
+                    if (isAutoScanEnabled) {
+                        setIsAutoScanEnabled(false);
+                        if (autoScanIntervalRef.current) {
+                            clearInterval(autoScanIntervalRef.current);
+                            autoScanIntervalRef.current = null;
                         }
                     }
                 } else {
-                    alert(`Veículo com placa ${plate} identificado, mas nenhuma ordem pendente foi encontrada.`);
+                    setRecognitionStatus('error');
+                    setErrorMessage(`Veículo com placa ${plate} identificado, mas nenhuma ordem pendente foi encontrada.`);
                 }
             }
         } catch (err) {
             console.error("Error recognizing plate:", err);
-            alert("Erro ao processar imagem.");
+            setRecognitionStatus('error');
+            setErrorMessage("Erro ao processar imagem.");
         } finally {
             setIsProcessingPlate(false);
         }
     };
+
+    const confirmRecognitionAction = async () => {
+        if (!pendingOrder || !actionType) return;
+
+        const now = new Date();
+        const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        const currentDate = now.toISOString().split('T')[0];
+
+        try {
+            if (actionType === 'exit') {
+                await onUpdate({
+                    ...pendingOrder,
+                    exitTime: currentTime,
+                    exitDate: currentDate
+                });
+            } else {
+                await onUpdate({
+                    ...pendingOrder,
+                    returnTime: currentTime,
+                    returnDate: currentDate
+                });
+            }
+            setRecognitionStatus('success');
+            setTimeout(() => {
+                setRecognitionStatus('idle');
+                setPendingOrder(null);
+                setActionType(null);
+                setScannedPlate(null);
+            }, 3000);
+        } catch (err) {
+            console.error("Error updating order:", err);
+            setRecognitionStatus('error');
+            setErrorMessage("Erro ao atualizar registro no banco de dados.");
+        }
+    };
+
+    useEffect(() => {
+        if (isAutoScanEnabled && isCameraActive) {
+            autoScanIntervalRef.current = setInterval(() => {
+                if (recognitionStatus === 'idle') {
+                    captureAndRecognizePlate();
+                }
+            }, 5000); // Scan every 5 seconds
+        } else {
+            if (autoScanIntervalRef.current) {
+                clearInterval(autoScanIntervalRef.current);
+                autoScanIntervalRef.current = null;
+            }
+        }
+
+        return () => {
+            if (autoScanIntervalRef.current) {
+                clearInterval(autoScanIntervalRef.current);
+            }
+        };
+    }, [isAutoScanEnabled, isCameraActive, recognitionStatus]);
 
     const handleQuickRegister = async (order: VehicleExitOrder, type: 'exit' | 'return') => {
         const now = new Date();
@@ -662,19 +729,26 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                     </div>
                                 )}
 
-                                <div className="flex justify-center gap-4">
+                                <div className="flex flex-wrap justify-center gap-4">
                                     {isCameraActive && (
                                         <>
                                             <button 
                                                 onClick={stopCamera}
-                                                className="bg-gray-100 text-gray-500 font-black py-3 px-8 rounded-2xl text-[10px] uppercase tracking-widest active:scale-95"
+                                                className="bg-gray-100 text-gray-500 font-black py-3 px-6 rounded-2xl text-[10px] uppercase tracking-widest active:scale-95"
                                             >
                                                 Desativar
                                             </button>
                                             <button 
+                                                onClick={() => setIsAutoScanEnabled(!isAutoScanEnabled)}
+                                                className={`font-black py-3 px-6 rounded-2xl text-[10px] uppercase tracking-widest active:scale-95 flex items-center gap-2 transition-all ${isAutoScanEnabled ? 'bg-green-600 text-white shadow-lg shadow-green-100' : 'bg-gray-100 text-gray-500'}`}
+                                            >
+                                                <div className={`w-2 h-2 rounded-full ${isAutoScanEnabled ? 'bg-white animate-pulse' : 'bg-gray-300'}`}></div>
+                                                {isAutoScanEnabled ? 'Auto-Scan Ativo' : 'Ativar Auto-Scan'}
+                                            </button>
+                                            <button 
                                                 onClick={captureAndRecognizePlate}
-                                                disabled={isProcessingPlate}
-                                                className="bg-indigo-600 text-white font-black py-4 px-12 rounded-2xl text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-100 active:scale-95 flex items-center gap-3"
+                                                disabled={isProcessingPlate || recognitionStatus === 'confirming'}
+                                                className="bg-indigo-600 text-white font-black py-4 px-10 rounded-2xl text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-100 active:scale-95 flex items-center gap-3 disabled:opacity-50"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                                 Capturar e Identificar
@@ -682,6 +756,97 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                         </>
                                     )}
                                 </div>
+
+                                {/* Recognition Feedback Area */}
+                                {recognitionStatus !== 'idle' && (
+                                    <div className={`mt-6 p-6 rounded-3xl border-2 transition-all animate-fade-in ${
+                                        recognitionStatus === 'scanning' ? 'bg-indigo-50 border-indigo-100' :
+                                        recognitionStatus === 'confirming' ? 'bg-amber-50 border-amber-200' :
+                                        recognitionStatus === 'success' ? 'bg-green-50 border-green-200' :
+                                        'bg-red-50 border-red-200'
+                                    }`}>
+                                        {recognitionStatus === 'scanning' && (
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                                                <div>
+                                                    <p className="font-black text-indigo-900 uppercase text-xs">Analisando Imagem...</p>
+                                                    <p className="text-[10px] text-indigo-400 font-bold uppercase">Buscando placa do veículo</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {recognitionStatus === 'confirming' && pendingOrder && (
+                                            <div className="space-y-4">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Veículo Identificado</p>
+                                                        <h4 className="text-xl font-black text-amber-900 uppercase tracking-tighter italic">{pendingOrder.vehicle}</h4>
+                                                        <p className="text-sm font-mono font-bold text-amber-700">{pendingOrder.plate}</p>
+                                                    </div>
+                                                    <div className={`px-4 py-2 rounded-xl text-white font-black text-[10px] uppercase tracking-widest ${actionType === 'exit' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
+                                                        {actionType === 'exit' ? 'Saída' : 'Retorno'}
+                                                    </div>
+                                                </div>
+                                                <div className="bg-white/50 p-4 rounded-2xl border border-amber-100">
+                                                    <p className="text-xs font-bold text-amber-800">
+                                                        Deseja registrar o horário de <span className="font-black uppercase">{actionType === 'exit' ? 'Saída' : 'Retorno'}</span> para este veículo agora?
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-3">
+                                                    <button 
+                                                        onClick={() => {
+                                                            setRecognitionStatus('idle');
+                                                            setPendingOrder(null);
+                                                            setActionType(null);
+                                                            setScannedPlate(null);
+                                                        }}
+                                                        className="flex-1 bg-white border-2 border-amber-200 text-amber-700 font-black py-3 rounded-2xl uppercase text-[10px] tracking-widest hover:bg-amber-100 transition-all"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                    <button 
+                                                        onClick={confirmRecognitionAction}
+                                                        className="flex-[2] bg-amber-600 text-white font-black py-3 rounded-2xl uppercase text-[10px] tracking-widest shadow-lg shadow-amber-200 hover:bg-amber-700 transition-all active:scale-95"
+                                                    >
+                                                        Confirmar Registro
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {recognitionStatus === 'success' && (
+                                            <div className="flex items-center gap-4">
+                                                <div className="bg-green-500 p-2 rounded-full text-white">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                                </div>
+                                                <div>
+                                                    <p className="font-black text-green-900 uppercase text-xs">Registro Realizado!</p>
+                                                    <p className="text-[10px] text-green-600 font-bold uppercase">O banco de dados foi atualizado com sucesso.</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {recognitionStatus === 'error' && (
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="bg-red-500 p-2 rounded-full text-white">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-black text-red-900 uppercase text-xs">Atenção</p>
+                                                        <p className="text-[10px] text-red-600 font-bold uppercase">{errorMessage}</p>
+                                                    </div>
+                                                </div>
+                                                <button 
+                                                    onClick={() => setRecognitionStatus('idle')}
+                                                    className="w-full bg-white border-2 border-red-100 text-red-400 font-black py-2 rounded-xl uppercase text-[9px] tracking-widest hover:bg-red-50 transition-all"
+                                                >
+                                                    Fechar
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 <div className="bg-amber-50 p-6 rounded-[2rem] border border-amber-100">
                                     <h4 className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-2 flex items-center gap-2">

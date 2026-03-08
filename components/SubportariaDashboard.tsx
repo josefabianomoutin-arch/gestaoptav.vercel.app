@@ -45,6 +45,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
     const [verificationStatus, setVerificationStatus] = useState<'idle' | 'verifying' | 'success' | 'failed'>('idle');
     const [verificationResult, setVerificationResult] = useState<{ match: boolean; confidence: number; reason: string } | null>(null);
+    const [cameraError, setCameraError] = useState<string | null>(null);
     
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -53,6 +54,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
         setCapturedPhoto(null);
         setVerificationStatus('idle');
         setVerificationResult(null);
+        setCameraError(null);
         try {
             let stream;
             try {
@@ -66,7 +68,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
             setIsCameraActive(true);
         } catch (err) {
             console.error("Error accessing camera:", err);
-            alert("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
+            setCameraError("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
             setIsCameraActive(false);
         }
     };
@@ -433,25 +435,30 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                     </div>
                                 </div>
 
-                                {/* Câmera ao Vivo / Captura */}
-                                <div className="space-y-4">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Captura ao Vivo</p>
-                                    <div className="aspect-square bg-black rounded-[2.5rem] overflow-hidden border-4 border-slate-50 shadow-2xl relative">
-                                        {isCameraActive ? (
-                                            <video 
-                                                ref={videoRef} 
-                                                autoPlay 
-                                                playsInline 
-                                                muted
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : capturedPhoto ? (
-                                            <img src={capturedPhoto} alt="Capturada" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center">
-                                                <Camera className="h-12 w-12 text-slate-700 animate-pulse" />
-                                            </div>
-                                        )}
+                                  {/* Câmera ao Vivo / Captura */}
+                                  <div className="space-y-4">
+                                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Captura ao Vivo</p>
+                                      <div className="aspect-square bg-black rounded-[2.5rem] overflow-hidden border-4 border-slate-50 shadow-2xl relative">
+                                          {cameraError ? (
+                                              <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center text-red-400">
+                                                  <AlertTriangle className="h-12 w-12 mb-2" />
+                                                  <p className="text-xs font-bold uppercase">{cameraError}</p>
+                                              </div>
+                                          ) : isCameraActive ? (
+                                              <video 
+                                                  ref={videoRef} 
+                                                  autoPlay 
+                                                  playsInline 
+                                                  muted
+                                                  className="w-full h-full object-cover"
+                                              />
+                                          ) : capturedPhoto ? (
+                                              <img src={capturedPhoto} alt="Capturada" className="w-full h-full object-cover" />
+                                          ) : (
+                                              <div className="w-full h-full flex items-center justify-center">
+                                                  <Camera className="h-12 w-12 text-slate-700 animate-pulse" />
+                                              </div>
+                                          )}
 
                                         {verificationStatus === 'verifying' && (
                                             <div className="absolute inset-0 bg-indigo-900/40 backdrop-blur-sm flex flex-col items-center justify-center text-white">

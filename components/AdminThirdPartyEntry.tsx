@@ -30,10 +30,19 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
         photo: ''
     });
     const [isSaving, setIsSaving] = useState(false);
+    const [cameraError, setCameraError] = useState<string | null>(null);
 
     const [isCameraActive, setIsCameraActive] = useState(false);
+    const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    React.useEffect(() => {
+        if (videoRef.current && cameraStream) {
+            videoRef.current.srcObject = cameraStream;
+            videoRef.current.play().catch(err => console.error("Error playing video:", err));
+        }
+    }, [cameraStream]);
 
     const topScrollRef = React.useRef<HTMLDivElement>(null);
     const bottomScrollRef = React.useRef<HTMLDivElement>(null);
@@ -82,23 +91,29 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
 
     const startCamera = async () => {
         setIsCameraActive(true);
+        setCameraError(null);
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+            } catch (e) {
+                console.log("User camera failed, trying default video");
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
             }
+            setCameraStream(stream);
         } catch (err) {
             console.error("Error accessing camera:", err);
-            alert("Não foi possível acessar a câmera. Verifique as permissões.");
+            setCameraError("Não foi possível acessar a câmera. Verifique as permissões.");
             setIsCameraActive(false);
         }
     };
 
     const stopCamera = () => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            const tracks = stream.getTracks();
-            tracks.forEach(track => track.stop());
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            setCameraStream(null);
+        }
+        if (videoRef.current) {
             videoRef.current.srcObject = null;
         }
         setIsCameraActive(false);
@@ -403,7 +418,7 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
                                             </svg>
                                         </button>
                                         <button 
-                                            onClick={() => { if(window.confirm('Excluir este registro?')) onDelete(log.id); }}
+                                            onClick={() => { if(confirm('Excluir este registro?')) onDelete(log.id); }}
                                             className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition-all"
                                             title="Excluir"
                                         >
@@ -604,12 +619,19 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
                             <div className="border-t pt-4 mt-2">
                                 <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Reconhecimento Facial (Teste)</label>
                                 <div className="flex flex-col items-center gap-4 bg-gray-50 p-6 rounded-3xl border-2 border-dashed border-gray-200">
-                                    {isCameraActive ? (
+                                    {cameraError ? (
+                                        <div className="w-full max-w-[320px] aspect-video bg-red-50 rounded-2xl flex flex-col items-center justify-center p-4 text-center text-red-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                            <p className="text-xs font-bold uppercase">{cameraError}</p>
+                                            <button onClick={startCamera} className="mt-4 bg-red-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">Tentar Novamente</button>
+                                        </div>
+                                    ) : isCameraActive ? (
                                         <div className="relative w-full max-w-[320px] aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl">
                                             <video 
                                                 ref={videoRef} 
                                                 autoPlay 
                                                 playsInline 
+                                                muted
                                                 className="w-full h-full object-cover"
                                             />
                                             <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3">
