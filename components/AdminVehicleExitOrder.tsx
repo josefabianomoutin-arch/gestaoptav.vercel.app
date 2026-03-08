@@ -53,6 +53,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
     // Gate Control State
     const [isCameraActive, setIsCameraActive] = useState(false);
+    const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
     const [isProcessingPlate, setIsProcessingPlate] = useState(false);
     const [cameraError, setCameraError] = useState<string | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -68,7 +69,6 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     const startCamera = async () => {
         setCameraError(null);
         try {
-            // Try with environment camera first (back camera on mobile)
             let stream;
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ 
@@ -76,32 +76,32 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 });
             } catch (e) {
                 console.log("Environment camera failed, trying default video");
-                // Fallback to any available camera
                 stream = await navigator.mediaDevices.getUserMedia({ 
                     video: true 
                 });
             }
 
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                // Ensure video plays
-                try {
-                    await videoRef.current.play();
-                } catch (playErr) {
-                    console.error("Video play failed:", playErr);
-                }
-                setIsCameraActive(true);
-            }
+            setCameraStream(stream);
+            setIsCameraActive(true);
         } catch (err) {
             console.error("Error accessing camera:", err);
             setCameraError("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
         }
     };
 
+    useEffect(() => {
+        if (isCameraActive && videoRef.current && cameraStream) {
+            videoRef.current.srcObject = cameraStream;
+            videoRef.current.play().catch(err => console.error("Video play error:", err));
+        }
+    }, [isCameraActive, cameraStream]);
+
     const stopCamera = () => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            setCameraStream(null);
+        }
+        if (videoRef.current) {
             videoRef.current.srcObject = null;
         }
         setIsCameraActive(false);

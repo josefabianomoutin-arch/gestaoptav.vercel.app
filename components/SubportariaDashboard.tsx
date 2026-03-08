@@ -41,6 +41,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     const [isVerifying, setIsVerifying] = useState(false);
     const [verifyingLog, setVerifyingLog] = useState<ThirdPartyEntryLog | null>(null);
     const [isCameraActive, setIsCameraActive] = useState(false);
+    const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
     const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
     const [verificationStatus, setVerificationStatus] = useState<'idle' | 'verifying' | 'success' | 'failed'>('idle');
     const [verificationResult, setVerificationResult] = useState<{ match: boolean; confidence: number; reason: string } | null>(null);
@@ -49,7 +50,6 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const startCamera = async () => {
-        setIsCameraActive(true);
         setCapturedPhoto(null);
         setVerificationStatus('idle');
         setVerificationResult(null);
@@ -62,14 +62,8 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                 stream = await navigator.mediaDevices.getUserMedia({ video: true });
             }
 
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                try {
-                    await videoRef.current.play();
-                } catch (playErr) {
-                    console.error("Video play failed:", playErr);
-                }
-            }
+            setCameraStream(stream);
+            setIsCameraActive(true);
         } catch (err) {
             console.error("Error accessing camera:", err);
             alert("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
@@ -77,11 +71,19 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
         }
     };
 
+    useEffect(() => {
+        if (isCameraActive && videoRef.current && cameraStream) {
+            videoRef.current.srcObject = cameraStream;
+            videoRef.current.play().catch(err => console.error("Video play error:", err));
+        }
+    }, [isCameraActive, cameraStream]);
+
     const stopCamera = () => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            const tracks = stream.getTracks();
-            tracks.forEach(track => track.stop());
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            setCameraStream(null);
+        }
+        if (videoRef.current) {
             videoRef.current.srcObject = null;
         }
         setIsCameraActive(false);
