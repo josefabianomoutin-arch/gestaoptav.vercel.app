@@ -99,7 +99,7 @@ const isHortifrutiOrPerishable = (itemName: string): boolean => {
 
 const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-const PTRES_OPTIONS = ['380302', '380303', '380304', '380308', '380328'] as const;
+const PTRES_OPTIONS = ['380328'] as const;
 const PTRES_DESCRIPTIONS: Record<string, string> = {
     '380302': 'Materiais para o Setor de Saúde',
     '380303': 'Recurso para Atender peças e serviços de viaturas',
@@ -342,15 +342,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         return (totalValueOfAllItems / perCapitaDenominator) / 4;
     }, [itemData, perCapitaDenominator]);
 
-    const totalContractValue = useMemo(() => {
-        return itemData.reduce((sum, item) => {
-            if (['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS'].includes(item.category)) {
-                return sum + item.totalValue;
-            }
-            return sum;
-        }, 0);
-    }, [itemData]);
-
     const activeCategories = useMemo(() => {
         return ['PPAIS', 'KIT PPL', 'PERECÍVEIS', 'ESTOCÁVEIS', 'AUTOMAÇÃO', 'PRODUTOS DE LIMPEZA'].filter(cat => {
             return (seiProcessDefinitions[cat] && seiProcessDefinitions[cat].trim() !== '') || 
@@ -432,6 +423,22 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         });
         return averages;
     }, [activeCategories, acquisitionItems]);
+
+    const totalContractValue = useMemo(() => {
+        const targetCategories = ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS'];
+        let total = 0;
+        
+        targetCategories.forEach(cat => {
+            months.forEach(month => {
+                const execVal = monthlyExecution[month]?.[cat] || 0;
+                const isActiveMonth = ['Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].includes(month);
+                const futureVal = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
+                total += execVal > 0 ? execVal : futureVal;
+            });
+        });
+        
+        return total;
+    }, [monthlyExecution, categoryMonthlyAverages]);
 
     const shelfLifeData = useMemo(() => {
         const shelfLives = new Map<string, number[]>();
@@ -574,13 +581,15 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                 {months.map(month => {
                                     const quota = monthlyQuota[month] || 0;
                                     const exec = monthlyExecution[month];
-                                    const totalSpent = activeCategories.reduce((sum, cat) => sum + (exec[cat] || 0), 0);
-                                    
-                                    // Apply future expenses only to May-Dec (8 months)
                                     const isActiveMonth = ['Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].includes(month);
-                                    const futureExpenses = isActiveMonth ? activeCategories.reduce((sum, cat) => sum + (categoryMonthlyAverages[cat] || 0), 0) : 0;
                                     
-                                    const balance = quota - totalSpent - futureExpenses;
+                                    const totalSpent = activeCategories.reduce((sum, cat) => {
+                                        const value = exec[cat] || 0;
+                                        const futureValue = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
+                                        return sum + (value > 0 ? value : futureValue);
+                                    }, 0);
+                                    
+                                    const balance = quota - totalSpent;
 
                                     return (
                                         <tr key={month} className="hover:bg-gray-50 transition-colors">
@@ -613,26 +622,44 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                         {formatCurrency((Object.values(monthlyQuota) as number[]).reduce((a: number, b: number) => a + (b || 0), 0))}
                                     </td>
                                     {activeCategories.map(cat => {
-                                        const execTotal = (Object.values(monthlyExecution) as Record<string, number>[]).reduce((acc: number, curr: Record<string, number>) => acc + (curr[cat] || 0), 0);
-                                        const futureTotal = 8 * (categoryMonthlyAverages[cat] || 0);
+                                        let catTotal = 0;
+                                        months.forEach(month => {
+                                            const execVal = monthlyExecution[month]?.[cat] || 0;
+                                            const isActiveMonth = ['Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].includes(month);
+                                            const futureVal = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
+                                            catTotal += execVal > 0 ? execVal : futureVal;
+                                        });
                                         return (
                                             <th key={`exec-${cat}`} className="p-4 text-right font-mono">
-                                                {formatCurrency(execTotal + futureTotal)}
+                                                {formatCurrency(catTotal)}
                                             </th>
                                         );
                                     })}
                                     <th className="p-4 text-right font-mono bg-gray-900 text-white">
-                                        {formatCurrency((Object.values(monthlyExecution) as Record<string, number>[]).reduce((acc: number, curr: Record<string, number>) => {
-                                            return acc + activeCategories.reduce((sum, cat) => sum + (curr[cat] || 0), 0);
-                                        }, 0) + (8 * activeCategories.reduce((sum, cat) => sum + (categoryMonthlyAverages[cat] || 0), 0)))}
+                                        {formatCurrency(activeCategories.reduce((sum, cat) => {
+                                            let catTotal = 0;
+                                            months.forEach(month => {
+                                                const execVal = monthlyExecution[month]?.[cat] || 0;
+                                                const isActiveMonth = ['Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].includes(month);
+                                                const futureVal = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
+                                                catTotal += execVal > 0 ? execVal : futureVal;
+                                            });
+                                            return sum + catTotal;
+                                        }, 0))}
                                     </th>
                                     <th className="p-4 text-right font-mono bg-indigo-900 text-white">
                                         {formatCurrency(
                                             (Object.values(monthlyQuota) as number[]).reduce((a: number, b: number) => a + (b || 0), 0) - 
-                                            (Object.values(monthlyExecution) as Record<string, number>[]).reduce((acc: number, curr: Record<string, number>) => {
-                                                return acc + activeCategories.reduce((sum, cat) => sum + (curr[cat] || 0), 0);
-                                            }, 0) -
-                                            (8 * activeCategories.reduce((sum, cat) => sum + (categoryMonthlyAverages[cat] || 0), 0))
+                                            activeCategories.reduce((sum, cat) => {
+                                                let catTotal = 0;
+                                                months.forEach(month => {
+                                                    const execVal = monthlyExecution[month]?.[cat] || 0;
+                                                    const isActiveMonth = ['Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].includes(month);
+                                                    const futureVal = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
+                                                    catTotal += execVal > 0 ? execVal : futureVal;
+                                                });
+                                                return sum + catTotal;
+                                            }, 0)
                                         )}
                                     </th>
                                 </tr>
