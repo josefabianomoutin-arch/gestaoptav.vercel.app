@@ -117,8 +117,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
     const [customPerCapita, setCustomPerCapita] = useState<Record<string, string>>({});
     const [seiProcessNumbers, setSeiProcessNumbers] = useState<Record<string, string>>({});
     const [seiProcessDefinitions, setSeiProcessDefinitions] = useState<Record<string, string>>({});
-    const [monthlyQuota, setMonthlyQuota] = useState<Record<string, Record<string, number>>>({});
-    const [monthlyResource, setMonthlyResource] = useState<Record<string, Record<string, number>>>({});
+    const [monthlyQuota, setMonthlyQuota] = useState<Record<string, number>>({});
+    const [monthlyResource, setMonthlyResource] = useState<Record<string, number>>({});
+    const [ptresResources, setPtresResources] = useState<Record<string, number>>({});
     const [ppaisProducers, setPpaisProducers] = useState<PerCapitaSupplier[]>([]);
     const [pereciveisSuppliers, setPereciveisSuppliers] = useState<PerCapitaSupplier[]>([]);
     const [showComparison, setShowComparison] = useState(false);
@@ -132,8 +133,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         setCustomPerCapita(perCapitaConfig.customValues || {});
         setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
         setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
-        setMonthlyQuota((perCapitaConfig.monthlyQuota as any) || {});
-        setMonthlyResource((perCapitaConfig.monthlyResource as any) || {});
+        setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
+        setMonthlyResource(perCapitaConfig.monthlyResource || {});
+        setPtresResources(perCapitaConfig.ptresResources || {});
         setPpaisProducers(perCapitaConfig.ppaisProducers || []);
         setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
         setIsDirty(false);
@@ -150,6 +152,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
             seiProcessDefinitions,
             monthlyQuota,
             monthlyResource,
+            ptresResources,
             ppaisProducers,
             pereciveisSuppliers,
         };
@@ -185,19 +188,19 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         setIsDirty(true);
     };
 
-    const handleMonthlyValueChange = (type: 'quota' | 'resource', ptres: string, month: string, value: string) => {
+    const handleMonthlyValueChange = (type: 'quota' | 'resource', month: string, value: string) => {
         const numValue = parseFloat(value) || 0;
         if (type === 'quota') {
-            setMonthlyQuota(prev => ({ 
-                ...prev, 
-                [ptres]: { ...(prev[ptres] || {}), [month]: numValue } 
-            }));
+            setMonthlyQuota(prev => ({ ...prev, [month]: numValue }));
         } else {
-            setMonthlyResource(prev => ({ 
-                ...prev, 
-                [ptres]: { ...(prev[ptres] || {}), [month]: numValue } 
-            }));
+            setMonthlyResource(prev => ({ ...prev, [month]: numValue }));
         }
+        setIsDirty(true);
+    };
+
+    const handlePtresValueChange = (ptres: string, value: string) => {
+        const numValue = parseFloat(value) || 0;
+        setPtresResources(prev => ({ ...prev, [ptres]: numValue }));
         setIsDirty(true);
     };
 
@@ -468,31 +471,21 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                         </div>
                         <div>
                             <h3 className="text-xl font-black text-green-900 uppercase tracking-tighter italic">Cota Disponível por Mês</h3>
-                            <p className="text-[10px] text-green-600 font-bold uppercase tracking-widest">Planejamento de Consumo por PTRES</p>
+                            <p className="text-[10px] text-green-600 font-bold uppercase tracking-widest">Planejamento de Consumo Mensal</p>
                         </div>
                     </div>
 
-                    <div className="space-y-12">
-                        {PTRES_OPTIONS.map(ptres => (
-                            <div key={ptres} className="space-y-4">
-                                <div className="flex items-center gap-2">
-                                    <span className="bg-green-700 text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-sm">PTRES {ptres}</span>
-                                    <span className="text-[10px] font-black text-green-800 uppercase italic opacity-70">{PTRES_DESCRIPTIONS[ptres]}</span>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                                    {months.map(month => (
-                                        <div key={month} className="space-y-1">
-                                            <label className="text-[9px] font-black text-green-600 uppercase tracking-tighter ml-1">{month}</label>
-                                            <input 
-                                                type="number"
-                                                value={monthlyQuota[ptres]?.[month] || ''}
-                                                onChange={(e) => handleMonthlyValueChange('quota', ptres, month, e.target.value)}
-                                                placeholder="0" 
-                                                className="w-full p-2 bg-white border border-green-200 rounded-lg font-mono text-xs focus:ring-2 focus:ring-green-400 outline-none transition-all"
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        {months.map(month => (
+                            <div key={month} className="space-y-1">
+                                <label className="text-[9px] font-black text-green-600 uppercase tracking-tighter ml-1">{month}</label>
+                                <input 
+                                    type="number"
+                                    value={monthlyQuota[month] || ''}
+                                    onChange={(e) => handleMonthlyValueChange('quota', month, e.target.value)}
+                                    placeholder="0" 
+                                    className="w-full p-2 bg-white border border-green-200 rounded-lg font-mono text-xs focus:ring-2 focus:ring-green-400 outline-none transition-all"
+                                />
                             </div>
                         ))}
                     </div>
@@ -504,34 +497,27 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </div>
                         <div>
-                            <h3 className="text-xl font-black text-green-900 uppercase tracking-tighter italic">Recurso Disponível por Mês</h3>
-                            <p className="text-[10px] text-green-600 font-bold uppercase tracking-widest">Teto Orçamentário por PTRES</p>
+                            <h3 className="text-xl font-black text-green-900 uppercase tracking-tighter italic">Recurso Disponível</h3>
+                            <p className="text-[10px] text-green-600 font-bold uppercase tracking-widest">Teto Orçamentário por PTRES (Atualização Diária)</p>
                         </div>
                     </div>
 
-                    <div className="space-y-12">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {PTRES_OPTIONS.map(ptres => (
-                            <div key={ptres} className="space-y-4">
-                                <div className="flex items-center gap-2">
-                                    <span className="bg-green-700 text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-sm">PTRES {ptres}</span>
-                                    <span className="text-[10px] font-black text-green-800 uppercase italic opacity-70">{PTRES_DESCRIPTIONS[ptres]}</span>
+                            <div key={ptres} className="bg-white p-4 rounded-2xl border border-green-100 shadow-sm hover:shadow-md transition-all space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="bg-green-700 text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest">PTRES {ptres}</span>
                                 </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                                    {months.map(month => (
-                                        <div key={month} className="space-y-1">
-                                            <label className="text-[9px] font-black text-green-600 uppercase tracking-tighter ml-1">{month}</label>
-                                            <div className="relative">
-                                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-black text-green-400">R$</span>
-                                                <input 
-                                                    type="number"
-                                                    value={monthlyResource[ptres]?.[month] || ''}
-                                                    onChange={(e) => handleMonthlyValueChange('resource', ptres, month, e.target.value)}
-                                                    placeholder="0" 
-                                                    className="w-full p-2 pl-6 bg-white border border-green-200 rounded-lg font-mono text-xs focus:ring-2 focus:ring-green-400 outline-none transition-all"
-                                                />
-                                            </div>
-                                        </div>
-                                    ))}
+                                <p className="text-[10px] font-black text-green-800 uppercase italic leading-tight min-h-[2.5em]">{PTRES_DESCRIPTIONS[ptres]}</p>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-green-400">R$</span>
+                                    <input 
+                                        type="number"
+                                        value={ptresResources[ptres] || ''}
+                                        onChange={(e) => handlePtresValueChange(ptres, e.target.value)}
+                                        placeholder="0,00" 
+                                        className="w-full p-3 pl-9 bg-green-50/50 border border-green-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-green-400 outline-none transition-all"
+                                    />
                                 </div>
                             </div>
                         ))}

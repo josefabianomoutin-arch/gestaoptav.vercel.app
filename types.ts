@@ -82,8 +82,9 @@ export interface PerCapitaConfig {
   customValues?: Record<string, string>;
   seiProcessNumbers?: Record<string, string>;
   seiProcessDefinitions?: Record<string, string>;
-  monthlyQuota?: Record<string, Record<string, number>>;
-  monthlyResource?: Record<string, Record<string, number>>;
+  monthlyQuota?: Record<string, number>;
+  monthlyResource?: Record<string, number>;
+  ptresResources?: Record<string, number>;
   ppaisProducers?: PerCapitaSupplier[];
   pereciveisSuppliers?: PerCapitaSupplier[];
 }
