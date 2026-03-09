@@ -333,13 +333,13 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
             const weight = getContractItemWeight({ totalKg: item.totalQuantity, unit: item.unit });
             return sum + weight;
         }, 0);
-        return (totalKgOfAllItems / perCapitaDenominator) / 4;
+        return (totalKgOfAllItems / perCapitaDenominator) / 4 / 8;
     }, [itemData, perCapitaDenominator]);
     
     const totalPerCapitaValue = useMemo(() => {
         if (perCapitaDenominator === 0) return 0;
         const totalValueOfAllItems = itemData.reduce((sum, item) => sum + item.totalValue, 0);
-        return (totalValueOfAllItems / perCapitaDenominator) / 4;
+        return (totalValueOfAllItems / perCapitaDenominator) / 4 / 8;
     }, [itemData, perCapitaDenominator]);
 
     const activeCategories = useMemo(() => {
@@ -704,7 +704,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                 <p className="text-gray-400 font-medium">Estime o consumo mensal por pessoa com base nos totais contratados.</p>
                 <div className="mt-4 bg-gray-50 p-3 rounded-lg border border-gray-200 inline-block">
                     <p className="text-sm font-mono text-gray-600">
-                        Fórmula: (Total / (Pop. Carcerária + (Servidores / 3))) / 4
+                        Fórmula: (Total / (Pop. Carcerária + Servidores)) / 4 / 8
                     </p>
                 </div>
             </div>
