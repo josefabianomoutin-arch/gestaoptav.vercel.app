@@ -109,7 +109,7 @@ const PTRES_DESCRIPTIONS: Record<string, string> = {
 };
 
 const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog, perCapitaConfig, onUpdatePerCapitaConfig, onUpdateContractForItem, onUpdateAcquisitionItem, onDeleteAcquisitionItem, acquisitionItems }) => {
-    const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA'>('CALCULO');
+    const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'CONTROLE'>('CALCULO');
     const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS'>('ITEMS');
     const [pereciveisSubTab, setPereciveisSubTab] = useState<'ITEMS' | 'SUPPLIERS'>('ITEMS');
     const [staffCount, setStaffCount] = useState<number>(0);
@@ -346,6 +346,75 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         return itemData.reduce((sum, item) => sum + item.totalValue, 0);
     }, [itemData]);
 
+    const monthlyExecution = useMemo(() => {
+        const execution: Record<string, Record<string, number>> = {};
+        months.forEach(m => {
+            execution[m] = {
+                'PPAIS': 0,
+                'KIT PPL': 0,
+                'ESTOCÁVEIS': 0,
+                'PERECÍVEIS': 0,
+                'AUTOMAÇÃO': 0,
+                'PRODUTOS DE LIMPEZA': 0,
+                'OUTROS': 0
+            };
+        });
+
+        const getMonthFromDate = (dateStr?: string) => {
+            if (!dateStr) return null;
+            const d = new Date(dateStr + 'T12:00:00');
+            return months[d.getMonth()];
+        };
+
+        // 1. Regular Suppliers
+        suppliers.forEach(s => {
+            s.deliveries?.forEach(d => {
+                const m = getMonthFromDate(d.date);
+                if (!m) return;
+                
+                const normalizedDelItem = normalizeItemName(d.item || '');
+                const acqItem = acquisitionItems.find(ai => normalizeItemName(ai.name) === normalizedDelItem);
+                
+                if (acqItem) {
+                    if (execution[m][acqItem.category] !== undefined) {
+                        execution[m][acqItem.category] += d.value || 0;
+                    } else {
+                        execution[m]['OUTROS'] += d.value || 0;
+                    }
+                } else {
+                    const contractItem = s.contractItems?.find(ci => normalizeItemName(ci.name) === normalizedDelItem);
+                    if (contractItem && contractItem.category && contractItem.category !== 'OUTROS') {
+                        if (execution[m][contractItem.category] !== undefined) {
+                            execution[m][contractItem.category] += d.value || 0;
+                        } else {
+                            execution[m]['OUTROS'] += d.value || 0;
+                        }
+                    } else {
+                        execution[m]['OUTROS'] += d.value || 0;
+                    }
+                }
+            });
+        });
+
+        // 2. PPAIS Producers
+        ppaisProducers.forEach(p => {
+            p.deliveries?.forEach(d => {
+                const m = getMonthFromDate(d.date);
+                if (m) execution[m]['PPAIS'] += d.value || 0;
+            });
+        });
+
+        // 3. Pereciveis Suppliers
+        pereciveisSuppliers.forEach(p => {
+            p.deliveries?.forEach(d => {
+                const m = getMonthFromDate(d.date);
+                if (m) execution[m]['PERECÍVEIS'] += d.value || 0;
+            });
+        });
+
+        return execution;
+    }, [suppliers, ppaisProducers, pereciveisSuppliers, acquisitionItems]);
+
     const shelfLifeData = useMemo(() => {
         const shelfLives = new Map<string, number[]>();
         suppliers?.forEach(s => {
@@ -455,9 +524,140 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                 >
                     PRODUTOS DE LIMPEZA
                 </button>
+                <button 
+                    onClick={() => setActiveSubTab('CONTROLE')}
+                    className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeSubTab === 'CONTROLE' ? 'bg-indigo-900 text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                >
+                    Controle de Recursos
+                </button>
             </div>
 
-            {activeSubTab === 'CALCULO' ? (
+            {activeSubTab === 'CONTROLE' ? (
+                <div className="animate-fade-in space-y-8">
+                    <div className="text-center mb-8">
+                        <h2 className="text-2xl font-black text-indigo-900 uppercase tracking-tighter">Controle de Execução de Recursos Mensais</h2>
+                        <p className="text-gray-400 font-medium">Acompanhamento dos gastos por categoria em relação à cota mensal disponível.</p>
+                    </div>
+
+                    <div className="overflow-x-auto bg-white rounded-2xl shadow-xl border border-gray-100">
+                        <table className="w-full text-sm">
+                            <thead className="bg-indigo-950 text-white text-[10px] uppercase font-black tracking-widest">
+                                <tr>
+                                    <th className="p-4 text-left">Mês</th>
+                                    <th className="p-4 text-right bg-indigo-900">Cota Mensal</th>
+                                    <th className="p-4 text-right">PPAIS</th>
+                                    <th className="p-4 text-right">KIT PPL</th>
+                                    <th className="p-4 text-right">PERECÍVEIS</th>
+                                    <th className="p-4 text-right">ESTOCÁVEIS</th>
+                                    <th className="p-4 text-right">AUTOMAÇÃO</th>
+                                    <th className="p-4 text-right">LIMPEZA</th>
+                                    <th className="p-4 text-right">OUTROS</th>
+                                    <th className="p-4 text-right bg-gray-800">Total Gasto</th>
+                                    <th className="p-4 text-right bg-indigo-800">Saldo</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {months.map(month => {
+                                    const quota = monthlyQuota[month] || 0;
+                                    const exec = monthlyExecution[month];
+                                    const totalSpent = exec['PPAIS'] + exec['KIT PPL'] + exec['PERECÍVEIS'] + exec['ESTOCÁVEIS'] + exec['AUTOMAÇÃO'] + exec['PRODUTOS DE LIMPEZA'] + exec['OUTROS'];
+                                    const balance = quota - totalSpent;
+
+                                    return (
+                                        <tr key={month} className="hover:bg-gray-50 transition-colors">
+                                            <td className="p-4 font-black text-gray-700 uppercase">{month}</td>
+                                            <td className="p-4 text-right font-mono font-bold text-indigo-600 bg-indigo-50/30">{formatCurrency(quota)}</td>
+                                            <td className="p-4 text-right font-mono text-emerald-600">{formatCurrency(exec['PPAIS'])}</td>
+                                            <td className="p-4 text-right font-mono text-blue-600">{formatCurrency(exec['KIT PPL'])}</td>
+                                            <td className="p-4 text-right font-mono text-amber-600">{formatCurrency(exec['PERECÍVEIS'])}</td>
+                                            <td className="p-4 text-right font-mono text-purple-600">{formatCurrency(exec['ESTOCÁVEIS'])}</td>
+                                            <td className="p-4 text-right font-mono text-cyan-600">{formatCurrency(exec['AUTOMAÇÃO'])}</td>
+                                            <td className="p-4 text-right font-mono text-pink-600">{formatCurrency(exec['PRODUTOS DE LIMPEZA'])}</td>
+                                            <td className="p-4 text-right font-mono text-gray-500">{formatCurrency(exec['OUTROS'])}</td>
+                                            <td className="p-4 text-right font-mono font-black text-gray-800 bg-gray-50">{formatCurrency(totalSpent)}</td>
+                                            <td className={`p-4 text-right font-mono font-black bg-indigo-50/50 ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                {formatCurrency(balance)}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                            <tfoot className="bg-gray-100 font-black text-gray-800">
+                                <tr>
+                                    <td className="p-4 uppercase">Totais Anuais</td>
+                                    <td className="p-4 text-right font-mono">
+                                        {formatCurrency(Object.values(monthlyQuota).reduce((a, b) => a + b, 0))}
+                                    </td>
+                                    <th className="p-4 text-right font-mono">
+                                        {formatCurrency(Object.values(monthlyExecution).reduce((acc: number, curr: Record<string, number>) => acc + (curr['PPAIS'] || 0), 0))}
+                                    </th>
+                                    <th className="p-4 text-right font-mono">
+                                        {formatCurrency(Object.values(monthlyExecution).reduce((acc: number, curr: Record<string, number>) => acc + (curr['KIT PPL'] || 0), 0))}
+                                    </th>
+                                    <th className="p-4 text-right font-mono">
+                                        {formatCurrency(Object.values(monthlyExecution).reduce((acc: number, curr: Record<string, number>) => acc + (curr['PERECÍVEIS'] || 0), 0))}
+                                    </th>
+                                    <th className="p-4 text-right font-mono">
+                                        {formatCurrency(Object.values(monthlyExecution).reduce((acc: number, curr: Record<string, number>) => acc + (curr['ESTOCÁVEIS'] || 0), 0))}
+                                    </th>
+                                    <th className="p-4 text-right font-mono">
+                                        {formatCurrency(Object.values(monthlyExecution).reduce((acc: number, curr: Record<string, number>) => acc + (curr['AUTOMAÇÃO'] || 0), 0))}
+                                    </th>
+                                    <th className="p-4 text-right font-mono">
+                                        {formatCurrency(Object.values(monthlyExecution).reduce((acc: number, curr: Record<string, number>) => acc + (curr['PRODUTOS DE LIMPEZA'] || 0), 0))}
+                                    </th>
+                                    <th className="p-4 text-right font-mono">
+                                        {formatCurrency(Object.values(monthlyExecution).reduce((acc: number, curr: Record<string, number>) => acc + (curr['OUTROS'] || 0), 0))}
+                                    </th>
+                                    <th className="p-4 text-right font-mono bg-gray-900">
+                                        {formatCurrency(Object.values(monthlyExecution).reduce((acc: number, curr: Record<string, number>) => {
+                                            return acc + Object.values(curr).reduce((a: number, b: number) => a + b, 0);
+                                        }, 0))}
+                                    </th>
+                                    <th className="p-4 text-right font-mono bg-indigo-900">
+                                        {formatCurrency(
+                                            Object.values(monthlyQuota).reduce((a: number, b: number) => a + b, 0) - 
+                                            Object.values(monthlyExecution).reduce((acc: number, curr: Record<string, number>) => {
+                                                return acc + Object.values(curr).reduce((a: number, b: number) => a + b, 0);
+                                            }, 0)
+                                        )}
+                                    </th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-lg border-l-8 border-indigo-600">
+                            <h3 className="text-lg font-black text-gray-800 uppercase mb-4">Resumo de Categorias</h3>
+                            <div className="space-y-3">
+                                {['PPAIS', 'KIT PPL', 'PERECÍVEIS', 'ESTOCÁVEIS', 'AUTOMAÇÃO', 'PRODUTOS DE LIMPEZA', 'OUTROS'].map(cat => {
+                                    const total = Object.values(monthlyExecution).reduce((acc: number, curr: Record<string, number>) => acc + (curr[cat] || 0), 0);
+                                    if (total === 0) return null;
+                                    return (
+                                        <div key={cat} className="flex justify-between items-center border-b pb-2">
+                                            <span className="text-xs font-bold text-gray-500 uppercase">{cat}</span>
+                                            <span className="font-mono font-bold text-gray-800">{formatCurrency(total)}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl shadow-lg border-l-8 border-emerald-600">
+                            <h3 className="text-lg font-black text-gray-800 uppercase mb-4">Informação de Apoio</h3>
+                            <p className="text-sm text-gray-600 leading-relaxed">
+                                Este painel consolida todos os lançamentos de Notas Fiscais (Entradas) realizados no sistema, categorizando-os automaticamente para debitar da cota mensal planejada no Cálculo Geral.
+                            </p>
+                            <div className="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                                <p className="text-xs font-bold text-emerald-700 uppercase">Dica de Gestão</p>
+                                <p className="text-[10px] text-emerald-600 mt-1">
+                                    Mantenha os lançamentos de NF atualizados para que o saldo mensal reflita a realidade financeira de cada processo.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : activeSubTab === 'CALCULO' ? (
                 <>
             <div className="text-center mb-10">
                 <h2 className="text-3xl font-black text-green-900 uppercase tracking-tighter">Cálculo de Consumo Per Capita</h2>
