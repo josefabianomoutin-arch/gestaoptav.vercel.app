@@ -119,7 +119,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
     const [seiProcessDefinitions, setSeiProcessDefinitions] = useState<Record<string, string>>({});
     const [monthlyQuota, setMonthlyQuota] = useState<Record<string, number>>({});
     const [monthlyResource, setMonthlyResource] = useState<Record<string, number>>({});
-    const [ptresResources, setPtresResources] = useState<Record<string, number>>({});
+    const [ptresResources, setPtresResources] = useState<Record<string, { pieces: number; services: number }>>({});
     const [ppaisProducers, setPpaisProducers] = useState<PerCapitaSupplier[]>([]);
     const [pereciveisSuppliers, setPereciveisSuppliers] = useState<PerCapitaSupplier[]>([]);
     const [showComparison, setShowComparison] = useState(false);
@@ -198,9 +198,15 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         setIsDirty(true);
     };
 
-    const handlePtresValueChange = (ptres: string, value: string) => {
+    const handlePtresValueChange = (ptres: string, nature: 'pieces' | 'services', value: string) => {
         const numValue = parseFloat(value) || 0;
-        setPtresResources(prev => ({ ...prev, [ptres]: numValue }));
+        setPtresResources(prev => ({ 
+            ...prev, 
+            [ptres]: { 
+                ...(prev[ptres] || { pieces: 0, services: 0 }), 
+                [nature]: numValue 
+            } 
+        }));
         setIsDirty(true);
     };
 
@@ -504,20 +510,39 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {PTRES_OPTIONS.map(ptres => (
-                            <div key={ptres} className="bg-white p-4 rounded-2xl border border-green-100 shadow-sm hover:shadow-md transition-all space-y-3">
+                            <div key={ptres} className="bg-white p-4 rounded-2xl border border-green-100 shadow-sm hover:shadow-md transition-all space-y-4">
                                 <div className="flex items-center justify-between">
                                     <span className="bg-green-700 text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest">PTRES {ptres}</span>
                                 </div>
                                 <p className="text-[10px] font-black text-green-800 uppercase italic leading-tight min-h-[2.5em]">{PTRES_DESCRIPTIONS[ptres]}</p>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-green-400">R$</span>
-                                    <input 
-                                        type="number"
-                                        value={ptresResources[ptres] || ''}
-                                        onChange={(e) => handlePtresValueChange(ptres, e.target.value)}
-                                        placeholder="0,00" 
-                                        className="w-full p-3 pl-9 bg-green-50/50 border border-green-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-green-400 outline-none transition-all"
-                                    />
+                                
+                                <div className="grid grid-cols-1 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-green-600 uppercase tracking-tighter ml-1">339030 - Peças</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-green-400">R$</span>
+                                            <input 
+                                                type="number"
+                                                value={ptresResources[ptres]?.pieces || ''}
+                                                onChange={(e) => handlePtresValueChange(ptres, 'pieces', e.target.value)}
+                                                placeholder="0,00" 
+                                                className="w-full p-2.5 pl-9 bg-green-50/50 border border-green-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-green-400 outline-none transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-green-600 uppercase tracking-tighter ml-1">339039 - Serviço</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-green-400">R$</span>
+                                            <input 
+                                                type="number"
+                                                value={ptresResources[ptres]?.services || ''}
+                                                onChange={(e) => handlePtresValueChange(ptres, 'services', e.target.value)}
+                                                placeholder="0,00" 
+                                                className="w-full p-2.5 pl-9 bg-green-50/50 border border-green-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-green-400 outline-none transition-all"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ))}
