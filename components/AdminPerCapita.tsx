@@ -559,10 +559,13 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                     <th className="p-4 text-left">Mês</th>
                                     <th className="p-4 text-right bg-indigo-900">Cota Mensal</th>
                                     {activeCategories.map(cat => (
-                                        <th key={cat} className="p-4 text-right">{cat}</th>
+                                        <th key={`exec-${cat}`} className="p-4 text-right">{cat}</th>
                                     ))}
                                     <th className="p-4 text-right bg-gray-800">Total Gasto</th>
-                                    <th className="p-4 text-right bg-orange-800">Gastos Futuros</th>
+                                    {activeCategories.map(cat => (
+                                        <th key={`prev-${cat}`} className="p-4 text-right bg-orange-800/90">Prev. {cat}</th>
+                                    ))}
+                                    <th className="p-4 text-right bg-orange-900">Total Futuro</th>
                                     <th className="p-4 text-right bg-indigo-800">Saldo</th>
                                 </tr>
                             </thead>
@@ -583,10 +586,15 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                             <td className="p-4 font-black text-gray-700 uppercase">{month}</td>
                                             <td className="p-4 text-right font-mono font-bold text-indigo-600 bg-indigo-50/30">{formatCurrency(quota)}</td>
                                             {activeCategories.map(cat => (
-                                                <td key={cat} className="p-4 text-right font-mono text-indigo-600">{formatCurrency(exec[cat] || 0)}</td>
+                                                <td key={`exec-${cat}`} className="p-4 text-right font-mono text-indigo-600">{formatCurrency(exec[cat] || 0)}</td>
                                             ))}
                                             <td className="p-4 text-right font-mono font-black text-gray-800 bg-gray-50">{formatCurrency(totalSpent)}</td>
-                                            <td className="p-4 text-right font-mono font-bold text-orange-600 bg-orange-50/30">{formatCurrency(futureExpenses)}</td>
+                                            {activeCategories.map(cat => (
+                                                <td key={`prev-${cat}`} className="p-4 text-right font-mono text-orange-600 bg-orange-50/10">
+                                                    {formatCurrency(isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0)}
+                                                </td>
+                                            ))}
+                                            <td className="p-4 text-right font-mono font-bold text-orange-700 bg-orange-50/30">{formatCurrency(futureExpenses)}</td>
                                             <td className={`p-4 text-right font-mono font-black bg-indigo-50/50 ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                 {formatCurrency(balance)}
                                             </td>
@@ -601,7 +609,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                         {formatCurrency((Object.values(monthlyQuota) as number[]).reduce((a: number, b: number) => a + (b || 0), 0))}
                                     </td>
                                     {activeCategories.map(cat => (
-                                        <th key={cat} className="p-4 text-right font-mono">
+                                        <th key={`exec-${cat}`} className="p-4 text-right font-mono">
                                             {formatCurrency((Object.values(monthlyExecution) as Record<string, number>[]).reduce((acc: number, curr: Record<string, number>) => acc + (curr[cat] || 0), 0))}
                                         </th>
                                     ))}
@@ -610,6 +618,11 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                             return acc + activeCategories.reduce((sum, cat) => sum + (curr[cat] || 0), 0);
                                         }, 0))}
                                     </th>
+                                    {activeCategories.map(cat => (
+                                        <th key={`prev-${cat}`} className="p-4 text-right font-mono bg-orange-800/90 text-white">
+                                            {formatCurrency(8 * (categoryMonthlyAverages[cat] || 0))}
+                                        </th>
+                                    ))}
                                     <th className="p-4 text-right font-mono bg-orange-900 text-white">
                                         {formatCurrency(8 * activeCategories.reduce((sum, cat) => sum + (categoryMonthlyAverages[cat] || 0), 0))}
                                     </th>
