@@ -811,13 +811,13 @@ const ManualInvoiceModal: React.FC<ManualInvoiceModalProps> = ({ suppliers, onCl
 
     return (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-[100] p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 animate-fade-in-up">
-                <div className="flex justify-between items-center mb-6 border-b pb-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 animate-fade-in-up max-h-[90vh] flex flex-col">
+                <div className="flex justify-between items-center mb-6 border-b pb-4 shrink-0">
                     <h2 className="text-2xl font-black text-teal-800 uppercase tracking-tighter">Lançamento de Nota Manual</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-3xl font-light">&times;</button>
                 </div>
-                <form onSubmit={handleFormSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <form onSubmit={handleFormSubmit} className="flex-1 flex flex-col overflow-hidden space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-gray-400 uppercase">Fornecedor</label>
                             <select value={selectedCpf} onChange={e => setSelectedCpf(e.target.value)} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-teal-400 bg-white" required>
@@ -846,7 +846,7 @@ const ManualInvoiceModal: React.FC<ManualInvoiceModalProps> = ({ suppliers, onCl
                             <input type="text" value={receiptTermNumber} onChange={e => setReceiptTermNumber(e.target.value)} placeholder="Ex: 001/2026" className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-teal-400" />
                         </div>
                     </div>
-                    <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
                         {items.map(item => (
                             <div key={item.id} className="bg-gray-50 p-4 rounded-xl border space-y-3">
                                 <div className="flex gap-2 items-end">
@@ -877,7 +877,7 @@ const ManualInvoiceModal: React.FC<ManualInvoiceModalProps> = ({ suppliers, onCl
                         ))}
                         <button type="button" onClick={() => setItems([...items, { id: `new-${Date.now()}`, name: '', kg: '', lot: '', exp: '' }])} className="w-full py-2 border-2 border-dashed border-teal-200 text-teal-600 font-bold rounded-xl text-xs uppercase hover:bg-teal-50 transition-colors">+ Adicionar Item</button>
                     </div>
-                    <div className="flex justify-between items-center pt-6 border-t">
+                    <div className="flex justify-between items-center pt-6 border-t shrink-0">
                         <div className="text-right"><p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Valor Total NF</p><p className="text-2xl font-black text-green-700 leading-none">{formatCurrency(totalValue)}</p></div>
                         <div className="space-x-3">
                             <button type="button" onClick={onClose} className="bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-xs">Cancelar</button>
@@ -956,8 +956,8 @@ const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({ invoice, supplier, 
     };
     return (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-[100] p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 animate-fade-in-up">
-                <div className="flex justify-between items-center mb-4 border-b pb-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 animate-fade-in-up max-h-[90vh] flex flex-col">
+                <div className="flex justify-between items-center mb-4 border-b pb-4 shrink-0">
                     <div><h2 className="text-xl font-bold text-gray-800">Editar NF {invoice.invoiceNumber}</h2><p className="text-xs text-gray-500 uppercase font-black">{invoice.supplierName}</p></div>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-3xl font-light">&times;</button>
                 </div>
