@@ -126,7 +126,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
     const [isDirty, setIsDirty] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
-    const [comparisonFilter, setComparisonFilter] = useState<'TODOS' | 'SEM_ENTREGA' | 'ATENCAO' | 'AVANCADO' | 'CONCLUIDO'>('TODOS');
+    const [comparisonFilter, setComparisonFilter] = useState<'TODOS' | 'SEM_ENTREGA' | 'ATENCAO' | 'AVANCADO' | 'CONCLUIDO' | 'COM_EMPENHO'>('TODOS');
 
     useEffect(() => {
         setStaffCount(perCapitaConfig.staffCount || 0);
@@ -450,16 +450,17 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
     }, [monthlyExecution, categoryMonthlyAverages]);
 
     const contractedItemsSummary = useMemo(() => {
-        const summary = new Map<string, { contracted: number; received: number; remaining: number; unit: string; originalName: string }>();
+        const summary = new Map<string, { contracted: number; received: number; remaining: number; unit: string; originalName: string; suppliers: Set<string>; empenhos: Set<string> }>();
 
         suppliers?.forEach(supplier => {
             supplier.contractItems?.forEach(item => {
                 const normalizedName = normalizeItemName(item.name);
                 if (!summary.has(normalizedName)) {
-                    summary.set(normalizedName, { contracted: 0, received: 0, remaining: 0, unit: item.unit || 'KG', originalName: item.name });
+                    summary.set(normalizedName, { contracted: 0, received: 0, remaining: 0, unit: item.unit || 'KG', originalName: item.name, suppliers: new Set(), empenhos: new Set() });
                 }
                 const data = summary.get(normalizedName)!;
                 data.contracted += item.totalKg || 0;
+                data.suppliers.add(supplier.name);
                 summary.set(normalizedName, data);
             });
 
@@ -468,6 +469,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                 if (normalizedName && summary.has(normalizedName)) {
                     const data = summary.get(normalizedName)!;
                     data.received += delivery.kg || 0;
+                    if (delivery.receiptTermNumber) {
+                        data.empenhos.add(delivery.receiptTermNumber);
+                    }
                     summary.set(normalizedName, data);
                 }
             });
@@ -488,7 +492,10 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                 remaining: Math.max(0, data.contracted - data.received),
                 unit: data.unit,
                 percentage,
-                status
+                status,
+                suppliers: Array.from(data.suppliers),
+                empenhos: Array.from(data.empenhos),
+                hasEmpenho: data.empenhos.size > 0
             };
         }).sort((a, b) => a.name.localeCompare(b.name));
 
@@ -501,6 +508,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         if (comparisonFilter === 'ATENCAO') return contractedItemsSummary.filter(i => i.status === 'ATENCAO');
         if (comparisonFilter === 'AVANCADO') return contractedItemsSummary.filter(i => i.status === 'AVANCADO');
         if (comparisonFilter === 'CONCLUIDO') return contractedItemsSummary.filter(i => i.status === 'CONCLUIDO');
+        if (comparisonFilter === 'COM_EMPENHO') return contractedItemsSummary.filter(i => i.hasEmpenho);
         return contractedItemsSummary;
     }, [contractedItemsSummary, comparisonFilter]);
 
@@ -959,10 +967,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                             <tbody>
                                                 ${filteredComparison.map((item, index) => {
                                                     const statusText = item.status === 'SEM_ENTREGA' ? 'SEM ENTREGA' : item.status === 'ATENCAO' ? 'ATENÇÃO (< 50%)' : item.status === 'AVANCADO' ? 'AVANÇADO (≥ 70%)' : item.status === 'CONCLUIDO' ? 'CONCLUÍDO (100%)' : 'NORMAL';
+                                                    const empenhoText = item.empenhos.length > 0 ? ` <span style="font-size: 10px; color: #666; background: #eee; padding: 2px 4px; border-radius: 4px;">Empenho: ${item.empenhos.join(', ')}</span>` : '';
+                                                    const supplierText = item.suppliers.length > 0 ? `<div style="font-size: 10px; color: #888; margin-top: 2px;">${item.suppliers.join(', ')}</div>` : '';
                                                     return `
                                                         <tr>
                                                             <td class="text-center">${index + 1}</td>
-                                                            <td>${item.name}</td>
+                                                            <td>${item.name}${empenhoText}${supplierText}</td>
                                                             <td class="text-center">${item.contracted.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${item.unit}</td>
                                                             <td class="text-center">${item.received.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${item.unit}</td>
                                                             <td class="text-center">${item.remaining.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${item.unit}</td>
@@ -1003,6 +1013,10 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                             </button>
                             <button onClick={() => setComparisonFilter('CONCLUIDO')} className={`px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-colors ${comparisonFilter === 'CONCLUIDO' ? 'bg-green-600 text-white shadow-md' : 'bg-white text-green-600 border border-green-200 hover:bg-green-50'}`}>
                                 <span className="w-2 h-2 rounded-full bg-current"></span> Concluído (100%)
+                            </button>
+                            <button onClick={() => setComparisonFilter('COM_EMPENHO')} className={`px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-colors ${comparisonFilter === 'COM_EMPENHO' ? 'bg-purple-600 text-white shadow-md' : 'bg-white text-purple-600 border border-purple-200 hover:bg-purple-50'}`}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                Com Empenho
                             </button>
                         </div>
                         <div 
@@ -1047,11 +1061,25 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                             <tr key={item.name} className="hover:bg-gray-50">
                                                 <td className="p-3 text-center font-mono text-gray-500">{index + 1}</td>
                                                 <td className="p-3 font-semibold text-gray-800">
-                                                    {item.name}
-                                                    {item.status === 'SEM_ENTREGA' && <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">SEM ENTREGA</span>}
-                                                    {item.status === 'ATENCAO' && <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700">ATENÇÃO</span>}
-                                                    {item.status === 'AVANCADO' && <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">AVANÇADO</span>}
-                                                    {item.status === 'CONCLUIDO' && <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">CONCLUÍDO</span>}
+                                                    <div className="flex flex-col">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span>{item.name}</span>
+                                                            {item.empenhos.length > 0 && (
+                                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                                                                    Empenho: {item.empenhos.join(', ')}
+                                                                </span>
+                                                            )}
+                                                            {item.status === 'SEM_ENTREGA' && <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">SEM ENTREGA</span>}
+                                                            {item.status === 'ATENCAO' && <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700">ATENÇÃO</span>}
+                                                            {item.status === 'AVANCADO' && <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">AVANÇADO</span>}
+                                                            {item.status === 'CONCLUIDO' && <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">CONCLUÍDO</span>}
+                                                        </div>
+                                                        {item.suppliers.length > 0 && (
+                                                            <span className="text-[10px] font-normal text-gray-400 mt-0.5">
+                                                                {item.suppliers.join(', ')}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="p-3 text-center font-mono text-gray-500">{item.contracted.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {item.unit}</td>
                                                 <td className="p-3 text-center font-mono text-gray-500">{item.received.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {item.unit}</td>
