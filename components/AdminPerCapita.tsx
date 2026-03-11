@@ -512,6 +512,24 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         return contractedItemsSummary;
     }, [contractedItemsSummary, comparisonFilter]);
 
+    const suppliersWithoutEmpenho = useMemo(() => {
+        if (!suppliers) return [];
+        return suppliers.filter(supplier => {
+            const hasEmpenho = supplier.deliveries?.some(d => !!d.receiptTermNumber);
+            return !hasEmpenho;
+        }).map(supplier => {
+            const totalWeight = supplier.contractItems?.reduce((acc, item) => acc + (item.totalKg || 0), 0) || 0;
+            const totalValue = supplier.contractItems?.reduce((acc, item) => acc + (item.totalValue || 0), 0) || 0;
+            return {
+                name: supplier.name,
+                document: supplier.cpf,
+                totalWeight,
+                totalValue
+            };
+        }).filter(s => s.totalWeight > 0 || s.totalValue > 0)
+          .sort((a, b) => a.name.localeCompare(b.name));
+    }, [suppliers]);
+
     return (
         <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-7xl mx-auto border-t-8 border-green-500 animate-fade-in relative">
             
@@ -1104,6 +1122,44 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                             </table>
                         </div>
                     </div>
+
+                    {suppliersWithoutEmpenho.length > 0 && (
+                        <div className="mt-12 animate-fade-in">
+                            <h3 className="text-xl font-black text-red-800 text-center uppercase tracking-tighter mb-6 flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                Empresas Sem Empenho Registrado
+                            </h3>
+                            <div className="border border-red-100 rounded-lg overflow-hidden shadow-sm">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-red-50 text-xs uppercase text-red-800">
+                                        <tr>
+                                            <th className="p-3 text-left">Empresa</th>
+                                            <th className="p-3 text-center">CNPJ/CPF</th>
+                                            <th className="p-3 text-center">Peso a Empenhar</th>
+                                            <th className="p-3 text-center">Valor a Empenhar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-red-50 bg-white">
+                                        {suppliersWithoutEmpenho.map((supplier, index) => (
+                                            <tr key={supplier.document} className="hover:bg-red-50/50 transition-colors">
+                                                <td className="p-3 font-semibold text-gray-800">{supplier.name}</td>
+                                                <td className="p-3 text-center font-mono text-gray-500">{supplier.document}</td>
+                                                <td className="p-3 text-center font-mono text-gray-600">{supplier.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG</td>
+                                                <td className="p-3 text-center font-mono font-bold text-red-600">{formatCurrency(supplier.totalValue)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot className="bg-red-50 font-bold text-red-900">
+                                        <tr>
+                                            <td colSpan={2} className="p-3 text-right uppercase text-xs tracking-wider">Total a Empenhar:</td>
+                                            <td className="p-3 text-center font-mono">{suppliersWithoutEmpenho.reduce((acc, s) => acc + s.totalWeight, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG</td>
+                                            <td className="p-3 text-center font-mono">{formatCurrency(suppliersWithoutEmpenho.reduce((acc, s) => acc + s.totalValue, 0))}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
