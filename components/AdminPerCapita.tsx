@@ -519,12 +519,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
             return !hasEmpenho;
         }).map(supplier => {
             const totalWeight = supplier.contractItems?.reduce((acc, item) => acc + (item.totalKg || 0), 0) || 0;
-            const totalValue = supplier.contractItems?.reduce((acc, item) => acc + (item.totalValue || 0), 0) || 0;
+            const totalValue = supplier.contractItems?.reduce((acc, item) => acc + ((item.totalKg || 0) * (item.valuePerKg || 0)), 0) || 0;
             const items = supplier.contractItems?.map(item => ({
                 name: item.name,
                 contracted: item.totalKg || 0,
                 unit: item.unit || 'KG',
-                value: item.totalValue || 0
+                value: (item.totalKg || 0) * (item.valuePerKg || 0)
             })) || [];
 
             return {
