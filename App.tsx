@@ -14,24 +14,46 @@ import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
 import { firebaseConfig } from './firebaseConfig';
 
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
-const rootRef = ref(database);
-const suppliersRef = ref(database, 'suppliers');
-const warehouseLogRef = ref(database, 'warehouseLog');
-const perCapitaConfigRef = ref(database, 'perCapitaConfig');
-const cleaningLogsRef = ref(database, 'cleaningLogs');
-const directorWithdrawalsRef = ref(database, 'directorWithdrawals');
-const standardMenuRef = ref(database, 'standardMenu');
-const dailyMenusRef = ref(database, 'dailyMenus');
-const financialRecordsRef = ref(database, 'financialRecords');
-const thirdPartyEntriesRef = ref(database, 'thirdPartyEntries');
-const acquisitionItemsRef = ref(database, 'acquisitionItems');
-const vehicleExitOrdersRef = ref(database, 'vehicleExitOrders');
-const vehicleAssetsRef = ref(database, 'vehicleAssets');
-const driverAssetsRef = ref(database, 'driverAssets');
-const temporaryExitInmatesRef = ref(database, 'temporaryExitInmates');
-const temporaryExitLogsRef = ref(database, 'temporaryExitLogs');
+let database: any;
+let rootRef: any;
+let suppliersRef: any;
+let warehouseLogRef: any;
+let perCapitaConfigRef: any;
+let cleaningLogsRef: any;
+let directorWithdrawalsRef: any;
+let standardMenuRef: any;
+let dailyMenusRef: any;
+let financialRecordsRef: any;
+let thirdPartyEntriesRef: any;
+let acquisitionItemsRef: any;
+let vehicleExitOrdersRef: any;
+let vehicleAssetsRef: any;
+let driverAssetsRef: any;
+let temporaryExitInmatesRef: any;
+let temporaryExitLogsRef: any;
+
+try {
+  const app = initializeApp(firebaseConfig);
+  database = getDatabase(app);
+  rootRef = ref(database);
+  suppliersRef = ref(database, 'suppliers');
+  warehouseLogRef = ref(database, 'warehouseLog');
+  perCapitaConfigRef = ref(database, 'perCapitaConfig');
+  cleaningLogsRef = ref(database, 'cleaningLogs');
+  directorWithdrawalsRef = ref(database, 'directorWithdrawals');
+  standardMenuRef = ref(database, 'standardMenu');
+  dailyMenusRef = ref(database, 'dailyMenus');
+  financialRecordsRef = ref(database, 'financialRecords');
+  thirdPartyEntriesRef = ref(database, 'thirdPartyEntries');
+  acquisitionItemsRef = ref(database, 'acquisitionItems');
+  vehicleExitOrdersRef = ref(database, 'vehicleExitOrders');
+  vehicleAssetsRef = ref(database, 'vehicleAssets');
+  driverAssetsRef = ref(database, 'driverAssets');
+  temporaryExitInmatesRef = ref(database, 'temporaryExitInmates');
+  temporaryExitLogsRef = ref(database, 'temporaryExitLogs');
+} catch (error) {
+  console.error("Erro ao inicializar Firebase:", error);
+}
 
 const App: React.FC = () => {
   const [user, setUser] = useState<{ name: string; cpf: string; role: UserRole } | null>(null);
