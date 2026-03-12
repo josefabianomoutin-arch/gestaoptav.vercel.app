@@ -48,17 +48,25 @@ function encodeWAV(samples: Uint8Array, sampleRate: number = 24000): string {
 }
 
 export class SpeechService {
-  private ai: GoogleGenAI;
+  private ai: GoogleGenAI | null = null;
 
-  constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  private getAI(): GoogleGenAI {
+    if (!this.ai) {
+      const apiKey = process.env.GEMINI_API_KEY || '';
+      if (!apiKey) {
+        console.error("API Key is missing!");
+      }
+      this.ai = new GoogleGenAI({ apiKey });
+    }
+    return this.ai;
   }
 
   async speak(text: string): Promise<void> {
     try {
       console.log("Iniciando TTS para o texto:", text);
+      const aiClient = this.getAI();
 
-      const response = await this.ai.models.generateContent({
+      const response = await aiClient.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text }] }],
         config: {
