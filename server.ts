@@ -1,88 +1,15 @@
-
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import multer from "multer";
-import { google } from "googleapis";
-import { JWT } from "google-auth-library";
-import fs from "fs";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Request logging
-  app.use((req, res, next) => {
-    const log = `${new Date().toISOString()} - ${req.method} ${req.url}\n`;
-    fs.appendFileSync("access.log", log);
-    next();
-  });
-
-  // Configure Multer for file uploads
-  const upload = multer({ dest: "uploads/" });
-
-  // Google Drive Auth
-  const getDriveClient = () => {
-    const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-    const key = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n');
-    
-    if (!email || !key) {
-      console.warn("Google Drive credentials missing. Uploads will fail.");
-      return null;
-    }
-
-    const auth = new JWT({
-      email,
-      key,
-      scopes: ["https://www.googleapis.com/auth/drive.file"],
-    });
-
-    return google.drive({ version: "v3", auth });
-  };
-
-  // API Routes
-  app.get("/api/test", (req, res) => {
-    res.send("Server is working!");
-  });
-
+  // API routes FIRST
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
-  });
-
-  app.post("/api/upload-invoice", upload.single("file"), async (req, res) => {
-    try {
-      const drive = getDriveClient();
-      if (!drive) {
-        return res.status(500).json({ error: "Google Drive not configured" });
-      }
-
-      const file = req.file;
-      if (!file) {
-        return res.status(400).json({ error: "No file uploaded" });
-      }
-
-      const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
-      const fileName = req.body.fileName || file.originalname;
-
-      const response = await drive.files.create({
-        requestBody: {
-          name: fileName,
-          parents: folderId ? [folderId] : [],
-        },
-        media: {
-          mimeType: file.mimetype,
-          body: fs.createReadStream(file.path),
-        },
-      });
-
-      // Clean up local file
-      fs.unlinkSync(file.path);
-
-      res.json({ success: true, fileId: response.data.id });
-    } catch (error) {
-      console.error("Upload error:", error);
-      res.status(500).json({ error: "Failed to upload to Google Drive" });
-    }
   });
 
   // Vite middleware for development
@@ -92,32 +19,17 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
-    
-    // Explicitly serve index.html for non-API routes
-    app.use('*', async (req, res, next) => {
-      const url = req.originalUrl;
-      if (url.startsWith('/api')) return next();
-      
-      try {
-        let template = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf-8');
-        template = await vite.transformIndexHtml(url, template);
-        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
-      } catch (e) {
-        next(e);
-      }
-    });
   } else {
+    // Production: serve static files from dist
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*all', (req, res) => {
+    app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`>>> SERVIDOR RODANDO NA PORTA ${PORT}`);
-    console.log(`>>> AMBIENTE: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`>>> URL DO APP: https://ais-dev-4qt2g7pkcbaumjhhst3746-882203782.us-east5.run.app`);
+    console.log(`Server running on http://localhost:${PORT}`);
   });
 }
 

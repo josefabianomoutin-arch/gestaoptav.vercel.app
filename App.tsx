@@ -74,6 +74,8 @@ const App: React.FC = () => {
   const [temporaryExitLogs, setTemporaryExitLogs] = useState<TemporaryExitLog[]>([]);
 
   useEffect(() => {
+    if (!database) return;
+
     onValue(suppliersRef, (snapshot) => {
       const data = snapshot.val();
       setSuppliers(data ? Object.values(data) : []);
