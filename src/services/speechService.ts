@@ -52,8 +52,9 @@ export class SpeechService {
 
   private getAI(): GoogleGenAI {
     if (!this.ai) {
-      const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
-      console.log("API Key length:", apiKey.length);
+      // Use the platform-provided key if available, otherwise fallback to env vars
+      const apiKey = (window as any).GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+      
       if (!apiKey) {
         console.error("API Key is missing!");
       }
