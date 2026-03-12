@@ -19,6 +19,22 @@
         Carregando sistema... por favor aguarde.
       </div>
     </div>
+    <script>
+      window.process = window.process || {};
+      window.process.env = window.process.env || {};
+      try {
+        let key = process.env.GEMINI_API_KEY;
+        if (typeof key === 'string' && key !== "process.env.GEMINI_API_KEY") {
+          window.process.env.GEMINI_API_KEY = key;
+        }
+      } catch (e) {}
+      try {
+        let key2 = process.env.API_KEY;
+        if (typeof key2 === 'string' && key2 !== "process.env.API_KEY") {
+          window.process.env.API_KEY = key2;
+        }
+      } catch (e) {}
+    </script>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>
