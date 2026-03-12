@@ -56,6 +56,14 @@ try {
 }
 
 const App: React.FC = () => {
+  useEffect(() => {
+    try {
+      console.log("Browser process.env.GEMINI_API_KEY:", process.env.GEMINI_API_KEY);
+    } catch (e) {
+      console.log("process.env is not defined", e);
+    }
+  }, []);
+
   const [user, setUser] = useState<{ name: string; cpf: string; role: UserRole } | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [warehouseLog, setWarehouseLog] = useState<WarehouseMovement[]>([]);
