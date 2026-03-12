@@ -1,21 +1,35 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Modality } from "@google/genai";
 
 export class SpeechService {
   private ai: GoogleGenAI;
+  private audioContext: AudioContext | null = null;
 
   constructor() {
     this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
 
+  private initAudioContext() {
+    if (!this.audioContext) {
+      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    if (this.audioContext.state === 'suspended') {
+      this.audioContext.resume();
+    }
+    return this.audioContext;
+  }
+
   async speak(text: string): Promise<void> {
     try {
       console.log("Iniciando TTS para o texto:", text);
+      // Inicializa o contexto de áudio de forma síncrona para evitar bloqueio do navegador
+      const ctx = this.initAudioContext();
+
       const response = await this.ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text }] }],
         config: {
-          responseModalities: ["AUDIO"],
+          responseModalities: [Modality.AUDIO],
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: { voiceName: 'Kore' }, // 'Kore' is a good female voice
@@ -40,9 +54,8 @@ export class SpeechService {
         console.log("Tamanho do áudio em bytes:", len);
 
         // Gemini TTS returns raw PCM data (16-bit, 24kHz, mono)
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
         const numSamples = bytes.length / 2;
-        const audioBuffer = audioContext.createBuffer(1, numSamples, 24000);
+        const audioBuffer = ctx.createBuffer(1, numSamples, 24000);
         const channelData = audioBuffer.getChannelData(0);
         const dataView = new DataView(bytes.buffer);
 
@@ -53,16 +66,18 @@ export class SpeechService {
           channelData[i] = sample < 0 ? sample / 32768 : sample / 32767;
         }
 
-        const source = audioContext.createBufferSource();
+        const source = ctx.createBufferSource();
         source.buffer = audioBuffer;
-        source.connect(audioContext.destination);
+        source.connect(ctx.destination);
         
-        source.onended = () => {
-          console.log("Reprodução de áudio concluída.");
-        };
-
-        source.start();
-        console.log("Reprodução iniciada.");
+        return new Promise((resolve) => {
+          source.onended = () => {
+            console.log("Reprodução de áudio concluída.");
+            resolve();
+          };
+          source.start();
+          console.log("Reprodução iniciada.");
+        });
       } else {
         console.warn("Nenhum dado de áudio retornado pelo modelo.");
       }

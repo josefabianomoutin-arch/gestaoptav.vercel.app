@@ -9,7 +9,7 @@ import InvoiceUploader from './InvoiceUploader';
 import EmailConfirmationModal from './EmailConfirmationModal';
 import FulfillmentModal from './FulfillmentModal';
 import { speechService } from '../src/services/speechService';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, Volume2, Loader2 } from 'lucide-react';
 
 const SIMULATED_TODAY = new Date('2026-04-30T00:00:00');
 
@@ -52,6 +52,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [invoiceToFulfill, setInvoiceToFulfill] = useState<{ date: string; deliveries: Delivery[] } | null>(null);
   const [deliveriesToShow, setDeliveriesToShow] = useState<Delivery[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const panelTitle = type === 'PRODUTOR' ? 'Painel do Produtor 2026' : 'Painel do Fornecedor 2026';
   const headerColor = type === 'PRODUTOR' ? 'text-green-800' : 'text-indigo-800';
@@ -92,8 +93,14 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleCloseFulfillmentModal = () => { setInvoiceToFulfill(null); setIsFulfillmentModalOpen(false); };
   
   const handlePlayGeneralHelp = async () => {
-    const text = "Olá! Este é o seu painel de entregas. Para agendar uma nova entrega, clique em um dia vazio no calendário. Para enviar uma nota fiscal de uma entrega já realizada, clique no dia da entrega e selecione 'Faturar Entrega'. Se precisar de ajuda em cada passo, procure pelo ícone de som.";
-    await speechService.speak(text);
+    if (isSpeaking) return;
+    setIsSpeaking(true);
+    try {
+      const text = "Olá! Este é o seu painel de entregas. Para agendar uma nova entrega, clique em um dia vazio no calendário. Para enviar uma nota fiscal de uma entrega já realizada, clique no dia da entrega e selecione 'Faturar Entrega'. Se precisar de ajuda em cada passo, procure pelo ícone de som.";
+      await speechService.speak(text);
+    } finally {
+      setIsSpeaking(false);
+    }
   };
 
   const handleSaveFulfillment = (invoiceData: { invoiceNumber: string; fulfilledItems: { name: string; kg: number; value: number }[] }) => {
@@ -140,10 +147,11 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
           <button 
             onClick={handlePlayGeneralHelp}
-            className="bg-indigo-50 text-indigo-600 p-2 rounded-full hover:bg-indigo-100 transition-colors"
+            disabled={isSpeaking}
+            className={`p-2 rounded-full transition-colors ${isSpeaking ? 'bg-indigo-200 text-indigo-800 animate-pulse' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
             title="Ajuda por Voz"
           >
-            <HelpCircle className="h-5 w-5" />
+            {isSpeaking ? <Volume2 className="h-5 w-5 animate-pulse" /> : <HelpCircle className="h-5 w-5" />}
           </button>
         </div>
         <button onClick={onLogout} className="bg-red-50 text-red-600 font-black py-2 px-4 rounded-xl transition-all border border-red-100 text-[10px] uppercase tracking-widest active:scale-95">Sair</button>
