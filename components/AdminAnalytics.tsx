@@ -79,7 +79,7 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], warehou
         // 1. Inicializar Metas Baseado nos Contratos
         suppliers.forEach(s => {
             const sNorm = superNormalize(s.name);
-            s.contractItems.forEach(ci => {
+            (s.contractItems || []).forEach(ci => {
                 const iNorm = superNormalize(ci.name);
                 // Auditoria focada no ano completo
                 months.forEach(mName => {
