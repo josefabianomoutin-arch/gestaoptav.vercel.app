@@ -1,28 +1,62 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
 
+const showError = (msg: string) => {
+  const div = document.createElement('div');
+  div.style.position = 'fixed';
+  div.style.bottom = '20px';
+  div.style.right = '20px';
+  div.style.background = '#ef4444';
+  div.style.color = 'white';
+  div.style.padding = '16px';
+  div.style.borderRadius = '8px';
+  div.style.zIndex = '9999';
+  div.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+  div.innerText = 'Erro de Áudio: ' + msg;
+  document.body.appendChild(div);
+  setTimeout(() => div.remove(), 8000);
+};
+
+function encodeWAV(samples: Uint8Array, sampleRate: number = 24000): string {
+  const buffer = new ArrayBuffer(44 + samples.length);
+  const view = new DataView(buffer);
+
+  const writeString = (offset: number, string: string) => {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  };
+
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + samples.length, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true); // Subchunk1Size
+  view.setUint16(20, 1, true); // AudioFormat (PCM)
+  view.setUint16(22, 1, true); // NumChannels (Mono)
+  view.setUint32(24, sampleRate, true); // SampleRate
+  view.setUint32(28, sampleRate * 2, true); // ByteRate
+  view.setUint16(32, 2, true); // BlockAlign
+  view.setUint16(34, 16, true); // BitsPerSample
+  writeString(36, 'data');
+  view.setUint32(40, samples.length, true);
+
+  new Uint8Array(buffer, 44).set(samples);
+
+  const blob = new Blob([buffer], { type: 'audio/wav' });
+  return URL.createObjectURL(blob);
+}
+
 export class SpeechService {
   private ai: GoogleGenAI;
-  private audioContext: AudioContext | null = null;
 
   constructor() {
     this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
 
-  private initAudioContext() {
-    if (!this.audioContext) {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-    if (this.audioContext.state === 'suspended') {
-      this.audioContext.resume();
-    }
-    return this.audioContext;
-  }
-
   async speak(text: string): Promise<void> {
     try {
       console.log("Iniciando TTS para o texto:", text);
-      const ctx = this.initAudioContext();
 
       const response = await this.ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
@@ -40,8 +74,6 @@ export class SpeechService {
       let base64Audio: string | undefined;
       let mimeType: string | undefined;
 
-      // A inteligência artificial pode retornar o áudio em qualquer uma das "partes" da resposta.
-      // Precisamos procurar em todas elas, e não apenas na primeira.
       const parts = response.candidates?.[0]?.content?.parts || [];
       for (const part of parts) {
         if (part.inlineData) {
@@ -61,44 +93,39 @@ export class SpeechService {
           bytes[i] = binaryString.charCodeAt(i);
         }
 
-        let audioBuffer: AudioBuffer;
-
-        try {
-          // Tenta decodificar como um arquivo de áudio padrão (WAV, MP3, OGG)
-          console.log("Tentando decodificar com decodeAudioData...");
-          audioBuffer = await ctx.decodeAudioData(bytes.buffer.slice(0));
-          console.log("Decodificado com sucesso como arquivo padrão.");
-        } catch (e) {
-          console.log("Falha ao decodificar como arquivo padrão, assumindo PCM raw (16-bit, 24kHz)...", e);
-          // Fallback para PCM raw
-          const numSamples = bytes.length / 2;
-          audioBuffer = ctx.createBuffer(1, numSamples, 24000);
-          const channelData = audioBuffer.getChannelData(0);
-          const dataView = new DataView(bytes.buffer);
-
-          for (let i = 0; i < numSamples; i++) {
-            const sample = dataView.getInt16(i * 2, true);
-            channelData[i] = sample < 0 ? sample / 32768 : sample / 32767;
-          }
-        }
-
-        const source = ctx.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(ctx.destination);
+        console.log("Convertendo PCM para arquivo WAV...");
+        const wavUrl = encodeWAV(bytes, 24000);
+        
+        const audio = new Audio(wavUrl);
         
         return new Promise((resolve) => {
-          source.onended = () => {
-            console.log("Reprodução de áudio concluída.");
+          audio.onended = () => {
+            console.log("Reprodução concluída.");
+            URL.revokeObjectURL(wavUrl);
             resolve();
           };
-          source.start();
-          console.log("Reprodução iniciada.");
+          audio.onerror = (e) => {
+            console.error("Erro no elemento Audio:", e);
+            showError("Falha ao reproduzir o áudio WAV gerado.");
+            URL.revokeObjectURL(wavUrl);
+            resolve();
+          };
+          
+          audio.play().then(() => {
+            console.log("Reprodução iniciada com sucesso.");
+          }).catch(e => {
+            console.error("Erro ao iniciar reprodução:", e);
+            showError("O navegador bloqueou o áudio. Tente clicar em outro lugar da tela antes.");
+            resolve();
+          });
         });
       } else {
         console.warn("Nenhum dado de áudio retornado pelo modelo.");
+        showError("A inteligência artificial não retornou o áudio.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("TTS Error:", error);
+      showError(error.message || "Erro desconhecido na API do Google.");
     }
   }
 }
