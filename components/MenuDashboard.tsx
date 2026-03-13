@@ -62,7 +62,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
   };
 
   const findLotInfo = (contractedItemName: string) => {
-    if (!contractedItemName) return { lot: 'N/A', invoice: 'N/A' };
+    if (!contractedItemName) return { lot: 'N/A', invoice: 'N/A', expiration: 'N/A' };
     
     // Find the most recent delivery for this item
     let latestDelivery = null;
@@ -81,11 +81,13 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
     });
 
     if (latestDelivery) {
-      const lotNum = (latestDelivery as any).lots?.[0]?.lotNumber || 'N/A';
-      return { lot: lotNum, invoice: (latestDelivery as any).invoiceNumber || 'N/A' };
+      const lotObj = (latestDelivery as any).lots?.[0];
+      const lotNum = lotObj?.lotNumber || 'N/A';
+      const expiration = lotObj?.expirationDate ? new Date(lotObj.expirationDate).toLocaleDateString('pt-BR') : 'N/A';
+      return { lot: lotNum, invoice: (latestDelivery as any).invoiceNumber || 'N/A', expiration };
     }
 
-    return { lot: 'N/A', invoice: 'N/A' };
+    return { lot: 'N/A', invoice: 'N/A', expiration: 'N/A' };
   };
 
   const handlePrintSelected = () => {
@@ -263,16 +265,42 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
           <div class="date-info">${dayOfWeek} - ${dateFormatted}</div>
         </div>
         <div class="content">
-          <div class="meal-section">
-            <div class="meal-title">${meal.title}</div>
-            <ul class="item-list">
-              ${meal.items.map(item => `<li>${item.foodItem || item.contractedItem}</li>`).join('')}
-            </ul>
-          </div>
+          <div class="meal-title">${meal.title}</div>
+          <table class="item-table">
+            <thead>
+              <tr>
+                <th>Item / Preparação</th>
+                <th>Lote</th>
+                <th>NF</th>
+                <th>Validade</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${meal.items.map(item => {
+                const { lot, invoice, expiration } = findLotInfo(item.contractedItem || '');
+                return `
+                  <tr>
+                    <td>${item.foodItem || item.contractedItem}</td>
+                    <td class="text-center">${lot}</td>
+                    <td class="text-center">${invoice}</td>
+                    <td class="text-center">${expiration}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
         </div>
         <div class="footer">
-          <span>Penitenciária de Taiúva</span>
-          <span>Gestão de Alimentação</span>
+          <div class="footer-info">
+            <span>Data Coleta: ${dateFormatted}</span>
+            <span>Hora: ____:____</span>
+            <span>Armazenamento: REFRIGERADO (0°C a 4°C)</span>
+          </div>
+          <div class="signature-line">Assinatura do Responsável</div>
+          <div class="footer-branding">
+            <span>Penitenciária de Taiúva</span>
+            <span>Gestão de Alimentação</span>
+          </div>
         </div>
       </div>
     `).join('<div style="page-break-after: always;"></div>');
@@ -295,7 +323,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
               width: 180mm;
               height: 100mm;
               border: 3px solid #000;
-              padding: 8mm;
+              padding: 6mm;
               box-sizing: border-box;
               display: flex;
               flex-direction: column;
@@ -306,11 +334,11 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
             .header {
               text-align: center;
               border-bottom: 2px solid #000;
-              padding-bottom: 4mm;
-              margin-bottom: 4mm;
+              padding-bottom: 3mm;
+              margin-bottom: 3mm;
             }
-            .header h1 { margin: 0; font-size: 24pt; text-transform: uppercase; font-weight: 900; }
-            .header .date-info { font-size: 16pt; font-weight: bold; margin-top: 2mm; }
+            .header h1 { margin: 0; font-size: 20pt; text-transform: uppercase; font-weight: 900; }
+            .header .date-info { font-size: 14pt; font-weight: bold; margin-top: 1mm; }
             
             .content {
               flex: 1;
@@ -318,42 +346,64 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
               flex-direction: column;
               overflow: hidden;
             }
-            .meal-section {
-              display: flex;
-              flex-direction: column;
-              height: 100%;
-            }
             .meal-title {
-              font-size: 18pt;
+              font-size: 16pt;
               font-weight: 900;
               text-transform: uppercase;
               background: #000;
               color: #fff;
-              padding: 2mm;
+              padding: 1.5mm;
               text-align: center;
-              margin-bottom: 5mm;
+              margin-bottom: 3mm;
             }
-            .item-list {
-              font-size: 14pt;
-              line-height: 1.6;
-              margin: 0;
-              padding-left: 10mm;
-              column-count: 2;
-              column-gap: 10mm;
+            .item-table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 10pt;
             }
-            .item-list li {
-              margin-bottom: 2mm;
+            .item-table th {
+              text-align: left;
+              border-bottom: 1px solid #000;
+              padding: 1mm;
+              text-transform: uppercase;
+              font-size: 8pt;
+            }
+            .item-table td {
+              padding: 1.5mm 1mm;
+              border-bottom: 0.5px solid #eee;
               font-weight: bold;
             }
+            .text-center { text-align: center; }
+
             .footer {
-              margin-top: 4mm;
+              margin-top: 3mm;
               border-top: 2px solid #000;
-              padding-top: 3mm;
+              padding-top: 2mm;
+              display: flex;
+              flex-direction: column;
+              gap: 2mm;
+            }
+            .footer-info {
               display: flex;
               justify-content: space-between;
-              font-size: 11pt;
+              font-size: 9pt;
+              font-weight: bold;
+            }
+            .signature-line {
+              border-top: 1px solid #000;
+              width: 50%;
+              margin: 2mm auto 0;
+              text-align: center;
+              font-size: 7pt;
+              text-transform: uppercase;
+            }
+            .footer-branding {
+              display: flex;
+              justify-content: space-between;
+              font-size: 9pt;
               font-weight: bold;
               text-transform: uppercase;
+              opacity: 0.8;
             }
             @media print {
               body { display: block; }
