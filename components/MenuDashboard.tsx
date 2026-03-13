@@ -242,7 +242,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
       : currentMenu.filter(r => r.period === 'JANTA');
     
     if (lunchItems.length === 0 && dinnerItems.length === 0) {
-      alert('Selecione os itens do Almoço e Janta para gerar a etiqueta.');
+      alert('Selecione os itens do Almoço ou Janta para gerar a etiqueta.');
       return;
     }
 
@@ -252,20 +252,44 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
     const dateFormatted = new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR');
     const dayOfWeek = WEEK_DAYS_BR[new Date(selectedDate + 'T12:00:00').getDay()];
 
+    const mealsToPrint = [];
+    if (lunchItems.length > 0) mealsToPrint.push({ title: 'Almoço', items: lunchItems });
+    if (dinnerItems.length > 0) mealsToPrint.push({ title: 'Jantar', items: dinnerItems });
+
+    const labelsHtml = mealsToPrint.map(meal => `
+      <div class="label-card">
+        <div class="header">
+          <h1>Cardápio Institucional</h1>
+          <div class="date-info">${dayOfWeek} - ${dateFormatted}</div>
+        </div>
+        <div class="content">
+          <div class="meal-section">
+            <div class="meal-title">${meal.title}</div>
+            <ul class="item-list">
+              ${meal.items.map(item => `<li>${item.foodItem || item.contractedItem}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+        <div class="footer">
+          <span>Penitenciária de Taiúva</span>
+          <span>Gestão de Alimentação</span>
+        </div>
+      </div>
+    `).join('<div style="page-break-after: always;"></div>');
+
     const htmlContent = `
       <html>
         <head>
-          <title>Etiqueta de Cardápio 18x10</title>
+          <title>Etiquetas de Cardápio 18x10</title>
           <style>
             @page { size: landscape; margin: 0; }
             body { 
               margin: 0; 
               padding: 0; 
-              display: flex; 
-              justify-content: center; 
-              align-items: center; 
-              height: 100vh;
               background: white;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
             }
             .label-card {
               width: 180mm;
@@ -276,6 +300,8 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
               display: flex;
               flex-direction: column;
               font-family: 'Arial', sans-serif;
+              margin: 10mm 0;
+              page-break-after: always;
             }
             .header {
               text-align: center;
@@ -288,33 +314,35 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
             
             .content {
               flex: 1;
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 8mm;
+              display: flex;
+              flex-direction: column;
               overflow: hidden;
             }
             .meal-section {
               display: flex;
               flex-direction: column;
+              height: 100%;
             }
             .meal-title {
-              font-size: 16pt;
+              font-size: 18pt;
               font-weight: 900;
               text-transform: uppercase;
               background: #000;
               color: #fff;
               padding: 2mm;
               text-align: center;
-              margin-bottom: 3mm;
+              margin-bottom: 5mm;
             }
             .item-list {
-              font-size: 12pt;
-              line-height: 1.4;
+              font-size: 14pt;
+              line-height: 1.6;
               margin: 0;
-              padding-left: 5mm;
+              padding-left: 10mm;
+              column-count: 2;
+              column-gap: 10mm;
             }
             .item-list li {
-              margin-bottom: 1.5mm;
+              margin-bottom: 2mm;
               font-weight: bold;
             }
             .footer {
@@ -327,37 +355,14 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
               font-weight: bold;
               text-transform: uppercase;
             }
+            @media print {
+              body { display: block; }
+              .label-card { margin: 0; border: 3px solid #000; }
+            }
           </style>
         </head>
         <body>
-          <div class="label-card">
-            <div class="header">
-              <h1>Cardápio Institucional</h1>
-              <div class="date-info">${dayOfWeek} - ${dateFormatted}</div>
-            </div>
-            <div class="content">
-              <div class="meal-section">
-                <div class="meal-title">Almoço</div>
-                <ul class="item-list">
-                  ${lunchItems.length > 0 
-                    ? lunchItems.map(item => `<li>${item.foodItem || item.contractedItem}</li>`).join('')
-                    : '<li>-</li>'}
-                </ul>
-              </div>
-              <div class="meal-section">
-                <div class="meal-title">Jantar</div>
-                <ul class="item-list">
-                  ${dinnerItems.length > 0 
-                    ? dinnerItems.map(item => `<li>${item.foodItem || item.contractedItem}</li>`).join('')
-                    : '<li>-</li>'}
-                </ul>
-              </div>
-            </div>
-            <div class="footer">
-              <span>Penitenciária de Taiúva</span>
-              <span>Gestão de Alimentação</span>
-            </div>
-          </div>
+          ${labelsHtml}
           <script>
             window.onload = () => {
               window.print();
