@@ -1,20 +1,22 @@
 
 import React, { useState, useMemo } from 'react';
-import type { CleaningLog } from '../types';
+import type { CleaningLog, FinancialRecord } from '../types';
 
 interface AdminCleaningLogProps {
   logs: CleaningLog[];
+  financialRecords: FinancialRecord[];
   onRegister: (log: Omit<CleaningLog, 'id'>) => Promise<{ success: boolean; message: string }>;
   onDelete: (id: string) => Promise<void>;
 }
 
-const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, onRegister, onDelete }) => {
+const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialRecords, onRegister, onDelete }) => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [responsible, setResponsible] = useState('');
   const [location, setLocation] = useState('Câmara fria de Resfriada');
   const [type, setType] = useState<'diaria' | 'semanal' | 'pesada' | 'preventiva' | 'corretiva'>('diaria');
   const [observations, setObservations] = useState('');
   const [maintenanceDetails, setMaintenanceDetails] = useState('');
+  const [financialProcessId, setFinancialProcessId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -87,12 +89,14 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, onRegister, o
       location, 
       type, 
       observations, 
-      maintenanceDetails 
+      maintenanceDetails,
+      financialProcessId: (type === 'preventiva' || type === 'corretiva') ? financialProcessId : undefined
     });
     if (result.success) {
       setResponsible('');
       setObservations('');
       setMaintenanceDetails('');
+      setFinancialProcessId('');
       setDate(new Date().toISOString().split('T')[0]);
     }
     setIsSaving(false);
@@ -170,7 +174,10 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, onRegister, o
                   <td>${log.location}</td>
                   <td>${log.responsible}</td>
                   <td>${log.observations || '-'}</td>
-                  <td>${log.maintenanceDetails || '-'}</td>
+                  <td>
+                    ${log.maintenanceDetails || '-'}
+                    ${log.financialProcessId ? `<br/><small style="color: #4f46e5; font-weight: bold;">Proc: ${financialRecords.find(r => r.id === log.financialProcessId)?.numeroProcesso || 'N/A'}</small>` : ''}
+                  </td>
                 </tr>
               `).join('')}
             </tbody>
@@ -201,17 +208,21 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, onRegister, o
   };
 
   const handleExportCSV = () => {
-    const headers = ["Data", "Responsável", "Local", "Tipo de Serviço", "Observações", "Manutenção"];
+    const headers = ["Data", "Responsável", "Local", "Tipo de Serviço", "Observações", "Manutenção", "Processo Financeiro"];
     const csvContent = [
       headers.join(";"),
-      ...logs.map(l => [
-        new Date(l.date + 'T00:00:00').toLocaleDateString('pt-BR'),
-        l.responsible,
-        l.location,
-        l.type.toUpperCase(),
-        `"${l.observations.replace(/"/g, '""')}"`,
-        `"${(l.maintenanceDetails || '').replace(/"/g, '""')}"`
-      ].join(";"))
+      ...logs.map(l => {
+        const linkedProc = l.financialProcessId ? financialRecords.find(r => r.id === l.financialProcessId)?.numeroProcesso : '';
+        return [
+          new Date(l.date + 'T00:00:00').toLocaleDateString('pt-BR'),
+          l.responsible,
+          l.location,
+          l.type.toUpperCase(),
+          `"${l.observations.replace(/"/g, '""')}"`,
+          `"${(l.maintenanceDetails || '').replace(/"/g, '""')}"`,
+          `"${(linkedProc || '').replace(/"/g, '""')}"`
+        ].join(";");
+      })
     ].join("\n");
 
     const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
@@ -266,6 +277,29 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, onRegister, o
             </div>
           </div>
 
+          {(type === 'preventiva' || type === 'corretiva') && (
+            <div className="space-y-1 animate-fade-in">
+              <label className="text-[10px] font-black text-indigo-400 uppercase ml-1">Vincular Processo Financeiro (Opcional)</label>
+              <select 
+                value={financialProcessId} 
+                onChange={e => setFinancialProcessId(e.target.value)}
+                className="w-full p-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-sm"
+              >
+                <option value="">-- Selecione um processo finalizado --</option>
+                {financialRecords
+                  .filter(r => r.tipo === 'DESPESA' && r.status === 'FINALIZADO')
+                  .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+                  .map(record => (
+                    <option key={record.id} value={record.id}>
+                      {record.numeroProcesso} - {record.favorecido} ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(record.valorUtilizado))})
+                    </option>
+                  ))
+                }
+              </select>
+              <p className="text-[9px] text-gray-400 italic">Apenas processos com status "FINALIZADO" estão disponíveis para vinculação.</p>
+            </div>
+          )}
+
           <div className="flex justify-end">
             <button type="submit" disabled={isSaving} className="w-full md:w-auto bg-cyan-600 hover:bg-cyan-700 text-white font-black py-3 px-10 rounded-xl transition-all shadow-md active:scale-95 uppercase tracking-widest text-sm disabled:bg-gray-400">
               {isSaving ? 'Registrando...' : 'Salvar Registro'}
@@ -310,7 +344,7 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, onRegister, o
                 <th className="p-4 text-left">Local</th>
                 <th className="p-4 text-left">Responsável</th>
                 <th className="p-4 text-left">Observações</th>
-                <th className="p-4 text-left">Manutenção</th>
+                <th className="p-4 text-left">Manutenção / Processo</th>
                 <th className="p-4 text-center">Ações</th>
               </tr>
             </thead>
@@ -332,7 +366,15 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, onRegister, o
                   <td className="p-4 text-gray-700 font-medium">{log.location}</td>
                   <td className="p-4 font-bold text-gray-700">{log.responsible}</td>
                   <td className="p-4 text-xs text-gray-500 italic max-w-xs truncate" title={log.observations}>{log.observations || '-'}</td>
-                  <td className="p-4 text-xs text-indigo-600 font-semibold max-w-xs truncate" title={log.maintenanceDetails}>{log.maintenanceDetails || '-'}</td>
+                  <td className="p-4 text-xs text-indigo-600 font-semibold max-w-xs" title={log.maintenanceDetails}>
+                    <div>{log.maintenanceDetails || '-'}</div>
+                    {log.financialProcessId && (
+                      <div className="mt-1 flex items-center gap-1 text-[9px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full w-fit">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Proc: {financialRecords.find(r => r.id === log.financialProcessId)?.numeroProcesso || 'N/A'}
+                      </div>
+                    )}
+                  </td>
                   <td className="p-4 text-center">
                     <button onClick={() => { if(window.confirm('Deseja excluir este registro permanentemente?')) onDelete(log.id); }} className="text-red-400 hover:text-red-600 p-2 rounded-full transition-colors" title="Excluir Registro">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>

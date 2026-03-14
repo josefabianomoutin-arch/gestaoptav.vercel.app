@@ -310,7 +310,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       case 'invoices': return <AdminInvoices suppliers={combinedSuppliers} warehouseLog={warehouseLog} onReopenInvoice={props.onReopenInvoice} onDeleteInvoice={props.onDeleteInvoice} onUpdateInvoiceItems={props.onUpdateInvoiceItems} onManualInvoiceEntry={props.onManualInvoiceEntry} />;
       case 'schedule': return <AdminScheduleView suppliers={combinedSuppliers} thirdPartyEntries={thirdPartyEntries} onCancelDeliveries={props.onCancelDeliveries} onDeleteThirdPartyEntry={props.onDeleteThirdPartyEntry} />;
       case 'perCapita': return <AdminPerCapita suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onUpdatePerCapitaConfig={props.onUpdatePerCapitaConfig} onUpdateContractForItem={onUpdateContractForItem} onUpdateAcquisitionItem={props.onUpdateAcquisitionItem} onDeleteAcquisitionItem={props.onDeleteAcquisitionItem} acquisitionItems={acquisitionItems} onUpdateSupplierObservations={props.onUpdateSupplierObservations} />;
-      case 'cleaning': return <AdminCleaningLog logs={cleaningLogs} onRegister={props.onRegisterCleaningLog} onDelete={props.onDeleteCleaningLog} />;
+      case 'cleaning': return <AdminCleaningLog logs={cleaningLogs} financialRecords={props.financialRecords} onRegister={props.onRegisterCleaningLog} onDelete={props.onDeleteCleaningLog} />;
       case 'thirdPartyEntry': return <AdminThirdPartyEntry logs={thirdPartyEntries} onRegister={props.onRegisterThirdPartyEntry} onUpdate={props.onUpdateThirdPartyEntry} onDelete={props.onDeleteThirdPartyEntry} />;
       case 'vehicleExitOrder': return <AdminVehicleExitOrder 
           orders={vehicleExitOrders} 
