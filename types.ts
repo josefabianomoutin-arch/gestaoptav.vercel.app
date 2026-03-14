@@ -99,7 +99,8 @@ export interface CleaningLog {
   type: 'diaria' | 'semanal' | 'pesada' | 'preventiva' | 'corretiva';
   observations: string;
   maintenanceDetails?: string;
-  financialProcessId?: string;
+  serviceProcessId?: string;
+  partsProcessId?: string;
 }
 
 export interface DirectorItem {

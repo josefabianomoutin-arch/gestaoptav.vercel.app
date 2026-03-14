@@ -16,7 +16,8 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialReco
   const [type, setType] = useState<'diaria' | 'semanal' | 'pesada' | 'preventiva' | 'corretiva'>('diaria');
   const [observations, setObservations] = useState('');
   const [maintenanceDetails, setMaintenanceDetails] = useState('');
-  const [financialProcessId, setFinancialProcessId] = useState('');
+  const [serviceProcessId, setServiceProcessId] = useState('');
+  const [partsProcessId, setPartsProcessId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -90,13 +91,15 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialReco
       type, 
       observations, 
       maintenanceDetails,
-      financialProcessId: (type === 'preventiva' || type === 'corretiva') ? financialProcessId : undefined
+      serviceProcessId: (type === 'preventiva' || type === 'corretiva') ? serviceProcessId : undefined,
+      partsProcessId: (type === 'preventiva' || type === 'corretiva') ? partsProcessId : undefined
     });
     if (result.success) {
       setResponsible('');
       setObservations('');
       setMaintenanceDetails('');
-      setFinancialProcessId('');
+      setServiceProcessId('');
+      setPartsProcessId('');
       setDate(new Date().toISOString().split('T')[0]);
     }
     setIsSaving(false);
@@ -176,7 +179,8 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialReco
                   <td>${log.observations || '-'}</td>
                   <td>
                     ${log.maintenanceDetails || '-'}
-                    ${log.financialProcessId ? `<br/><small style="color: #4f46e5; font-weight: bold;">Proc: ${financialRecords.find(r => r.id === log.financialProcessId)?.numeroProcesso || 'N/A'}</small>` : ''}
+                    ${log.serviceProcessId ? `<br/><small style="color: #4f46e5; font-weight: bold;">Serv (339039): ${financialRecords.find(r => r.id === log.serviceProcessId)?.numeroProcesso || 'N/A'}</small>` : ''}
+                    ${log.partsProcessId ? `<br/><small style="color: #059669; font-weight: bold;">Peças (339030): ${financialRecords.find(r => r.id === log.partsProcessId)?.numeroProcesso || 'N/A'}</small>` : ''}
                   </td>
                 </tr>
               `).join('')}
@@ -208,11 +212,12 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialReco
   };
 
   const handleExportCSV = () => {
-    const headers = ["Data", "Responsável", "Local", "Tipo de Serviço", "Observações", "Manutenção", "Processo Financeiro"];
+    const headers = ["Data", "Responsável", "Local", "Tipo de Serviço", "Observações", "Manutenção", "Processo Serviço (339039)", "Processo Peças (339030)"];
     const csvContent = [
       headers.join(";"),
       ...logs.map(l => {
-        const linkedProc = l.financialProcessId ? financialRecords.find(r => r.id === l.financialProcessId)?.numeroProcesso : '';
+        const serviceProc = l.serviceProcessId ? financialRecords.find(r => r.id === l.serviceProcessId)?.numeroProcesso : '';
+        const partsProc = l.partsProcessId ? financialRecords.find(r => r.id === l.partsProcessId)?.numeroProcesso : '';
         return [
           new Date(l.date + 'T00:00:00').toLocaleDateString('pt-BR'),
           l.responsible,
@@ -220,7 +225,8 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialReco
           l.type.toUpperCase(),
           `"${l.observations.replace(/"/g, '""')}"`,
           `"${(l.maintenanceDetails || '').replace(/"/g, '""')}"`,
-          `"${(linkedProc || '').replace(/"/g, '""')}"`
+          `"${(serviceProc || '').replace(/"/g, '""')}"`,
+          `"${(partsProc || '').replace(/"/g, '""')}"`
         ].join(";");
       })
     ].join("\n");
@@ -278,25 +284,46 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialReco
           </div>
 
           {(type === 'preventiva' || type === 'corretiva') && (
-            <div className="space-y-1 animate-fade-in">
-              <label className="text-[10px] font-black text-indigo-400 uppercase ml-1">Vincular Processo Financeiro (Opcional)</label>
-              <select 
-                value={financialProcessId} 
-                onChange={e => setFinancialProcessId(e.target.value)}
-                className="w-full p-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-sm"
-              >
-                <option value="">-- Selecione um processo finalizado --</option>
-                {financialRecords
-                  .filter(r => r.tipo === 'DESPESA' && r.status === 'FINALIZADO')
-                  .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
-                  .map(record => (
-                    <option key={record.id} value={record.id}>
-                      {record.numeroProcesso} - {record.favorecido} ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(record.valorUtilizado))})
-                    </option>
-                  ))
-                }
-              </select>
-              <p className="text-[9px] text-gray-400 italic">Apenas processos com status "FINALIZADO" estão disponíveis para vinculação.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-indigo-400 uppercase ml-1">Vincular Serviço (339039)</label>
+                <select 
+                  value={serviceProcessId} 
+                  onChange={e => setServiceProcessId(e.target.value)}
+                  className="w-full p-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-sm"
+                >
+                  <option value="">-- Selecione o processo de serviço --</option>
+                  {financialRecords
+                    .filter(r => r.tipo === 'DESPESA' && r.status === 'FINALIZADO' && r.natureza === '339039')
+                    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+                    .map(record => (
+                      <option key={record.id} value={record.id}>
+                        {record.numeroProcesso} - {record.favorecido} ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(record.valorUtilizado))})
+                      </option>
+                    ))
+                  }
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-emerald-400 uppercase ml-1">Vincular Peças (339030)</label>
+                <select 
+                  value={partsProcessId} 
+                  onChange={e => setPartsProcessId(e.target.value)}
+                  className="w-full p-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-sm"
+                >
+                  <option value="">-- Selecione o processo de peças --</option>
+                  {financialRecords
+                    .filter(r => r.tipo === 'DESPESA' && r.status === 'FINALIZADO' && r.natureza === '339030')
+                    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+                    .map(record => (
+                      <option key={record.id} value={record.id}>
+                        {record.numeroProcesso} - {record.favorecido} ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(record.valorUtilizado))})
+                      </option>
+                    ))
+                  }
+                </select>
+              </div>
+              <p className="col-span-full text-[9px] text-gray-400 italic">Apenas processos com status "FINALIZADO" e naturezas correspondentes estão disponíveis.</p>
             </div>
           )}
 
@@ -368,12 +395,18 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialReco
                   <td className="p-4 text-xs text-gray-500 italic max-w-xs truncate" title={log.observations}>{log.observations || '-'}</td>
                   <td className="p-4 text-xs text-indigo-600 font-semibold max-w-xs" title={log.maintenanceDetails}>
                     <div>{log.maintenanceDetails || '-'}</div>
-                    {log.financialProcessId && (
-                      <div className="mt-1 flex items-center gap-1 text-[9px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full w-fit">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        Proc: {financialRecords.find(r => r.id === log.financialProcessId)?.numeroProcesso || 'N/A'}
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {log.serviceProcessId && (
+                        <div className="flex items-center gap-1 text-[8px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full w-fit border border-indigo-100">
+                          <span className="font-black">SERV:</span> {financialRecords.find(r => r.id === log.serviceProcessId)?.numeroProcesso || 'N/A'}
+                        </div>
+                      )}
+                      {log.partsProcessId && (
+                        <div className="flex items-center gap-1 text-[8px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full w-fit border border-emerald-100">
+                          <span className="font-black">PEÇAS:</span> {financialRecords.find(r => r.id === log.partsProcessId)?.numeroProcesso || 'N/A'}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="p-4 text-center">
                     <button onClick={() => { if(window.confirm('Deseja excluir este registro permanentemente?')) onDelete(log.id); }} className="text-red-400 hover:text-red-600 p-2 rounded-full transition-colors" title="Excluir Registro">
