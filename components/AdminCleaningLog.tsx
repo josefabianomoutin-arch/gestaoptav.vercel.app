@@ -179,8 +179,14 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialReco
                   <td>${log.observations || '-'}</td>
                   <td>
                     ${log.maintenanceDetails || '-'}
-                    ${log.serviceProcessId ? `<br/><small style="color: #4f46e5; font-weight: bold;">Serv (339039): ${financialRecords.find(r => r.id === log.serviceProcessId)?.numeroProcesso || 'N/A'}</small>` : ''}
-                    ${log.partsProcessId ? `<br/><small style="color: #059669; font-weight: bold;">Peças (339030): ${financialRecords.find(r => r.id === log.partsProcessId)?.numeroProcesso || 'N/A'}</small>` : ''}
+                    ${log.serviceProcessId ? (() => {
+                      const r = financialRecords.find(rec => rec.id === log.serviceProcessId);
+                      return `<br/><small style="color: #4f46e5; font-weight: bold;">Serv (339039): ${r?.numeroProcesso || 'N/A'}</small>${r?.descricao ? `<br/><small style="color: #666; font-size: 8px;">${r.descricao}</small>` : ''}`;
+                    })() : ''}
+                    ${log.partsProcessId ? (() => {
+                      const r = financialRecords.find(rec => rec.id === log.partsProcessId);
+                      return `<br/><small style="color: #059669; font-weight: bold;">Peças (339030): ${r?.numeroProcesso || 'N/A'}</small>${r?.descricao ? `<br/><small style="color: #666; font-size: 8px;">${r.descricao}</small>` : ''}`;
+                    })() : ''}
                   </td>
                 </tr>
               `).join('')}
@@ -212,12 +218,12 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialReco
   };
 
   const handleExportCSV = () => {
-    const headers = ["Data", "Responsável", "Local", "Tipo de Serviço", "Observações", "Manutenção", "Processo Serviço (339039)", "Processo Peças (339030)"];
+    const headers = ["Data", "Responsável", "Local", "Tipo de Serviço", "Observações", "Manutenção", "Processo Serviço (339039)", "Descrição Serviço", "Processo Peças (339030)", "Descrição Peças"];
     const csvContent = [
       headers.join(";"),
       ...logs.map(l => {
-        const serviceProc = l.serviceProcessId ? financialRecords.find(r => r.id === l.serviceProcessId)?.numeroProcesso : '';
-        const partsProc = l.partsProcessId ? financialRecords.find(r => r.id === l.partsProcessId)?.numeroProcesso : '';
+        const serviceRec = l.serviceProcessId ? financialRecords.find(r => r.id === l.serviceProcessId) : null;
+        const partsRec = l.partsProcessId ? financialRecords.find(r => r.id === l.partsProcessId) : null;
         return [
           new Date(l.date + 'T00:00:00').toLocaleDateString('pt-BR'),
           l.responsible,
@@ -225,8 +231,10 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialReco
           l.type.toUpperCase(),
           `"${l.observations.replace(/"/g, '""')}"`,
           `"${(l.maintenanceDetails || '').replace(/"/g, '""')}"`,
-          `"${(serviceProc || '').replace(/"/g, '""')}"`,
-          `"${(partsProc || '').replace(/"/g, '""')}"`
+          `"${(serviceRec?.numeroProcesso || '').replace(/"/g, '""')}"`,
+          `"${(serviceRec?.descricao || '').replace(/"/g, '""')}"`,
+          `"${(partsRec?.numeroProcesso || '').replace(/"/g, '""')}"`,
+          `"${(partsRec?.descricao || '').replace(/"/g, '""')}"`
         ].join(";");
       })
     ].join("\n");
@@ -397,14 +405,38 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialReco
                     <div>{log.maintenanceDetails || '-'}</div>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {log.serviceProcessId && (
-                        <div className="flex items-center gap-1 text-[8px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full w-fit border border-indigo-100">
-                          <span className="font-black">SERV:</span> {financialRecords.find(r => r.id === log.serviceProcessId)?.numeroProcesso || 'N/A'}
-                        </div>
+                        (() => {
+                          const record = financialRecords.find(r => r.id === log.serviceProcessId);
+                          return (
+                            <div className="flex flex-col gap-0.5 text-[8px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded-lg w-full border border-indigo-100">
+                              <div className="flex items-center gap-1">
+                                <span className="font-black">SERV:</span> {record?.numeroProcesso || 'N/A'}
+                              </div>
+                              {record?.descricao && (
+                                <div className="text-[7px] opacity-70 leading-tight truncate" title={record.descricao}>
+                                  {record.descricao}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()
                       )}
                       {log.partsProcessId && (
-                        <div className="flex items-center gap-1 text-[8px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full w-fit border border-emerald-100">
-                          <span className="font-black">PEÇAS:</span> {financialRecords.find(r => r.id === log.partsProcessId)?.numeroProcesso || 'N/A'}
-                        </div>
+                        (() => {
+                          const record = financialRecords.find(r => r.id === log.partsProcessId);
+                          return (
+                            <div className="flex flex-col gap-0.5 text-[8px] bg-emerald-50 text-emerald-700 px-2 py-1 rounded-lg w-full border border-emerald-100">
+                              <div className="flex items-center gap-1">
+                                <span className="font-black">PEÇAS:</span> {record?.numeroProcesso || 'N/A'}
+                              </div>
+                              {record?.descricao && (
+                                <div className="text-[7px] opacity-70 leading-tight truncate" title={record.descricao}>
+                                  {record.descricao}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()
                       )}
                     </div>
                   </td>
