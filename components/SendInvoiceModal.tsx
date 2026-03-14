@@ -53,10 +53,8 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
     // Try to open automatically
     const newWindow = window.open(link, '_blank', 'noopener,noreferrer');
     
-    // If it opened successfully, we can close the modal after a short delay
-    if (newWindow) {
-      setTimeout(onClose, 2000);
-    }
+    // If it didn't open (blocked), the user will see the "Tudo Pronto" screen
+    // and can click the "Abrir WhatsApp" button.
   };
 
   const handleSendEmail = (fileUrl?: string) => {
@@ -65,10 +63,10 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
     setIsUploading(false);
     
     // Try to open automatically
-    window.location.href = link;
+    const newWindow = window.open(link, '_blank', 'noopener,noreferrer');
     
-    // Close after a delay
-    setTimeout(onClose, 3000);
+    // If it didn't open (blocked), the user will see the "Tudo Pronto" screen
+    // and can click the "Abrir E-mail" button.
   };
 
   const handleSubmit = async (e: React.FormEvent, method: 'whatsapp' | 'email') => {
@@ -85,9 +83,6 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
     setIsUploading(true);
     setUploadError(null);
 
-    // Open window immediately to bypass popup blocker
-    const newWindow = window.open('', '_blank');
-
     try {
       const fileName = `NF_${invoiceNumber}_${invoiceInfo.date}_${Date.now()}.pdf`;
       const fileRef = storageRef(storage, `notas_fiscais/${fileName}`);
@@ -95,22 +90,15 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
       const snapshot = await uploadBytes(fileRef, selectedFile);
       const downloadURL = await getDownloadURL(snapshot.ref);
       
-      const link = method === 'whatsapp' ? generateWhatsAppLink(downloadURL) : generateEmailLink(downloadURL);
-      
-      if (newWindow) {
-        newWindow.location.href = link;
-        onClose(); // Close modal immediately
+      if (method === 'whatsapp') {
+        handleSendWhatsApp(downloadURL);
       } else {
-        // Fallback to "Tudo Pronto" screen if window was blocked
-        if (method === 'whatsapp') setWhatsappLink(link);
-        else setEmailLink(link);
-        setIsUploading(false);
+        handleSendEmail(downloadURL);
       }
     } catch (error: any) {
       console.error("Submit error:", error);
       setUploadError("Erro ao enviar o arquivo PDF. Verifique sua conexão ou tente novamente.");
       setIsUploading(false);
-      if (newWindow) newWindow.close();
     }
   };
 
