@@ -19,6 +19,7 @@ async function startServer() {
 
   app.post("/api/upload-invoice", upload.single("file"), async (req, res) => {
     console.log("Received upload request");
+    delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
     try {
       if (!req.file) {
         console.log("No file in request");
