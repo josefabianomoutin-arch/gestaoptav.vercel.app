@@ -7,7 +7,6 @@ import ViewDeliveryModal from './ViewDeliveryModal';
 import SummaryCard from './SummaryCard';
 import InvoiceUploader from './InvoiceUploader';
 import EmailConfirmationModal from './EmailConfirmationModal';
-import FulfillmentModal from './FulfillmentModal';
 import SendInvoiceModal from './SendInvoiceModal';
 import { speechService } from '../src/services/speechService';
 import { HelpCircle, Volume2, Loader2 } from 'lucide-react';
@@ -20,11 +19,6 @@ interface DashboardProps {
   monthlySchedule?: Record<string, number[]>;
   onLogout: () => void;
   onScheduleDelivery: (supplierCpf: string, date: string, time: string) => void;
-  onFulfillAndInvoice: (
-    supplierCpf: string, 
-    placeholderDeliveryIds: string[], 
-    invoiceData: { invoiceNumber: string; fulfilledItems: { name: string; kg: number; value: number }[] }
-  ) => void;
   onCancelDeliveries: (supplierCpf: string, deliveryIds: string[]) => void;
   emailModalData: {
     recipient: string;
@@ -42,16 +36,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   monthlySchedule,
   onLogout, 
   onScheduleDelivery, 
-  onFulfillAndInvoice, 
   onCancelDeliveries,
   emailModalData,
   onCloseEmailModal
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [isFulfillmentModalOpen, setIsFulfillmentModalOpen] = useState(false);
   const [isSendInvoiceModalOpen, setIsSendInvoiceModalOpen] = useState(false);
-  const [invoiceToFulfill, setInvoiceToFulfill] = useState<{ date: string; deliveries: Delivery[] } | null>(null);
   const [invoiceToSend, setInvoiceToSend] = useState<{ date: string; deliveries: Delivery[] } | null>(null);
   const [deliveriesToShow, setDeliveriesToShow] = useState<Delivery[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -87,14 +78,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     handleCloseModal();
   };
 
-  const handleOpenFulfillmentModal = (invoiceInfo: { date: string; deliveries: Delivery[] }) => {
-    setInvoiceToFulfill(invoiceInfo);
-    setIsFulfillmentModalOpen(true);
-    setIsViewModalOpen(false);
-  };
-  
-  const handleCloseFulfillmentModal = () => { setInvoiceToFulfill(null); setIsFulfillmentModalOpen(false); };
-
   const handleOpenSendInvoiceModal = (invoiceInfo: { date: string; deliveries: Delivery[] }) => {
     setInvoiceToSend(invoiceInfo);
     setIsSendInvoiceModalOpen(true);
@@ -112,14 +95,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     } finally {
       setIsSpeaking(false);
     }
-  };
-
-  const handleSaveFulfillment = (invoiceData: { invoiceNumber: string; fulfilledItems: { name: string; kg: number; value: number }[]; fileUrl?: string }) => {
-    if (invoiceToFulfill) {
-      const placeholderIds = invoiceToFulfill.deliveries.map(d => d.id);
-      onFulfillAndInvoice(supplier.cpf, placeholderIds, invoiceData);
-    }
-    handleCloseFulfillmentModal();
   };
   
   const pendingDailyInvoices = useMemo(() => {
@@ -241,13 +216,9 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       {isViewModalOpen && selectedDate && (
-        <ViewDeliveryModal date={selectedDate} deliveries={deliveriesToShow} onClose={handleCloseViewModal} onAddNew={handleAddNewFromView} onCancel={(ids) => { if(window.confirm('Excluir?')) { onCancelDeliveries(supplier.cpf, ids); handleCloseViewModal(); } }} onFulfill={handleOpenFulfillmentModal} simulatedToday={SIMULATED_TODAY} />
+        <ViewDeliveryModal date={selectedDate} deliveries={deliveriesToShow} onClose={handleCloseViewModal} onAddNew={handleAddNewFromView} onCancel={(ids) => { if(window.confirm('Excluir?')) { onCancelDeliveries(supplier.cpf, ids); handleCloseViewModal(); } }} onFulfill={handleOpenSendInvoiceModal} simulatedToday={SIMULATED_TODAY} />
       )}
       
-      {isFulfillmentModalOpen && invoiceToFulfill && (
-        <FulfillmentModal invoiceInfo={invoiceToFulfill} contractItems={supplier.contractItems} onClose={handleCloseFulfillmentModal} onSave={handleSaveFulfillment} />
-      )}
-
       {isSendInvoiceModalOpen && invoiceToSend && (
         <SendInvoiceModal invoiceInfo={invoiceToSend} onClose={handleCloseSendInvoiceModal} />
       )}

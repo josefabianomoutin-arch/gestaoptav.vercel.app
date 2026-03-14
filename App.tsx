@@ -377,69 +377,6 @@ const App: React.FC = () => {
     });
   }, [suppliers]);
 
-  const handleFulfillAndInvoice = async (supplierCpf: string, placeholderIds: string[], invoiceData: any) => {
-    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-    if (isMainSupplier) {
-      const supplierRef = child(suppliersRef, supplierCpf);
-      await runTransaction(supplierRef, (currentData: Supplier) => {
-        if (currentData) {
-          const sourceDelivery = (currentData.deliveries || []).find(d => placeholderIds.includes(d.id));
-          const date = sourceDelivery?.date || new Date().toISOString().split('T')[0];
-          const time = sourceDelivery?.time || '08:00';
-          currentData.deliveries = (currentData.deliveries || []).filter(d => !placeholderIds.includes(d.id));
-          invoiceData.fulfilledItems.forEach((item: any, idx: number) => {
-            currentData.deliveries.push({
-              id: `inv-${Date.now()}-${idx}`,
-              date: date,
-              time: time,
-              item: item.name,
-              kg: item.kg,
-              value: item.value,
-              invoiceUploaded: true,
-              invoiceNumber: String(invoiceData.invoiceNumber || '').trim(),
-              invoiceUrl: invoiceData.fileUrl || ''
-            });
-          });
-        }
-        return currentData;
-      });
-      return;
-    }
-
-    await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
-      if (currentData) {
-        const findAndFulfill = (list: any[] | undefined) => {
-          const s = list?.find(p => p.cpfCnpj === supplierCpf);
-          if (s) {
-            const sourceDelivery = (s.deliveries || []).find((d: any) => placeholderIds.includes(d.id));
-            const date = sourceDelivery?.date || new Date().toISOString().split('T')[0];
-            const time = sourceDelivery?.time || '08:00';
-            s.deliveries = (s.deliveries || []).filter((d: any) => !placeholderIds.includes(d.id));
-            invoiceData.fulfilledItems.forEach((item: any, idx: number) => {
-              s.deliveries.push({
-                id: `inv-${Date.now()}-${idx}`,
-                date: date,
-                time: time,
-                item: item.name,
-                kg: item.kg,
-                value: item.value,
-                invoiceUploaded: true,
-                invoiceNumber: String(invoiceData.invoiceNumber || '').trim(),
-                invoiceUrl: invoiceData.fileUrl || ''
-              });
-            });
-            return true;
-          }
-          return false;
-        };
-        if (!findAndFulfill(currentData.ppaisProducers)) {
-          findAndFulfill(currentData.pereciveisSuppliers);
-        }
-      }
-      return currentData;
-    });
-  };
-
   const handleMarkArrival = async (supplierCpf: string, deliveryId: string) => {
     const now = new Date();
     const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
@@ -1300,7 +1237,6 @@ const App: React.FC = () => {
           supplier={currentSupplier} 
           onLogout={handleLogout} 
           onScheduleDelivery={handleScheduleDelivery}
-          onFulfillAndInvoice={handleFulfillAndInvoice}
           onCancelDeliveries={handleCancelDeliveries}
           emailModalData={null}
           onCloseEmailModal={() => {}}
@@ -1328,7 +1264,6 @@ const App: React.FC = () => {
           monthlySchedule={p.monthlySchedule}
           onLogout={handleLogout} 
           onScheduleDelivery={handleScheduleDelivery}
-          onFulfillAndInvoice={handleFulfillAndInvoice}
           onCancelDeliveries={handleCancelDeliveries}
           emailModalData={null}
           onCloseEmailModal={() => {}}

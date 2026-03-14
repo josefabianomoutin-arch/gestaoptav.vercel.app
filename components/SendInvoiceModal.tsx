@@ -3,7 +3,7 @@ import type { Delivery } from '../types';
 import { speechService } from '../src/services/speechService';
 import { Volume2, Upload, FileText, Loader2, ExternalLink } from 'lucide-react';
 import { storage } from '../firebaseConfig';
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface SendInvoiceModalProps {
   invoiceInfo: { date: string; deliveries: Delivery[] };
@@ -14,13 +14,13 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [whatsappLink, setWhatsappLink] = useState<string | null>(null);
+  const [emailLink, setEmailLink] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePlayGuide = async () => {
-    const text = "Bem-vindo ao envio da nota fiscal. Digite o número da nota fiscal e selecione o arquivo PDF. Depois clique em Enviar WhatsApp.";
+    const text = "Bem-vindo ao envio da nota fiscal. Digite o número da nota fiscal e selecione o arquivo PDF. Depois clique em Enviar WhatsApp ou Enviar por E-mail.";
     await speechService.speak(text);
   };
 
@@ -61,9 +61,14 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
 
   const handleSendEmail = (fileUrl?: string) => {
     const link = generateEmailLink(fileUrl);
-    window.location.href = link;
+    setEmailLink(link);
     setIsUploading(false);
-    setTimeout(onClose, 2000);
+    
+    // Try to open automatically
+    window.location.href = link;
+    
+    // Close after a delay
+    setTimeout(onClose, 3000);
   };
 
   const handleSubmit = async (e: React.FormEvent, method: 'whatsapp' | 'email') => {
@@ -78,76 +83,55 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
     }
 
     setIsUploading(true);
-    setUploadProgress(0);
     setUploadError(null);
 
     try {
       const fileName = `NF_${invoiceNumber}_${invoiceInfo.date}_${Date.now()}.pdf`;
       const fileRef = storageRef(storage, `notas_fiscais/${fileName}`);
       
-      const uploadTask = uploadBytesResumable(fileRef, selectedFile);
-
-      // Timeout de 15 segundos para evitar ficar travado
-      const timeoutId = setTimeout(() => {
-        uploadTask.cancel();
-        setUploadError("O envio do arquivo falhou ou demorou muito. Verifique sua conexão ou tente enviar sem anexar o arquivo PDF.");
-        setIsUploading(false);
-      }, 15000);
-
-      uploadTask.on('state_changed', 
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(Math.round(progress));
-        }, 
-        (error) => {
-          clearTimeout(timeoutId);
-          console.error("Upload error:", error);
-          setUploadError("Erro ao enviar o arquivo PDF. Tente enviar sem anexar o arquivo.");
-          setIsUploading(false);
-        }, 
-        async () => {
-          clearTimeout(timeoutId);
-          try {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            if (method === 'whatsapp') {
-              handleSendWhatsApp(downloadURL);
-            } else {
-              handleSendEmail(downloadURL);
-            }
-          } catch (err: any) {
-            console.error("Error getting download URL:", err);
-            setUploadError("Erro ao obter o link do arquivo. Tente enviar sem anexar o arquivo.");
-            setIsUploading(false);
-          }
-        }
-      );
+      // Usar uploadBytes em vez de uploadBytesResumable para maior confiabilidade
+      const snapshot = await uploadBytes(fileRef, selectedFile);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      if (method === 'whatsapp') {
+        handleSendWhatsApp(downloadURL);
+      } else {
+        handleSendEmail(downloadURL);
+      }
     } catch (error: any) {
       console.error("Submit error:", error);
-      setUploadError("Erro ao iniciar o envio. Tente enviar sem anexar o arquivo.");
+      setUploadError("Erro ao enviar o arquivo PDF. Verifique sua conexão ou tente novamente.");
       setIsUploading(false);
     }
   };
 
-  if (whatsappLink) {
+  if (whatsappLink || emailLink) {
+    const isWhatsApp = !!whatsappLink;
+    const link = whatsappLink || emailLink;
+    
     return (
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-[100] p-2 md:p-4">
         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col animate-fade-in-up border border-gray-100 overflow-hidden p-8 text-center space-y-6">
-          <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
+          <div className={`w-20 h-20 ${isWhatsApp ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'} rounded-full flex items-center justify-center mx-auto`}>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
           </div>
           <div>
             <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter italic">Tudo Pronto!</h2>
-            <p className="text-sm text-gray-500 mt-2">Se o WhatsApp não abriu automaticamente, clique no botão abaixo para enviar a mensagem.</p>
+            <p className="text-sm text-gray-500 mt-2">
+              {isWhatsApp 
+                ? "Se o WhatsApp não abriu automaticamente, clique no botão abaixo para enviar a mensagem."
+                : "Se o seu aplicativo de e-mail não abriu automaticamente, clique no botão abaixo para enviar."}
+            </p>
           </div>
           <a 
-            href={whatsappLink}
+            href={link as string}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => setTimeout(onClose, 1000)}
-            className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-2xl transition-all shadow-xl uppercase tracking-widest text-sm active:scale-95 flex items-center justify-center gap-2"
+            className={`w-full ${isWhatsApp ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'} text-white font-black py-4 rounded-2xl transition-all shadow-xl uppercase tracking-widest text-sm active:scale-95 flex items-center justify-center gap-2`}
           >
             <ExternalLink className="h-5 w-5" />
-            Abrir WhatsApp
+            {isWhatsApp ? "Abrir WhatsApp" : "Abrir E-mail"}
           </a>
           <button onClick={onClose} className="text-gray-400 font-bold text-xs uppercase tracking-widest hover:text-gray-600">
             Fechar
@@ -290,10 +274,9 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
               <div className="px-8 pb-6">
                 <div className="flex items-center justify-between text-xs font-bold text-gray-500 mb-2">
                   <span>Enviando arquivo...</span>
-                  <span>{uploadProgress}%</span>
                 </div>
-                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden relative">
+                  <div className="h-full bg-indigo-500 absolute top-0 left-0 animate-[pulse_1.5s_ease-in-out_infinite] w-full"></div>
                 </div>
               </div>
             )}
