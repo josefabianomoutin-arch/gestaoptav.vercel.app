@@ -89,8 +89,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
       const fileRef = storageRef(storage, `notas_fiscais/${fileName}`);
       
       // Usar uploadBytesResumable para maior controle
-      const uploadTask = storageRef(storage, `notas_fiscais/${fileName}`);
-      const uploadTaskResumable = uploadBytesResumable(uploadTask, selectedFile);
+      const uploadTaskResumable = uploadBytesResumable(fileRef, selectedFile);
       
       const snapshot = await new Promise((resolve, reject) => {
         uploadTaskResumable.on('state_changed', 
