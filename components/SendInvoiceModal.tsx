@@ -39,6 +39,12 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
     return `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
   };
 
+  const generateEmailLink = (fileUrl?: string) => {
+    const subject = `Nota Fiscal - Entrega ${formattedDate} - NF ${invoiceNumber}`;
+    const body = `Olá,\n\nSegue a Nota Fiscal referente à entrega do dia ${formattedDate}.\n\nNº da NF: ${invoiceNumber}${fileUrl ? `\n\nLink do PDF: ${fileUrl}` : ''}\n\nAtenciosamente.`;
+    return `mailto:rsscaramal@sap.sp.gov.br,jfmoutin@sap.sp.gov.br?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
   const handleSendWhatsApp = (fileUrl?: string) => {
     const link = generateWhatsAppLink(fileUrl);
     setWhatsappLink(link);
@@ -53,13 +59,21 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSendEmail = (fileUrl?: string) => {
+    const link = generateEmailLink(fileUrl);
+    window.location.href = link;
+    setIsUploading(false);
+    setTimeout(onClose, 2000);
+  };
+
+  const handleSubmit = async (e: React.FormEvent, method: 'whatsapp' | 'email') => {
     e.preventDefault();
 
     if (!isFormValid) return;
 
     if (!selectedFile) {
-      handleSendWhatsApp();
+      if (method === 'whatsapp') handleSendWhatsApp();
+      else handleSendEmail();
       return;
     }
 
@@ -95,7 +109,11 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
           clearTimeout(timeoutId);
           try {
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            handleSendWhatsApp(downloadURL);
+            if (method === 'whatsapp') {
+              handleSendWhatsApp(downloadURL);
+            } else {
+              handleSendEmail(downloadURL);
+            }
           } catch (err: any) {
             console.error("Error getting download URL:", err);
             setUploadError("Erro ao obter o link do arquivo. Tente enviar sem anexar o arquivo.");
@@ -163,7 +181,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
+        <form className="flex flex-col overflow-hidden">
             <div className="p-5 md:p-8 space-y-6">
                 {uploadError && (
                   <div className="bg-red-50 p-4 rounded-2xl border border-red-100 flex items-start gap-3">
@@ -188,7 +206,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
                         <input type="text" id="invoice-number" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} required placeholder="Ex: 001234" className="w-full h-14 px-4 border-2 border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-800"/>
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Arquivo da Nota (PDF) - Opcional</label>
+                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Arquivo da Nota (PDF) - OBRIGATÓRIO</label>
                         <div 
                           onClick={() => fileInputRef.current?.click()}
                           className={`w-full h-14 px-4 border-2 border-dashed rounded-2xl flex items-center justify-between gap-2 cursor-pointer transition-all ${selectedFile ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-400 hover:border-indigo-300 hover:bg-indigo-50'}`}
@@ -227,33 +245,58 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
                           onChange={handleFileChange} 
                           accept="application/pdf" 
                           className="hidden" 
+                          required
                         />
                     </div>
                 </div>
             </div>
 
-            <div className="p-6 md:p-8 border-t border-gray-100 bg-white flex flex-col-reverse sm:flex-row gap-3 flex-shrink-0 pb-[max(24px,env(safe-area-inset-bottom))]">
+            <div className="p-6 md:p-8 border-t border-gray-100 bg-white flex flex-col sm:flex-row gap-3 flex-shrink-0 pb-[max(24px,env(safe-area-inset-bottom))]">
                 <button type="button" onClick={onClose} disabled={isUploading} className="flex-1 bg-gray-50 text-gray-400 font-black h-16 rounded-2xl uppercase text-[10px] tracking-widest hover:bg-gray-100 active:scale-95 transition-all disabled:opacity-50">Cancelar</button>
-                <button 
-                    type="submit" 
-                    disabled={!isFormValid || isUploading}
-                    className={`flex-[2] flex items-center justify-center gap-3 font-black h-16 rounded-2xl shadow-xl transition-all active:scale-95 uppercase tracking-widest text-sm text-white ${isFormValid && !isUploading ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-200 cursor-not-allowed text-gray-400'}`}
-                >
-                    {isUploading ? (
-                      <div className="flex flex-col items-center justify-center w-full">
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                          <span>Enviando... {uploadProgress}%</span>
-                        </div>
-                        <div className="w-1/2 h-1 bg-gray-300 rounded-full mt-2 overflow-hidden">
-                          <div className="h-full bg-green-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
-                        </div>
-                      </div>
-                    ) : (
-                      'Enviar WhatsApp'
-                    )}
-                </button>
+                <div className="flex-[2] flex gap-2">
+                  <button 
+                      type="button" 
+                      onClick={(e) => handleSubmit(e, 'email')}
+                      disabled={!isFormValid || !selectedFile || isUploading}
+                      className={`flex-1 flex items-center justify-center gap-2 font-black h-16 rounded-2xl shadow-xl transition-all active:scale-95 uppercase tracking-widest text-xs text-white ${isFormValid && selectedFile && !isUploading ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 cursor-not-allowed text-gray-400'}`}
+                  >
+                      {isUploading ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                          E-mail
+                        </>
+                      )}
+                  </button>
+                  <button 
+                      type="button" 
+                      onClick={(e) => handleSubmit(e, 'whatsapp')}
+                      disabled={!isFormValid || !selectedFile || isUploading}
+                      className={`flex-1 flex items-center justify-center gap-2 font-black h-16 rounded-2xl shadow-xl transition-all active:scale-95 uppercase tracking-widest text-xs text-white ${isFormValid && selectedFile && !isUploading ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-200 cursor-not-allowed text-gray-400'}`}
+                  >
+                      {isUploading ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                          WhatsApp
+                        </>
+                      )}
+                  </button>
+                </div>
             </div>
+            {isUploading && (
+              <div className="px-8 pb-6">
+                <div className="flex items-center justify-between text-xs font-bold text-gray-500 mb-2">
+                  <span>Enviando arquivo...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                </div>
+              </div>
+            )}
         </form>
       </div>
        <style>{`
