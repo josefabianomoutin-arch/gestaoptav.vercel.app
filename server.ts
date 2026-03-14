@@ -70,10 +70,12 @@ async function startServer() {
         throw new Error(`Missing environment variables: ${missing.join(", ")}. Please check your app settings.`);
       }
 
-      const auth = new google.auth.GoogleAuth({
-        credentials,
-        scopes: ["https://www.googleapis.com/auth/drive.file"],
-      });
+      const auth = new google.auth.JWT(
+        credentials.client_email,
+        undefined,
+        credentials.private_key,
+        ["https://www.googleapis.com/auth/drive.file"]
+      );
 
       console.log("Auth initialized");
       const drive = google.drive({ version: "v3", auth });
