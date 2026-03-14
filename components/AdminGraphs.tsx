@@ -54,6 +54,7 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
     }
 
     warehouseLog.forEach(log => {
+      if (!log.date) return;
       const dateStr = log.date.split('T')[0];
       if (last30Days.has(dateStr)) {
         const current = last30Days.get(dateStr)!;
@@ -63,7 +64,7 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
     });
 
     return Array.from(last30Days.entries()).map(([date, values]) => ({
-      date: date.split('-').reverse().slice(0, 2).join('/'),
+      date: date ? date.split('-').reverse().slice(0, 2).join('/') : '',
       ...values
     }));
   }, [warehouseLog]);
@@ -100,8 +101,8 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
       const delivered = (s.deliveries || []).reduce((acc, d) => acc + (d.kg || 0), 0);
       const percentage = contracted > 0 ? (delivered / contracted) * 100 : 0;
       return {
-        name: s.name.split(' ')[0],
-        fullName: s.name,
+        name: s.name ? s.name.split(' ')[0] : 'Fornecedor',
+        fullName: s.name || 'Fornecedor',
         entregue: Number(delivered.toFixed(2)),
         contratado: Number(contracted.toFixed(2)),
         progresso: Number(percentage.toFixed(1))
@@ -115,6 +116,7 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
   const thirdPartyData = useMemo(() => {
     const counts = new Map<string, number>();
     thirdPartyEntries.forEach(log => {
+      if (!log.locations) return;
       const locs = log.locations.split(',').map(l => l.trim());
       locs.forEach(l => {
         if (l) counts.set(l, (counts.get(l) || 0) + 1);
