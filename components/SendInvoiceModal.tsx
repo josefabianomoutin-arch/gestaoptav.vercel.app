@@ -72,6 +72,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
 
     if (!isFormValid) return;
 
+    // If no file, just perform the action
     if (!selectedFile) {
       if (method === 'whatsapp') handleSendWhatsApp();
       else handleSendEmail();
@@ -105,12 +106,13 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
       const data = await response.json();
       console.log("Upload complete, download URL:", data.webViewLink);
       
+      // Perform the action based on the method passed to handleSubmit
       if (method === 'whatsapp') {
         handleSendWhatsApp(data.webViewLink);
       } else {
         handleSendEmail(data.webViewLink);
       }
-      setIsUploading(false);
+      // Note: setIsUploading(false) is called inside handleSendWhatsApp/Email
     } catch (error: any) {
       console.error("Submit error:", error);
       // Try to parse the error response from the backend
