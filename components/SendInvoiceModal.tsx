@@ -113,7 +113,15 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
       setIsUploading(false);
     } catch (error: any) {
       console.error("Submit error:", error);
-      setUploadError(`Erro ao enviar o arquivo PDF: ${error.name === 'AbortError' ? 'Tempo limite excedido' : (error.message || 'Erro desconhecido')}. Verifique sua conexão ou tente novamente.`);
+      // Try to parse the error response from the backend
+      let errorMessage = error.message;
+      try {
+        const errorData = JSON.parse(error.message);
+        if (errorData.details) errorMessage = errorData.details;
+      } catch (e) {
+        // Not JSON, keep original message
+      }
+      setUploadError(`Erro ao enviar o arquivo PDF: ${errorMessage}. Verifique as configurações do Google Drive.`);
       setIsUploading(false);
     }
   };
