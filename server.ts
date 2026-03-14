@@ -60,7 +60,10 @@ async function startServer() {
       console.log("Client Email:", credentials.client_email);
 
       if (!credentials.client_email || !credentials.private_key) {
-        throw new Error(`Missing Google Service Account credentials. Email: ${!!credentials.client_email}, Key: ${!!credentials.private_key}`);
+        const missing = [];
+        if (!credentials.client_email) missing.push("GOOGLE_SERVICE_ACCOUNT_EMAIL");
+        if (!credentials.private_key) missing.push("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY");
+        throw new Error(`Missing environment variables: ${missing.join(", ")}. Please check your app settings.`);
       }
 
       const auth = google.auth.fromJSON(credentials);
