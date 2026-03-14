@@ -89,6 +89,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
       const fileRef = storageRef(storage, `notas_fiscais/${fileName}`);
       
       // Usar uploadBytes simples para garantir a conclusão
+      console.log("Uploading file...");
       const snapshot = await uploadBytes(fileRef, selectedFile);
       console.log("Upload complete, getting download URL...");
       const downloadURL = await getDownloadURL(snapshot.ref);
@@ -99,6 +100,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
       } else {
         handleSendEmail(downloadURL);
       }
+      setIsUploading(false); // Ensure uploading state is reset
     } catch (error: any) {
       console.error("Submit error:", error);
       setUploadError(`Erro ao enviar o arquivo PDF: ${error.message || 'Erro desconhecido'}. Verifique sua conexão ou tente novamente.`);
