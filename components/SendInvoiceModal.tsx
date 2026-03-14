@@ -3,7 +3,7 @@ import type { Delivery } from '../types';
 import { speechService } from '../src/services/speechService';
 import { Volume2, Upload, FileText, Loader2, ExternalLink } from 'lucide-react';
 import { storage } from '../firebaseConfig';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 interface SendInvoiceModalProps {
   invoiceInfo: { date: string; deliveries: Delivery[] };
@@ -84,11 +84,31 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
     setUploadError(null);
 
     try {
+      console.log("Starting upload...", { storage });
       const fileName = `NF_${invoiceNumber}_${invoiceInfo.date}_${Date.now()}.pdf`;
       const fileRef = storageRef(storage, `notas_fiscais/${fileName}`);
       
-      const snapshot = await uploadBytes(fileRef, selectedFile);
-      const downloadURL = await getDownloadURL(snapshot.ref);
+      // Usar uploadBytesResumable para maior controle
+      const uploadTask = storageRef(storage, `notas_fiscais/${fileName}`);
+      const uploadTaskResumable = uploadBytesResumable(uploadTask, selectedFile);
+      
+      const snapshot = await new Promise((resolve, reject) => {
+        uploadTaskResumable.on('state_changed', 
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            console.log('Upload is ' + progress + '% done');
+          }, 
+          (error) => {
+            reject(error);
+          }, 
+          () => {
+            resolve(uploadTaskResumable.snapshot);
+          }
+        );
+      });
+      console.log("Upload complete, getting download URL...");
+      const downloadURL = await getDownloadURL((snapshot as any).ref);
+      console.log("Download URL obtained:", downloadURL);
       
       if (method === 'whatsapp') {
         handleSendWhatsApp(downloadURL);
@@ -97,7 +117,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
       }
     } catch (error: any) {
       console.error("Submit error:", error);
-      setUploadError("Erro ao enviar o arquivo PDF. Verifique sua conexão ou tente novamente.");
+      setUploadError(`Erro ao enviar o arquivo PDF: ${error.message || 'Erro desconhecido'}. Verifique sua conexão ou tente novamente.`);
       setIsUploading(false);
     }
   };
