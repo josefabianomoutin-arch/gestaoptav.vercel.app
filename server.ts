@@ -33,9 +33,11 @@ async function startServer() {
       console.log("Service Account Email:", process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
 
       let credentials;
+      let credentialsSource = "none";
       if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
         try {
           credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+          credentialsSource = "JSON_ENV";
           console.log("Loaded credentials from GOOGLE_APPLICATION_CREDENTIALS_JSON");
         } catch (e) {
           console.error("Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON", e);
@@ -55,6 +57,7 @@ async function startServer() {
           auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
           client_x509_cert_url: process.env.GOOGLE_CLIENT_X509_CERT_URL,
         };
+        credentialsSource = "MANUAL_ENV";
         console.log("Constructed credentials manually");
       }
 
@@ -70,9 +73,14 @@ async function startServer() {
         if (!credentials.client_email) missing.push("GOOGLE_SERVICE_ACCOUNT_EMAIL");
         if (!credentials.private_key) missing.push("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY");
         
+        const sanitized = {
+          ...credentials,
+          private_key: credentials.private_key ? '***' : 'MISSING'
+        };
+        
         throw new Error(`Missing environment variables: ${missing.join(", ")}. 
-          Debug: Email='${process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL}', 
-          KeyLength=${process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.length || 0}. 
+          Source: ${credentialsSource},
+          Credentials: ${JSON.stringify(sanitized)}. 
           Please check your app settings.`);
       }
 
