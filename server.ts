@@ -2,6 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import multer from "multer";
 import { google } from "googleapis";
+import { JWT } from "google-auth-library";
 import { Readable } from "stream";
 import path from "path";
 
@@ -70,12 +71,11 @@ async function startServer() {
         throw new Error(`Missing environment variables: ${missing.join(", ")}. Please check your app settings.`);
       }
 
-      const auth = new google.auth.JWT(
-        credentials.client_email,
-        undefined,
-        credentials.private_key,
-        ["https://www.googleapis.com/auth/drive.file"]
-      );
+      const auth = new JWT({
+        email: credentials.client_email,
+        key: credentials.private_key,
+        scopes: ["https://www.googleapis.com/auth/drive.file"],
+      });
 
       console.log("Auth initialized");
       const drive = google.drive({ version: "v3", auth });
