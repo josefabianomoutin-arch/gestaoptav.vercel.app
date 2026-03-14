@@ -58,6 +58,10 @@ async function startServer() {
 
       console.log("Credentials keys:", Object.keys(credentials));
       console.log("Client Email:", credentials.client_email);
+      console.log("Full Credentials Object (sanitized):", JSON.stringify({
+        ...credentials,
+        private_key: credentials.private_key ? '***' : 'MISSING'
+      }));
 
       if (!credentials.client_email || !credentials.private_key) {
         const missing = [];
