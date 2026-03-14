@@ -335,6 +335,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           vehicleExitOrders={vehicleExitOrders}
           thirdPartyEntries={thirdPartyEntries}
           directorWithdrawals={directorWithdrawals}
+          perCapitaConfig={perCapitaConfig}
+          acquisitionItems={acquisitionItems}
       />;
       case 'menu': return <AdminStandardMenu suppliers={suppliers} template={props.standardMenu} dailyMenus={props.dailyMenus} onUpdateDailyMenus={props.onUpdateDailyMenu} inmateCount={perCapitaConfig.inmateCount || 0} />;
       case 'almoxarifado': return <WarehouseMovementForm suppliers={suppliers} warehouseLog={warehouseLog} onRegisterEntry={props.onRegisterEntry} onRegisterWithdrawal={props.onRegisterWithdrawal} />;

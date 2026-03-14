@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area 
+  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis 
 } from 'recharts';
-import type { Supplier, WarehouseMovement, CleaningLog, FinancialRecord, VehicleExitOrder, ThirdPartyEntryLog, DirectorPerCapitaLog } from '../types';
+import type { Supplier, WarehouseMovement, CleaningLog, FinancialRecord, VehicleExitOrder, ThirdPartyEntryLog, DirectorPerCapitaLog, PerCapitaConfig, AcquisitionItem } from '../types';
 
 interface AdminGraphsProps {
   suppliers: Supplier[];
@@ -13,9 +13,11 @@ interface AdminGraphsProps {
   vehicleExitOrders: VehicleExitOrder[];
   thirdPartyEntries: ThirdPartyEntryLog[];
   directorWithdrawals: DirectorPerCapitaLog[];
+  perCapitaConfig: PerCapitaConfig;
+  acquisitionItems: AcquisitionItem[];
 }
 
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
+const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6'];
 
 const AdminGraphs: React.FC<AdminGraphsProps> = ({ 
   suppliers = [], 
@@ -24,8 +26,12 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
   financialRecords = [], 
   vehicleExitOrders = [],
   thirdPartyEntries = [],
-  directorWithdrawals = []
+  directorWithdrawals = [],
+  perCapitaConfig,
+  acquisitionItems = []
 }) => {
+
+  const inmateCount = perCapitaConfig?.inmateCount || 1;
 
   // 1. Resumo Financeiro
   const financialSummary = useMemo(() => {
@@ -42,7 +48,69 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
     ];
   }, [financialRecords]);
 
-  // 2. Movimentação de Almoxarifado (Últimos 30 dias)
+  // 2. Performance de Entrega
+  const deliveryPerformance = useMemo(() => {
+    let deliveredCount = 0;
+    let notDeliveredCount = 0;
+
+    suppliers.forEach(s => {
+      const totalDelivered = (s.deliveries || []).reduce((acc, d) => acc + (d.kg || 0), 0);
+      if (totalDelivered > 0) deliveredCount++;
+      else notDeliveredCount++;
+    });
+
+    return [
+      { name: 'Com Entregas', value: deliveredCount, color: '#10b981' },
+      { name: 'Sem Entregas', value: notDeliveredCount, color: '#f43f5e' }
+    ];
+  }, [suppliers]);
+
+  // 3. Materiais em Falta (Itens com 0% de entrega)
+  const missingMaterials = useMemo(() => {
+    const itemsMap = new Map<string, { contracted: number; delivered: number }>();
+    
+    suppliers.forEach(s => {
+      (s.contractItems || []).forEach(ci => {
+        const current = itemsMap.get(ci.name) || { contracted: 0, delivered: 0 };
+        current.contracted += ci.totalKg || 0;
+        itemsMap.set(ci.name, current);
+      });
+      (s.deliveries || []).forEach(d => {
+        const current = itemsMap.get(d.item) || { contracted: 0, delivered: 0 };
+        const deliveredKg = Number(d.kg) || 0;
+        current.delivered += deliveredKg;
+        itemsMap.set(d.item || 'Item Indefinido', current);
+      });
+    });
+
+    return Array.from(itemsMap.entries())
+      .map(([name, vals]) => ({
+        name,
+        ...vals,
+        percentage: vals.contracted > 0 ? (vals.delivered / vals.contracted) * 100 : 0
+      }))
+      .filter(i => i.percentage === 0 && i.contracted > 0)
+      .sort((a, b) => b.contracted - a.contracted)
+      .slice(0, 5);
+  }, [suppliers]);
+
+  // 4. Per Capita - Custo por Preso
+  const perCapitaStats = useMemo(() => {
+    const totalContractValue = suppliers.reduce((acc, s) => {
+      return acc + (s.contractItems || []).reduce((sum, item) => sum + ((item.totalKg || 0) * (item.valuePerKg || 0)), 0);
+    }, 0);
+
+    const dailyCost = totalContractValue / 365; 
+    const perPersonDaily = dailyCost / inmateCount;
+
+    return {
+      totalMonthly: totalContractValue / 12,
+      dailyTotal: dailyCost,
+      perPersonDaily: perPersonDaily
+    };
+  }, [suppliers, inmateCount]);
+
+  // 5. Movimentação de Almoxarifado
   const warehouseData = useMemo(() => {
     const last30Days = new Map<string, { entries: number; withdrawals: number }>();
     const now = new Date();
@@ -69,74 +137,60 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
     }));
   }, [warehouseLog]);
 
-  // 3. Tipos de Higienização
+  // 6. Logs de Limpeza por Categoria
   const cleaningData = useMemo(() => {
-    const counts = new Map<string, number>();
+    const counts: Record<string, number> = {};
     cleaningLogs.forEach(log => {
-      counts.set(log.type, (counts.get(log.type) || 0) + 1);
+      counts[log.type] = (counts[log.type] || 0) + 1;
     });
-    return Array.from(counts.entries()).map(([type, count]) => ({
-      name: type.charAt(0).toUpperCase() + type.slice(1),
-      quantidade: count
-    }));
+    return Object.entries(counts).map(([name, value]) => ({ name: name.toUpperCase(), value }));
   }, [cleaningLogs]);
 
-  // 4. Ordens de Saída por Veículo
+  // 7. Top 5 Veículos por Saídas
   const vehicleData = useMemo(() => {
-    const counts = new Map<string, number>();
+    const counts: Record<string, number> = {};
     vehicleExitOrders.forEach(order => {
-      const label = `${order.vehiclePlate} (${order.vehicleModel})`;
-      counts.set(label, (counts.get(label) || 0) + 1);
+      const v = `${order.vehicle} (${order.plate})`;
+      counts[v] = (counts[v] || 0) + 1;
     });
-    return Array.from(counts.entries())
-      .map(([name, count]) => ({ name, viagens: count }))
-      .sort((a, b) => b.viagens - a.viagens)
-      .slice(0, 5);
-  }, [vehicleExitOrders]);
-
-  // 5. Progresso de Entrega por Fornecedor (Top 5)
-  const supplierProgress = useMemo(() => {
-    return suppliers.map(s => {
-      const contracted = (s.contractItems || []).reduce((acc, item) => acc + (item.totalKg || 0), 0);
-      const delivered = (s.deliveries || []).reduce((acc, d) => acc + (d.kg || 0), 0);
-      const percentage = contracted > 0 ? (delivered / contracted) * 100 : 0;
-      return {
-        name: s.name ? s.name.split(' ')[0] : 'Fornecedor',
-        fullName: s.name || 'Fornecedor',
-        entregue: Number(delivered.toFixed(2)),
-        contratado: Number(contracted.toFixed(2)),
-        progresso: Number(percentage.toFixed(1))
-      };
-    })
-    .sort((a, b) => b.contratado - a.contratado)
-    .slice(0, 5);
-  }, [suppliers]);
-
-  // 6. Entradas de Terceiros por Local
-  const thirdPartyData = useMemo(() => {
-    const counts = new Map<string, number>();
-    thirdPartyEntries.forEach(log => {
-      if (!log.locations) return;
-      const locs = log.locations.split(',').map(l => l.trim());
-      locs.forEach(l => {
-        if (l) counts.set(l, (counts.get(l) || 0) + 1);
-      });
-    });
-    return Array.from(counts.entries())
+    return Object.entries(counts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
+  }, [vehicleExitOrders]);
+
+  // 8. Progresso de Fornecedores (Top 5 por Kg entregue)
+  const supplierProgress = useMemo(() => {
+    return suppliers
+      .map(s => ({
+        name: s.name,
+        delivered: (s.deliveries || []).reduce((acc, d) => acc + (Number(d.kg) || 0), 0),
+        contracted: (s.contractItems || []).reduce((acc, ci) => acc + (Number(ci.totalKg) || 0), 0)
+      }))
+      .filter(s => s.contracted > 0)
+      .sort((a, b) => b.delivered - a.delivered)
+      .slice(0, 5);
+  }, [suppliers]);
+
+  // 9. Entradas de Terceiros por Local
+  const thirdPartyData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    thirdPartyEntries.forEach(entry => {
+      const loc = entry.locations || 'Outros';
+      counts[loc] = (counts[loc] || 0) + 1;
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [thirdPartyEntries]);
 
-  // 7. Retiradas Diretor por Item
+  // 10. Retiradas do Diretor (Top 5 Itens)
   const directorData = useMemo(() => {
-    const counts = new Map<string, number>();
+    const counts: Record<string, number> = {};
     directorWithdrawals.forEach(log => {
-      log.items.forEach(item => {
-        counts.set(item.name, (counts.get(item.name) || 0) + (Number(item.quantity) || 0));
+      (log.items || []).forEach(item => {
+        counts[item.name] = (counts[item.name] || 0) + (Number(item.quantity) || 0);
       });
     });
-    return Array.from(counts.entries())
+    return Object.entries(counts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
@@ -146,60 +200,74 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
 
   return (
     <div className="space-y-6 animate-fade-in pb-20">
-      {/* Summary Cards */}
+      {/* Dashboard Header Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-zinc-100">
-          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Total Fornecedores</p>
-          <p className="text-3xl font-black text-indigo-600">{suppliers.length}</p>
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-zinc-100 flex flex-col justify-between">
+          <div>
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Custo Diário / Preso</p>
+            <p className="text-3xl font-black text-indigo-600">{formatCurrency(perCapitaStats.perPersonDaily)}</p>
+          </div>
+          <p className="text-[9px] text-zinc-400 mt-2 font-bold uppercase">População: {inmateCount}</p>
         </div>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-zinc-100">
-          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Registros Financeiros</p>
-          <p className="text-3xl font-black text-emerald-600">{financialRecords.length}</p>
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-zinc-100 flex flex-col justify-between">
+          <div>
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Fornecedores Sem Entrega</p>
+            <p className="text-3xl font-black text-rose-500">{deliveryPerformance.find(d => d.name === 'Sem Entregas')?.value || 0}</p>
+          </div>
+          <p className="text-[9px] text-zinc-400 mt-2 font-bold uppercase">Total: {suppliers.length}</p>
         </div>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-zinc-100">
-          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Movimentações Almox.</p>
-          <p className="text-3xl font-black text-amber-600">{warehouseLog.length}</p>
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-zinc-100 flex flex-col justify-between">
+          <div>
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Materiais em Falta (0%)</p>
+            <p className="text-3xl font-black text-amber-500">{missingMaterials.length}</p>
+          </div>
+          <p className="text-[9px] text-zinc-400 mt-2 font-bold uppercase">Itens Críticos</p>
         </div>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-zinc-100">
-          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Logs de Higiene</p>
-          <p className="text-3xl font-black text-rose-600">{cleaningLogs.length}</p>
-        </div>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-zinc-100">
-          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Retiradas Diretor</p>
-          <p className="text-3xl font-black text-cyan-600">{directorWithdrawals.length}</p>
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-zinc-100 flex flex-col justify-between">
+          <div>
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Valor Total Contratos</p>
+            <p className="text-2xl font-black text-emerald-600">{formatCurrency(perCapitaStats.totalMonthly * 12)}</p>
+          </div>
+          <p className="text-[9px] text-zinc-400 mt-2 font-bold uppercase">Previsão Anual</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Finance Pie Chart */}
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100">
-          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Visão Geral Financeira</h3>
-          <div className="h-72 w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Delivery Performance Pie */}
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100 lg:col-span-1">
+          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Status de Entregas</h3>
+          <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie
-                  data={financialSummary}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {financialSummary.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
+                <Pie data={deliveryPerformance} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                  {deliveryPerformance.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                 </Pie>
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Tooltip />
                 <Legend verticalAlign="bottom" height={36}/>
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Warehouse Area Chart */}
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100">
-          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Movimentação de Estoque (30 dias)</h3>
+        {/* Missing Materials Bar Chart */}
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100 lg:col-span-2">
+          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Materiais Críticos (0% Entregue)</h3>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={missingMaterials} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                <XAxis type="number" hide />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} width={150} />
+                <Tooltip formatter={(value: number) => `${value.toFixed(2)} Kg`} />
+                <Bar dataKey="contracted" name="Qtd. Contratada (Kg)" fill="#f59e0b" radius={[0, 4, 4, 0]} barSize={15} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Warehouse Movement Area Chart */}
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100 lg:col-span-2">
+          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Fluxo de Almoxarifado (30 Dias)</h3>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={warehouseData}>
@@ -224,91 +292,97 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
           </div>
         </div>
 
-        {/* Supplier Progress Bar Chart */}
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100">
-          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Top 5 Fornecedores (Entrega Kg)</h3>
+        {/* Financial Pie Chart */}
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100 lg:col-span-1">
+          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Balanço Financeiro</h3>
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={financialSummary} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
+                  {financialSummary.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                </Pie>
+                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Legend verticalAlign="bottom" height={36}/>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Supplier Progress Horizontal Bar */}
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100 lg:col-span-1">
+          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Top 5 Fornecedores (Kg)</h3>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={supplierProgress} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
                 <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94a3b8'}} width={80} />
-                <Tooltip formatter={(value: number) => `${value} Kg`} />
-                <Bar dataKey="entregue" name="Entregue" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} />
-                <Bar dataKey="contratado" name="Contratado" fill="#e2e8f0" radius={[0, 4, 4, 0]} barSize={20} />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeight: 700, fill: '#94a3b8'}} width={100} />
+                <Tooltip />
+                <Bar dataKey="delivered" name="Entregue (Kg)" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={12} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Cleaning Logs Bar Chart */}
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100">
-          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Tipos de Higienização</h3>
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100 lg:col-span-1">
+          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Tipos de Limpeza</h3>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={cleaningData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94a3b8'}} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeight: 700, fill: '#94a3b8'}} />
                 <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94a3b8'}} />
                 <Tooltip />
-                <Bar dataKey="quantidade" fill="#8b5cf6" radius={[8, 8, 0, 0]} barSize={40} />
+                <Bar dataKey="value" name="Quantidade" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Vehicle Exit Orders Bar Chart */}
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100">
-          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Viagens por Veículo (Top 5)</h3>
+        {/* Vehicle Trips Bar Chart */}
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100 lg:col-span-1">
+          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Top 5 Veículos (Viagens)</h3>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={vehicleData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} width={120} />
+              <BarChart data={vehicleData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeight: 700, fill: '#94a3b8'}} />
+                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94a3b8'}} />
                 <Tooltip />
-                <Bar dataKey="viagens" fill="#ec4899" radius={[0, 8, 8, 0]} barSize={20} />
+                <Bar dataKey="value" name="Viagens" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={20} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Third Party Entries Pie Chart */}
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100">
-          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Entradas de Terceiros por Local</h3>
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100 lg:col-span-1">
+          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Entradas Terceiros / Local</h3>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie
-                  data={thirdPartyData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                  label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {thirdPartyData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
+                <Pie data={thirdPartyData} cx="50%" cy="50%" innerRadius={40} outerRadius={80} paddingAngle={5} dataKey="value">
+                  {thirdPartyData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                 </Pie>
                 <Tooltip />
+                <Legend verticalAlign="bottom" height={36}/>
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Director Withdrawals Bar Chart */}
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100">
-          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Retiradas Diretor (Top 5 Itens)</h3>
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-zinc-100 lg:col-span-2">
+          <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6">Top 5 Itens Retirados (Diretoria)</h3>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={directorData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94a3b8'}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94a3b8'}} />
+              <BarChart data={directorData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                <XAxis type="number" hide />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} width={150} />
                 <Tooltip />
-                <Bar dataKey="value" name="Quantidade" fill="#06b6d4" radius={[8, 8, 0, 0]} barSize={40} />
+                <Bar dataKey="value" name="Quantidade" fill="#ec4899" radius={[0, 4, 4, 0]} barSize={15} />
               </BarChart>
             </ResponsiveContainer>
           </div>
