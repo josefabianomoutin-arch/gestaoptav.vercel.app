@@ -69,7 +69,11 @@ async function startServer() {
         const missing = [];
         if (!credentials.client_email) missing.push("GOOGLE_SERVICE_ACCOUNT_EMAIL");
         if (!credentials.private_key) missing.push("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY");
-        throw new Error(`Missing environment variables: ${missing.join(", ")}. Please check your app settings.`);
+        
+        throw new Error(`Missing environment variables: ${missing.join(", ")}. 
+          Debug: Email='${process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL}', 
+          KeyLength=${process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.length || 0}. 
+          Please check your app settings.`);
       }
 
       const auth = new JWT({
