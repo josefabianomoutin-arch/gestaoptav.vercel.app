@@ -3,7 +3,7 @@ import type { Delivery } from '../types';
 import { speechService } from '../src/services/speechService';
 import { Volume2, Upload, FileText, Loader2, ExternalLink } from 'lucide-react';
 import { storage } from '../firebaseConfig';
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, uploadBytes, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 interface SendInvoiceModalProps {
   invoiceInfo: { date: string; deliveries: Delivery[] };
