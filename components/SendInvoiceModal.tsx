@@ -88,25 +88,10 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
       const fileName = `NF_${invoiceNumber}_${invoiceInfo.date}_${Date.now()}.pdf`;
       const fileRef = storageRef(storage, `notas_fiscais/${fileName}`);
       
-      // Usar uploadBytesResumable para maior controle
-      const uploadTaskResumable = uploadBytesResumable(fileRef, selectedFile);
-      
-      const snapshot = await new Promise((resolve, reject) => {
-        uploadTaskResumable.on('state_changed', 
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            console.log('Upload is ' + progress + '% done');
-          }, 
-          (error) => {
-            reject(error);
-          }, 
-          () => {
-            resolve(uploadTaskResumable.snapshot);
-          }
-        );
-      });
+      // Usar uploadBytes simples para garantir a conclusão
+      const snapshot = await uploadBytes(fileRef, selectedFile);
       console.log("Upload complete, getting download URL...");
-      const downloadURL = await getDownloadURL((snapshot as any).ref);
+      const downloadURL = await getDownloadURL(snapshot.ref);
       console.log("Download URL obtained:", downloadURL);
       
       if (method === 'whatsapp') {
@@ -159,40 +144,40 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-[100] p-2 md:p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col animate-fade-in-up border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col animate-fade-in-up border border-gray-100 overflow-hidden">
         
-        <div className="flex justify-between items-center p-6 md:p-8 border-b border-gray-50 flex-shrink-0">
-          <div className="flex items-center gap-4">
+        <div className="flex justify-between items-center p-4 md:p-6 border-b border-gray-50 flex-shrink-0">
+          <div className="flex items-center gap-3">
             <div>
-              <h2 className="text-xl md:text-2xl font-black text-gray-900 uppercase tracking-tighter italic leading-none">Enviar Nota Fiscal</h2>
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">Compartilhe a NF com o Almoxarifado</p>
+              <h2 className="text-lg font-black text-gray-900 uppercase tracking-tighter italic leading-none">Enviar NF</h2>
+              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">Almoxarifado</p>
             </div>
             <button 
               type="button" 
               onClick={handlePlayGuide}
-              className="bg-indigo-100 text-indigo-600 p-2 rounded-full hover:bg-indigo-200 transition-colors"
+              className="bg-indigo-100 text-indigo-600 p-1.5 rounded-full hover:bg-indigo-200 transition-colors"
               title="Ouvir Guia"
             >
-              <Volume2 className="h-5 w-5" />
+              <Volume2 className="h-4 w-4" />
             </button>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-2 bg-gray-50 rounded-full">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-1.5 bg-gray-50 rounded-full">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
 
         <form className="flex flex-col overflow-hidden">
-            <div className="p-5 md:p-8 space-y-6">
+            <div className="p-4 md:p-6 space-y-4">
                 {uploadError && (
-                  <div className="bg-red-50 p-4 rounded-2xl border border-red-100 flex items-start gap-3">
-                    <div className="text-red-700 font-medium text-sm">
+                  <div className="bg-red-50 p-3 rounded-xl border border-red-100 flex items-start gap-2">
+                    <div className="text-red-700 font-medium text-xs">
                       {uploadError}
                     </div>
                   </div>
                 )}
-                <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 flex items-start gap-3">
-                    <div className="bg-orange-500 text-white p-2 rounded-xl flex-shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 flex items-start gap-2">
+                    <div className="bg-orange-500 text-white p-1.5 rounded-lg flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                     </div>
                     <div>
                         <p className="text-[9px] text-orange-800 font-black uppercase tracking-tight">Data da Entrega</p>
