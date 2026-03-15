@@ -58,9 +58,8 @@ async function startServer() {
           client_x509_cert_url: process.env.GOOGLE_CLIENT_X509_CERT_URL,
         };
         // Ensure client_email is set if it was missing from the env var
-        if (!credentials.client_email && process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
-          credentials.client_email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-        }
+        credentials.client_email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || credentials.client_email;
+        
         credentialsSource = "MANUAL_ENV";
         console.log("Constructed credentials manually:", JSON.stringify({
           ...credentials,
