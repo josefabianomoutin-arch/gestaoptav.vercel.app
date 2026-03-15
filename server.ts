@@ -32,22 +32,29 @@ async function startServer() {
       console.log("Folder ID:", process.env.GOOGLE_DRIVE_FOLDER_ID);
       console.log("Service Account Email:", process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
 
-      // Clear potential interfering environment variables
-      delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
-      delete process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+      // Try to load credentials from JSON environment variable first
+      let credentials;
+      if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+        try {
+          credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+          console.log("Loaded credentials from GOOGLE_APPLICATION_CREDENTIALS_JSON");
+        } catch (e) {
+          console.error("Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON", e);
+        }
+      }
 
-      console.log("Environment variables available:", Object.keys(process.env));
-      console.log("GOOGLE_SERVICE_ACCOUNT_EMAIL:", process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
-
-      // Explicitly construct credentials
-      const credentials = {
-        type: "service_account",
-        project_id: process.env.GOOGLE_PROJECT_ID,
-        private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
-        private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        client_id: process.env.GOOGLE_CLIENT_ID,
-      };
+      // Fallback to individual environment variables
+      if (!credentials) {
+        console.log("Constructing credentials from individual environment variables");
+        credentials = {
+          type: "service_account",
+          project_id: process.env.GOOGLE_PROJECT_ID,
+          private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
+          private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+          client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+          client_id: process.env.GOOGLE_CLIENT_ID,
+        };
+      }
 
       // Validate credentials
       if (!credentials.client_email || !credentials.private_key) {
