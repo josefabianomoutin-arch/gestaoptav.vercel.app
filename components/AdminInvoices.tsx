@@ -670,17 +670,47 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                     <table ref={tableRef} className="w-full text-sm">
                         <thead className="bg-gray-50 text-xs uppercase text-gray-500">
                         <tr>
-                            <th className="p-3 text-center w-12">#</th>
-                            <th className="p-3 text-left cursor-pointer" onClick={() => handleSort('supplierName')}>Fornecedor</th>
-                            <th className="p-3 text-left cursor-pointer" onClick={() => handleSort('date')}>Data</th>
-                            <th className="p-3 text-left">Nº Nota Fiscal</th>
-                            <th className="p-3 text-right cursor-pointer" onClick={() => handleSort('totalValue')}>Valor Total</th>
-                            <th className="p-3 text-center">Itens</th>
-                            <th className="p-3 text-center">Ações</th>
+                            {activeSubTab === 'all' ? (
+                                <>
+                                    <th className="p-3 text-center w-12">#</th>
+                                    <th className="p-3 text-left cursor-pointer" onClick={() => handleSort('supplierName')}>Fornecedor</th>
+                                    <th className="p-3 text-left cursor-pointer" onClick={() => handleSort('date')}>Data</th>
+                                    <th className="p-3 text-left">Nº Nota Fiscal</th>
+                                    <th className="p-3 text-right cursor-pointer" onClick={() => handleSort('totalValue')}>Valor Total</th>
+                                    <th className="p-3 text-center">Itens</th>
+                                    <th className="p-3 text-center">Ações</th>
+                                </>
+                            ) : (
+                                <>
+                                    <th className="p-3 text-left">Data</th>
+                                    <th className="p-3 text-left">Nº Nota Fiscal</th>
+                                    <th className="p-3 text-left">Fornecedor</th>
+                                    <th className="p-3 text-left">PDF</th>
+                                </>
+                            )}
                         </tr>
                     </thead>
                     <tbody>
                         {filteredAndSortedInvoices.length > 0 ? filteredAndSortedInvoices.map((invoice, index) => {
+                            if (activeSubTab === 'uploaded') {
+                                return (
+                                    <tr key={invoice.id} className="border-b hover:bg-gray-50 transition-colors">
+                                        <td className="p-3 font-mono">{formatDate(invoice.date)}</td>
+                                        <td className="p-3 font-mono">{invoice.invoiceNumber}</td>
+                                        <td className="p-3 font-bold text-gray-800">{invoice.supplierName}</td>
+                                        <td className="p-3">
+                                            {invoice.invoiceUrl && (
+                                                <button 
+                                                    onClick={() => handleOpenPdf(invoice.invoiceUrl!)}
+                                                    className="text-indigo-600 hover:text-indigo-800 font-bold underline text-xs"
+                                                >
+                                                    Abrir PDF
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            }
                             const isExpanded = expandedInvoiceId === invoice.id;
                             return (
                                 <React.Fragment key={invoice.id}>
@@ -862,7 +892,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                     )}
                                 </React.Fragment>
                             )
-                        }) : (<tr><td colSpan={7} className="p-8 text-center text-gray-400 italic">Nenhuma nota fiscal registrada.</td></tr>)}
+                        }) : (<tr><td colSpan={activeSubTab === 'all' ? 7 : 4} className="p-8 text-center text-gray-400 italic">Nenhuma nota fiscal registrada.</td></tr>)}
                     </tbody>
                 </table>
                 </div>
