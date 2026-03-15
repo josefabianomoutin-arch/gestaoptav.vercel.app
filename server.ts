@@ -34,49 +34,40 @@ async function startServer() {
       console.log("Folder ID:", process.env.GOOGLE_DRIVE_FOLDER_ID);
       console.log("Service Account Email:", process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
 
-      // Try to load credentials from JSON environment variable first
-      let credentials;
+      // Load credentials
+      let clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+      let privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+
       if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
         try {
-          credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+          const parsed = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+          clientEmail = parsed.client_email || clientEmail;
+          privateKey = parsed.private_key || privateKey;
           console.log("Loaded credentials from GOOGLE_APPLICATION_CREDENTIALS_JSON");
         } catch (e) {
           console.error("Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON", e);
         }
       }
 
-      // Fallback to individual environment variables
-      if (!credentials) {
-        console.log("Constructing credentials from individual environment variables");
-        credentials = {
-          type: "service_account",
-          project_id: process.env.GOOGLE_PROJECT_ID,
-          private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
-          private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-          client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-          client_id: process.env.GOOGLE_CLIENT_ID,
-        };
+      if (!clientEmail || !privateKey) {
+        throw new Error("Faltam as credenciais do Google Cloud (client_email ou private_key). Verifique as configurações do app.");
       }
 
-      // Validate credentials
-      if (!credentials.client_email || !credentials.private_key) {
-        throw new Error(`Missing required Google Cloud credentials. 
-          Email: ${credentials.client_email ? 'Present' : 'MISSING'},
-          Key: ${credentials.private_key ? 'Present' : 'MISSING'}.
-          Please check your app settings.`);
-      }
+      // Ensure private key is properly formatted
+      privateKey = privateKey.replace(/\\n/g, '\n');
 
-      // Write credentials to a temporary file
-      const credsPath = '/tmp/google_credentials.json';
-      fs.writeFileSync(credsPath, JSON.stringify(credentials));
+      // Prevent GoogleAuth from trying to use the environment variable
+      delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
-      // Use GoogleAuth to load credentials from the file explicitly
-      const auth = new GoogleAuth({
-        keyFilename: credsPath,
+      // Use JWT directly for service account authentication
+      // This bypasses all the automatic credential loading logic that is failing
+      const auth = new google.auth.JWT({
+        email: clientEmail.trim(),
+        key: privateKey.trim(),
         scopes: ["https://www.googleapis.com/auth/drive.file"],
       });
 
-      console.log("Auth initialized using GoogleAuth with explicit credentials");
+      console.log("Auth initialized using google.auth.JWT");
       const drive = google.drive({ version: "v3", auth });
 
       const fileMetadata = {
