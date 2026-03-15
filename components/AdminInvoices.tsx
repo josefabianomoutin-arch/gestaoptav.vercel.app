@@ -25,6 +25,7 @@ interface AdminInvoicesProps {
     onReopenInvoice: (supplierCpf: string, invoiceNumber: string) => void;
     onDeleteInvoice: (supplierCpf: string, invoiceNumber: string) => void;
     onUpdateInvoiceItems: (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string) => Promise<{ success: boolean; message?: string }>;
+    onUpdateInvoiceUrl: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => Promise<{ success: boolean; message?: string }>;
     onManualInvoiceEntry: (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string) => Promise<{ success: boolean; message?: string }>;
     mode?: 'admin' | 'warehouse_entry' | 'warehouse_exit';
     onRegisterExit?: (payload: any) => Promise<{ success: boolean; message: string }>;
@@ -257,7 +258,7 @@ const handlePrintLabels = (invoices: InvoiceInfo[]) => {
     printWindow.document.close();
 };
 
-const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, onReopenInvoice, onDeleteInvoice, onUpdateInvoiceItems, onManualInvoiceEntry, mode = 'admin', onRegisterExit }) => {
+const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, onReopenInvoice, onDeleteInvoice, onUpdateInvoiceItems, onUpdateInvoiceUrl, onManualInvoiceEntry, mode = 'admin', onRegisterExit }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortKey, setSortKey] = useState<'supplierName' | 'date' | 'totalValue'>('date');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -432,7 +433,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
         );
 
         if (activeSubTab === 'uploaded') {
-            filtered = filtered.filter(inv => !!inv.invoiceUrl);
+            // Do not filter by invoiceUrl, we want to show all to allow attaching PDFs
         }
 
         return filtered.sort((a, b) => {
@@ -562,6 +563,25 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
         setIsSavingEdit(false);
         if (res.success) setIsManualModalOpen(false);
         else alert(res.message || 'Erro ao salvar lançamento manual.');
+    };
+
+    const handleAttachPdf = async (invoice: InvoiceInfo) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'application/pdf';
+        input.onchange = async (e: any) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const base64 = event.target?.result as string;
+                const res = await onUpdateInvoiceUrl(invoice.supplierCpf, invoice.invoiceNumber, base64);
+                if (!res.success) alert(res.message || 'Erro ao anexar PDF.');
+            };
+            reader.readAsDataURL(file);
+        };
+        input.click();
     };
 
     const handleOpenPdf = async (url: string) => {
@@ -699,12 +719,19 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                         <td className="p-3 font-mono">{invoice.invoiceNumber}</td>
                                         <td className="p-3 font-bold text-gray-800">{invoice.supplierName}</td>
                                         <td className="p-3">
-                                            {invoice.invoiceUrl && (
+                                            {invoice.invoiceUrl ? (
                                                 <button 
                                                     onClick={() => handleOpenPdf(invoice.invoiceUrl!)}
                                                     className="text-indigo-600 hover:text-indigo-800 font-bold underline text-xs"
                                                 >
                                                     Abrir PDF
+                                                </button>
+                                            ) : (
+                                                <button 
+                                                    onClick={() => handleAttachPdf(invoice)}
+                                                    className="text-teal-600 hover:text-teal-800 font-bold underline text-xs"
+                                                >
+                                                    Anexar PDF
                                                 </button>
                                             )}
                                         </td>

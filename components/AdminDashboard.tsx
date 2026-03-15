@@ -38,6 +38,7 @@ interface AdminDashboardProps {
   onReopenInvoice: (supplierCpf: string, invoiceNumber: string) => Promise<void>;
   onDeleteInvoice: (supplierCpf: string, invoiceNumber: string) => Promise<void>;
   onUpdateInvoiceItems: (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string) => Promise<{ success: boolean; message?: string }>;
+  onUpdateInvoiceUrl: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => Promise<{ success: boolean; message?: string }>;
   onManualInvoiceEntry: (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string) => Promise<{ success: boolean; message?: string }>;
   perCapitaConfig: PerCapitaConfig;
   onUpdatePerCapitaConfig: (config: PerCapitaConfig) => Promise<void>;
@@ -308,7 +309,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
         );
       case 'contracts': return <AdminContractItems suppliers={combinedSuppliers} warehouseLog={warehouseLog} onUpdateContractForItem={onUpdateContractForItem} />;
       case 'finance': return <AdminFinancialManager records={financialRecords} onSave={props.onSaveFinancialRecord} onDelete={props.onDeleteFinancialRecord} />;
-      case 'invoices': return <AdminInvoices suppliers={combinedSuppliers} warehouseLog={warehouseLog} onReopenInvoice={props.onReopenInvoice} onDeleteInvoice={props.onDeleteInvoice} onUpdateInvoiceItems={props.onUpdateInvoiceItems} onManualInvoiceEntry={props.onManualInvoiceEntry} />;
+      case 'invoices': return <AdminInvoices suppliers={combinedSuppliers} warehouseLog={warehouseLog} onReopenInvoice={props.onReopenInvoice} onDeleteInvoice={props.onDeleteInvoice} onUpdateInvoiceItems={props.onUpdateInvoiceItems} onUpdateInvoiceUrl={props.onUpdateInvoiceUrl} onManualInvoiceEntry={props.onManualInvoiceEntry} />;
       case 'schedule': return <AdminScheduleView suppliers={combinedSuppliers} thirdPartyEntries={thirdPartyEntries} onCancelDeliveries={props.onCancelDeliveries} onDeleteThirdPartyEntry={props.onDeleteThirdPartyEntry} />;
       case 'perCapita': return <AdminPerCapita suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onUpdatePerCapitaConfig={props.onUpdatePerCapitaConfig} onUpdateContractForItem={onUpdateContractForItem} onUpdateAcquisitionItem={props.onUpdateAcquisitionItem} onDeleteAcquisitionItem={props.onDeleteAcquisitionItem} acquisitionItems={acquisitionItems} onUpdateSupplierObservations={props.onUpdateSupplierObservations} />;
       case 'cleaning': return <AdminCleaningLog logs={cleaningLogs} financialRecords={props.financialRecords} onRegister={props.onRegisterCleaningLog} onDelete={props.onDeleteCleaningLog} />;

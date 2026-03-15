@@ -594,6 +594,101 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateInvoiceUrl = useCallback(async (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => {
+    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+    if (isMainSupplier) {
+      const supplierRef = child(suppliersRef, supplierCpf);
+      try {
+        await runTransaction(supplierRef, (currentData: Supplier) => {
+          if (currentData && currentData.deliveries) {
+            currentData.deliveries = currentData.deliveries.map(d => {
+                if (d.invoiceNumber === invoiceNumber) {
+                    return { ...d, invoiceUrl };
+                }
+                return d;
+            });
+          }
+          return currentData;
+        });
+        return { success: true };
+      } catch (e) {
+        return { success: false, message: 'Erro ao gravar no banco de dados.' };
+      }
+    }
+
+    try {
+      await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+        if (currentData) {
+          const findAndUpdate = (list: any[] | undefined) => {
+            const s = list?.find(p => p.cpfCnpj === supplierCpf);
+            if (s && s.deliveries) {
+              s.deliveries = s.deliveries.map((d: any) => {
+                  if (d.invoiceNumber === invoiceNumber) {
+                      return { ...d, invoiceUrl };
+                  }
+                  return d;
+              });
+              return true;
+            }
+            return false;
+          };
+          if (!findAndUpdate(currentData.ppaisProducers)) {
+            findAndUpdate(currentData.pereciveisSuppliers);
+          }
+        }
+        return currentData;
+      });
+      return { success: true };
+    } catch (e) {
+      return { success: false, message: 'Erro ao gravar no banco de dados.' };
+    }
+  }, [suppliers, suppliersRef, perCapitaConfigRef]);
+              const finalInvoiceNumber = newInvoiceNumber || invoiceNumber;
+              const finalReceiptTerm = receiptTermNumber !== undefined ? receiptTermNumber : existingForNf[0].receiptTermNumber;
+              const finalInvoiceDate = invoiceDate !== undefined ? invoiceDate : existingForNf[0].invoiceDate;
+              const existingInvoiceUrl = existingForNf.find((d: any) => d.invoiceUrl)?.invoiceUrl;
+
+              s.deliveries = s.deliveries.filter((d: any) => d.invoiceNumber !== invoiceNumber);
+
+              items.forEach((item, idx) => {
+                s.deliveries.push({
+                  id: `inv-edit-${Date.now()}-${idx}`,
+                  date: baseDate,
+                  time: baseTime,
+                  item: item.name,
+                  kg: item.kg,
+                  value: item.value,
+                  invoiceUploaded: true,
+                  invoiceNumber: String(finalInvoiceNumber || '').trim(),
+                  invoiceUrl: existingInvoiceUrl,
+                  invoiceDate: finalInvoiceDate,
+                  barcode: barcode,
+                  receiptTermNumber: finalReceiptTerm,
+                  lots: [{
+                    id: `lot-edit-${Date.now()}-${idx}`,
+                    lotNumber: item.lotNumber || 'EDITADO',
+                    initialQuantity: item.kg,
+                    remainingQuantity: item.kg,
+                    expirationDate: item.expirationDate
+                  }]
+                });
+              });
+              return true;
+            }
+            return false;
+          };
+          if (!findAndUpdate(currentData.ppaisProducers)) {
+            findAndUpdate(currentData.pereciveisSuppliers);
+          }
+        }
+        return currentData;
+      });
+      return { success: true };
+    } catch (e) {
+      return { success: false, message: 'Erro ao gravar no banco de dados.' };
+    }
+  };
+
   const handleReopenInvoice = async (supplierCpf: string, invoiceNumber: string) => {
     const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
     if (isMainSupplier) {
@@ -1090,6 +1185,7 @@ const App: React.FC = () => {
         onReopenInvoice={handleReopenInvoice}
         onDeleteInvoice={handleDeleteInvoice}
         onUpdateInvoiceItems={handleUpdateInvoiceItems}
+        onUpdateInvoiceUrl={handleUpdateInvoiceUrl}
         onManualInvoiceEntry={handleManualInvoiceEntry}
         onDeleteWarehouseEntry={async (l) => {
             // Se for saída, devolve a quantidade para o saldo do lote
