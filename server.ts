@@ -2,7 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import multer from "multer";
 import { google } from "googleapis";
-import { JWT } from "google-auth-library";
+import { GoogleAuth } from "google-auth-library";
 import { Readable } from "stream";
 import path from "path";
 
