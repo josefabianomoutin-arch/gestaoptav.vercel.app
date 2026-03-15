@@ -5,6 +5,7 @@ import { google } from "googleapis";
 import { GoogleAuth } from "google-auth-library";
 import { Readable } from "stream";
 import path from "path";
+import * as fs from "fs";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -57,10 +58,11 @@ async function startServer() {
       }
 
       // Validate credentials
-      console.log("Credentials object before GoogleAuth:", JSON.stringify({
+      fs.writeFileSync('/tmp/debug_credentials.json', JSON.stringify({
         ...credentials,
         private_key: credentials.private_key ? '***' : 'MISSING'
       }));
+      
       if (!credentials.client_email || !credentials.private_key) {
         throw new Error(`Missing required Google Cloud credentials. 
           Email: ${credentials.client_email ? 'Present' : 'MISSING'},
