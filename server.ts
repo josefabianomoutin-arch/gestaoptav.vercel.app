@@ -90,13 +90,18 @@ async function startServer() {
           Please check your app settings.`);
       }
 
-      const auth = new JWT({
-        email: credentials.client_email,
-        key: credentials.private_key,
-        scopes: ["https://www.googleapis.com/auth/drive.file"],
+      // Use fromJSON for more robust credential loading
+      const auth = JWT.fromJSON({
+        type: "service_account",
+        project_id: credentials.project_id,
+        private_key_id: credentials.private_key_id,
+        private_key: credentials.private_key,
+        client_email: credentials.client_email,
+        client_id: credentials.client_id,
       });
+      auth.scopes = ["https://www.googleapis.com/auth/drive.file"];
 
-      console.log("Auth initialized");
+      console.log("Auth initialized using JWT.fromJSON");
       const drive = google.drive({ version: "v3", auth });
 
       const fileMetadata = {
