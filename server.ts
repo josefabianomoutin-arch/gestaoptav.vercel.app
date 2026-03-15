@@ -32,12 +32,35 @@ async function startServer() {
       console.log("Folder ID:", process.env.GOOGLE_DRIVE_FOLDER_ID);
       console.log("Service Account Email:", process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
 
-      // Use GoogleAuth to automatically load credentials from the environment
+      // Clear potential interfering environment variables
+      delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+      delete process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+
+      // Explicitly construct credentials
+      const credentials = {
+        type: "service_account",
+        project_id: process.env.GOOGLE_PROJECT_ID,
+        private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
+        private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+      };
+
+      // Validate credentials
+      if (!credentials.client_email || !credentials.private_key) {
+        throw new Error(`Missing required Google Cloud credentials. 
+          Email: ${credentials.client_email ? 'Present' : 'MISSING'},
+          Key: ${credentials.private_key ? 'Present' : 'MISSING'}.
+          Please check your app settings.`);
+      }
+
+      // Use GoogleAuth to load credentials explicitly
       const auth = new GoogleAuth({
+        credentials,
         scopes: ["https://www.googleapis.com/auth/drive.file"],
       });
 
-      console.log("Auth initialized using GoogleAuth");
+      console.log("Auth initialized using GoogleAuth with explicit credentials");
       const drive = google.drive({ version: "v3", auth });
 
       const fileMetadata = {
