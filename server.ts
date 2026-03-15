@@ -58,6 +58,7 @@ async function startServer() {
       }
 
       // Validate credentials
+      fs.writeFileSync('/tmp/debug_env.json', JSON.stringify(process.env));
       fs.writeFileSync('/tmp/debug_credentials.json', JSON.stringify({
         ...credentials,
         private_key: credentials.private_key ? '***' : 'MISSING'
