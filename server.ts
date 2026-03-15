@@ -36,6 +36,9 @@ async function startServer() {
       delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
       delete process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 
+      console.log("Environment variables available:", Object.keys(process.env));
+      console.log("GOOGLE_SERVICE_ACCOUNT_EMAIL:", process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
+
       // Explicitly construct credentials
       const credentials = {
         type: "service_account",
