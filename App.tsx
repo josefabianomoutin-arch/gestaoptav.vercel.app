@@ -764,10 +764,10 @@ const App: React.FC = () => {
 
     try {
       // 1. Registrar no log do almoxarifado primeiro
-      const logEntries: { ref: any, entry: WarehouseMovement, lotId: string }[] = items.map((item, idx) => {
+      const logEntries: { ref: any, entry: any, lotId: string }[] = items.map((item, idx) => {
         const newLogRef = push(warehouseLogRef);
         const lotId = `lot-manual-${Date.now()}-${idx}`;
-        const entry: WarehouseMovement = {
+        const entry: any = {
             id: newLogRef.key || `ent-man-${Date.now()}-${idx}`,
             type: 'entrada',
             timestamp: new Date().toISOString(),
@@ -777,11 +777,12 @@ const App: React.FC = () => {
             lotNumber: item.lotNumber || 'MANUAL',
             quantity: item.kg,
             inboundInvoice: String(invoiceNumber || '').trim(),
-            expirationDate: item.expirationDate,
             barcode: barcode || '',
             lotId: lotId,
             deliveryId: ''
         };
+        if (item.expirationDate !== undefined) entry.expirationDate = item.expirationDate;
+
         return { ref: newLogRef, entry, lotId };
       });
 
@@ -933,7 +934,7 @@ const App: React.FC = () => {
         const newRef = push(warehouseLogRef);
         const supplier = suppliers.find(s => s.cpf === payload.supplierCpf);
         const lotId = `lot-${Date.now()}`;
-        const entry: WarehouseMovement = {
+        const entry: any = {
             id: newRef.key || `ent-${Date.now()}`,
             type: 'entrada',
             timestamp: new Date().toISOString(),
@@ -942,12 +943,13 @@ const App: React.FC = () => {
             supplierName: supplier?.name || 'Desconhecido',
             lotNumber: payload.lotNumber,
             quantity: payload.quantity,
-            inboundInvoice: payload.invoiceNumber,
-            expirationDate: payload.expirationDate,
             barcode: payload.barcode || '',
             lotId: lotId,
             deliveryId: ''
         };
+        if (payload.invoiceNumber !== undefined) entry.inboundInvoice = payload.invoiceNumber;
+        if (payload.expirationDate !== undefined) entry.expirationDate = payload.expirationDate;
+
         await set(newRef, entry);
 
         // Sincronizar com as entregas do fornecedor para aparecer na Consulta de Notas Fiscais
@@ -1015,7 +1017,7 @@ const App: React.FC = () => {
             });
         }
 
-        const exit: WarehouseMovement = {
+        const exit: any = {
             id: newRef.key || `sai-${Date.now()}`,
             type: 'saída',
             timestamp: new Date().toISOString(),
@@ -1024,13 +1026,14 @@ const App: React.FC = () => {
             supplierName: supplier?.name || 'Desconhecido',
             lotNumber: payload.lotNumber || 'SAIDA_AVULSA',
             quantity: payload.quantity,
-            inboundInvoice: payload.inboundInvoice,
-            outboundInvoice: payload.outboundInvoice,
-            expirationDate: payload.expirationDate,
             barcode: payload.barcode || '',
             lotId: '',
             deliveryId: ''
         };
+        if (payload.inboundInvoice !== undefined) exit.inboundInvoice = payload.inboundInvoice;
+        if (payload.outboundInvoice !== undefined) exit.outboundInvoice = payload.outboundInvoice;
+        if (payload.expirationDate !== undefined) exit.expirationDate = payload.expirationDate;
+
         await set(newRef, exit);
         return { success: true, message: 'Saída registrada' };
     } catch (e) {

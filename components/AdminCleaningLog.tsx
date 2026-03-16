@@ -106,8 +106,8 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialReco
       type, 
       observations, 
       maintenanceDetails,
-      serviceProcessId: (type === 'preventiva' || type === 'corretiva') ? serviceProcessId : undefined,
-      partsProcessId: (type === 'preventiva' || type === 'corretiva') ? partsProcessId : undefined
+      serviceProcessId: (type === 'preventiva' || type === 'corretiva') ? serviceProcessId : null,
+      partsProcessId: (type === 'preventiva' || type === 'corretiva') ? partsProcessId : null
     });
     if (result.success) {
       setResponsible('');

@@ -209,7 +209,19 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
 
     const handleMarkArrival = async (log: ThirdPartyEntryLog, entryPhoto?: string) => {
         const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        await onUpdateThirdPartyEntry({ ...log, arrivalTime: now, entryPhoto: entryPhoto || log.entryPhoto });
+        const updatedLog: any = { ...log, arrivalTime: now };
+        if (entryPhoto) {
+            updatedLog.entryPhoto = entryPhoto;
+        }
+        
+        // Remove undefined properties before sending to Firebase
+        Object.keys(updatedLog).forEach(key => {
+            if (updatedLog[key] === undefined) {
+                delete updatedLog[key];
+            }
+        });
+
+        await onUpdateThirdPartyEntry(updatedLog);
     };
 
     return (

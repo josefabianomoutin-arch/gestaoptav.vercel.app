@@ -393,7 +393,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 <div class="companions-section">
                     <div class="companions-title">Acompanhantes da Missão</div>
                     <table class="companions-table">
-                        ${order.companions.filter(c => c.name.trim() !== '').map((c, i) => `
+                        ${(order.companions || []).filter(c => c.name.trim() !== '').map((c, i) => `
                             <tr>
                                 <td style="width: 25px; font-weight: bold;">${i + 1}.</td>
                                 <td><span style="font-weight: bold; text-transform: uppercase;">${c.name}</span></td>
@@ -652,7 +652,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             serverRole: order.serverRole,
             destination: order.destination,
             fctNumber: order.fctNumber,
-            companions: order.companions.length > 0 ? order.companions : [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
+            companions: order.companions && order.companions.length > 0 ? order.companions : [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
             observations: order.observations || '',
             exitTime: order.exitTime || '',
             returnTime: order.returnTime || ''
