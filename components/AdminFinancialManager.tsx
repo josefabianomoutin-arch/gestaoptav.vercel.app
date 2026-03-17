@@ -90,10 +90,6 @@ const PtresTable: React.FC<{ ptres: string, ptresRecords: FinancialRecord[], for
         return acc;
     }, {} as Record<string, { rec: number, gast: number }>);
 
-    const totalGeralRec = (Object.values(ptresTotalsByNatureza) as { rec: number, gast: number }[]).reduce((sum, item) => sum + item.rec, 0);
-    const totalGeralGast = (Object.values(ptresTotalsByNatureza) as { rec: number, gast: number }[]).reduce((sum, item) => sum + item.gast, 0);
-    const saldoGeral = totalGeralRec - totalGeralGast;
-
     return (
         <div className="animate-fade-in-up">
             <div className="flex items-center justify-between mb-6 border-b-2 border-gray-200 pb-4 px-2">
@@ -103,14 +99,6 @@ const PtresTable: React.FC<{ ptres: string, ptresRecords: FinancialRecord[], for
                         <span className="text-xs font-black bg-gray-200 text-gray-600 px-3 py-1 rounded-full uppercase tracking-widest">
                             {ptresRecords.length} Movimentos
                         </span>
-                    </div>
-                </div>
-                <div className="flex gap-6 text-right">
-                    <div className="flex flex-col items-end border-l-2 border-gray-200 pl-6">
-                        <p className="text-xs font-black text-gray-400 uppercase">Saldo Total do Grupo</p>
-                        <p className={`text-2xl font-black ${saldoGeral >= 0 ? 'text-indigo-600' : 'text-red-700'}`}>
-                            {formatCurrency(saldoGeral)}
-                        </p>
                     </div>
                 </div>
             </div>
