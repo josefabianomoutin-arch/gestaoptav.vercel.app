@@ -32,6 +32,10 @@ const formatQuantity = (quantity: number, unit: string): string => {
     return `${quantity.toLocaleString('pt-BR', options)} ${unit}`;
 };
 
+const formatCurrency = (value: number): string => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+};
+
 const SummaryCard: React.FC<SummaryCardProps> = ({ supplier }) => {
     const totalDeliveredValue = supplier.deliveries.reduce((sum, delivery) => sum + (delivery.value || 0), 0);
     const valueProgress = supplier.initialValue > 0 ? (totalDeliveredValue / supplier.initialValue) * 100 : 0;
@@ -64,10 +68,19 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier }) => {
             const itemMonthlyData = [];
             const { quantity: itemTotalQuantity, unit: itemUnit } = getContractItemDisplayInfo(item);
             const itemTotalValue = (item.totalKg || 0) * (item.valuePerKg || 0);
+            
+            let accumulatedQuantityRemainder = 0;
+            let accumulatedValueRemainder = 0;
+
             for (const month of MONTHS_2026) {
                 const isWithinContract = month.number <= 3; // Jan to Apr
-                const monthlyValueQuota = isWithinContract ? itemTotalValue / 4 : 0;
-                const monthlyQuantityQuota = isWithinContract ? itemTotalQuantity / 4 : 0;
+                let monthlyValueQuota = isWithinContract ? itemTotalValue / 4 : 0;
+                let monthlyQuantityQuota = isWithinContract ? itemTotalQuantity / 4 : 0;
+
+                if (month.number === 3) {
+                    monthlyValueQuota += accumulatedValueRemainder;
+                    monthlyQuantityQuota += accumulatedQuantityRemainder;
+                }
 
                 const deliveredInMonth = supplier.deliveries.filter(d => {
                     if (d.item !== item.name) return false;
@@ -78,14 +91,23 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier }) => {
                 });
                 const deliveredValue = deliveredInMonth.reduce((sum, d) => sum + (d.value || 0), 0);
                 const deliveredQuantity = deliveredInMonth.reduce((sum, d) => sum + (d.kg || 0), 0);
+                
+                const remainingValue = monthlyValueQuota - deliveredValue;
+                const remainingQuantity = monthlyQuantityQuota - deliveredQuantity;
+
+                if (month.number < 3) {
+                    accumulatedValueRemainder += remainingValue;
+                    accumulatedQuantityRemainder += remainingQuantity;
+                }
+
                 itemMonthlyData.push({
                     monthName: month.name,
                     contractedValue: monthlyValueQuota,
                     contractedQuantity: monthlyQuantityQuota,
                     deliveredValue,
                     deliveredQuantity,
-                    remainingValue: monthlyValueQuota - deliveredValue,
-                    remainingQuantity: monthlyQuantityQuota - deliveredQuantity,
+                    remainingValue: remainingValue,
+                    remainingQuantity: remainingQuantity,
                     unit: itemUnit,
                 });
             }
@@ -115,10 +137,19 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier }) => {
                                 <tbody>
                                     {itemMonthlyData.map(data => (
                                         <tr key={data.monthName} className="border-t">
-                                            <td className="p-1 font-bold">{data.monthName}</td>
-                                            <td className="p-1 text-right">{formatQuantity(data.contractedQuantity, data.unit)}</td>
-                                            <td className="p-1 text-right text-green-600 font-bold">{formatQuantity(data.deliveredQuantity, data.unit)}</td>
-                                            <td className="p-1 text-right text-blue-600 font-bold">{formatQuantity(data.remainingQuantity, data.unit)}</td>
+                                            <td className="p-1 font-bold align-top">{data.monthName}</td>
+                                            <td className="p-1 text-right align-top">
+                                                <div>{formatQuantity(data.contractedQuantity, data.unit)}</div>
+                                                <div className="text-[9px] text-gray-400 font-normal">{formatCurrency(data.contractedValue)}</div>
+                                            </td>
+                                            <td className="p-1 text-right text-green-600 font-bold align-top">
+                                                <div>{formatQuantity(data.deliveredQuantity, data.unit)}</div>
+                                                <div className="text-[9px] text-green-400 font-normal">{formatCurrency(data.deliveredValue)}</div>
+                                            </td>
+                                            <td className="p-1 text-right text-blue-600 font-bold align-top">
+                                                <div>{formatQuantity(data.remainingQuantity, data.unit)}</div>
+                                                <div className="text-[9px] text-blue-400 font-normal">{formatCurrency(data.remainingValue)}</div>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
