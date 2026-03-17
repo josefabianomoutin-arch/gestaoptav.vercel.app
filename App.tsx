@@ -877,40 +877,56 @@ const App: React.FC = () => {
   const handleUpdateContractForItem = async (itemName: string, assignments: any[]) => {
     try {
       console.log('Tentando atualizar contratos para o item:', itemName, 'Assignments:', assignments);
-      console.log('Total de fornecedores para processar:', suppliers.length);
+      
+      // Identificar fornecedores que PRECISAM ser atualizados:
+      // 1. Fornecedores que estão nos novos assignments
+      // 2. Fornecedores que atualmente possuem o item mas não estão nos novos assignments
+      const suppliersToUpdate = suppliers.filter(s => {
+        const isAssigned = assignments.some(a => a.supplierCpf === s.cpf);
+        const hasItem = (s.contractItems || []).some(ci => ci.name === itemName);
+        return isAssigned || hasItem;
+      });
+
+      console.log('Total de fornecedores afetados:', suppliersToUpdate.length);
       
       let count = 0;
-      for (const supplier of suppliers) {
+      // Processar em pequenos lotes ou sequencialmente mas apenas os afetados
+      for (const supplier of suppliersToUpdate) {
         count++;
         const assignment = assignments.find(a => a.supplierCpf === supplier.cpf);
         const supplierRef = child(suppliersRef, supplier.cpf);
         
-        console.log(`Processando fornecedor ${count}/${suppliers.length}: ${supplier.name} (${supplier.cpf})`);
+        console.log(`Processando fornecedor ${count}/${suppliersToUpdate.length}: ${supplier.name} (${supplier.cpf})`);
         
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao atualizar fornecedor ' + supplier.name)), 10000));
-        
-        await Promise.race([
-          runTransaction(supplierRef, (data: Supplier) => {
-            if (data) {
-              data.contractItems = (data.contractItems || []).filter(ci => ci.name !== itemName);
-              if (assignment) {
-                data.contractItems.push({
-                  name: itemName,
-                  totalKg: assignment.totalKg,
-                  valuePerKg: assignment.valuePerKg,
-                  unit: assignment.unit,
-                  category: assignment.category,
-                  comprasCode: assignment.comprasCode,
-                  becCode: assignment.becCode
-                });
-              }
-              data.initialValue = (data.contractItems || []).reduce((acc, curr) => acc + (curr.totalKg * curr.valuePerKg), 0);
-            }
-            return data;
-          }),
-          timeoutPromise
-        ]);
+        // Tenta a transação com retentativas manuais se necessário, mas o runTransaction já faz isso.
+        // Removemos o Promise.race com timeout curto para evitar interromper transações legítimas
+        await runTransaction(supplierRef, (data: Supplier) => {
+          if (!data) return data; // Se não existir, não faz nada
+          
+          // Remove o item atual (para atualizar ou deletar)
+          const otherItems = (data.contractItems || []).filter(ci => ci.name !== itemName);
+          
+          if (assignment) {
+            // Adiciona o item atualizado
+            otherItems.push({
+              name: itemName,
+              totalKg: assignment.totalKg,
+              valuePerKg: assignment.valuePerKg,
+              unit: assignment.unit || 'kg-1',
+              category: assignment.category || 'OUTROS',
+              comprasCode: assignment.comprasCode || '',
+              becCode: assignment.becCode || ''
+            });
+          }
+          
+          data.contractItems = otherItems;
+          // Recalcula o valor inicial do contrato
+          data.initialValue = otherItems.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0);
+          
+          return data;
+        });
       }
+      
       console.log('Contratos atualizados com sucesso!');
       return { success: true, message: 'Contratos atualizados' };
     } catch (error) {
