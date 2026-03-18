@@ -342,7 +342,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           onUpdateDriverAsset={props.onUpdateDriverAsset}
           onDeleteDriverAsset={props.onDeleteDriverAsset}
       />;
-      case 'analytics': return <AdminAnalytics suppliers={suppliers} warehouseLog={warehouseLog} />;
+      case 'analytics': return <AdminAnalytics suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} />;
       case 'graphs': return <AdminGraphs 
           suppliers={combinedSuppliers} 
           warehouseLog={warehouseLog}

@@ -1308,7 +1308,7 @@ const App: React.FC = () => {
   }
 
   if (user.role === 'itesp') {
-    return <ItespDashboard suppliers={suppliers} warehouseLog={warehouseLog} onLogout={handleLogout} />;
+    return <ItespDashboard suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onLogout={handleLogout} />;
   }
 
   if (user.role === 'subportaria') {
