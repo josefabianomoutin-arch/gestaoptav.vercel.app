@@ -72,6 +72,7 @@ const ItespDashboard: React.FC<ItespDashboardProps> = ({ suppliers = [], warehou
     const [activeTab, setActiveTab] = useState<'audit' | 'schedule'>('audit');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedMonth, setSelectedMonth] = useState('all');
+    const [selectedProduct, setSelectedProduct] = useState('all');
 
     const [selectedDetail, setSelectedDetail] = useState<any | null>(null);
 
@@ -160,9 +161,16 @@ const ItespDashboard: React.FC<ItespDashboardProps> = ({ suppliers = [], warehou
             const searchMatch = item.supplierName.toLowerCase().includes(lowerSearch) || 
                                 item.productName.toLowerCase().includes(lowerSearch);
             const monthMatch = selectedMonth === 'all' || item.month === selectedMonth;
-            return searchMatch && monthMatch;
+            const productMatch = selectedProduct === 'all' || item.productName === selectedProduct;
+            return searchMatch && monthMatch && productMatch;
         });
-    }, [comparisonData, searchTerm, selectedMonth]);
+    }, [comparisonData, searchTerm, selectedMonth, selectedProduct]);
+
+    const productOptions = useMemo(() => {
+        const products = new Set<string>();
+        comparisonData.forEach(item => products.add(item.productName));
+        return Array.from(products).sort();
+    }, [comparisonData]);
 
     const totals = useMemo(() => {
         return filteredData.reduce((acc, item) => {
@@ -243,6 +251,10 @@ const ItespDashboard: React.FC<ItespDashboardProps> = ({ suppliers = [], warehou
                                 <div className="flex-1 relative">
                                     <input type="text" placeholder="Filtrar por produtor ou produto..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full border-2 border-gray-50 rounded-2xl px-6 py-4 outline-none focus:border-green-400 font-bold bg-gray-50 transition-all" />
                                 </div>
+                                <select value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)} className="md:w-72 border-2 border-gray-50 rounded-2xl px-6 py-4 font-black bg-white text-green-800 outline-none cursor-pointer">
+                                    <option value="all">Todos os Produtos</option>
+                                    {productOptions.map(p => <option key={p} value={p}>{p}</option>)}
+                                </select>
                                 <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="md:w-72 border-2 border-gray-50 rounded-2xl px-6 py-4 font-black bg-white text-green-800 outline-none cursor-pointer">
                                     <option value="all">Ver Período Completo</option>
                                     {months.map(m => <option key={m} value={m}>{m}</option>)}

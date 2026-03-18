@@ -62,6 +62,7 @@ const getMonthNameFromDateString = (dateStr?: string): string => {
 const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], warehouseLog = [] }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedSupplierName, setSelectedSupplierName] = useState<string>('all');
+    const [selectedProductName, setSelectedProductName] = useState<string>('all');
     const [selectedMonthFilter, setSelectedMonthFilter] = useState<string>('all');
 
     const supplierOptions = useMemo(() => {
@@ -138,15 +139,22 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], warehou
 
     }, [suppliers, warehouseLog]);
 
+    const productOptions = useMemo(() => {
+        const products = new Set<string>();
+        auditData.forEach(item => products.add(item.itemReal));
+        return Array.from(products).sort().map(name => ({ value: name, displayName: name }));
+    }, [auditData]);
+
     const filteredData = useMemo(() => {
         return auditData.filter(item => {
             const supplierMatch = selectedSupplierName === 'all' || item.supplierReal === selectedSupplierName;
+            const productMatch = selectedProductName === 'all' || item.itemReal === selectedProductName;
             const monthMatch = selectedMonthFilter === 'all' || item.month === selectedMonthFilter;
             const searchMatch = item.supplierReal.toLowerCase().includes(searchTerm.toLowerCase()) || 
                                item.itemReal.toLowerCase().includes(searchTerm.toLowerCase());
-            return supplierMatch && monthMatch && searchMatch;
+            return supplierMatch && productMatch && monthMatch && searchMatch;
         });
-    }, [auditData, selectedSupplierName, selectedMonthFilter, searchTerm]);
+    }, [auditData, selectedSupplierName, selectedProductName, selectedMonthFilter, searchTerm]);
 
     const totals = useMemo(() => {
         return filteredData.reduce((acc, item) => {
@@ -263,6 +271,10 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], warehou
                         <select value={selectedSupplierName} onChange={(e) => setSelectedSupplierName(e.target.value)} className="border rounded-lg px-3 py-2 text-sm bg-white font-bold text-gray-700">
                             <option value="all">Todos os Fornecedores</option>
                             {supplierOptions.map(option => <option key={option.value} value={option.value}>{option.displayName}</option>)}
+                        </select>
+                        <select value={selectedProductName} onChange={(e) => setSelectedProductName(e.target.value)} className="border rounded-lg px-3 py-2 text-sm bg-white font-bold text-gray-700">
+                            <option value="all">Todos os Produtos</option>
+                            {productOptions.map(option => <option key={option.value} value={option.value}>{option.displayName}</option>)}
                         </select>
                         <select value={selectedMonthFilter} onChange={(e) => setSelectedMonthFilter(e.target.value)} className="border rounded-lg px-3 py-2 text-sm bg-white font-bold text-gray-700">
                             <option value="all">Todos os Meses</option>
