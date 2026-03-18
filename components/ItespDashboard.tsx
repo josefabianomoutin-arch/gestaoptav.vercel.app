@@ -2,6 +2,9 @@
 import React, { useMemo, useState } from 'react';
 import type { Supplier, WarehouseMovement, PerCapitaConfig } from '../types';
 import WeeklyScheduleControl from './WeeklyScheduleControl';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 interface ItespDashboardProps {
   suppliers: Supplier[];
@@ -197,6 +200,67 @@ const ItespDashboard: React.FC<ItespDashboardProps> = ({ suppliers = [], warehou
         }, { contracted: 0, received: 0, shortfall: 0, loss: 0 });
     }, [filteredData]);
 
+    const exportToPDF = () => {
+        const doc = new jsPDF('l', 'mm', 'a4');
+        const title = `Relatório de Auditoria ITESP - ${selectedMonth === 'all' ? 'Período Completo' : selectedMonth}`;
+        
+        doc.setFontSize(18);
+        doc.text(title, 14, 22);
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 30);
+
+        const tableData = filteredData.map(item => [
+            item.supplierName,
+            item.productName,
+            item.month,
+            item.contractedKgMonthly.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+            item.receivedKg.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+            item.shortfallKg.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+            formatCurrency(item.financialLoss)
+        ]);
+
+        autoTable(doc, {
+            startY: 40,
+            head: [['Produtor', 'Produto', 'Mês', 'Meta (kg)', 'Entregue (kg)', 'Saldo (kg)', 'Impacto']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [0, 100, 0], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            margin: { top: 40 },
+        });
+
+        doc.save(`auditoria_itesp_${new Date().getTime()}.pdf`);
+    };
+
+    const exportToExcel = () => {
+        const worksheetData = filteredData.map(item => ({
+            'Produtor': item.supplierName,
+            'Produto': item.productName,
+            'Mês': item.month,
+            'Meta (kg)': item.contractedKgMonthly,
+            'Entregue (kg)': item.receivedKg,
+            'Saldo (kg)': item.shortfallKg,
+            'Impacto Financeiro': item.financialLoss
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Auditoria");
+        
+        // Auto-size columns
+        const maxWidths = worksheetData.reduce((acc: any, row: any) => {
+            Object.keys(row).forEach((key, i) => {
+                const value = String(row[key]);
+                acc[i] = Math.max(acc[i] || 0, value.length, key.length);
+            });
+            return acc;
+        }, []);
+        worksheet['!cols'] = maxWidths.map((w: number) => ({ w: w + 2 }));
+
+        XLSX.writeFile(workbook, `auditoria_itesp_${new Date().getTime()}.xlsx`);
+    };
+
     return (
         <div className="min-h-screen bg-[#F8FAFC] text-gray-800 pb-20 font-sans">
             <header className="bg-white/80 backdrop-blur-md shadow-sm p-6 flex justify-between items-center border-b border-gray-100 sticky top-0 z-[100]">
@@ -316,6 +380,24 @@ const ItespDashboard: React.FC<ItespDashboardProps> = ({ suppliers = [], warehou
                                         <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
                                             <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                         </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={exportToPDF}
+                                            className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 px-6 py-5 rounded-[1.5rem] font-black text-[10px] uppercase transition-all shadow-sm border border-red-100"
+                                            title="Exportar PDF"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9h1.5m1.5 0H15m-6 4h6m-6 4h6" /></svg>
+                                            PDF
+                                        </button>
+                                        <button 
+                                            onClick={exportToExcel}
+                                            className="flex items-center gap-2 bg-green-50 hover:bg-green-100 text-green-600 px-6 py-5 rounded-[1.5rem] font-black text-[10px] uppercase transition-all shadow-sm border border-green-100"
+                                            title="Exportar Excel"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                            Excel
+                                        </button>
                                     </div>
                                 </div>
                             </div>
