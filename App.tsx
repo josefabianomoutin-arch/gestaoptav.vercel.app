@@ -12,7 +12,8 @@ import MenuDashboard from './components/MenuDashboard';
 import VehicleOrderDashboard from './components/VehicleOrderDashboard';
 import JulioDashboard from './components/JulioDashboard';
 import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
-import { app } from './firebaseConfig';
+import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storage';
+import { app, storage } from './firebaseConfig';
 
 let database: any;
 let rootRef: any;
@@ -407,10 +408,18 @@ const App: React.FC = () => {
     try {
       let finalInvoiceUrl = invoiceUrl;
       if (invoiceUrl.startsWith('data:')) {
-        const invoiceId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        const invoiceRef = child(ref(database), `invoices/${invoiceId}`);
-        await set(invoiceRef, invoiceUrl);
-        finalInvoiceUrl = `rtdb://invoices/${invoiceId}`;
+        try {
+          const invoiceId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.pdf`;
+          const fileRef = storageRef(storage, `invoices/${invoiceId}`);
+          await uploadString(fileRef, invoiceUrl, 'data_url');
+          finalInvoiceUrl = await getDownloadURL(fileRef);
+        } catch (storageError) {
+          console.warn("Storage failed, falling back to RTDB", storageError);
+          const invoiceId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+          const invoiceRef = child(ref(database), `invoices/${invoiceId}`);
+          await set(invoiceRef, invoiceUrl);
+          finalInvoiceUrl = `rtdb://invoices/${invoiceId}`;
+        }
       }
 
       const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
@@ -624,13 +633,21 @@ const App: React.FC = () => {
     let finalInvoiceUrl = invoiceUrl;
     if (invoiceUrl.startsWith('data:')) {
       try {
-        const invoiceId = `inv_upd_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        const invoiceRef = child(ref(database), `invoices/${invoiceId}`);
-        await set(invoiceRef, invoiceUrl);
-        finalInvoiceUrl = `rtdb://invoices/${invoiceId}`;
-      } catch (e) {
-        console.error("Error saving invoice PDF to RTDB:", e);
-        return { success: false, message: 'Erro ao salvar o arquivo PDF.' };
+        const invoiceId = `inv_upd_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.pdf`;
+        const fileRef = storageRef(storage, `invoices/${invoiceId}`);
+        await uploadString(fileRef, invoiceUrl, 'data_url');
+        finalInvoiceUrl = await getDownloadURL(fileRef);
+      } catch (storageError) {
+        console.warn("Storage failed, falling back to RTDB", storageError);
+        try {
+          const invoiceId = `inv_upd_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+          const invoiceRef = child(ref(database), `invoices/${invoiceId}`);
+          await set(invoiceRef, invoiceUrl);
+          finalInvoiceUrl = `rtdb://invoices/${invoiceId}`;
+        } catch (e) {
+          console.error("Error saving invoice PDF to RTDB:", e);
+          return { success: false, message: 'Erro ao salvar o arquivo PDF.' };
+        }
       }
     }
 

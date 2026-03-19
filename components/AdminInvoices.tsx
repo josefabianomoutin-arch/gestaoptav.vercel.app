@@ -1342,7 +1342,7 @@ const ManualInvoiceModal: React.FC<ManualInvoiceModalProps> = ({ suppliers, onCl
         e.preventDefault();
         if (!selectedCpf || !nf || !date) return alert('Preencha fornecedor, data e número da nota.');
         const finalItems = items.map(it => {
-            const contract = selectedSupplier?.contractItems.find(ci => ci.name === it.name);
+            const contract = (selectedSupplier?.contractItems || []).find(ci => ci.name === it.name);
             const kg = parseFloat(it.kg.replace(',', '.'));
             if (!contract || isNaN(kg) || kg <= 0) return null;
             return { name: it.name, kg, value: kg * contract.valuePerKg, lotNumber: it.lot, expirationDate: it.exp };
@@ -1353,7 +1353,7 @@ const ManualInvoiceModal: React.FC<ManualInvoiceModalProps> = ({ suppliers, onCl
 
     const totalValue = useMemo(() => {
         return items.reduce((sum, it) => {
-            const contract = selectedSupplier?.contractItems.find(ci => ci.name === it.name);
+            const contract = (selectedSupplier?.contractItems || []).find(ci => ci.name === it.name);
             const kg = parseFloat(it.kg.replace(',', '.'));
             return (contract && !isNaN(kg)) ? sum + (kg * contract.valuePerKg) : sum;
         }, 0);
