@@ -383,7 +383,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
 
         // 1. Regular Suppliers
         suppliers.forEach(s => {
-            s.deliveries?.forEach(d => {
+            Object.values(s.deliveries || {}).forEach(d => {
                 const m = getMonthFromDate(d.date);
                 if (!m) return;
                 
@@ -407,7 +407,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
 
         // 2. PPAIS Producers
         ppaisProducers.forEach(p => {
-            p.deliveries?.forEach(d => {
+            Object.values(p.deliveries || {}).forEach(d => {
                 const m = getMonthFromDate(d.date);
                 if (m) execution[m]['PPAIS'] += d.value || 0;
             });
@@ -415,7 +415,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
 
         // 3. Pereciveis Suppliers
         pereciveisSuppliers.forEach(p => {
-            p.deliveries?.forEach(d => {
+            Object.values(p.deliveries || {}).forEach(d => {
                 const m = getMonthFromDate(d.date);
                 if (m) execution[m]['PERECÍVEIS'] += d.value || 0;
             });
@@ -468,7 +468,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                 summary.set(normalizedName, data);
             });
 
-            supplier.deliveries?.forEach(delivery => {
+            Object.values(supplier.deliveries || {}).forEach(delivery => {
                 const normalizedName = normalizeItemName(delivery.item || '');
                 if (normalizedName && summary.has(normalizedName)) {
                     const data = summary.get(normalizedName)!;

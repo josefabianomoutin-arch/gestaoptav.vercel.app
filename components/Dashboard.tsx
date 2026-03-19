@@ -72,7 +72,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleDayClick = (date: Date) => {
     const dateString = date.toISOString().split('T')[0];
-    const deliveriesOnDate = (supplier.deliveries || []).filter(d => d.date === dateString);
+    const deliveriesOnDate = Object.values(supplier.deliveries || {}).filter(d => d.date === dateString);
     setSelectedDate(date);
     if (deliveriesOnDate.length > 0) {
       setDeliveriesToShow(deliveriesOnDate);
@@ -114,7 +114,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
   
   const pendingDailyInvoices = useMemo(() => {
-    const pending = (supplier.deliveries || []).filter(d => {
+    const pending = Object.values(supplier.deliveries || {}).filter(d => {
         const deliveryDate = new Date(d.date + 'T00:00:00');
         return d.item === 'AGENDAMENTO PENDENTE' && deliveryDate < SIMULATED_TODAY;
     });
@@ -130,7 +130,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (!selectedDate || !supplier.contractItems) return [];
     const currentMonth = selectedDate.getMonth();
     return supplier.contractItems.map(item => {
-        const deliveredThisMonth = (supplier.deliveries || [])
+        const deliveredThisMonth = Object.values(supplier.deliveries || {})
             .filter(d => d.item === item.name && new Date(d.date + 'T00:00:00').getMonth() === currentMonth)
             .reduce((sum, d) => sum + (d.kg || 0), 0);
         const isWithinContract = currentMonth <= 3;

@@ -62,7 +62,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
         if (!supplier) return [];
         
         const months = new Set<string>();
-        (supplier.deliveries || []).filter(d => d.invoiceNumber).forEach(d => {
+        Object.values(supplier.deliveries || {}).filter(d => d.invoiceNumber).forEach(d => {
             if (d.date) {
                 months.add(d.date.substring(0, 7)); // YYYY-MM
             }

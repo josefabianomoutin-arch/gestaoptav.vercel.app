@@ -805,8 +805,12 @@ const App: React.FC = () => {
         console.log('Transação de exclusão concluída para PerCapita');
         return { success: true };
       } catch (error) {
-        console.error('MENSAGEM DE ERRO:', error instanceof Error ? error.message : String(error));
-        console.error('OBJETO DE ERRO:', error);
+        console.log('--- INÍCIO DO ERRO ---');
+        console.log('Erro como string:', String(error));
+        if (error instanceof Error) {
+            console.log('Mensagem do erro:', error.message);
+        }
+        console.log('--- FIM DO ERRO ---');
         if (i === retries - 1) {
           return { success: false, message: 'Erro ao excluir nota fiscal após várias tentativas: ' + (error instanceof Error ? error.message : String(error)) };
         }

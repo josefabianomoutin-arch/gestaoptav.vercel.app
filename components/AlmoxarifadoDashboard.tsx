@@ -99,7 +99,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         const list: { supplierName: string; supplierCpf: string; time: string; arrivalTime?: string; status: 'AGENDADO' | 'CONCLUÍDO' | 'TERCEIRO' | 'CANCELADO'; id: string; type: 'FORNECEDOR' | 'TERCEIRO' }[] = [];
         
         suppliers.forEach(s => {
-            (s.deliveries || []).forEach(d => {
+            Object.values(s.deliveries || {}).forEach(d => {
                 if (d.date === selectedAgendaDate) {
                     const isFaturado = d.item !== 'AGENDAMENTO PENDENTE';
                     const status = isFaturado ? 'CONCLUÍDO' : 'AGENDADO';
@@ -157,7 +157,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         }
 
         suppliers.forEach(s => {
-            (s.deliveries || []).forEach(d => {
+            Object.values(s.deliveries || {}).forEach(d => {
                 if (weekDates.includes(d.date)) {
                     const isFaturado = d.item !== 'AGENDAMENTO PENDENTE';
                     list.push({
@@ -309,7 +309,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const supplierInvoices = useMemo(() => {
         if (!receiptSupplier) return [];
         const invoices = new Set<string>();
-        (receiptSupplier.deliveries || []).forEach(d => {
+        Object.values(receiptSupplier.deliveries || {}).forEach(d => {
             if (d.invoiceNumber) {
                 invoices.add(d.invoiceNumber);
             }
@@ -319,7 +319,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
     const receiptData = useMemo(() => {
         if (!receiptSupplier || !receiptInvoice) return null;
-        const deliveries = (receiptSupplier.deliveries || []).filter(d => 
+        const deliveries = Object.values(receiptSupplier.deliveries || {}).filter(d => 
             d.invoiceNumber === receiptInvoice && d.item !== 'AGENDAMENTO PENDENTE'
         );
         if (deliveries.length === 0) return null;
