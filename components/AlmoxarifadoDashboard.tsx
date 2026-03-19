@@ -33,6 +33,7 @@ interface AlmoxarifadoDashboardProps {
     onRegisterDriverAsset: (asset: Omit<DriverAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
     onUpdateDriverAsset: (asset: DriverAsset) => Promise<{ success: boolean; message: string }>;
     onDeleteDriverAsset: (id: string) => Promise<void>;
+    validationRoles: any[];
 }
 
 const Barcode: React.FC<{ value: string }> = ({ value }) => {
@@ -81,7 +82,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     driverAssets,
     onRegisterDriverAsset,
     onUpdateDriverAsset,
-    onDeleteDriverAsset
+    onDeleteDriverAsset,
+    validationRoles
 }) => {
     const [activeTab, setActiveTab] = useState<'entry' | 'exit' | 'receipt' | 'agenda' | 'vehicleExitOrder'>('entry');
     const [selectedAgendaDate, setSelectedAgendaDate] = useState(new Date().toISOString().split('T')[0]);
@@ -612,6 +614,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         onRegisterDriverAsset={onRegisterDriverAsset}
                         onUpdateDriverAsset={onUpdateDriverAsset}
                         onDeleteDriverAsset={onDeleteDriverAsset}
+                        validationRoles={validationRoles}
                         showGateTab={true}
                     />
                 ) : (

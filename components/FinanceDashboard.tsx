@@ -16,6 +16,7 @@ interface FinanceDashboardProps {
   vehicleExitOrders?: VehicleExitOrder[];
   vehicleAssets?: VehicleAsset[];
   driverAssets?: DriverAsset[];
+  validationRoles?: any[];
 }
 
 const PTRES_OPTIONS = ['380302', '380303', '380304', '380308', '380328'] as const;
@@ -45,6 +46,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
     vehicleExitOrders,
     vehicleAssets,
     driverAssets,
+    validationRoles,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('pagamentos');
@@ -190,6 +192,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
                     orders={vehicleExitOrders}
                     vehicleAssets={vehicleAssets}
                     driverAssets={driverAssets}
+                    validationRoles={validationRoles}
                     onRegister={() => Promise.resolve({ success: false, message: 'Não permitido' })}
                     onUpdate={() => Promise.resolve({ success: false, message: 'Não permitido' })}
                     onDelete={() => Promise.resolve()}

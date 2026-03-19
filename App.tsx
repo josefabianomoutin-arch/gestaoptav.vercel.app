@@ -1250,6 +1250,7 @@ const App: React.FC = () => {
         onResetData={async () => { if(window.confirm('CUIDADO: Isso apagará tudo permanentemente. Continuar?')) await set(rootRef, null); }}
         registrationStatus={null}
         onClearRegistrationStatus={() => {}}
+        validationRoles={validationRoles}
       />
     );
   }
@@ -1266,6 +1267,7 @@ const App: React.FC = () => {
              vehicleExitOrders={vehicleExitOrders}
              vehicleAssets={vehicleAssets}
              driverAssets={driverAssets}
+             validationRoles={validationRoles}
            />;
   }
 
@@ -1330,6 +1332,7 @@ const App: React.FC = () => {
                  return { success: true, message: 'Motorista/Acompanhante atualizado' };
              }}
              onDeleteDriverAsset={async (id) => remove(child(driverAssetsRef, id))}
+             validationRoles={validationRoles}
            />;
   }
 

@@ -261,6 +261,7 @@ export interface ValidationRole {
   id: string;
   roleName: string;
   responsibleName: string;
+  password?: string;
 }
 
 export type UserRole = 'admin' | 'supplier' | 'producer' | 'pereciveis_supplier' | 'almoxarifado' | 'itesp' | 'financeiro' | 'subportaria' | 'cardapio' | 'infraestrutura' | 'ordem_saida' | 'julio' | 'readonly';

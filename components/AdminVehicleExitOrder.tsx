@@ -44,6 +44,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
     const [validatingOrder, setValidatingOrder] = useState<VehicleExitOrder | null>(null);
+    const [validationPassword, setValidationPassword] = useState('');
     const [isUploadingPdf, setIsUploadingPdf] = useState<string | null>(null);
     const [editingOrder, setEditingOrder] = useState<VehicleExitOrder | null>(null);
     const [formData, setFormData] = useState<Omit<VehicleExitOrder, 'id'>>({
@@ -701,6 +702,15 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     const handleConfirmValidation = async () => {
         if (!validatingOrder || !formData.validationRole) return;
 
+        // Verify password
+        const selectedRole = validationRoles.find(r => r.roleName === formData.validationRole);
+        if (selectedRole && selectedRole.password) {
+            if (validationPassword !== selectedRole.password) {
+                alert('Senha de validação incorreta!');
+                return;
+            }
+        }
+
         const updatedOrder: VehicleExitOrder = {
             ...validatingOrder,
             validationRole: formData.validationRole,
@@ -712,6 +722,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         if (response.success) {
             setIsValidationModalOpen(false);
             setValidatingOrder(null);
+            setValidationPassword('');
         } else {
             alert(response.message);
         }
@@ -1316,6 +1327,19 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                 </select>
                             </div>
 
+                            {formData.validationRole && (
+                                <div className="space-y-2 animate-fade-in">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Senha de Validação</label>
+                                    <input 
+                                        type="password"
+                                        value={validationPassword}
+                                        onChange={e => setValidationPassword(e.target.value)}
+                                        placeholder="DIGITE SUA SENHA"
+                                        className="w-full h-12 px-4 border-2 border-indigo-100 rounded-2xl bg-indigo-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-sm"
+                                    />
+                                </div>
+                            )}
+
                             {formData.validatedBy && (
                                 <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex items-center gap-3">
                                     <div className="bg-emerald-500 p-2 rounded-full text-white">
@@ -1330,14 +1354,14 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         </div>
                         <div className="p-6 bg-gray-50 flex gap-3">
                             <button 
-                                onClick={() => setIsValidationModalOpen(false)}
+                                onClick={() => { setIsValidationModalOpen(false); setValidationPassword(''); }}
                                 className="flex-1 bg-white border-2 border-gray-200 text-gray-400 font-black py-3 rounded-2xl uppercase text-[10px] tracking-widest hover:bg-gray-100 transition-all"
                             >
                                 Cancelar
                             </button>
                             <button 
                                 onClick={handleConfirmValidation}
-                                disabled={!formData.validationRole}
+                                disabled={!formData.validationRole || !validationPassword}
                                 className="flex-[2] bg-indigo-600 text-white font-black py-3 rounded-2xl uppercase text-[10px] tracking-widest shadow-lg hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Confirmar Validação

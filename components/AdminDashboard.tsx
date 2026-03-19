@@ -79,6 +79,7 @@ interface AdminDashboardProps {
   onRegisterDriverAsset: (asset: Omit<DriverAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateDriverAsset: (asset: DriverAsset) => Promise<{ success: boolean; message: string }>;
   onDeleteDriverAsset: (id: string) => Promise<void>;
+  validationRoles: any[];
   onUpdateSupplierObservations?: (cpf: string, observations: string) => Promise<{ success: boolean; message?: string }>;
 }
 
@@ -341,6 +342,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           onRegisterDriverAsset={props.onRegisterDriverAsset}
           onUpdateDriverAsset={props.onUpdateDriverAsset}
           onDeleteDriverAsset={props.onDeleteDriverAsset}
+          validationRoles={props.validationRoles}
       />;
       case 'analytics': return <AdminAnalytics suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} />;
       case 'graphs': return <AdminGraphs 

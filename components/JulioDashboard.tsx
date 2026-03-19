@@ -62,7 +62,8 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
 
   const [validationForm, setValidationForm] = useState<Omit<ValidationRole, 'id'>>({
     roleName: '',
-    responsibleName: ''
+    responsibleName: '',
+    password: ''
   });
 
   const handleOpenModal = (item: any = null) => {
@@ -72,7 +73,7 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
     } else if (activeTab === 'veiculos') {
       setVehicleForm(item ? { ...item } : { model: '', plate: '', assetNumber: '' });
     } else if (activeTab === 'validacao') {
-      setValidationForm(item ? { ...item } : { roleName: '', responsibleName: '' });
+      setValidationForm(item ? { ...item } : { roleName: '', responsibleName: '', password: '' });
     }
     setIsModalOpen(true);
   };
@@ -288,6 +289,10 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
                   <div>
                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nome do Responsável</label>
                     <input type="text" value={validationForm.responsibleName} onChange={e => setValidationForm({...validationForm, responsibleName: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl border-none focus:ring-2 focus:ring-indigo-500 font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Senha de Validação</label>
+                    <input type="password" value={validationForm.password || ''} onChange={e => setValidationForm({...validationForm, password: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl border-none focus:ring-2 focus:ring-indigo-500 font-bold" placeholder="Digite a senha" />
                   </div>
                 </>
               )}
