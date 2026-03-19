@@ -1336,31 +1336,31 @@ const App: React.FC = () => {
   if (user.role === 'julio') {
     return (
       <JulioDashboard
-        dailyAllowances={dailyAllowances}
-        staff={staff}
+        vehicleExitOrders={vehicleExitOrders}
+        driverAssets={driverAssets}
         vehicleAssets={vehicleAssets}
         validationRoles={validationRoles}
         onLogout={handleLogout}
-        onRegisterDailyAllowance={async (da) => {
-          const r = push(dailyAllowancesRef);
-          await set(r, { ...da, id: r.key });
-          return { success: true, message: 'Diária registrada' };
+        onRegisterVehicleExitOrder={async (order) => {
+          const r = push(vehicleExitOrdersRef);
+          await set(r, { ...order, id: r.key });
+          return { success: true, message: 'Ordem de saída registrada' };
         }}
-        onUpdateDailyAllowance={async (da) => {
-          await set(child(dailyAllowancesRef, da.id), da);
-          return { success: true, message: 'Diária atualizada' };
+        onUpdateVehicleExitOrder={async (order) => {
+          await set(child(vehicleExitOrdersRef, order.id), order);
+          return { success: true, message: 'Ordem de saída atualizada' };
         }}
-        onDeleteDailyAllowance={async (id) => remove(child(dailyAllowancesRef, id))}
-        onRegisterStaff={async (s) => {
-          const r = push(staffRef);
+        onDeleteVehicleExitOrder={async (id) => remove(child(vehicleExitOrdersRef, id))}
+        onRegisterDriverAsset={async (s) => {
+          const r = push(driverAssetsRef);
           await set(r, { ...s, id: r.key });
           return { success: true, message: 'Servidor registrado' };
         }}
-        onUpdateStaff={async (s) => {
-          await set(child(staffRef, s.id), s);
+        onUpdateDriverAsset={async (s) => {
+          await set(child(driverAssetsRef, s.id), s);
           return { success: true, message: 'Servidor atualizado' };
         }}
-        onDeleteStaff={async (id) => remove(child(staffRef, id))}
+        onDeleteDriverAsset={async (id) => remove(child(driverAssetsRef, id))}
         onRegisterVehicleAsset={async (v) => {
           const r = push(vehicleAssetsRef);
           await set(r, { ...v, id: r.key });
