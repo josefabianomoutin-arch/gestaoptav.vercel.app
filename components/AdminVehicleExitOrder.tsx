@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { VehicleExitOrder, VehicleAsset, DriverAsset } from '../types';
+import { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import ConfirmModal from './ConfirmModal';
 
@@ -17,6 +17,7 @@ interface AdminVehicleExitOrderProps {
     onRegisterDriverAsset: (asset: Omit<DriverAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
     onUpdateDriverAsset: (asset: DriverAsset) => Promise<{ success: boolean; message: string }>;
     onDeleteDriverAsset: (id: string) => Promise<void>;
+    validationRoles: ValidationRole[];
     onUpdateVehicleExitOrder?: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
     readOnly?: boolean;
     securityMode?: boolean;
@@ -29,6 +30,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     orders, onRegister, onUpdate, onDelete,
     vehicleAssets, onRegisterVehicleAsset, onUpdateVehicleAsset, onDeleteVehicleAsset,
     driverAssets, onRegisterDriverAsset, onUpdateDriverAsset, onDeleteDriverAsset,
+    validationRoles,
     onUpdateVehicleExitOrder,
     readOnly = false,
     securityMode = false,
@@ -40,6 +42,8 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     const [activeAssetTab, setActiveAssetTab] = useState<'vehicles' | 'drivers'>('vehicles');
     
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
+    const [validatingOrder, setValidatingOrder] = useState<VehicleExitOrder | null>(null);
     const [isUploadingPdf, setIsUploadingPdf] = useState<string | null>(null);
     const [editingOrder, setEditingOrder] = useState<VehicleExitOrder | null>(null);
     const [formData, setFormData] = useState<Omit<VehicleExitOrder, 'id'>>({
@@ -52,7 +56,9 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         destination: '',
         fctNumber: '',
         companions: [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
-        observations: ''
+        observations: '',
+        validationRole: '',
+        validatedBy: ''
     });
 
     // Gate Control State
@@ -427,8 +433,15 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                     <div class="signatures-grid">
                         <div class="signature-box">
                             <div class="box-title">Autorização Superior</div>
-                            <div style="flex-grow: 1;"></div>
-                            <div class="signature-line">Chefe de Seção</div>
+                            <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                                ${order.validationRole ? `
+                                    <div style="font-size: 10pt; font-weight: 900; color: #4f46e5; text-transform: uppercase;">VALIDADO DIGITALMENTE</div>
+                                    <div style="font-size: 8pt; font-weight: bold; margin-top: 2px;">${order.validatedBy}</div>
+                                    <div style="font-size: 7pt; color: #666;">${order.validationRole}</div>
+                                    <div style="font-size: 6pt; color: #999; margin-top: 2px;">${new Date(order.validationTimestamp!).toLocaleString('pt-BR')}</div>
+                                ` : ''}
+                            </div>
+                            <div class="signature-line">${order.validationRole || 'Chefe de Seção'}</div>
                         </div>
                         <div class="fct-section">
                             <div>
@@ -579,6 +592,17 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                             )}
                             {!readOnly && (
                                 <button 
+                                    onClick={() => handleOpenValidation(order)} 
+                                    className={`p-2 rounded-xl transition-all ${order.validationRole ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                                    title={order.validationRole ? "Validado" : "Validar Saída"}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </button>
+                            )}
+                            {!readOnly && (
+                                <button 
                                     onClick={() => handleAttachPdf(order)}
                                     disabled={isUploadingPdf === order.id}
                                     className={`p-2 rounded-xl transition-all ${order.pdfUrl ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
@@ -637,7 +661,9 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             destination: '',
             fctNumber: '',
             companions: [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
-            observations: ''
+            observations: '',
+            validationRole: '',
+            validatedBy: ''
         });
     };
 
@@ -655,9 +681,40 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             companions: order.companions && order.companions.length > 0 ? order.companions : [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
             observations: order.observations || '',
             exitTime: order.exitTime || '',
-            returnTime: order.returnTime || ''
+            returnTime: order.returnTime || '',
+            validationRole: order.validationRole || '',
+            validatedBy: order.validatedBy || ''
         });
         setIsModalOpen(true);
+    };
+
+    const handleOpenValidation = (order: VehicleExitOrder) => {
+        setValidatingOrder(order);
+        setFormData({
+            ...formData,
+            validationRole: order.validationRole || '',
+            validatedBy: order.validatedBy || ''
+        });
+        setIsValidationModalOpen(true);
+    };
+
+    const handleConfirmValidation = async () => {
+        if (!validatingOrder || !formData.validationRole) return;
+
+        const updatedOrder: VehicleExitOrder = {
+            ...validatingOrder,
+            validationRole: formData.validationRole,
+            validatedBy: formData.validatedBy,
+            validationTimestamp: new Date().toISOString()
+        };
+
+        const response = await onUpdate(updatedOrder);
+        if (response.success) {
+            setIsValidationModalOpen(false);
+            setValidatingOrder(null);
+        } else {
+            alert(response.message);
+        }
     };
 
     const handleVehicleSubmit = async (e: React.FormEvent) => {
@@ -1219,6 +1276,77 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             )}
 
             {/* Nova Ordem Modal */}
+            {/* Modal de Validação */}
+            {isValidationModalOpen && (
+                <div className="fixed inset-0 bg-indigo-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in">
+                        <div className="bg-indigo-900 p-6 text-white">
+                            <h3 className="text-xl font-black uppercase tracking-tighter italic">Validar Saída de Veículo</h3>
+                            <p className="text-indigo-300 font-bold text-[10px] uppercase tracking-widest mt-1">Autorização Digital de Responsável</p>
+                        </div>
+                        <div className="p-6 space-y-6">
+                            <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+                                <div className="text-[10px] font-black text-indigo-400 uppercase mb-1">Veículo / Placa</div>
+                                <div className="font-black text-indigo-900 uppercase">{validatingOrder?.vehicle} ({validatingOrder?.plate})</div>
+                                <div className="mt-2 text-[10px] font-black text-indigo-400 uppercase mb-1">Responsável</div>
+                                <div className="font-bold text-indigo-800 uppercase">{validatingOrder?.responsibleServer}</div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Selecione o Cargo/Responsável para Validar</label>
+                                <select 
+                                    value={formData.validationRole}
+                                    onChange={e => {
+                                        const roleName = e.target.value;
+                                        const role = validationRoles.find(r => r.roleName === roleName);
+                                        setFormData({ 
+                                            ...formData, 
+                                            validationRole: roleName,
+                                            validatedBy: role ? role.responsibleName : ''
+                                        });
+                                    }}
+                                    className="w-full h-12 px-4 border-2 border-indigo-100 rounded-2xl bg-indigo-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-sm"
+                                >
+                                    <option value="">SELECIONE O RESPONSÁVEL</option>
+                                    {validationRoles.map(role => (
+                                        <option key={role.id} value={role.roleName}>
+                                            {role.roleName} - {role.responsibleName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {formData.validatedBy && (
+                                <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex items-center gap-3">
+                                    <div className="bg-emerald-500 p-2 rounded-full text-white">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                    </div>
+                                    <div>
+                                        <div className="text-[10px] font-black text-emerald-600 uppercase">Confirmado por</div>
+                                        <div className="font-black text-emerald-900 uppercase">{formData.validatedBy}</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-6 bg-gray-50 flex gap-3">
+                            <button 
+                                onClick={() => setIsValidationModalOpen(false)}
+                                className="flex-1 bg-white border-2 border-gray-200 text-gray-400 font-black py-3 rounded-2xl uppercase text-[10px] tracking-widest hover:bg-gray-100 transition-all"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={handleConfirmValidation}
+                                disabled={!formData.validationRole}
+                                className="flex-[2] bg-indigo-600 text-white font-black py-3 rounded-2xl uppercase text-[10px] tracking-widest shadow-lg hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Confirmar Validação
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-2 md:p-4">
                     <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto custom-scrollbar border border-white/20">
@@ -1444,6 +1572,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                             className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-mono"
                                         />
                                     </div>
+                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div className="space-y-1">
                                         <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Observações</label>
                                         <input 
@@ -1454,6 +1583,31 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                             className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
                                         />
                                     </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Validação de Saída (Cargo/Responsável)</label>
+                                        <select 
+                                            value={formData.validationRole}
+                                            onChange={e => {
+                                                const roleName = e.target.value;
+                                                const role = validationRoles.find(r => r.roleName === roleName);
+                                                setFormData({ 
+                                                    ...formData, 
+                                                    validationRole: roleName,
+                                                    validatedBy: role ? role.responsibleName : '',
+                                                    validationTimestamp: role ? new Date().toISOString() : undefined
+                                                });
+                                            }}
+                                            className="w-full h-9 px-3 border-2 border-indigo-100 rounded-xl bg-indigo-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        >
+                                            <option value="">SELECIONE O RESPONSÁVEL PELA VALIDAÇÃO</option>
+                                            {validationRoles.map(role => (
+                                                <option key={role.id} value={role.roleName}>
+                                                    {role.roleName} - {role.responsibleName}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
                                 </div>
                             </>
                         )}

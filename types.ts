@@ -231,6 +231,36 @@ export interface VehicleExitOrder {
   returnTime?: string;
   observations?: string;
   pdfUrl?: string;
+  validatedBy?: string;
+  validationRole?: string;
+  validationTimestamp?: string;
 }
 
-export type UserRole = 'admin' | 'supplier' | 'producer' | 'pereciveis_supplier' | 'almoxarifado' | 'itesp' | 'financeiro' | 'subportaria' | 'cardapio' | 'infraestrutura' | 'ordem_saida' | 'readonly';
+export interface DailyAllowance {
+  id: string;
+  date: string;
+  staffName: string;
+  staffRole: string;
+  destination: string;
+  purpose: string;
+  departureTime: string;
+  arrivalTime: string;
+  value: number;
+  status: 'pendente' | 'aprovado' | 'pago';
+}
+
+export interface Staff {
+  id: string;
+  name: string;
+  role: string;
+  cpf: string;
+  registrationNumber: string;
+}
+
+export interface ValidationRole {
+  id: string;
+  roleName: string;
+  responsibleName: string;
+}
+
+export type UserRole = 'admin' | 'supplier' | 'producer' | 'pereciveis_supplier' | 'almoxarifado' | 'itesp' | 'financeiro' | 'subportaria' | 'cardapio' | 'infraestrutura' | 'ordem_saida' | 'julio' | 'readonly';

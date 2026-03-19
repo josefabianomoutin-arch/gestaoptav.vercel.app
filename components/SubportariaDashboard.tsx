@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import type { Supplier, Delivery, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset } from '../types';
+import type { Supplier, Delivery, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 import { Camera, CheckCircle, XCircle, RefreshCw, UserCheck, AlertTriangle } from 'lucide-react';
 
@@ -14,6 +14,7 @@ interface SubportariaDashboardProps {
   vehicleExitOrders: VehicleExitOrder[];
   vehicleAssets: VehicleAsset[];
   driverAssets: DriverAsset[];
+  validationRoles: ValidationRole[];
   onUpdateVehicleExitOrder: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
 }
 
@@ -32,6 +33,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     vehicleExitOrders,
     vehicleAssets,
     driverAssets,
+    validationRoles,
     onUpdateVehicleExitOrder
 }) => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -402,6 +404,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                             orders={vehicleExitOrders}
                             vehicleAssets={vehicleAssets}
                             driverAssets={driverAssets}
+                            validationRoles={validationRoles}
                             onRegister={() => Promise.resolve({ success: false, message: 'Não permitido' })}
                             onUpdate={onUpdateVehicleExitOrder}
                             onDelete={() => Promise.resolve()}

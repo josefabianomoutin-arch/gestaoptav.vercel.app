@@ -161,13 +161,18 @@ const ItespDashboard: React.FC<ItespDashboardProps> = ({ suppliers = [], warehou
 
         return Array.from(consolidatedMap.values()).map((data, idx) => {
             const shortfallKg = Math.max(0, data.contractedKgMonthly - data.receivedKg);
+            // Cap receivedKg by contractedKgMonthly as requested by user
+            const cappedReceivedKg = Math.min(data.receivedKg, data.contractedKgMonthly);
+            
             return {
                 ...data,
                 id: `itp-${idx}-${Date.now()}`,
+                receivedKg: cappedReceivedKg, // Use capped value for display and calculations
+                actualReceivedKg: data.receivedKg, // Keep original for details if needed
                 shortfallKg,
                 financialLoss: shortfallKg * data.unitPrice
             };
-        }).filter(item => item.contractedKgMonthly > 0 || item.receivedKg > 0)
+        }).filter(item => item.contractedKgMonthly > 0) // Only show months with contract
           .sort((a, b) => months.indexOf(a.month) - months.indexOf(b.month));
 
     }, [itespSuppliers, perCapitaConfig]);
@@ -192,8 +197,7 @@ const ItespDashboard: React.FC<ItespDashboardProps> = ({ suppliers = [], warehou
     const totals = useMemo(() => {
         return filteredData.reduce((acc, item) => {
             acc.contracted += item.contractedKgMonthly;
-            // Cap received by contracted so over-deliveries don't mask shortfalls in totals
-            acc.received += Math.min(item.receivedKg, item.contractedKgMonthly);
+            acc.received += item.receivedKg; // Already capped in comparisonData
             acc.shortfall += item.shortfallKg;
             acc.loss += item.financialLoss;
             return acc;
@@ -499,8 +503,11 @@ const ItespDashboard: React.FC<ItespDashboardProps> = ({ suppliers = [], warehou
                                         <p className="text-2xl font-black text-blue-700 tracking-tighter">{selectedDetail.contractedKgMonthly.toLocaleString('pt-BR')} <span className="text-xs">kg</span></p>
                                     </div>
                                     <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 shadow-inner">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Total Recebido</p>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Total Recebido (Capped)</p>
                                         <p className="text-2xl font-black text-green-700 tracking-tighter">{selectedDetail.receivedKg.toLocaleString('pt-BR')} <span className="text-xs">kg</span></p>
+                                        {selectedDetail.actualReceivedKg > selectedDetail.contractedKgMonthly && (
+                                            <p className="text-[9px] text-green-500 font-bold mt-1">Total Real: {selectedDetail.actualReceivedKg.toLocaleString('pt-BR')} kg</p>
+                                        )}
                                     </div>
                                     <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 shadow-inner">
                                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Déficit Atual</p>

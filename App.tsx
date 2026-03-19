@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, MenuRow, ContractItem, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset } from './types';
+import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, MenuRow, ContractItem, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, DailyAllowance, Staff, ValidationRole } from './types';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
@@ -10,6 +10,7 @@ import FinanceDashboard from './components/FinanceDashboard';
 import SubportariaDashboard from './components/SubportariaDashboard';
 import MenuDashboard from './components/MenuDashboard';
 import VehicleOrderDashboard from './components/VehicleOrderDashboard';
+import JulioDashboard from './components/JulioDashboard';
 import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
 import { app } from './firebaseConfig';
 
@@ -28,6 +29,9 @@ let acquisitionItemsRef: any;
 let vehicleExitOrdersRef: any;
 let vehicleAssetsRef: any;
 let driverAssetsRef: any;
+let dailyAllowancesRef: any;
+let staffRef: any;
+let validationRolesRef: any;
 
 try {
   database = getDatabase(app);
@@ -45,6 +49,9 @@ try {
   vehicleExitOrdersRef = ref(database, 'vehicleExitOrders');
   vehicleAssetsRef = ref(database, 'vehicleAssets');
   driverAssetsRef = ref(database, 'driverAssets');
+  dailyAllowancesRef = ref(database, 'dailyAllowances');
+  staffRef = ref(database, 'staff');
+  validationRolesRef = ref(database, 'validationRoles');
 } catch (error) {
   console.error("Erro ao inicializar Firebase:", error);
 }
@@ -64,6 +71,9 @@ const App: React.FC = () => {
   const [vehicleExitOrders, setVehicleExitOrders] = useState<VehicleExitOrder[]>([]);
   const [vehicleAssets, setVehicleAssets] = useState<VehicleAsset[]>([]);
   const [driverAssets, setDriverAssets] = useState<DriverAsset[]>([]);
+  const [dailyAllowances, setDailyAllowances] = useState<DailyAllowance[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [validationRoles, setValidationRoles] = useState<ValidationRole[]>([]);
 
   useEffect(() => {
     if (!database) return;
@@ -134,6 +144,18 @@ const App: React.FC = () => {
       const data = snapshot.val();
       setDriverAssets(data ? Object.values(data) : []);
     });
+    onValue(dailyAllowancesRef, (snapshot) => {
+      const data = snapshot.val();
+      setDailyAllowances(data ? Object.values(data) : []);
+    });
+    onValue(staffRef, (snapshot) => {
+      const data = snapshot.val();
+      setStaff(data ? Object.values(data) : []);
+    });
+    onValue(validationRolesRef, (snapshot) => {
+      const data = snapshot.val();
+      setValidationRoles(data ? Object.values(data) : []);
+    });
   }, []);
 
   const handleLogin = (nameInput: string, passwordInput: string) => {
@@ -184,6 +206,10 @@ const App: React.FC = () => {
     }
     if (cleanName === 'ORDEM DE SAIDA' && rawPass === 'saida2026') {
       setUser({ name: 'ORDEM DE SAIDA', cpf: 'saida2026', role: 'ordem_saida' });
+      return true;
+    }
+    if (cleanName === 'JULIO CESAR NOGUEIRA' && numericPass === '431385464') {
+      setUser({ name: 'JULIO CESAR NOGUEIRA', cpf: '431385464', role: 'julio' });
       return true;
     }
     const supplier = suppliers.find(s => s.cpf.replace(/\D/g, '') === numericPass);
@@ -1307,6 +1333,58 @@ const App: React.FC = () => {
            />;
   }
 
+  if (user.role === 'julio') {
+    return (
+      <JulioDashboard
+        dailyAllowances={dailyAllowances}
+        staff={staff}
+        vehicleAssets={vehicleAssets}
+        validationRoles={validationRoles}
+        onLogout={handleLogout}
+        onRegisterDailyAllowance={async (da) => {
+          const r = push(dailyAllowancesRef);
+          await set(r, { ...da, id: r.key });
+          return { success: true, message: 'Diária registrada' };
+        }}
+        onUpdateDailyAllowance={async (da) => {
+          await set(child(dailyAllowancesRef, da.id), da);
+          return { success: true, message: 'Diária atualizada' };
+        }}
+        onDeleteDailyAllowance={async (id) => remove(child(dailyAllowancesRef, id))}
+        onRegisterStaff={async (s) => {
+          const r = push(staffRef);
+          await set(r, { ...s, id: r.key });
+          return { success: true, message: 'Servidor registrado' };
+        }}
+        onUpdateStaff={async (s) => {
+          await set(child(staffRef, s.id), s);
+          return { success: true, message: 'Servidor atualizado' };
+        }}
+        onDeleteStaff={async (id) => remove(child(staffRef, id))}
+        onRegisterVehicleAsset={async (v) => {
+          const r = push(vehicleAssetsRef);
+          await set(r, { ...v, id: r.key });
+          return { success: true, message: 'Veículo registrado' };
+        }}
+        onUpdateVehicleAsset={async (v) => {
+          await set(child(vehicleAssetsRef, v.id), v);
+          return { success: true, message: 'Veículo atualizado' };
+        }}
+        onDeleteVehicleAsset={async (id) => remove(child(vehicleAssetsRef, id))}
+        onRegisterValidationRole={async (vr) => {
+          const r = push(validationRolesRef);
+          await set(r, { ...vr, id: r.key });
+          return { success: true, message: 'Cargo de validação registrado' };
+        }}
+        onUpdateValidationRole={async (vr) => {
+          await set(child(validationRolesRef, vr.id), vr);
+          return { success: true, message: 'Cargo de validação atualizado' };
+        }}
+        onDeleteValidationRole={async (id) => remove(child(validationRolesRef, id))}
+      />
+    );
+  }
+
   if (user.role === 'itesp') {
     return <ItespDashboard suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onLogout={handleLogout} />;
   }
@@ -1324,6 +1402,7 @@ const App: React.FC = () => {
         vehicleExitOrders={vehicleExitOrders}
         vehicleAssets={vehicleAssets}
         driverAssets={driverAssets}
+        validationRoles={validationRoles}
         onUpdateVehicleExitOrder={async (order) => {
           await set(child(vehicleExitOrdersRef, order.id), order);
           return { success: true, message: 'Atualizado' };
@@ -1339,6 +1418,7 @@ const App: React.FC = () => {
         orders={vehicleExitOrders}
         vehicleAssets={vehicleAssets}
         driverAssets={driverAssets}
+        validationRoles={validationRoles}
         onRegister={async (order) => {
           const r = push(vehicleExitOrdersRef);
           const id = r.key || `order-${Date.now()}`;
@@ -1370,6 +1450,15 @@ const App: React.FC = () => {
           return { success: true, message: 'Atualizado' };
         }}
         onDeleteDriverAsset={async (id) => remove(child(driverAssetsRef, id))}
+        onValidateOrder={async (orderId, validatedBy, validationRole) => {
+          const timestamp = new Date().toISOString();
+          await update(child(vehicleExitOrdersRef, orderId), {
+            validatedBy,
+            validationRole,
+            validationTimestamp: timestamp
+          });
+          return { success: true, message: 'Ordem validada' };
+        }}
         onLogout={handleLogout}
         role={user.role}
       />

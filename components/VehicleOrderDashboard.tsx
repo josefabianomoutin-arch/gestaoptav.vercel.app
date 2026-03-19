@@ -1,12 +1,13 @@
 
 import React, { useState, useMemo } from 'react';
-import type { VehicleExitOrder, VehicleAsset, DriverAsset } from '../types';
+import type { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 
 interface VehicleOrderDashboardProps {
   orders: VehicleExitOrder[];
   vehicleAssets: VehicleAsset[];
   driverAssets: DriverAsset[];
+  validationRoles: ValidationRole[];
   onRegister: (order: Omit<VehicleExitOrder, 'id'>) => Promise<{ success: boolean; message: string; id?: string }>;
   onUpdate: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
   onDelete: (id: string) => Promise<void>;
@@ -24,6 +25,7 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
   orders,
   vehicleAssets,
   driverAssets,
+  validationRoles,
   onRegister,
   onUpdate,
   onDelete,
@@ -77,6 +79,7 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
           orders={filteredOrders}
           vehicleAssets={vehicleAssets}
           driverAssets={driverAssets}
+          validationRoles={validationRoles}
           onRegister={handleRegister}
           onUpdate={role === 'ordem_saida' ? async () => ({ success: false, message: 'Não permitido' }) : onUpdate}
           onDelete={onDelete}
