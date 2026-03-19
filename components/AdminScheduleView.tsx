@@ -47,13 +47,13 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
     const filteredSuppliers = useMemo(() => {
         return suppliers.filter(p => {
             const nameMatch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-            const dateMatch = !dateFilter || (p.deliveries || []).some(d => d.date === dateFilter);
+            const dateMatch = !dateFilter || Object.values(p.deliveries || {}).some(d => d.date === dateFilter);
             return nameMatch && dateMatch;
         });
     }, [suppliers, searchTerm, dateFilter]);
 
     const reportSuppliers = useMemo(() => {
-        return suppliers.filter(s => (s.deliveries || []).some(d => d.invoiceNumber)).sort((a, b) => a.name.localeCompare(b.name));
+        return suppliers.filter(s => Object.values(s.deliveries || {}).some(d => d.invoiceNumber)).sort((a, b) => a.name.localeCompare(b.name));
     }, [suppliers]);
 
     const reportAvailableMonths = useMemo(() => {

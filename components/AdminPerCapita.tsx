@@ -519,7 +519,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
     const suppliersWithoutEmpenho = useMemo(() => {
         if (!suppliers) return [];
         return suppliers.filter(supplier => {
-            const hasEmpenho = supplier.deliveries?.some(d => !!d.receiptTermNumber);
+            const hasEmpenho = Object.values(supplier.deliveries || {}).some(d => !!d.receiptTermNumber);
             return !hasEmpenho;
         }).map(supplier => {
             const totalWeight = supplier.contractItems?.reduce((acc, item) => acc + (item.totalKg || 0), 0) || 0;
