@@ -18,6 +18,9 @@ interface AdminVehicleExitOrderProps {
     onUpdateDriverAsset: (asset: DriverAsset) => Promise<{ success: boolean; message: string }>;
     onDeleteDriverAsset: (id: string) => Promise<void>;
     validationRoles: ValidationRole[];
+    onRegisterValidationRole?: (vr: Omit<ValidationRole, 'id'>) => Promise<{ success: boolean; message: string }>;
+    onUpdateValidationRole?: (vr: ValidationRole) => Promise<{ success: boolean; message: string }>;
+    onDeleteValidationRole?: (id: string) => Promise<void>;
     onUpdateVehicleExitOrder?: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
     readOnly?: boolean;
     securityMode?: boolean;
@@ -30,7 +33,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     orders, onRegister, onUpdate, onDelete,
     vehicleAssets, onRegisterVehicleAsset, onUpdateVehicleAsset, onDeleteVehicleAsset,
     driverAssets, onRegisterDriverAsset, onUpdateDriverAsset, onDeleteDriverAsset,
-    validationRoles,
+    validationRoles, onRegisterValidationRole, onUpdateValidationRole, onDeleteValidationRole,
     onUpdateVehicleExitOrder,
     readOnly = false,
     securityMode = false,
@@ -39,10 +42,17 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     showGateTab = false
 }) => {
     const [activeSubTab, setActiveSubTab] = useState<'orders' | 'assets' | 'gate'>('orders');
-    const [activeAssetTab, setActiveAssetTab] = useState<'vehicles' | 'drivers'>('vehicles');
+    const [activeAssetTab, setActiveAssetTab] = useState<'vehicles' | 'drivers' | 'roles'>('vehicles');
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
+    const [isValidationRoleModalOpen, setIsValidationRoleModalOpen] = useState(false);
+    const [editingValidationRole, setEditingValidationRole] = useState<ValidationRole | null>(null);
+    const [validationRoleFormData, setValidationRoleFormData] = useState<Omit<ValidationRole, 'id'>>({
+        roleName: '',
+        responsibleName: '',
+        password: ''
+    });
     const [validatingOrder, setValidatingOrder] = useState<VehicleExitOrder | null>(null);
     const [validationPassword, setValidationPassword] = useState('');
     const [isUploadingPdf, setIsUploadingPdf] = useState<string | null>(null);
@@ -752,6 +762,18 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         setDriverFormData({ name: '', role: '', cnhCategory: 'B', isFitToDrive: true });
     };
 
+    const handleValidationRoleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (editingValidationRole) {
+            await onUpdateValidationRole?.({ ...validationRoleFormData, id: editingValidationRole.id });
+        } else {
+            await onRegisterValidationRole?.(validationRoleFormData);
+        }
+        setIsValidationRoleModalOpen(false);
+        setEditingValidationRole(null);
+        setValidationRoleFormData({ roleName: '', responsibleName: '', password: '' });
+    };
+
     return (
         <div className="space-y-6 animate-fade-in pb-20">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -1164,6 +1186,12 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         >
                             Motoristas / Acompanhantes
                         </button>
+                        <button 
+                            onClick={() => setActiveAssetTab('roles')}
+                            className={`px-4 py-2 font-black text-[9px] uppercase tracking-widest transition-all ${activeAssetTab === 'roles' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            Cargos de Validação
+                        </button>
                     </div>
 
                     {activeAssetTab === 'vehicles' ? (
@@ -1221,7 +1249,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                 </table>
                             </div>
                         </div>
-                    ) : (
+                    ) : activeAssetTab === 'drivers' ? (
                         <div className="space-y-4">
                             <div className="flex justify-end">
                                 <button 
@@ -1267,6 +1295,59 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                                     onConfirm: () => {
                                                                         setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                                                                         onDeleteDriverAsset(d.id);
+                                                                    }
+                                                                });
+                                                            }} 
+                                                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="flex justify-end">
+                                <button 
+                                    onClick={() => { setEditingValidationRole(null); setValidationRoleFormData({ roleName: '', responsibleName: '', password: '' }); setIsValidationRoleModalOpen(true); }}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2 px-6 rounded-xl transition-all shadow-lg shadow-emerald-100 active:scale-95 uppercase text-[9px] tracking-widest flex items-center gap-2"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                    Novo Cargo
+                                </button>
+                            </div>
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 text-[9px] uppercase text-gray-400 font-black">
+                                        <tr>
+                                            <th className="p-3 text-left">Cargo</th>
+                                            <th className="p-3 text-left">Responsável</th>
+                                            <th className="p-3 text-center">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {validationRoles.map(vr => (
+                                            <tr key={vr.id} className="hover:bg-gray-50">
+                                                <td className="p-3 font-bold text-gray-700 uppercase">{vr.roleName}</td>
+                                                <td className="p-3 text-gray-500 uppercase text-[10px]">{vr.responsibleName}</td>
+                                                <td className="p-3">
+                                                    <div className="flex justify-center gap-2">
+                                                        <button onClick={() => { setEditingValidationRole(vr); setValidationRoleFormData({ roleName: vr.roleName, responsibleName: vr.responsibleName, password: vr.password || '' }); setIsValidationRoleModalOpen(true); }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+                                                        <button 
+                                                            onClick={() => {
+                                                                setConfirmConfig({
+                                                                    isOpen: true,
+                                                                    title: 'Excluir Cargo',
+                                                                    message: 'Tem certeza que deseja excluir este cargo de validação?',
+                                                                    variant: 'danger',
+                                                                    onConfirm: () => {
+                                                                        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                                                                        onDeleteValidationRole?.(vr.id);
                                                                     }
                                                                 });
                                                             }} 
@@ -1743,6 +1824,39 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                 </div>
                                 <button type="submit" className="w-full h-12 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest mt-4">
                                     {editingDriver ? 'Salvar Alterações' : 'Cadastrar Motorista'}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Validation Role Modal */}
+            {isValidationRoleModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-md border border-white/20">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter italic">{editingValidationRole ? 'Editar Cargo' : 'Novo Cargo'}</h3>
+                                <button onClick={() => setIsValidationRoleModalOpen(false)} className="p-2 bg-gray-100 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-500 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                            <form onSubmit={handleValidationRoleSubmit} className="space-y-4">
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Nome do Cargo</label>
+                                    <input type="text" required value={validationRoleFormData.roleName} onChange={e => setValidationRoleFormData({ ...validationRoleFormData, roleName: e.target.value.toUpperCase() })} className="w-full h-10 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 outline-none text-xs" placeholder="Ex: CHEFE DE SEÇÃO" />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Responsável</label>
+                                    <input type="text" required value={validationRoleFormData.responsibleName} onChange={e => setValidationRoleFormData({ ...validationRoleFormData, responsibleName: e.target.value.toUpperCase() })} className="w-full h-10 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 outline-none text-xs" placeholder="Nome do Funcionário" />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Senha de Validação</label>
+                                    <input type="password" required value={validationRoleFormData.password} onChange={e => setValidationRoleFormData({ ...validationRoleFormData, password: e.target.value })} className="w-full h-10 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 outline-none text-xs" placeholder="Senha para validar ordens" />
+                                </div>
+                                <button type="submit" className="w-full h-12 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest mt-4">
+                                    {editingValidationRole ? 'Salvar Alterações' : 'Cadastrar Cargo'}
                                 </button>
                             </form>
                         </div>

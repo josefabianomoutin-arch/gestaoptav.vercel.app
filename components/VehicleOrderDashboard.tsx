@@ -40,19 +40,10 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
 }) => {
   const [sessionOrderIds, setSessionOrderIds] = useState<string[]>([]);
 
-  const filteredOrders = useMemo(() => {
-    if (role === 'ordem_saida') {
-      return orders.filter(o => sessionOrderIds.includes(o.id));
-    }
-    return orders;
-  }, [orders, sessionOrderIds, role]);
+  const filteredOrders = orders;
 
   const handleRegister = async (order: Omit<VehicleExitOrder, 'id'>) => {
-    const response = await onRegister(order);
-    if (response.success && response.id) {
-      setSessionOrderIds(prev => [...prev, response.id!]);
-    }
-    return response;
+    return await onRegister(order);
   };
 
   return (
@@ -81,17 +72,17 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
           driverAssets={driverAssets}
           validationRoles={validationRoles}
           onRegister={handleRegister}
-          onUpdate={role === 'ordem_saida' ? async () => ({ success: false, message: 'Não permitido' }) : onUpdate}
+          onUpdate={onUpdate}
           onDelete={onDelete}
-          onRegisterVehicleAsset={role === 'ordem_saida' ? async () => ({ success: false, message: 'Não permitido' }) : onRegisterVehicleAsset}
-          onUpdateVehicleAsset={role === 'ordem_saida' ? async () => ({ success: false, message: 'Não permitido' }) : onUpdateVehicleAsset}
-          onDeleteVehicleAsset={role === 'ordem_saida' ? async () => Promise.resolve() : onDeleteVehicleAsset}
-          onRegisterDriverAsset={role === 'ordem_saida' ? async () => ({ success: false, message: 'Não permitido' }) : onRegisterDriverAsset}
-          onUpdateDriverAsset={role === 'ordem_saida' ? async () => ({ success: false, message: 'Não permitido' }) : onUpdateDriverAsset}
-          onDeleteDriverAsset={role === 'ordem_saida' ? async () => Promise.resolve() : onDeleteDriverAsset}
+          onRegisterVehicleAsset={onRegisterVehicleAsset}
+          onUpdateVehicleAsset={onUpdateVehicleAsset}
+          onDeleteVehicleAsset={onDeleteVehicleAsset}
+          onRegisterDriverAsset={onRegisterDriverAsset}
+          onUpdateDriverAsset={onUpdateDriverAsset}
+          onDeleteDriverAsset={onDeleteDriverAsset}
           readOnly={false}
-          hideAssets={role === 'ordem_saida'}
-          hideEdit={role === 'ordem_saida'}
+          hideAssets={true}
+          hideEdit={false}
           showGateTab={true}
         />
       </main>

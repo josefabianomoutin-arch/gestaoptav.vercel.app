@@ -414,6 +414,10 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                             onRegisterDriverAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
                             onUpdateDriverAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
                             onDeleteDriverAsset={() => Promise.resolve()}
+                            onRegisterValidationRole={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                            onUpdateValidationRole={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                            onDeleteValidationRole={() => Promise.resolve()}
+                            hideAssets={true}
                             securityMode={true}
                         />
                     </div>
