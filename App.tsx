@@ -1215,7 +1215,10 @@ const App: React.FC = () => {
             await set(child(vehicleExitOrdersRef, order.id), order);
             return { success: true, message: 'Ordem de Saída atualizada com sucesso!' };
         }}
-        onDeleteVehicleExitOrder={async (id) => remove(child(vehicleExitOrdersRef, id))}
+        onDeleteVehicleExitOrder={async (id) => {
+            console.log("Deleting vehicle exit order (AdminDashboard) with ID:", id);
+            return remove(child(vehicleExitOrdersRef, id));
+        }}
         vehicleAssets={vehicleAssets}
         onRegisterVehicleAsset={async (asset) => {
             const r = push(vehicleAssetsRef);
@@ -1477,6 +1480,10 @@ const App: React.FC = () => {
           await set(child(vehicleExitOrdersRef, order.id), order);
           return { success: true, message: 'Atualizado' };
         }}
+        onDeleteVehicleExitOrder={async (id) => {
+          console.log("Deleting vehicle exit order (Subportaria) with ID:", id);
+          return remove(child(vehicleExitOrdersRef, id));
+        }}
         onDeleteThirdPartyEntry={async (id) => remove(child(thirdPartyEntriesRef, id))}
       />
     );
@@ -1499,7 +1506,10 @@ const App: React.FC = () => {
           await set(child(vehicleExitOrdersRef, order.id), order);
           return { success: true, message: 'Atualizado' };
         }}
-        onDelete={async (id) => remove(child(vehicleExitOrdersRef, id))}
+        onDelete={async (id) => {
+          console.log("Deleting vehicle exit order (VehicleOrderDashboard) with ID:", id);
+          return remove(child(vehicleExitOrdersRef, id));
+        }}
         onRegisterVehicleAsset={async (v) => {
           const r = push(vehicleAssetsRef);
           await set(r, { ...v, id: r.key });

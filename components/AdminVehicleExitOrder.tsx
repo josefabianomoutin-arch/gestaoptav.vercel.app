@@ -1897,6 +1897,11 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                     </div>
                 </div>
             )}
+
+            <ConfirmModal 
+                {...confirmConfig} 
+                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))} 
+            />
         </div>
     );
 };

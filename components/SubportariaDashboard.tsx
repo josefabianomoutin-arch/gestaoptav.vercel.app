@@ -16,6 +16,7 @@ interface SubportariaDashboardProps {
   driverAssets: DriverAsset[];
   validationRoles: ValidationRole[];
   onUpdateVehicleExitOrder: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
+  onDeleteVehicleExitOrder: (id: string) => Promise<void>;
 }
 
 const formatDate = (dateString: string) => {
@@ -34,7 +35,8 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     vehicleAssets,
     driverAssets,
     validationRoles,
-    onUpdateVehicleExitOrder
+    onUpdateVehicleExitOrder,
+    onDeleteVehicleExitOrder
 }) => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [activeTab, setActiveTab] = useState<'agenda' | 'vehicles'>('agenda');
@@ -407,7 +409,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                             validationRoles={validationRoles}
                             onRegister={() => Promise.resolve({ success: false, message: 'Não permitido' })}
                             onUpdate={onUpdateVehicleExitOrder}
-                            onDelete={() => Promise.resolve()}
+                            onDelete={onDeleteVehicleExitOrder}
                             onRegisterVehicleAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
                             onUpdateVehicleAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
                             onDeleteVehicleAsset={() => Promise.resolve()}
