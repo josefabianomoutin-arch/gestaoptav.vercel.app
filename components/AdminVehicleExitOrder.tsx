@@ -638,9 +638,15 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                             title: 'Excluir Ordem de Saída',
                                             message: 'Tem certeza que deseja excluir esta ordem?',
                                             variant: 'danger',
-                                            onConfirm: () => {
+                                            onConfirm: async () => {
+                                                console.log("Confirming deletion for order ID:", order.id);
                                                 setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-                                                onDelete(order.id);
+                                                try {
+                                                    await onDelete(order.id);
+                                                } catch (error) {
+                                                    console.error("Error deleting order:", error);
+                                                    alert("Erro ao excluir a ordem.");
+                                                }
                                             }
                                         });
                                     }} 
