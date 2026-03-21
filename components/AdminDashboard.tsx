@@ -229,13 +229,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       directorWithdrawals: directorWithdrawals.reduce((acc, l) => ({ ...acc, [l.id]: l }), {}),
       standardMenu,
       dailyMenus,
-      financialRecords: financialRecords.reduce((acc, r) => ({ ...acc, [r.id]: r }), {})
+      financialRecords: financialRecords.reduce((acc, r) => ({ ...acc, [r.id]: r }), {}),
+      systemPasswords: props.systemPasswords,
+      validationRoles: props.validationRoles.reduce((acc, r) => ({ ...acc, [r.id]: r }), {}),
+      vehicleExitOrders: props.vehicleExitOrders.reduce((acc, r) => ({ ...acc, [r.id]: r }), {}),
+      vehicleAssets: props.vehicleAssets.reduce((acc, r) => ({ ...acc, [r.id]: r }), {}),
+      driverAssets: props.driverAssets.reduce((acc, r) => ({ ...acc, [r.id]: r }), {}),
+      acquisitionItems: props.acquisitionItems.reduce((acc, r) => ({ ...acc, [r.id]: r }), {})
     };
     const blob = new Blob([JSON.stringify(fullBackup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `BACKUP_FINANCAS_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `BACKUP_FINANCAS_COMPLETO_${new Date().toISOString().split('T')[0]}.json`;
     link.click();
   };
 
@@ -413,6 +419,53 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
                                 };
                                 reader.readAsText(file);
                             }} accept=".json" className="hidden" />
+                        </div>
+                        <div className="bg-rose-50 p-6 rounded-3xl border-2 border-rose-100 flex flex-col justify-between">
+                            <div>
+                                <h3 className="text-lg font-black text-rose-800 uppercase mb-2">Resetar Sistema</h3>
+                                <p className="text-xs text-rose-600/70 mb-6 font-medium leading-relaxed">Apaga permanentemente todos os dados do servidor.</p>
+                            </div>
+                            <button 
+                                onClick={() => {
+                                    setConfirmConfig({
+                                        isOpen: true,
+                                        title: 'RESET TOTAL',
+                                        message: 'VOCÊ TEM CERTEZA? Todos os dados serão apagados permanentemente e o sistema será reiniciado.',
+                                        onConfirm: async () => {
+                                            await props.onResetData();
+                                            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                                        },
+                                        variant: 'danger'
+                                    });
+                                }} 
+                                className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black h-14 rounded-2xl shadow-lg transition-all uppercase text-[10px] tracking-widest"
+                            >
+                                Limpeza Total
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="mt-12">
+                        <h3 className="text-xl font-black text-indigo-950 uppercase tracking-tighter mb-6 flex items-center gap-2">
+                            <svg className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                            Status do Banco de Dados
+                        </h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {[
+                                { label: 'Fornecedores', count: suppliers.length, color: 'indigo' },
+                                { label: 'Movimentações', count: warehouseLog.length, color: 'blue' },
+                                { label: 'Registros Financeiros', count: financialRecords.length, color: 'emerald' },
+                                { label: 'Limpeza/Higiene', count: cleaningLogs.length, color: 'amber' },
+                                { label: 'Entradas Terceiros', count: thirdPartyEntries.length, color: 'purple' },
+                                { label: 'Ordens de Saída', count: vehicleExitOrders.length, color: 'rose' },
+                                { label: 'Veículos', count: vehicleAssets.length, color: 'zinc' },
+                                { label: 'Motoristas', count: driverAssets.length, color: 'zinc' },
+                            ].map((stat, idx) => (
+                                <div key={idx} className={`bg-${stat.color}-50 p-4 rounded-3xl border border-${stat.color}-100`}>
+                                    <p className={`text-[10px] font-black text-${stat.color}-400 uppercase tracking-widest mb-1`}>{stat.label}</p>
+                                    <p className={`text-2xl font-black text-${stat.color}-900`}>{stat.count}</p>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
