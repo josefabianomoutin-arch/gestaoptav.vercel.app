@@ -1,5 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import type { FinancialRecord, StandardMenu, DailyMenus, Supplier, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset } from '../types';
 import MenuDashboard from './MenuDashboard';
 import AgendaChegadas from './AgendaChegadas';
@@ -87,6 +89,47 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
     return 'BOA NOITE';
   }, []);
 
+  const generatePdfReport = () => {
+    const doc = new jsPDF('l', 'mm', 'a4');
+    const title = 'Relatório de Adiantamentos - Visão Financeira Institucional';
+    
+    // Filter only expenses (DESPESA) as the user asked for "valor gasto"
+    const expenseRecords = records.filter(r => r.tipo === 'DESPESA');
+
+    const tableData = expenseRecords.map(r => [
+      r.numeroProcesso || '-',
+      r.adiantado || '-',
+      r.ptres,
+      r.natureza,
+      r.descricao || '-',
+      formatCurrency(r.valorUtilizado)
+    ]);
+
+    doc.setFontSize(16);
+    doc.text(title, 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 22);
+
+    autoTable(doc, {
+      startY: 25,
+      head: [['Processo', 'Adiantado', 'PTRES', 'Natureza', 'Objetivo/Serviço', 'Valor Gasto']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [67, 56, 202] }, // Indigo-700
+      styles: { fontSize: 8, cellPadding: 2 },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 20 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 'auto' },
+        5: { cellWidth: 30, halign: 'right' }
+      }
+    });
+
+    doc.save(`relatorio_financeiro_${new Date().getTime()}.pdf`);
+  };
+
   const isFinanceAdmin = useMemo(() => {
     const name = user?.name.toUpperCase() || '';
     return name.includes('DOUGLAS') || name.includes('ALFREDO');
@@ -151,13 +194,22 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
         </div>
 
         {/* MENSAGEM DINÂMICA DE SAUDAÇÃO E ADIANTADOS LIBERADOS */}
-        <div className="flex-1 mx-4 md:mx-10 bg-red-50 border-2 border-red-200 rounded-2xl p-2 overflow-hidden whitespace-nowrap relative h-12 flex items-center shadow-inner">
-            <div className="animate-marquee inline-block text-red-700 font-black text-xs md:text-sm uppercase italic tracking-tight">
+        <div className="flex-1 mx-4 md:mx-10 bg-blue-50 border-2 border-blue-200 rounded-2xl p-2 overflow-hidden whitespace-nowrap relative h-12 flex items-center shadow-inner">
+            <div className="animate-marquee inline-block text-blue-900 font-black text-xs md:text-sm uppercase italic tracking-tight">
                 {greeting}, HOJE TEMOS OS ADIANTADOS LIBERADOS: {releasedAdvances.length > 0 ? releasedAdvances.join(' • ') : 'NENHUM NO MOMENTO'}
             </div>
         </div>
 
-        <button onClick={onLogout} className="flex-shrink-0 bg-red-600 hover:bg-red-700 text-white font-black py-2 px-6 rounded-xl text-xs uppercase shadow-lg transition-all active:scale-95">Sair</button>
+        <div className="flex items-center gap-2">
+            <button 
+                onClick={generatePdfReport} 
+                className="flex-shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2 px-4 rounded-xl text-[10px] uppercase shadow-lg transition-all active:scale-95 flex items-center gap-2"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                Relatório PDF
+            </button>
+            <button onClick={onLogout} className="flex-shrink-0 bg-red-600 hover:bg-red-700 text-white font-black py-2 px-6 rounded-xl text-xs uppercase shadow-lg transition-all active:scale-95">Sair</button>
+        </div>
       </header>
 
       <div className="bg-indigo-900 text-white py-3 px-4 shadow-inner">
