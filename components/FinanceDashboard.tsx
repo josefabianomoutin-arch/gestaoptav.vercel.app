@@ -102,7 +102,8 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
       r.ptres,
       r.natureza,
       r.descricao || '-',
-      formatCurrency(r.valorUtilizado)
+      formatCurrency(r.valorUtilizado),
+      r.status || '-'
     ]);
 
     doc.setFontSize(16);
@@ -112,18 +113,19 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
 
     autoTable(doc, {
       startY: 25,
-      head: [['Processo', 'Adiantado', 'PTRES', 'Natureza', 'Objetivo/Serviço', 'Valor Gasto']],
+      head: [['Processo', 'Adiantado', 'PTRES', 'Natureza', 'Objetivo/Serviço', 'Valor Gasto', 'Status Final']],
       body: tableData,
       theme: 'striped',
       headStyles: { fillColor: [67, 56, 202] }, // Indigo-700
       styles: { fontSize: 8, cellPadding: 2 },
       columnStyles: {
-        0: { cellWidth: 35 },
-        1: { cellWidth: 40 },
-        2: { cellWidth: 20 },
-        3: { cellWidth: 20 },
+        0: { cellWidth: 30 },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 15 },
+        3: { cellWidth: 15 },
         4: { cellWidth: 'auto' },
-        5: { cellWidth: 30, halign: 'right' }
+        5: { cellWidth: 25, halign: 'right' },
+        6: { cellWidth: 25 }
       }
     });
 
