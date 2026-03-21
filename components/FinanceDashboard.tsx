@@ -51,6 +51,42 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('pagamentos');
 
+  const releasedAdvances = useMemo(() => {
+    // Pega todos os nomes únicos de adiantados que já tiveram algum registro de despesa
+    const allNames = Array.from(new Set(records
+      .filter(r => r.tipo === 'DESPESA' && r.adiantado)
+      .map(r => r.adiantado?.trim().toUpperCase())
+    )) as string[];
+
+    return allNames.filter(name => {
+      const personRecords = records.filter(r => 
+        r.adiantado?.trim().toUpperCase() === name && 
+        r.tipo === 'DESPESA'
+      );
+      
+      // Um adiantado está liberado se NÃO houver nenhum processo "EM ANDAMENTO"
+      const hasInProgress = personRecords.some(r => {
+        const status = (r.status || '').toUpperCase().trim();
+        return !['FINALIZADO', 'CONCLUIDO', 'CONCLUÍDO'].includes(status);
+      });
+
+      // E deve ter pelo menos um processo finalizado (para garantir que ele já operou no sistema)
+      const hasFinalized = personRecords.some(r => {
+        const status = (r.status || '').toUpperCase().trim();
+        return ['FINALIZADO', 'CONCLUIDO', 'CONCLUÍDO'].includes(status);
+      });
+
+      return !hasInProgress && hasFinalized;
+    });
+  }, [records]);
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'BOM DIA';
+    if (hour >= 12 && hour < 18) return 'BOA TARDE';
+    return 'BOA NOITE';
+  }, []);
+
   const isFinanceAdmin = useMemo(() => {
     const name = user?.name.toUpperCase() || '';
     return name.includes('DOUGLAS') || name.includes('ALFREDO');
@@ -109,11 +145,19 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 pb-20 font-sans">
       <header className="bg-white shadow-xl p-4 flex justify-between items-center border-b-4 border-indigo-700 sticky top-0 z-[100]">
-        <div>
+        <div className="flex-shrink-0">
             <h1 className="text-xl md:text-2xl font-black text-indigo-900 uppercase tracking-tighter italic leading-none">Visão Financeira Institucional</h1>
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Monitoramento de Recursos e Despesas</p>
         </div>
-        <button onClick={onLogout} className="bg-red-600 hover:bg-red-700 text-white font-black py-2 px-6 rounded-xl text-xs uppercase shadow-lg transition-all active:scale-95">Sair</button>
+
+        {/* MENSAGEM DINÂMICA DE SAUDAÇÃO E ADIANTADOS LIBERADOS */}
+        <div className="flex-1 mx-4 md:mx-10 bg-red-50 border-2 border-red-200 rounded-2xl p-2 overflow-hidden whitespace-nowrap relative h-12 flex items-center shadow-inner">
+            <div className="animate-marquee inline-block text-red-700 font-black text-xs md:text-sm uppercase italic tracking-tight">
+                {greeting}, HOJE TEMOS OS ADIANTADOS LIBERADOS: {releasedAdvances.length > 0 ? releasedAdvances.join(' • ') : 'NENHUM NO MOMENTO'}
+            </div>
+        </div>
+
+        <button onClick={onLogout} className="flex-shrink-0 bg-red-600 hover:bg-red-700 text-white font-black py-2 px-6 rounded-xl text-xs uppercase shadow-lg transition-all active:scale-95">Sair</button>
       </header>
 
       <div className="bg-indigo-900 text-white py-3 px-4 shadow-inner">
@@ -348,6 +392,17 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
         .animate-fade-in { animation: fade-in 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
         @keyframes fade-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in-up { animation: fade-in-up 0.4s ease-out forwards; }
+        
+        @keyframes marquee {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+          display: inline-block;
+          white-space: nowrap;
+          animation: marquee 25s linear infinite;
+          padding-left: 100%;
+        }
       `}</style>
     </div>
   );
