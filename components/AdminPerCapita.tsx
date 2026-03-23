@@ -221,14 +221,50 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         setIsDirty(true);
     };
 
-    const handleUpdateProducers = (newProducers: PerCapitaSupplier[]) => {
+    const handleUpdateProducers = async (newProducers: PerCapitaSupplier[]) => {
         setPpaisProducers(newProducers);
-        setIsDirty(true);
+        const newConfig: PerCapitaConfig = {
+            staffCount,
+            inmateCount,
+            customValues: customPerCapita,
+            seiProcessNumbers,
+            seiProcessDefinitions,
+            monthlyQuota,
+            monthlyResource,
+            ptresResources,
+            ppaisProducers: newProducers,
+            pereciveisSuppliers,
+            monthlyAdvances,
+        };
+        try {
+            await onUpdatePerCapitaConfig(newConfig);
+            setIsDirty(false);
+        } catch (error) {
+            console.error("Failed to save producers:", error);
+        }
     };
 
-    const handleUpdatePereciveisSuppliers = (newSuppliers: PerCapitaSupplier[]) => {
+    const handleUpdatePereciveisSuppliers = async (newSuppliers: PerCapitaSupplier[]) => {
         setPereciveisSuppliers(newSuppliers);
-        setIsDirty(true);
+        const newConfig: PerCapitaConfig = {
+            staffCount,
+            inmateCount,
+            customValues: customPerCapita,
+            seiProcessNumbers,
+            seiProcessDefinitions,
+            monthlyQuota,
+            monthlyResource,
+            ptresResources,
+            ppaisProducers,
+            pereciveisSuppliers: newSuppliers,
+            monthlyAdvances,
+        };
+        try {
+            await onUpdatePerCapitaConfig(newConfig);
+            setIsDirty(false);
+        } catch (error) {
+            console.error("Failed to save suppliers:", error);
+        }
     };
 
     const ppaisAsSuppliers = useMemo(() => {
@@ -268,7 +304,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
             }
             return { ...producer, contractItems: newContractItems };
         });
-        handleUpdateProducers(updatedProducers);
+        await handleUpdateProducers(updatedProducers);
         return { success: true, message: 'Contratos de produtores atualizados' };
     };
 
@@ -289,7 +325,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
             }
             return { ...supplier, contractItems: newContractItems };
         });
-        handleUpdatePereciveisSuppliers(updatedSuppliers);
+        await handleUpdatePereciveisSuppliers(updatedSuppliers);
         return { success: true, message: 'Contratos de fornecedores atualizados' };
     };
 
