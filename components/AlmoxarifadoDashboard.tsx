@@ -1,10 +1,9 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
-import type { Supplier, WarehouseMovement, ContractItem, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset } from '../types';
+import type { Supplier, WarehouseMovement, ContractItem, ThirdPartyEntryLog, VehicleAsset, DriverAsset } from '../types';
 import AdminInvoices from './AdminInvoices';
 import AgendaChegadas from './AgendaChegadas';
-import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 
 interface AlmoxarifadoDashboardProps {
     suppliers: Supplier[];
@@ -21,10 +20,6 @@ interface AlmoxarifadoDashboardProps {
     onRegisterThirdPartyEntry: (log: Omit<ThirdPartyEntryLog, 'id'>) => Promise<{ success: boolean; message: string }>;
     onUpdateThirdPartyEntry: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message: string }>;
     onDeleteThirdPartyEntry: (id: string) => Promise<void>;
-    vehicleExitOrders: VehicleExitOrder[];
-    onRegisterVehicleExitOrder: (order: Omit<VehicleExitOrder, 'id'>) => Promise<{ success: boolean; message: string }>;
-    onUpdateVehicleExitOrder: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
-    onDeleteVehicleExitOrder: (id: string) => Promise<void>;
     vehicleAssets: VehicleAsset[];
     onRegisterVehicleAsset: (asset: Omit<VehicleAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
     onUpdateVehicleAsset: (asset: VehicleAsset) => Promise<{ success: boolean; message: string }>;
@@ -71,10 +66,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     onUpdateInvoiceItems,
     onManualInvoiceEntry,
     thirdPartyEntries,
-    vehicleExitOrders,
-    onRegisterVehicleExitOrder,
-    onUpdateVehicleExitOrder,
-    onDeleteVehicleExitOrder,
     vehicleAssets,
     onRegisterVehicleAsset,
     onUpdateVehicleAsset,
@@ -85,7 +76,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     onDeleteDriverAsset,
     validationRoles
 }) => {
-    const [activeTab, setActiveTab] = useState<'entry' | 'exit' | 'receipt' | 'agenda' | 'vehicleExitOrder'>('entry');
+    const [activeTab, setActiveTab] = useState<'entry' | 'exit' | 'receipt' | 'agenda'>('entry');
     const [selectedAgendaDate, setSelectedAgendaDate] = useState(new Date().toISOString().split('T')[0]);
     const [receiptSupplierCpf, setReceiptSupplierCpf] = useState('');
     const [receiptInvoice, setReceiptInvoice] = useState('');
@@ -563,7 +554,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     <div className="flex bg-gray-100 p-1 rounded-xl">
                         <button onClick={() => setActiveTab('entry')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'entry' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Entrada de Materiais</button>
                         <button onClick={() => setActiveTab('exit')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'exit' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Saída de Materiais</button>
-                        <button onClick={() => setActiveTab('vehicleExitOrder')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'vehicleExitOrder' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Ordem de Saída</button>
                         <button onClick={() => setActiveTab('agenda')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'agenda' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Agenda de Chegadas</button>
                         <button onClick={() => setActiveTab('receipt')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'receipt' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Termo de Recebimento</button>
                     </div>
@@ -599,23 +589,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         suppliers={suppliers} 
                         thirdPartyEntries={thirdPartyEntries} 
                         embedded={true} 
-                    />
-                ) : activeTab === 'vehicleExitOrder' ? (
-                    <AdminVehicleExitOrder 
-                        orders={vehicleExitOrders}
-                        onRegister={onRegisterVehicleExitOrder}
-                        onUpdate={onUpdateVehicleExitOrder}
-                        onDelete={onDeleteVehicleExitOrder}
-                        vehicleAssets={vehicleAssets}
-                        onRegisterVehicleAsset={onRegisterVehicleAsset}
-                        onUpdateVehicleAsset={onUpdateVehicleAsset}
-                        onDeleteVehicleAsset={onDeleteVehicleAsset}
-                        driverAssets={driverAssets}
-                        onRegisterDriverAsset={onRegisterDriverAsset}
-                        onUpdateDriverAsset={onUpdateDriverAsset}
-                        onDeleteDriverAsset={onDeleteDriverAsset}
-                        validationRoles={validationRoles}
-                        showGateTab={true}
                     />
                 ) : (
                     <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in">
