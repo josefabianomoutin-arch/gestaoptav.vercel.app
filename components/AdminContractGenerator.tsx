@@ -99,11 +99,11 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                                 <table className="w-full border-collapse border border-zinc-300 text-xs text-center">
                                     <thead>
                                         <tr className="bg-zinc-50">
-                                            <th className="border border-zinc-300 p-2 uppercase">NOME DO AGRICULTOR</th>
-                                            <th className="border border-zinc-300 p-2 uppercase">CPF</th>
-                                            <th className="border border-zinc-300 p-2 uppercase">ITEM</th>
-                                            <th className="border border-zinc-300 p-2 uppercase">QUILOGRAMA</th>
-                                            <th className="border border-zinc-300 p-2 uppercase">VALOR</th>
+                                            <th className="border border-zinc-300 p-2 uppercase w-[20%]">NOME DO AGRICULTOR</th>
+                                            <th className="border border-zinc-300 p-2 uppercase w-[15%]">CPF</th>
+                                            <th className="border border-zinc-300 p-2 uppercase w-[40%]">ITEM</th>
+                                            <th className="border border-zinc-300 p-2 uppercase w-[10%]">QUILOGRAMA</th>
+                                            <th className="border border-zinc-300 p-2 uppercase w-[15%]">VALOR</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -112,7 +112,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                                                 <tr key={idx}>
                                                     <td className="border border-zinc-300 p-2 uppercase">{selectedProducer.name}</td>
                                                     <td className="border border-zinc-300 p-2">{selectedProducer.cpfCnpj}</td>
-                                                    <td className="border border-zinc-300 p-2 uppercase">{item.name}</td>
+                                                    <td className="border border-zinc-300 p-2 uppercase text-left text-[10px] leading-tight">{item.name}</td>
                                                     <td className="border border-zinc-300 p-2">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
                                                     <td className="border border-zinc-300 p-2">
                                                         {(item.totalKg * item.valuePerKg).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
