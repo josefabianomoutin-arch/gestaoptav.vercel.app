@@ -73,6 +73,8 @@ export interface PerCapitaSupplier {
   name: string;
   cpfCnpj: string;
   processNumber: string;
+  address?: string;
+  city?: string;
   monthlySchedule: Record<string, number[]>; // month name -> array of week numbers (1-5)
   contractItems?: ContractItem[];
   deliveries?: Delivery[];

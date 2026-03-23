@@ -21,6 +21,8 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
     const [name, setName] = useState('');
     const [cpfCnpj, setCpfCnpj] = useState('');
     const [processNumber, setProcessNumber] = useState('');
+    const [address, setAddress] = useState('');
+    const [city, setCity] = useState('');
     const [monthlySchedule, setMonthlySchedule] = useState<Record<string, number[]>>({});
     
     const [confirmConfig, setConfirmConfig] = useState<{
@@ -46,6 +48,8 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
         setName('');
         setCpfCnpj('');
         setProcessNumber('');
+        setAddress('');
+        setCity('');
         setMonthlySchedule({});
         setIsAdding(false);
         setEditingId(null);
@@ -55,6 +59,8 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
         setName(supplier.name);
         setCpfCnpj(supplier.cpfCnpj);
         setProcessNumber(supplier.processNumber);
+        setAddress(supplier.address || '');
+        setCity(supplier.city || '');
         setMonthlySchedule(supplier.monthlySchedule || {});
         setEditingId(supplier.id);
         setIsAdding(true);
@@ -71,6 +77,8 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
             name: name.toUpperCase(),
             cpfCnpj,
             processNumber,
+            address: address.toUpperCase(),
+            city: city.toUpperCase(),
             monthlySchedule,
             contractItems: editingId ? suppliers.find(p => p.id === editingId)?.contractItems : []
         };
@@ -203,6 +211,26 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                                 placeholder="PROCESSO SEI"
                             />
                         </div>
+                        <div className="space-y-1 md:col-span-2">
+                            <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>Endereço</label>
+                            <input 
+                                type="text"
+                                value={address}
+                                onChange={e => setAddress(e.target.value)}
+                                className={`w-full p-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-xl outline-none font-bold transition-all`}
+                                placeholder="ENDEREÇO COMPLETO"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>Cidade</label>
+                            <input 
+                                type="text"
+                                value={city}
+                                onChange={e => setCity(e.target.value)}
+                                className={`w-full p-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-xl outline-none font-bold transition-all`}
+                                placeholder="NOME DA CIDADE"
+                            />
+                        </div>
                     </div>
 
                     <div className="space-y-4 mb-8">
@@ -255,6 +283,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                             <tr className={`${colorClasses.bgLight}/50`}>
                                 <th className={`p-6 text-[10px] font-black ${colorClasses.text} uppercase tracking-widest border-b ${colorClasses.borderLight}`}>{type}</th>
                                 <th className={`p-6 text-[10px] font-black ${colorClasses.text} uppercase tracking-widest border-b ${colorClasses.borderLight}`}>Documento</th>
+                                <th className={`p-6 text-[10px] font-black ${colorClasses.text} uppercase tracking-widest border-b ${colorClasses.borderLight}`}>Endereço</th>
                                 <th className={`p-6 text-[10px] font-black ${colorClasses.text} uppercase tracking-widest border-b ${colorClasses.borderLight}`}>Processo</th>
                                 <th className={`p-6 text-[10px] font-black ${colorClasses.text} uppercase tracking-widest border-b ${colorClasses.borderLight}`}>Agenda Semanal</th>
                                 <th className={`p-6 text-[10px] font-black ${colorClasses.text} uppercase tracking-widest border-b ${colorClasses.borderLight} text-right`}>Ações</th>
@@ -269,6 +298,16 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                                         </td>
                                         <td className="p-6">
                                             <div className="font-mono text-xs text-gray-500">{supplier.cpfCnpj}</div>
+                                        </td>
+                                        <td className="p-6">
+                                            {supplier.address || supplier.city ? (
+                                                <div className="flex flex-col">
+                                                    {supplier.address && <span className="text-xs text-gray-700 font-bold uppercase">{supplier.address}</span>}
+                                                    {supplier.city && <span className="text-[10px] text-gray-500 uppercase">{supplier.city}</span>}
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-300 italic text-[10px]">Não informado</span>
+                                            )}
                                         </td>
                                         <td className="p-6">
                                             <div className="font-bold text-sm text-indigo-600">{supplier.processNumber}</div>
@@ -317,7 +356,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={5} className="p-12 text-center">
+                                    <td colSpan={6} className="p-12 text-center">
                                         <div className="flex flex-col items-center gap-2 text-gray-300">
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                                             <p className="font-bold uppercase text-xs tracking-widest">Nenhum {type.toLowerCase()} encontrado</p>
