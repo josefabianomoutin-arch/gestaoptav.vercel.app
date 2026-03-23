@@ -20,12 +20,12 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
         if (!containerRef.current || !selectedProducer) return;
         
         const opt = {
-            margin:       15,
+            margin:       10,
             filename:     `Contrato_${selectedProducer.name.replace(/\s+/g, '_')}.pdf`,
             image:        { type: 'jpeg' as const, quality: 0.98 },
             html2canvas:  { scale: 2, useCORS: true },
             jsPDF:        { unit: 'mm' as const, format: 'a4', orientation: 'portrait' as const },
-            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+            pagebreak:    { mode: ['css', 'legacy'] }
         };
 
         html2pdf().set(opt).from(containerRef.current).save();
@@ -33,7 +33,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
 
     if (producers.length === 0) {
         return (
-            <div className="p-12 text-center text-zinc-500 font-bold">
+            <div className="p-8 text-center text-zinc-500 font-bold">
                 Nenhum {type.toLowerCase()} cadastrado para gerar contrato.
             </div>
         );
@@ -70,7 +70,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
             </div>
 
             {selectedProducer ? (
-                <div ref={containerRef} className="bg-white border border-zinc-200 rounded-3xl p-12 shadow-sm max-w-4xl mx-auto font-serif text-zinc-800 leading-relaxed print:shadow-none print:border-none print:p-0">
+                <div ref={containerRef} className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm max-w-4xl mx-auto font-serif text-zinc-800 leading-normal print:shadow-none print:border-none print:p-0">
                     <div className="text-center space-y-2 mb-6">
                         <h1 className="text-2xl font-bold uppercase">Contrato</h1>
                         <p className="font-bold">CONTRATO N. <span className="font-bold">{selectedProducer.contractNumber || '_____/2026'}</span></p>
@@ -278,10 +278,10 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             <p>E por estarem justas e contratadas, assinam o presente instrumento em 03 (três) vias de igual teor e rubricadas para todos os fins de direito, na presença de duas testemunhas.</p>
                         </div>
 
-                        <div className="pt-12 pb-12 text-center">
-                            <p>08 de abril de 2026.</p>
+                        <div className="pt-6 pb-6 text-center break-inside-avoid">
+                            <p>{new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}.</p>
                             
-                            <div className="mt-24 mb-12 flex justify-center">
+                            <div className="mt-12 mb-8 flex justify-center">
                                 <div className="w-1/2 border-t border-zinc-800 pt-2 text-center">
                                     <p className="font-bold uppercase">Contratante</p>
                                     <p className="text-sm">DOUGLAS FERNANDO SEMENZIN GALDINO</p>
@@ -289,7 +289,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                                 </div>
                             </div>
                             
-                            <div className="mt-24 mb-12 flex justify-center">
+                            <div className="mt-12 mb-8 flex justify-center">
                                 <div className="w-1/2 border-t border-zinc-800 pt-2 text-center">
                                     <p className="font-bold uppercase">Contratada: assinatura do representante legal</p>
                                     {selectedProducer.representativeName && (
@@ -301,24 +301,22 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                                 </div>
                             </div>
 
-                            <div className="mt-12 text-left space-y-12">
-                                <p className="font-bold uppercase">TESTEMUNHAS:</p>
+                            <div className="mt-8 text-left">
+                                <p className="font-bold uppercase mb-6">TESTEMUNHAS:</p>
                                 
-                                <div className="space-y-8">
-                                    <div className="w-2/3">
-                                        <div className="border-t border-zinc-800 pt-2">
-                                            <p className="font-bold uppercase">JOSE FABIANO MOUTIN</p>
-                                            <p className="text-sm">RG.: 26.528.522-7-SSP/SP</p>
-                                            <p className="text-sm">CPF: 152.103.618-70</p>
-                                        </div>
+                                <div className="grid grid-cols-2 gap-8">
+                                    <div className="border-t border-zinc-800 pt-2">
+                                        <p className="text-xs">1. _______________________________</p>
+                                        <p className="text-xs font-bold uppercase mt-1">JOSE FABIANO MOUTIN</p>
+                                        <p className="text-[10px]">RG.: 26.528.522-7-SSP/SP</p>
+                                        <p className="text-[10px]">CPF: 152.103.618-70</p>
                                     </div>
 
-                                    <div className="w-2/3">
-                                        <div className="border-t border-zinc-800 pt-2">
-                                            <p className="font-bold uppercase">RICARDO SAMUEL SCARAMAL</p>
-                                            <p className="text-sm">RG.: 34.637.703-1-SSP/SP</p>
-                                            <p className="text-sm">CPF: 331.900.598-70</p>
-                                        </div>
+                                    <div className="border-t border-zinc-800 pt-2">
+                                        <p className="text-xs">2. _______________________________</p>
+                                        <p className="text-xs font-bold uppercase mt-1">RICARDO SAMUEL SCARAMAL</p>
+                                        <p className="text-[10px]">RG.: 34.637.703-1-SSP/SP</p>
+                                        <p className="text-[10px]">CPF: 331.900.598-70</p>
                                     </div>
                                 </div>
                             </div>
@@ -326,7 +324,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     </div>
                 </div>
             ) : (
-                <div className="p-12 text-center text-zinc-400 italic">
+                <div className="p-8 text-center text-zinc-400 italic">
                     Selecione um {type.toLowerCase()} para visualizar o contrato.
                 </div>
             )}

@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import type { Supplier, Delivery, ContractItem, WarehouseMovement } from '../types';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app } from '../firebaseConfig';
@@ -505,7 +506,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
             // Sort by date ascending
             olderInvoices.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
             const oldest = olderInvoices[0];
-            alert(`BLOQUEIO DE SAÍDA (FIFO):\n\nExiste uma nota fiscal mais antiga com saldo disponível para este fornecedor.\n\nNF: ${oldest.invoiceNumber}\nData: ${formatDate(oldest.date)}\n\nPor favor, utilize a nota mais antiga primeiro para manter a ordem de saída.`);
+            toast.error(`BLOQUEIO DE SAÍDA (FIFO):\n\nExiste uma nota fiscal mais antiga com saldo disponível para este fornecedor.\n\nNF: ${oldest.invoiceNumber}\nData: ${formatDate(oldest.date)}\n\nPor favor, utilize a nota mais antiga primeiro para manter a ordem de saída.`);
             return;
         }
 
@@ -605,7 +606,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
             if (!file) return;
             
             if (file.size > 2 * 1024 * 1024) {
-                alert("O arquivo é muito grande. O tamanho máximo permitido é 2MB.");
+                toast.error("O arquivo é muito grande. O tamanho máximo permitido é 2MB.");
                 return;
             }
 
@@ -1343,7 +1344,10 @@ const ManualInvoiceModal: React.FC<ManualInvoiceModalProps> = ({ suppliers, onCl
 
     const handleFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedCpf || !nf || !date) return alert('Preencha fornecedor, data e número da nota.');
+        if (!selectedCpf || !nf || !date) {
+            toast.error('Preencha fornecedor, data e número da nota.');
+            return;
+        }
         const finalItems = items.map(it => {
             const contract = (Object.values(selectedSupplier?.contractItems || {}) as any[]).find((ci: any) => ci.name === it.name);
             const kg = parseFloat(it.kg.replace(',', '.'));
@@ -1666,7 +1670,10 @@ const ExitInvoiceModal: React.FC<ExitInvoiceModalProps> = ({ invoice, supplier, 
 
     const handleFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!outboundNf || !exitDate) return alert('Preencha a NF de Saída e a Data.');
+        if (!outboundNf || !exitDate) {
+            toast.error('Preencha a NF de Saída e a Data.');
+            return;
+        }
         
         const itemsToExit = items.map(it => {
             const kg = parseFloat(it.kg.replace(',', '.'));
@@ -1681,7 +1688,10 @@ const ExitInvoiceModal: React.FC<ExitInvoiceModalProps> = ({ invoice, supplier, 
         if (itemsToExit.includes('ERROR')) return;
         const validItems = itemsToExit.filter(Boolean) as { name: string; kg: number; lotNumber?: string; expirationDate?: string }[];
         
-        if (validItems.length === 0) return alert('Informe a quantidade de saída para pelo menos um item.');
+        if (validItems.length === 0) {
+            toast.error('Informe a quantidade de saída para pelo menos um item.');
+            return;
+        }
         onSave(outboundNf, exitDate, validItems);
     };
 

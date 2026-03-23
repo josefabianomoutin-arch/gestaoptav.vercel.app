@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Toaster, toast } from 'sonner';
 import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, MenuRow, ContractItem, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, DailyAllowance, Staff, ValidationRole } from './types';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
@@ -1164,433 +1165,442 @@ const App: React.FC = () => {
     }
   };
 
-  if (!user) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
+  const renderContent = () => {
+    if (!user) {
+      return <LoginScreen onLogin={handleLogin} />;
+    }
 
-  if (user.role === 'admin') {
-    return (
-      <AdminDashboard 
-        user={user}
-        suppliers={suppliers} 
-        onRegister={handleRegisterSupplier}
-        onUpdateSupplier={handleUpdateSupplier}
-        onUpdateSupplierObservations={handleUpdateSupplierObservations}
-        onLogout={handleLogout}
-        warehouseLog={warehouseLog}
-        perCapitaConfig={perCapitaConfig}
-        onUpdatePerCapitaConfig={(c) => set(perCapitaConfigRef, c)}
-        cleaningLogs={cleaningLogs}
-        onRegisterCleaningLog={async (l) => {
-            const r = push(cleaningLogsRef);
-            await set(r, { ...l, id: r.key });
-            return { success: true, message: 'Ok' };
-        }}
-        onDeleteCleaningLog={async (id) => remove(child(cleaningLogsRef, id))}
-        financialRecords={financialRecords}
-        onSaveFinancialRecord={async (rec) => {
-            const id = rec.id || push(financialRecordsRef).key;
-            await set(child(financialRecordsRef, id!), { ...rec, id });
-            return { success: true };
-        }}
-        onDeleteFinancialRecord={async (id) => remove(child(financialRecordsRef, id))}
-        thirdPartyEntries={thirdPartyEntries}
-        onRegisterThirdPartyEntry={async (l) => {
-            const r = push(thirdPartyEntriesRef);
-            await set(r, { ...l, id: r.key });
-            return { success: true, message: 'Ok' };
-        }}
-        onUpdateThirdPartyEntry={async (log) => {
-            await set(child(thirdPartyEntriesRef, log.id), log);
-            return { success: true, message: 'Atualizado' };
-        }}
-        onDeleteThirdPartyEntry={async (id) => remove(child(thirdPartyEntriesRef, id))}
-        vehicleExitOrders={vehicleExitOrders}
-        onRegisterVehicleExitOrder={async (order) => {
+    if (user.role === 'admin') {
+      return (
+        <AdminDashboard 
+          user={user}
+          suppliers={suppliers} 
+          onRegister={handleRegisterSupplier}
+          onUpdateSupplier={handleUpdateSupplier}
+          onUpdateSupplierObservations={handleUpdateSupplierObservations}
+          onLogout={handleLogout}
+          warehouseLog={warehouseLog}
+          perCapitaConfig={perCapitaConfig}
+          onUpdatePerCapitaConfig={(c) => set(perCapitaConfigRef, c)}
+          cleaningLogs={cleaningLogs}
+          onRegisterCleaningLog={async (l) => {
+              const r = push(cleaningLogsRef);
+              await set(r, { ...l, id: r.key });
+              return { success: true, message: 'Ok' };
+          }}
+          onDeleteCleaningLog={async (id) => remove(child(cleaningLogsRef, id))}
+          financialRecords={financialRecords}
+          onSaveFinancialRecord={async (rec) => {
+              const id = rec.id || push(financialRecordsRef).key;
+              await set(child(financialRecordsRef, id!), { ...rec, id });
+              return { success: true };
+          }}
+          onDeleteFinancialRecord={async (id) => remove(child(financialRecordsRef, id))}
+          thirdPartyEntries={thirdPartyEntries}
+          onRegisterThirdPartyEntry={async (l) => {
+              const r = push(thirdPartyEntriesRef);
+              await set(r, { ...l, id: r.key });
+              return { success: true, message: 'Ok' };
+          }}
+          onUpdateThirdPartyEntry={async (log) => {
+              await set(child(thirdPartyEntriesRef, log.id), log);
+              return { success: true, message: 'Atualizado' };
+          }}
+          onDeleteThirdPartyEntry={async (id) => remove(child(thirdPartyEntriesRef, id))}
+          vehicleExitOrders={vehicleExitOrders}
+          onRegisterVehicleExitOrder={async (order) => {
+              const r = push(vehicleExitOrdersRef);
+              await set(r, { ...order, id: r.key });
+              return { success: true, message: 'Ordem de Saída registrada com sucesso!' };
+          }}
+          onUpdateVehicleExitOrder={async (order) => {
+              await set(child(vehicleExitOrdersRef, order.id), order);
+              return { success: true, message: 'Ordem de Saída atualizada com sucesso!' };
+          }}
+          onDeleteVehicleExitOrder={async (id) => {
+              console.log("Deleting vehicle exit order (AdminDashboard) with ID:", id);
+              return remove(child(vehicleExitOrdersRef, id));
+          }}
+          vehicleAssets={vehicleAssets}
+          onRegisterVehicleAsset={async (asset) => {
+              const r = push(vehicleAssetsRef);
+              await set(r, { ...asset, id: r.key });
+              return { success: true, message: 'Veículo registrado' };
+          }}
+          onUpdateVehicleAsset={async (asset) => {
+              await set(child(vehicleAssetsRef, asset.id), asset);
+              return { success: true, message: 'Veículo atualizado' };
+          }}
+          onDeleteVehicleAsset={async (id) => remove(child(vehicleAssetsRef, id))}
+          driverAssets={driverAssets}
+          onRegisterDriverAsset={async (asset) => {
+              const r = push(driverAssetsRef);
+              await set(r, { ...asset, id: r.key });
+              return { success: true, message: 'Motorista/Acompanhante registrado' };
+          }}
+          onUpdateDriverAsset={async (asset) => {
+              await set(child(driverAssetsRef, asset.id), asset);
+              return { success: true, message: 'Motorista/Acompanhante atualizado' };
+          }}
+          onDeleteDriverAsset={async (id) => remove(child(driverAssetsRef, id))}
+          onCancelDeliveries={handleCancelDeliveries}
+          onUpdateContractForItem={handleUpdateContractForItem}
+          onUpdateAcquisitionItem={handleUpdateAcquisitionItem}
+          onDeleteAcquisitionItem={handleDeleteAcquisitionItem}
+          acquisitionItems={acquisitionItems}
+          directorWithdrawals={directorWithdrawals}
+          onRegisterDirectorWithdrawal={async (log) => {
+               const newRef = push(directorWithdrawalsRef);
+               await set(newRef, { ...log, id: newRef.key });
+               return { success: true, message: 'Ok' };
+          }}
+          onDeleteDirectorWithdrawal={async (id) => remove(child(directorWithdrawalsRef, id))}
+          standardMenu={standardMenu}
+          dailyMenus={dailyMenus}
+          onUpdateStandardMenu={async (m) => set(standardMenuRef, m)}
+          onUpdateDailyMenu={async (m) => set(dailyMenusRef, m)}
+          onRegisterEntry={handleRegisterWarehouseEntry}
+          onRegisterWithdrawal={handleRegisterWarehouseWithdrawal}
+          onReopenInvoice={handleReopenInvoice}
+          onDeleteInvoice={handleDeleteInvoice}
+          onUpdateInvoiceItems={handleUpdateInvoiceItems}
+          onUpdateInvoiceUrl={handleUpdateInvoiceUrl}
+          onManualInvoiceEntry={handleManualInvoiceEntry}
+          onDeleteWarehouseEntry={async (l) => {
+              // Se for saída, devolve a quantidade para o saldo do lote
+              if (l.type === 'saída') {
+                  const supplier = suppliers.find(s => s.name === l.supplierName);
+                  if (supplier) {
+                      const sRef = child(suppliersRef, supplier.cpf);
+                      await runTransaction(sRef, (currentData: Supplier) => {
+                          if (currentData && currentData.deliveries) {
+                              const delivery = currentData.deliveries.find(d => 
+                                  d.item === l.itemName && 
+                                  d.invoiceNumber === l.inboundInvoice
+                              );
+                              if (delivery && delivery.lots) {
+                                  const lot = delivery.lots.find(lotItem => lotItem.lotNumber === l.lotNumber);
+                                  if (lot) {
+                                      lot.remainingQuantity = (lot.remainingQuantity || 0) + l.quantity;
+                                  }
+                              }
+                          }
+                          return currentData;
+                      });
+                  }
+              } else if (l.type === 'entrada') {
+                  // Se for entrada, remove a entrega correspondente do fornecedor
+                  const supplier = suppliers.find(s => s.name === l.supplierName);
+                  if (supplier) {
+                      const sRef = child(suppliersRef, supplier.cpf);
+                      await runTransaction(sRef, (currentData: Supplier) => {
+                          if (currentData && currentData.deliveries) {
+                              currentData.deliveries = currentData.deliveries.filter(d => 
+                                  !(d.item === l.itemName && d.invoiceNumber === l.inboundInvoice && d.barcode === l.barcode)
+                              );
+                          }
+                          return currentData;
+                      });
+                  }
+              }
+              await remove(child(warehouseLogRef, l.id));
+              return { success: true, message: 'Excluído e saldo atualizado' };
+          }}
+          onUpdateWarehouseEntry={async (l) => {
+              await set(child(warehouseLogRef, l.id), l);
+              return { success: true, message: 'Atualizado' };
+          }}
+          onPersistSuppliers={() => {}}
+          onRestoreData={async () => true}
+          onRestoreFullBackup={handleRestoreFullBackup}
+          onResetData={async () => { await set(rootRef, null); }}
+          registrationStatus={null}
+          onClearRegistrationStatus={() => {}}
+          validationRoles={validationRoles}
+          systemPasswords={systemPasswords}
+          onUpdateSystemPassword={async (key, pass) => {
+            await set(child(systemPasswordsRef, key), pass);
+          }}
+        />
+      );
+    }
+
+    if (user.role === 'financeiro') {
+      return <FinanceDashboard 
+               records={financialRecords} 
+               onLogout={handleLogout} 
+               user={user}
+               standardMenu={standardMenu}
+               dailyMenus={dailyMenus}
+               suppliers={suppliers}
+               thirdPartyEntries={thirdPartyEntries}
+               vehicleExitOrders={vehicleExitOrders}
+               vehicleAssets={vehicleAssets}
+               driverAssets={driverAssets}
+               validationRoles={validationRoles}
+             />;
+    }
+
+    if (user.role === 'cardapio') {
+      return <MenuDashboard standardMenu={standardMenu} dailyMenus={dailyMenus} suppliers={suppliers} onLogout={handleLogout} />;
+    }
+
+    if (user.role === 'almoxarifado') {
+      return <AlmoxarifadoDashboard 
+               suppliers={suppliers} 
+               warehouseLog={warehouseLog} 
+               onLogout={handleLogout} 
+               onRegisterEntry={handleRegisterWarehouseEntry} 
+               onRegisterWithdrawal={handleRegisterWarehouseWithdrawal} 
+               onResetExits={handleResetWarehouseExits}
+               onReopenInvoice={handleReopenInvoice}
+               onDeleteInvoice={handleDeleteInvoice}
+               onUpdateInvoiceItems={handleUpdateInvoiceItems}
+               onManualInvoiceEntry={handleManualInvoiceEntry}
+               thirdPartyEntries={thirdPartyEntries}
+               onRegisterThirdPartyEntry={async (l) => {
+                   const r = push(thirdPartyEntriesRef);
+                   await set(r, { ...l, id: r.key });
+                   return { success: true, message: 'Ok' };
+               }}
+               onUpdateThirdPartyEntry={async (log) => {
+                   await set(child(thirdPartyEntriesRef, log.id), log);
+                   return { success: true, message: 'Atualizado' };
+               }}
+               onDeleteThirdPartyEntry={async (id) => remove(child(thirdPartyEntriesRef, id))}
+               vehicleExitOrders={vehicleExitOrders}
+               onRegisterVehicleExitOrder={async (order) => {
+                   const r = push(vehicleExitOrdersRef);
+                   const id = r.key || `order-${Date.now()}`;
+                   await set(r, { ...order, id });
+                   return { success: true, message: 'Ok', id };
+               }}
+               onUpdateVehicleExitOrder={async (order) => {
+                   await set(child(vehicleExitOrdersRef, order.id), order);
+                   return { success: true, message: 'Atualizado' };
+               }}
+               onDeleteVehicleExitOrder={async (id) => {
+                   console.log("Deleting vehicle exit order with ID:", id);
+                   return remove(child(vehicleExitOrdersRef, id));
+               }}
+               vehicleAssets={vehicleAssets}
+               onRegisterVehicleAsset={async (asset) => {
+                   const r = push(vehicleAssetsRef);
+                   await set(r, { ...asset, id: r.key });
+                   return { success: true, message: 'Veículo registrado' };
+               }}
+               onUpdateVehicleAsset={async (asset) => {
+                   await set(child(vehicleAssetsRef, asset.id), asset);
+                   return { success: true, message: 'Veículo atualizado' };
+               }}
+               onDeleteVehicleAsset={async (id) => remove(child(vehicleAssetsRef, id))}
+               driverAssets={driverAssets}
+               onRegisterDriverAsset={async (asset) => {
+                   const r = push(driverAssetsRef);
+                   await set(r, { ...asset, id: r.key });
+                   return { success: true, message: 'Motorista/Acompanhante registrado' };
+               }}
+               onUpdateDriverAsset={async (asset) => {
+                   await set(child(driverAssetsRef, asset.id), asset);
+                   return { success: true, message: 'Motorista/Acompanhante atualizado' };
+               }}
+               onDeleteDriverAsset={async (id) => remove(child(driverAssetsRef, id))}
+               validationRoles={validationRoles}
+             />;
+    }
+
+    if (user.role === 'julio') {
+      return (
+        <JulioDashboard
+          vehicleExitOrders={vehicleExitOrders}
+          driverAssets={driverAssets}
+          vehicleAssets={vehicleAssets}
+          validationRoles={validationRoles}
+          onLogout={handleLogout}
+          onRegisterVehicleExitOrder={async (order) => {
             const r = push(vehicleExitOrdersRef);
             await set(r, { ...order, id: r.key });
-            return { success: true, message: 'Ordem de Saída registrada com sucesso!' };
-        }}
-        onUpdateVehicleExitOrder={async (order) => {
+            return { success: true, message: 'Ordem de saída registrada' };
+          }}
+          onUpdateVehicleExitOrder={async (order) => {
             await set(child(vehicleExitOrdersRef, order.id), order);
-            return { success: true, message: 'Ordem de Saída atualizada com sucesso!' };
-        }}
-        onDeleteVehicleExitOrder={async (id) => {
-            console.log("Deleting vehicle exit order (AdminDashboard) with ID:", id);
+            return { success: true, message: 'Ordem de saída atualizada' };
+          }}
+          onDeleteVehicleExitOrder={async (id) => {
+            console.log("Deleting vehicle exit order (JulioDashboard) with ID:", id);
             return remove(child(vehicleExitOrdersRef, id));
-        }}
-        vehicleAssets={vehicleAssets}
-        onRegisterVehicleAsset={async (asset) => {
-            const r = push(vehicleAssetsRef);
-            await set(r, { ...asset, id: r.key });
-            return { success: true, message: 'Veículo registrado' };
-        }}
-        onUpdateVehicleAsset={async (asset) => {
-            await set(child(vehicleAssetsRef, asset.id), asset);
-            return { success: true, message: 'Veículo atualizado' };
-        }}
-        onDeleteVehicleAsset={async (id) => remove(child(vehicleAssetsRef, id))}
-        driverAssets={driverAssets}
-        onRegisterDriverAsset={async (asset) => {
+          }}
+          onRegisterDriverAsset={async (s) => {
             const r = push(driverAssetsRef);
-            await set(r, { ...asset, id: r.key });
-            return { success: true, message: 'Motorista/Acompanhante registrado' };
-        }}
-        onUpdateDriverAsset={async (asset) => {
-            await set(child(driverAssetsRef, asset.id), asset);
-            return { success: true, message: 'Motorista/Acompanhante atualizado' };
-        }}
-        onDeleteDriverAsset={async (id) => remove(child(driverAssetsRef, id))}
-        onCancelDeliveries={handleCancelDeliveries}
-        onUpdateContractForItem={handleUpdateContractForItem}
-        onUpdateAcquisitionItem={handleUpdateAcquisitionItem}
-        onDeleteAcquisitionItem={handleDeleteAcquisitionItem}
-        acquisitionItems={acquisitionItems}
-        directorWithdrawals={directorWithdrawals}
-        onRegisterDirectorWithdrawal={async (log) => {
-             const newRef = push(directorWithdrawalsRef);
-             await set(newRef, { ...log, id: newRef.key });
-             return { success: true, message: 'Ok' };
-        }}
-        onDeleteDirectorWithdrawal={async (id) => remove(child(directorWithdrawalsRef, id))}
-        standardMenu={standardMenu}
-        dailyMenus={dailyMenus}
-        onUpdateStandardMenu={async (m) => set(standardMenuRef, m)}
-        onUpdateDailyMenu={async (m) => set(dailyMenusRef, m)}
-        onRegisterEntry={handleRegisterWarehouseEntry}
-        onRegisterWithdrawal={handleRegisterWarehouseWithdrawal}
-        onReopenInvoice={handleReopenInvoice}
-        onDeleteInvoice={handleDeleteInvoice}
-        onUpdateInvoiceItems={handleUpdateInvoiceItems}
-        onUpdateInvoiceUrl={handleUpdateInvoiceUrl}
-        onManualInvoiceEntry={handleManualInvoiceEntry}
-        onDeleteWarehouseEntry={async (l) => {
-            // Se for saída, devolve a quantidade para o saldo do lote
-            if (l.type === 'saída') {
-                const supplier = suppliers.find(s => s.name === l.supplierName);
-                if (supplier) {
-                    const sRef = child(suppliersRef, supplier.cpf);
-                    await runTransaction(sRef, (currentData: Supplier) => {
-                        if (currentData && currentData.deliveries) {
-                            const delivery = currentData.deliveries.find(d => 
-                                d.item === l.itemName && 
-                                d.invoiceNumber === l.inboundInvoice
-                            );
-                            if (delivery && delivery.lots) {
-                                const lot = delivery.lots.find(lotItem => lotItem.lotNumber === l.lotNumber);
-                                if (lot) {
-                                    lot.remainingQuantity = (lot.remainingQuantity || 0) + l.quantity;
-                                }
-                            }
-                        }
-                        return currentData;
-                    });
-                }
-            } else if (l.type === 'entrada') {
-                // Se for entrada, remove a entrega correspondente do fornecedor
-                const supplier = suppliers.find(s => s.name === l.supplierName);
-                if (supplier) {
-                    const sRef = child(suppliersRef, supplier.cpf);
-                    await runTransaction(sRef, (currentData: Supplier) => {
-                        if (currentData && currentData.deliveries) {
-                            currentData.deliveries = currentData.deliveries.filter(d => 
-                                !(d.item === l.itemName && d.invoiceNumber === l.inboundInvoice && d.barcode === l.barcode)
-                            );
-                        }
-                        return currentData;
-                    });
-                }
-            }
-            await remove(child(warehouseLogRef, l.id));
-            return { success: true, message: 'Excluído e saldo atualizado' };
-        }}
-        onUpdateWarehouseEntry={async (l) => {
-            await set(child(warehouseLogRef, l.id), l);
+            await set(r, { ...s, id: r.key });
+            return { success: true, message: 'Servidor registrado' };
+          }}
+          onUpdateDriverAsset={async (s) => {
+            await set(child(driverAssetsRef, s.id), s);
+            return { success: true, message: 'Servidor atualizado' };
+          }}
+          onDeleteDriverAsset={async (id) => remove(child(driverAssetsRef, id))}
+          onRegisterVehicleAsset={async (v) => {
+            const r = push(vehicleAssetsRef);
+            await set(r, { ...v, id: r.key });
+            return { success: true, message: 'Veículo registrado' };
+          }}
+          onUpdateVehicleAsset={async (v) => {
+            await set(child(vehicleAssetsRef, v.id), v);
+            return { success: true, message: 'Veículo atualizado' };
+          }}
+          onDeleteVehicleAsset={async (id) => remove(child(vehicleAssetsRef, id))}
+          onRegisterValidationRole={async (vr) => {
+            const r = push(validationRolesRef);
+            await set(r, { ...vr, id: r.key });
+            return { success: true, message: 'Cargo de validação registrado' };
+          }}
+          onUpdateValidationRole={async (vr) => {
+            await set(child(validationRolesRef, vr.id), vr);
+            return { success: true, message: 'Cargo de validação atualizado' };
+          }}
+          onDeleteValidationRole={async (id) => remove(child(validationRolesRef, id))}
+        />
+      );
+    }
+
+    if (user.role === 'itesp') {
+      return <ItespDashboard suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onLogout={handleLogout} />;
+    }
+
+    if (user.role === 'subportaria') {
+      return (
+        <SubportariaDashboard 
+          suppliers={suppliers} 
+          thirdPartyEntries={thirdPartyEntries}
+          onUpdateThirdPartyEntry={async (log) => {
+            await set(child(thirdPartyEntriesRef, log.id), log);
             return { success: true, message: 'Atualizado' };
-        }}
-        onPersistSuppliers={() => {}}
-        onRestoreData={async () => true}
-        onRestoreFullBackup={handleRestoreFullBackup}
-        onResetData={async () => { if(window.confirm('CUIDADO: Isso apagará tudo permanentemente. Continuar?')) await set(rootRef, null); }}
-        registrationStatus={null}
-        onClearRegistrationStatus={() => {}}
-        validationRoles={validationRoles}
-        systemPasswords={systemPasswords}
-        onUpdateSystemPassword={async (key, pass) => {
-          await set(child(systemPasswordsRef, key), pass);
-        }}
-      />
-    );
-  }
-
-  if (user.role === 'financeiro') {
-    return <FinanceDashboard 
-             records={financialRecords} 
-             onLogout={handleLogout} 
-             user={user}
-             standardMenu={standardMenu}
-             dailyMenus={dailyMenus}
-             suppliers={suppliers}
-             thirdPartyEntries={thirdPartyEntries}
-             vehicleExitOrders={vehicleExitOrders}
-             vehicleAssets={vehicleAssets}
-             driverAssets={driverAssets}
-             validationRoles={validationRoles}
-           />;
-  }
-
-  if (user.role === 'cardapio') {
-    return <MenuDashboard standardMenu={standardMenu} dailyMenus={dailyMenus} suppliers={suppliers} onLogout={handleLogout} />;
-  }
-
-  if (user.role === 'almoxarifado') {
-    return <AlmoxarifadoDashboard 
-             suppliers={suppliers} 
-             warehouseLog={warehouseLog} 
-             onLogout={handleLogout} 
-             onRegisterEntry={handleRegisterWarehouseEntry} 
-             onRegisterWithdrawal={handleRegisterWarehouseWithdrawal} 
-             onResetExits={handleResetWarehouseExits}
-             onReopenInvoice={handleReopenInvoice}
-             onDeleteInvoice={handleDeleteInvoice}
-             onUpdateInvoiceItems={handleUpdateInvoiceItems}
-             onManualInvoiceEntry={handleManualInvoiceEntry}
-             thirdPartyEntries={thirdPartyEntries}
-             onRegisterThirdPartyEntry={async (l) => {
-                 const r = push(thirdPartyEntriesRef);
-                 await set(r, { ...l, id: r.key });
-                 return { success: true, message: 'Ok' };
-             }}
-             onUpdateThirdPartyEntry={async (log) => {
-                 await set(child(thirdPartyEntriesRef, log.id), log);
-                 return { success: true, message: 'Atualizado' };
-             }}
-             onDeleteThirdPartyEntry={async (id) => remove(child(thirdPartyEntriesRef, id))}
-             vehicleExitOrders={vehicleExitOrders}
-             onRegisterVehicleExitOrder={async (order) => {
-                 const r = push(vehicleExitOrdersRef);
-                 const id = r.key || `order-${Date.now()}`;
-                 await set(r, { ...order, id });
-                 return { success: true, message: 'Ok', id };
-             }}
-             onUpdateVehicleExitOrder={async (order) => {
-                 await set(child(vehicleExitOrdersRef, order.id), order);
-                 return { success: true, message: 'Atualizado' };
-             }}
-             onDeleteVehicleExitOrder={async (id) => {
-                 console.log("Deleting vehicle exit order with ID:", id);
-                 return remove(child(vehicleExitOrdersRef, id));
-             }}
-             vehicleAssets={vehicleAssets}
-             onRegisterVehicleAsset={async (asset) => {
-                 const r = push(vehicleAssetsRef);
-                 await set(r, { ...asset, id: r.key });
-                 return { success: true, message: 'Veículo registrado' };
-             }}
-             onUpdateVehicleAsset={async (asset) => {
-                 await set(child(vehicleAssetsRef, asset.id), asset);
-                 return { success: true, message: 'Veículo atualizado' };
-             }}
-             onDeleteVehicleAsset={async (id) => remove(child(vehicleAssetsRef, id))}
-             driverAssets={driverAssets}
-             onRegisterDriverAsset={async (asset) => {
-                 const r = push(driverAssetsRef);
-                 await set(r, { ...asset, id: r.key });
-                 return { success: true, message: 'Motorista/Acompanhante registrado' };
-             }}
-             onUpdateDriverAsset={async (asset) => {
-                 await set(child(driverAssetsRef, asset.id), asset);
-                 return { success: true, message: 'Motorista/Acompanhante atualizado' };
-             }}
-             onDeleteDriverAsset={async (id) => remove(child(driverAssetsRef, id))}
-             validationRoles={validationRoles}
-           />;
-  }
-
-  if (user.role === 'julio') {
-    return (
-      <JulioDashboard
-        vehicleExitOrders={vehicleExitOrders}
-        driverAssets={driverAssets}
-        vehicleAssets={vehicleAssets}
-        validationRoles={validationRoles}
-        onLogout={handleLogout}
-        onRegisterVehicleExitOrder={async (order) => {
-          const r = push(vehicleExitOrdersRef);
-          await set(r, { ...order, id: r.key });
-          return { success: true, message: 'Ordem de saída registrada' };
-        }}
-        onUpdateVehicleExitOrder={async (order) => {
-          await set(child(vehicleExitOrdersRef, order.id), order);
-          return { success: true, message: 'Ordem de saída atualizada' };
-        }}
-        onDeleteVehicleExitOrder={async (id) => {
-          console.log("Deleting vehicle exit order (JulioDashboard) with ID:", id);
-          return remove(child(vehicleExitOrdersRef, id));
-        }}
-        onRegisterDriverAsset={async (s) => {
-          const r = push(driverAssetsRef);
-          await set(r, { ...s, id: r.key });
-          return { success: true, message: 'Servidor registrado' };
-        }}
-        onUpdateDriverAsset={async (s) => {
-          await set(child(driverAssetsRef, s.id), s);
-          return { success: true, message: 'Servidor atualizado' };
-        }}
-        onDeleteDriverAsset={async (id) => remove(child(driverAssetsRef, id))}
-        onRegisterVehicleAsset={async (v) => {
-          const r = push(vehicleAssetsRef);
-          await set(r, { ...v, id: r.key });
-          return { success: true, message: 'Veículo registrado' };
-        }}
-        onUpdateVehicleAsset={async (v) => {
-          await set(child(vehicleAssetsRef, v.id), v);
-          return { success: true, message: 'Veículo atualizado' };
-        }}
-        onDeleteVehicleAsset={async (id) => remove(child(vehicleAssetsRef, id))}
-        onRegisterValidationRole={async (vr) => {
-          const r = push(validationRolesRef);
-          await set(r, { ...vr, id: r.key });
-          return { success: true, message: 'Cargo de validação registrado' };
-        }}
-        onUpdateValidationRole={async (vr) => {
-          await set(child(validationRolesRef, vr.id), vr);
-          return { success: true, message: 'Cargo de validação atualizado' };
-        }}
-        onDeleteValidationRole={async (id) => remove(child(validationRolesRef, id))}
-      />
-    );
-  }
-
-  if (user.role === 'itesp') {
-    return <ItespDashboard suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onLogout={handleLogout} />;
-  }
-
-  if (user.role === 'subportaria') {
-    return (
-      <SubportariaDashboard 
-        suppliers={suppliers} 
-        thirdPartyEntries={thirdPartyEntries}
-        onUpdateThirdPartyEntry={async (log) => {
-          await set(child(thirdPartyEntriesRef, log.id), log);
-          return { success: true, message: 'Atualizado' };
-        }}
-        onLogout={handleLogout} 
-        vehicleExitOrders={vehicleExitOrders}
-        vehicleAssets={vehicleAssets}
-        driverAssets={driverAssets}
-        validationRoles={validationRoles}
-        onUpdateVehicleExitOrder={async (order) => {
-          await set(child(vehicleExitOrdersRef, order.id), order);
-          return { success: true, message: 'Atualizado' };
-        }}
-        onDeleteThirdPartyEntry={async (id) => remove(child(thirdPartyEntriesRef, id))}
-      />
-    );
-  }
-
-  if (user.role === 'infraestrutura' || user.role === 'ordem_saida') {
-    return (
-      <VehicleOrderDashboard 
-        orders={vehicleExitOrders}
-        vehicleAssets={vehicleAssets}
-        driverAssets={driverAssets}
-        validationRoles={validationRoles}
-        onRegister={async (order) => {
-          const r = push(vehicleExitOrdersRef);
-          const id = r.key || `order-${Date.now()}`;
-          await set(r, { ...order, id });
-          return { success: true, message: 'Ok', id };
-        }}
-        onUpdate={async (order) => {
-          await set(child(vehicleExitOrdersRef, order.id), order);
-          return { success: true, message: 'Atualizado' };
-        }}
-        onDelete={async (id) => {
-          console.log("Deleting vehicle exit order (VehicleOrderDashboard) with ID:", id);
-          return remove(child(vehicleExitOrdersRef, id));
-        }}
-        onRegisterVehicleAsset={async (v) => {
-          const r = push(vehicleAssetsRef);
-          await set(r, { ...v, id: r.key });
-          return { success: true, message: 'Ok' };
-        }}
-        onUpdateVehicleAsset={async (v) => {
-          await set(child(vehicleAssetsRef, v.id), v);
-          return { success: true, message: 'Atualizado' };
-        }}
-        onDeleteVehicleAsset={async (id) => remove(child(vehicleAssetsRef, id))}
-        onRegisterDriverAsset={async (d) => {
-          const r = push(driverAssetsRef);
-          await set(r, { ...d, id: r.key });
-          return { success: true, message: 'Ok' };
-        }}
-        onUpdateDriverAsset={async (d) => {
-          await set(child(driverAssetsRef, d.id), d);
-          return { success: true, message: 'Atualizado' };
-        }}
-        onDeleteDriverAsset={async (id) => remove(child(driverAssetsRef, id))}
-        onValidateOrder={async (orderId, validatedBy, validationRole) => {
-          const timestamp = new Date().toISOString();
-          await update(child(vehicleExitOrdersRef, orderId), {
-            validatedBy,
-            validationRole,
-            validationTimestamp: timestamp
-          });
-          return { success: true, message: 'Ordem validada' };
-        }}
-        onLogout={handleLogout}
-        role={user.role}
-      />
-    );
-  }
-
-  if (user.role === 'supplier') {
-    const currentSupplier = suppliers.find(s => s.cpf === user.cpf);
-    if (currentSupplier) {
-      return (
-        <Dashboard 
-          supplier={currentSupplier} 
+          }}
           onLogout={handleLogout} 
-          onScheduleDelivery={handleScheduleDelivery}
-          onCancelDeliveries={handleCancelDeliveries}
-          onSaveInvoice={handleSaveInvoice}
-          emailModalData={null}
-          onCloseEmailModal={() => {}}
+          vehicleExitOrders={vehicleExitOrders}
+          vehicleAssets={vehicleAssets}
+          driverAssets={driverAssets}
+          validationRoles={validationRoles}
+          onUpdateVehicleExitOrder={async (order) => {
+            await set(child(vehicleExitOrdersRef, order.id), order);
+            return { success: true, message: 'Atualizado' };
+          }}
+          onDeleteThirdPartyEntry={async (id) => remove(child(thirdPartyEntriesRef, id))}
         />
       );
     }
-  }
 
-  if (user.role === 'producer' || user.role === 'pereciveis_supplier') {
-    const list = user.role === 'producer' ? perCapitaConfig.ppaisProducers : perCapitaConfig.pereciveisSuppliers;
-    const p = list?.find(s => s.cpfCnpj === user.cpf);
-    if (p) {
-      const mappedSupplier: Supplier = {
-        name: p.name,
-        cpf: p.cpfCnpj,
-        initialValue: 0,
-        contractItems: p.contractItems || [],
-        deliveries: p.deliveries || [],
-        allowedWeeks: []
-      };
+    if (user.role === 'infraestrutura' || user.role === 'ordem_saida') {
       return (
-        <Dashboard 
-          supplier={mappedSupplier} 
-          type={user.role === 'producer' ? 'PRODUTOR' : 'FORNECEDOR'}
-          monthlySchedule={p.monthlySchedule}
-          onLogout={handleLogout} 
-          onScheduleDelivery={handleScheduleDelivery}
-          onCancelDeliveries={handleCancelDeliveries}
-          onSaveInvoice={handleSaveInvoice}
-          emailModalData={null}
-          onCloseEmailModal={() => {}}
+        <VehicleOrderDashboard 
+          orders={vehicleExitOrders}
+          vehicleAssets={vehicleAssets}
+          driverAssets={driverAssets}
+          validationRoles={validationRoles}
+          onRegister={async (order) => {
+            const r = push(vehicleExitOrdersRef);
+            const id = r.key || `order-${Date.now()}`;
+            await set(r, { ...order, id });
+            return { success: true, message: 'Ok', id };
+          }}
+          onUpdate={async (order) => {
+            await set(child(vehicleExitOrdersRef, order.id), order);
+            return { success: true, message: 'Atualizado' };
+          }}
+          onDelete={async (id) => {
+            console.log("Deleting vehicle exit order (VehicleOrderDashboard) with ID:", id);
+            return remove(child(vehicleExitOrdersRef, id));
+          }}
+          onRegisterVehicleAsset={async (v) => {
+            const r = push(vehicleAssetsRef);
+            await set(r, { ...v, id: r.key });
+            return { success: true, message: 'Ok' };
+          }}
+          onUpdateVehicleAsset={async (v) => {
+            await set(child(vehicleAssetsRef, v.id), v);
+            return { success: true, message: 'Atualizado' };
+          }}
+          onDeleteVehicleAsset={async (id) => remove(child(vehicleAssetsRef, id))}
+          onRegisterDriverAsset={async (d) => {
+            const r = push(driverAssetsRef);
+            await set(r, { ...d, id: r.key });
+            return { success: true, message: 'Ok' };
+          }}
+          onUpdateDriverAsset={async (d) => {
+            await set(child(driverAssetsRef, d.id), d);
+            return { success: true, message: 'Atualizado' };
+          }}
+          onDeleteDriverAsset={async (id) => remove(child(driverAssetsRef, id))}
+          onValidateOrder={async (orderId, validatedBy, validationRole) => {
+            const timestamp = new Date().toISOString();
+            await update(child(vehicleExitOrdersRef, orderId), {
+              validatedBy,
+              validationRole,
+              validationTimestamp: timestamp
+            });
+            return { success: true, message: 'Ordem validada' };
+          }}
+          onLogout={handleLogout}
+          role={user.role}
         />
       );
     }
-  }
 
-  return <div className="p-10 text-center">Usuário não encontrado ou sem permissões.</div>;
+    if (user.role === 'supplier') {
+      const currentSupplier = suppliers.find(s => s.cpf === user.cpf);
+      if (currentSupplier) {
+        return (
+          <Dashboard 
+            supplier={currentSupplier} 
+            onLogout={handleLogout} 
+            onScheduleDelivery={handleScheduleDelivery}
+            onCancelDeliveries={handleCancelDeliveries}
+            onSaveInvoice={handleSaveInvoice}
+            emailModalData={null}
+            onCloseEmailModal={() => {}}
+          />
+        );
+      }
+    }
+
+    if (user.role === 'producer' || user.role === 'pereciveis_supplier') {
+      const list = user.role === 'producer' ? perCapitaConfig.ppaisProducers : perCapitaConfig.pereciveisSuppliers;
+      const p = list?.find(s => s.cpfCnpj === user.cpf);
+      if (p) {
+        const mappedSupplier: Supplier = {
+          name: p.name,
+          cpf: p.cpfCnpj,
+          initialValue: 0,
+          contractItems: p.contractItems || [],
+          deliveries: p.deliveries || [],
+          allowedWeeks: []
+        };
+        return (
+          <Dashboard 
+            supplier={mappedSupplier} 
+            type={user.role === 'producer' ? 'PRODUTOR' : 'FORNECEDOR'}
+            monthlySchedule={p.monthlySchedule}
+            onLogout={handleLogout} 
+            onScheduleDelivery={handleScheduleDelivery}
+            onCancelDeliveries={handleCancelDeliveries}
+            onSaveInvoice={handleSaveInvoice}
+            emailModalData={null}
+            onCloseEmailModal={() => {}}
+          />
+        );
+      }
+    }
+
+    return <div className="p-10 text-center">Usuário não encontrado ou sem permissões.</div>;
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Toaster position="top-right" richColors />
+      {renderContent()}
+    </div>
+  );
 };
 
 export default App;

@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
+import { toast } from 'sonner';
 import type { Supplier, ContractItem, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, Delivery, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, UserRole } from '../types';
 import AdminAnalytics from './AdminAnalytics';
 import AdminContractItems from './AdminContractItems';
@@ -410,7 +411,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
                                         onConfirm: async () => {
                                             setIsRestoring(true);
                                             const success = await props.onRestoreFullBackup(JSON.parse(ev.target?.result as string));
-                                            if (success) alert('Sistema Restaurado!');
+                                            if (success) toast.success('Sistema Restaurado!');
                                             setIsRestoring(false);
                                             setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                                         },

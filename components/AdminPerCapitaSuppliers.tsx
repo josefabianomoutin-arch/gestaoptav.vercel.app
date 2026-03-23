@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import type { PerCapitaSupplier } from '../types';
 import ConfirmModal from './ConfirmModal';
 
@@ -77,7 +78,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
 
     const handleSave = () => {
         if (!name || !cpfCnpj || !processNumber) {
-            alert(`Preencha os campos obrigatórios: Nome, CPF/CNPJ e Número do Processo.`);
+            toast.error(`Preencha os campos obrigatórios: Nome, CPF/CNPJ e Número do Processo.`);
             return;
         }
 
