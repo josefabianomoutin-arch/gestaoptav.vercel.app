@@ -77,11 +77,16 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     </div>
 
                     <div className="space-y-6 text-justify">
-                        <p className="break-inside-avoid text-sm text-left" style={{ paddingLeft: '50%' }}>
-                            Termo de Contrato que entre si celebram o Governo do Estado de São Paulo, 
-                            <strong> SECRETARIA DE ADMINISTRAÇÃO PENITENCIÁRIA, POR INTERMÉDIO DA PENITENCIÁRIA DE TAIÚVA</strong>, 
-                            PARA A AQUISIÇÃO DE GÊNEROS ALIMENTÍCIOS DA AGRICULTURA FAMILIAR PARA ATENDER O PROGRAMA PAULISTA DA AGRICULTURA DE INTERESSE SOCIAL – PPAIS.
-                        </p>
+                        <div className="flex break-inside-avoid">
+                            <div className="w-1/2"></div>
+                            <div className="w-1/2 text-sm text-justify">
+                                <p>
+                                    Termo de Contrato que entre si celebram o Governo do Estado de São Paulo, 
+                                    <strong> SECRETARIA DE ADMINISTRAÇÃO PENITENCIÁRIA, POR INTERMÉDIO DA PENITENCIÁRIA DE TAIÚVA</strong>, 
+                                    PARA A AQUISIÇÃO DE GÊNEROS ALIMENTÍCIOS DA AGRICULTURA FAMILIAR PARA ATENDER O PROGRAMA PAULISTA DA AGRICULTURA DE INTERESSE SOCIAL – PPAIS.
+                                </p>
+                            </div>
+                        </div>
 
                         <p className="break-inside-avoid">
                             Aos oito(8) dias do mês de Abril do ano de 2026, nesta cidade de Taiúva, comparecem de um lado o Estado de São Paulo, Secretaria de Administração Penitenciária, por intermédio da Penitenciária de Taiúva, inscrita no CNPJ sob o n.º 96.291.141/0152-92, neste ato representada pelo Senhor DOUGLAS FERNANDO SEMENZIN GALDINO, brasileiro, Chefe de Departamento, portador da CI/RG nº 32.518574-8-SSP/SP e inscrito no CPF/MF. nº 290.990.228-59, doravante designado simplesmente Contratante, e, de outro lado, 
