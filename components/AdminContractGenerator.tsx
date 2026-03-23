@@ -77,7 +77,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     </div>
 
                     <div className="space-y-6 text-justify">
-                        <p className="break-inside-avoid">
+                        <p className="break-inside-avoid ml-auto w-1/2 text-sm">
                             Termo de Contrato que entre si celebram o Governo do Estado de São Paulo, 
                             <strong> SECRETARIA DE ADMINISTRAÇÃO PENITENCIÁRIA, POR INTERMÉDIO DA PENITENCIÁRIA DE TAIÚVA</strong>, 
                             PARA A AQUISIÇÃO DE GÊNEROS ALIMENTÍCIOS DA AGRICULTURA FAMILIAR PARA ATENDER O PROGRAMA PAULISTA DA AGRICULTURA DE INTERESSE SOCIAL – PPAIS.
@@ -277,8 +277,10 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             <p>08 de abril de 2026.</p>
                             
                             <div className="mt-24 mb-12 flex justify-center">
-                                <div className="w-1/2 border-t border-zinc-800 pt-2">
+                                <div className="w-1/2 border-t border-zinc-800 pt-2 text-center">
                                     <p className="font-bold uppercase">Contratante</p>
+                                    <p className="text-sm">DOUGLAS FERNANDO SEMENZIN GALDINO</p>
+                                    <p className="text-sm">CPF: 290.990.228-59</p>
                                 </div>
                             </div>
                             
