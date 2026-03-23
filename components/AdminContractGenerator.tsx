@@ -71,13 +71,13 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
 
             {selectedProducer ? (
                 <div ref={containerRef} className="bg-white border border-zinc-200 rounded-3xl p-12 shadow-sm max-w-4xl mx-auto font-serif text-zinc-800 leading-relaxed print:shadow-none print:border-none print:p-0">
-                    <div className="text-center space-y-4 mb-12">
+                    <div className="text-center space-y-2 mb-6">
                         <h1 className="text-2xl font-bold uppercase">Contrato</h1>
                         <p className="font-bold">CONTRATO N. <span className="font-bold">{selectedProducer.contractNumber || '_____/2026'}</span></p>
                     </div>
 
-                    <div className="space-y-6">
-                        <div className="flex break-inside-avoid">
+                    <div className="space-y-1">
+                        <div className="flex">
                             <div className="w-1/2"></div>
                             <div className="w-1/2 text-sm text-left" style={{ textAlign: 'left' }}>
                                 <p>
@@ -88,7 +88,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             </div>
                         </div>
 
-                        <p className="break-inside-avoid text-justify">
+                        <p className="text-justify">
                             Aos oito(8) dias do mês de Abril do ano de 2026, nesta cidade de Taiúva, comparecem de um lado o Estado de São Paulo, Secretaria de Administração Penitenciária, por intermédio da Penitenciária de Taiúva, inscrita no CNPJ sob o n.º 96.291.141/0152-92, neste ato representada pelo Senhor DOUGLAS FERNANDO SEMENZIN GALDINO, brasileiro, Chefe de Departamento, portador da CI/RG nº 32.518574-8-SSP/SP e inscrito no CPF/MF. nº 290.990.228-59, doravante designado simplesmente Contratante, e, de outro lado, 
                             <span className="font-bold"> {selectedProducer.name}</span>, 
                             inscrito/a no CPF/CNPJ nº <span className="font-bold">{selectedProducer.cpfCnpj}</span>, 
