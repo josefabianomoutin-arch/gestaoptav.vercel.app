@@ -77,7 +77,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     </div>
 
                     <div className="space-y-6 text-justify">
-                        <p className="break-inside-avoid ml-auto w-1/2 text-sm">
+                        <p className="break-inside-avoid text-sm" style={{ paddingLeft: '50%' }}>
                             Termo de Contrato que entre si celebram o Governo do Estado de São Paulo, 
                             <strong> SECRETARIA DE ADMINISTRAÇÃO PENITENCIÁRIA, POR INTERMÉDIO DA PENITENCIÁRIA DE TAIÚVA</strong>, 
                             PARA A AQUISIÇÃO DE GÊNEROS ALIMENTÍCIOS DA AGRICULTURA FAMILIAR PARA ATENDER O PROGRAMA PAULISTA DA AGRICULTURA DE INTERESSE SOCIAL – PPAIS.
