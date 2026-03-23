@@ -63,7 +63,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Bras%C3%A3o_do_estado_de_S%C3%A3o_Paulo.svg/1200px-Bras%C3%A3o_do_estado_de_S%C3%A3o_Paulo.svg.png" alt="Brasão SP" className="h-20 w-auto" />
                         </div>
                         <h1 className="text-2xl font-bold uppercase">Contrato</h1>
-                        <p className="font-bold">CONTRATO N. <span className="text-red-600">_____</span>/2026</p>
+                        <p className="font-bold">CONTRATO N. <span className="font-bold">{selectedProducer.contractNumber || '_____/2026'}</span></p>
                     </div>
 
                     <div className="space-y-6 text-justify">
@@ -75,10 +75,10 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
 
                         <p>
                             Aos oito(8) dias do mês de Abril do ano de 2026, nesta cidade de Taiúva, comparecem de um lado o Estado de São Paulo, Secretaria de Administração Penitenciária, por intermédio da Penitenciária de Taiúva, inscrita no CNPJ sob o n.º 96.291.141/0152-92, neste ato representada pelo Senhor DOUGLAS FERNANDO SEMENZIN GALDINO, brasileiro, Chefe de Departamento, portador da CI/RG nº 32.518574-8-SSP/SP e inscrito no CPF/MF. nº 290.990.228-59, doravante designado simplesmente Contratante, e, de outro lado, 
-                            <span className="text-red-600 font-bold"> {selectedProducer.name}</span>, 
-                            inscrito/a no CPF nº <span className="text-red-600 font-bold">{selectedProducer.cpfCnpj}</span>, 
-                            residente na <span className="text-red-600 font-bold">{selectedProducer.address || '____________________'}</span>, 
-                            na cidade de <span className="text-red-600 font-bold">{selectedProducer.city || '____________________'}</span>, 
+                            <span className="font-bold"> {selectedProducer.name}</span>, 
+                            inscrito/a no CPF nº <span className="font-bold">{selectedProducer.cpfCnpj}</span>, 
+                            residente na <span className="font-bold">{selectedProducer.address || '____________________'}</span>, 
+                            na cidade de <span className="font-bold">{selectedProducer.city || '____________________'}</span>, 
                             e pelos mesmos foi dito na presença das testemunhas ao final consignadas, que em face da autorização da inexigibilidade da licitação constante no Processo SEI 006.00091368/2026-57, nos termos do artigo 74, inciso IV, c.c. o artigo 79 da Lei Federal nº 14.133/2021, pelo presente instrumento avençam um contrato de aquisição de gêneros alimentícios da Agricultura Familiar para atender o Programa Paulista da Agricultura de Interesse Social – PPAIS, sujeitando-se às normas da Lei Federal nº 14.133/2021, Decreto Estadual nº 68.304/2024 e demais normas regulamentares à espécie, inclusive a Lei Estadual nº 14.591/2011, regulamentada pelo Decreto nº 57.755/2012, alterados pelo Decreto nº 60.055/2014, Decreto nº 62.282/2016, e Decreto nº 68.734/2024, e às seguintes cláusulas e condições que reciprocamente outorgam e aceitam:
                         </p>
 
@@ -136,7 +136,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             <h2 className="font-bold underline uppercase">CLÁUSULA SEXTA – DO VALOR DO CONTRATO</h2>
                             <p>
                                 Pelo fornecimento dos gêneros alimentícios, constantes do Anexo I, a CONTRATADA receberá o valor total de 
-                                <span className="text-red-600 font-bold"> {selectedProducer.contractItems?.reduce((acc, item) => acc + (item.totalKg * item.valuePerKg), 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>.
+                                <span className="font-bold"> {selectedProducer.contractItems?.reduce((acc, item) => acc + (item.totalKg * item.valuePerKg), 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>.
                             </p>
                         </div>
 

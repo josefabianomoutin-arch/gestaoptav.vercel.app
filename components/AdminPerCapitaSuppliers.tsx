@@ -21,6 +21,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
     const [name, setName] = useState('');
     const [cpfCnpj, setCpfCnpj] = useState('');
     const [processNumber, setProcessNumber] = useState('');
+    const [contractNumber, setContractNumber] = useState('');
     const [address, setAddress] = useState('');
     const [city, setCity] = useState('');
     const [monthlySchedule, setMonthlySchedule] = useState<Record<string, number[]>>({});
@@ -48,6 +49,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
         setName('');
         setCpfCnpj('');
         setProcessNumber('');
+        setContractNumber('');
         setAddress('');
         setCity('');
         setMonthlySchedule({});
@@ -59,6 +61,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
         setName(supplier.name);
         setCpfCnpj(supplier.cpfCnpj);
         setProcessNumber(supplier.processNumber);
+        setContractNumber(supplier.contractNumber || '');
         setAddress(supplier.address || '');
         setCity(supplier.city || '');
         setMonthlySchedule(supplier.monthlySchedule || {});
@@ -77,6 +80,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
             name: name.toUpperCase(),
             cpfCnpj,
             processNumber,
+            contractNumber: contractNumber.toUpperCase(),
             address: address.toUpperCase(),
             city: city.toUpperCase(),
             monthlySchedule,
@@ -179,7 +183,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                         <div className="space-y-1">
                             <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>Nome do {type}</label>
                             <input 
@@ -211,7 +215,17 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                                 placeholder="PROCESSO SEI"
                             />
                         </div>
-                        <div className="space-y-1 md:col-span-2">
+                        <div className="space-y-1">
+                            <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>Número do Contrato</label>
+                            <input 
+                                type="text"
+                                value={contractNumber}
+                                onChange={e => setContractNumber(e.target.value)}
+                                className={`w-full p-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-xl outline-none font-bold transition-all`}
+                                placeholder="000/2026"
+                            />
+                        </div>
+                        <div className="space-y-1 md:col-span-3">
                             <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>Endereço</label>
                             <input 
                                 type="text"
