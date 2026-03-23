@@ -79,7 +79,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     <div className="space-y-6 text-justify">
                         <div className="flex break-inside-avoid">
                             <div className="w-1/2"></div>
-                            <div className="w-1/2 text-sm text-justify">
+                            <div className="w-1/2 text-sm text-left">
                                 <p>
                                     Termo de Contrato que entre si celebram o Governo do Estado de São Paulo, 
                                     <strong> SECRETARIA DE ADMINISTRAÇÃO PENITENCIÁRIA, POR INTERMÉDIO DA PENITENCIÁRIA DE TAIÚVA</strong>, 
