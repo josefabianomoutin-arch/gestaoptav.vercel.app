@@ -234,6 +234,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
     const ppaisAsSuppliers = useMemo(() => {
         return ppaisProducers.map(p => ({
             ...p,
+            cpf: p.cpfCnpj,
             deliveries: [],
             allowedWeeks: [],
             initialValue: Object.values(p.contractItems || {}).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
@@ -243,6 +244,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
     const pereciveisAsSuppliers = useMemo(() => {
         return pereciveisSuppliers.map(p => ({
             ...p,
+            cpf: p.cpfCnpj,
             deliveries: [],
             allowedWeeks: [],
             initialValue: Object.values(p.contractItems || {}).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
@@ -296,8 +298,14 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         suppliers.forEach(s => {
             Object.values(s.contractItems || {}).forEach((ci: any) => names.add(ci.name));
         });
+        ppaisProducers.forEach(s => {
+            Object.values(s.contractItems || {}).forEach((ci: any) => names.add(ci.name));
+        });
+        pereciveisSuppliers.forEach(s => {
+            Object.values(s.contractItems || {}).forEach((ci: any) => names.add(ci.name));
+        });
         return Array.from(names).sort();
-    }, [suppliers]);
+    }, [suppliers, ppaisProducers, pereciveisSuppliers]);
 
     const handleCustomPerCapitaChange = (itemName: string, value: string) => {
         setCustomPerCapita(prev => ({
