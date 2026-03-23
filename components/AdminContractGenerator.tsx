@@ -85,9 +85,11 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         <p>
                             Aos oito(8) dias do mês de Abril do ano de 2026, nesta cidade de Taiúva, comparecem de um lado o Estado de São Paulo, Secretaria de Administração Penitenciária, por intermédio da Penitenciária de Taiúva, inscrita no CNPJ sob o n.º 96.291.141/0152-92, neste ato representada pelo Senhor DOUGLAS FERNANDO SEMENZIN GALDINO, brasileiro, Chefe de Departamento, portador da CI/RG nº 32.518574-8-SSP/SP e inscrito no CPF/MF. nº 290.990.228-59, doravante designado simplesmente Contratante, e, de outro lado, 
                             <span className="font-bold"> {selectedProducer.name}</span>, 
-                            inscrito/a no CPF nº <span className="font-bold">{selectedProducer.cpfCnpj}</span>, 
+                            inscrito/a no CPF/CNPJ nº <span className="font-bold">{selectedProducer.cpfCnpj}</span>, 
                             residente na <span className="font-bold">{selectedProducer.address || '____________________'}</span>, 
                             na cidade de <span className="font-bold">{selectedProducer.city || '____________________'}</span>, 
+                            neste ato representado(a) por <span className="font-bold">{selectedProducer.representativeName || '____________________'}</span>, 
+                            portador(a) do CPF nº <span className="font-bold">{selectedProducer.representativeCpf || '____________________'}</span>, 
                             e pelos mesmos foi dito na presença das testemunhas ao final consignadas, que em face da autorização da inexigibilidade da licitação constante no Processo SEI 006.00091368/2026-57, nos termos do artigo 74, inciso IV, c.c. o artigo 79 da Lei Federal nº 14.133/2021, pelo presente instrumento avençam um contrato de aquisição de gêneros alimentícios da Agricultura Familiar para atender o Programa Paulista da Agricultura de Interesse Social – PPAIS, sujeitando-se às normas da Lei Federal nº 14.133/2021, Decreto Estadual nº 68.304/2024 e demais normas regulamentares à espécie, inclusive a Lei Estadual nº 14.591/2011, regulamentada pelo Decreto nº 57.755/2012, alterados pelo Decreto nº 60.055/2014, Decreto nº 62.282/2016, e Decreto nº 68.734/2024, e às seguintes cláusulas e condições que reciprocamente outorgam e aceitam:
                         </p>
 
@@ -96,25 +98,25 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             <p>Constitui objeto do presente contrato a aquisição de:</p>
                             
                             <div className="overflow-x-auto">
-                                <table className="w-full border-collapse border border-zinc-300 text-xs text-center">
+                                <table className="w-full table-fixed border-collapse border border-zinc-300 text-xs text-center">
                                     <thead>
                                         <tr className="bg-zinc-50">
-                                            <th className="border border-zinc-300 p-2 uppercase w-[20%]">NOME DO AGRICULTOR</th>
-                                            <th className="border border-zinc-300 p-2 uppercase w-[15%]">CPF</th>
-                                            <th className="border border-zinc-300 p-2 uppercase w-[40%]">ITEM</th>
-                                            <th className="border border-zinc-300 p-2 uppercase w-[10%]">QUILOGRAMA</th>
-                                            <th className="border border-zinc-300 p-2 uppercase w-[15%]">VALOR</th>
+                                            <th className="border border-zinc-300 p-2 uppercase" style={{ width: '20%' }}>NOME DO AGRICULTOR</th>
+                                            <th className="border border-zinc-300 p-2 uppercase" style={{ width: '15%' }}>CPF</th>
+                                            <th className="border border-zinc-300 p-2 uppercase" style={{ width: '40%' }}>ITEM</th>
+                                            <th className="border border-zinc-300 p-2 uppercase" style={{ width: '10%' }}>QUILOGRAMA</th>
+                                            <th className="border border-zinc-300 p-2 uppercase" style={{ width: '15%' }}>VALOR</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {selectedProducer.contractItems && selectedProducer.contractItems.length > 0 ? (
                                             selectedProducer.contractItems.map((item, idx) => (
                                                 <tr key={idx}>
-                                                    <td className="border border-zinc-300 p-2 uppercase">{selectedProducer.name}</td>
-                                                    <td className="border border-zinc-300 p-2">{selectedProducer.cpfCnpj}</td>
-                                                    <td className="border border-zinc-300 p-2 uppercase text-left text-[10px] leading-tight">{item.name}</td>
-                                                    <td className="border border-zinc-300 p-2">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
-                                                    <td className="border border-zinc-300 p-2">
+                                                    <td className="border border-zinc-300 p-2 uppercase break-words">{selectedProducer.name}</td>
+                                                    <td className="border border-zinc-300 p-2 break-words">{selectedProducer.cpfCnpj}</td>
+                                                    <td className="border border-zinc-300 p-2 uppercase text-[10px] leading-tight break-words" style={{ textAlign: 'left' }}>{item.name}</td>
+                                                    <td className="border border-zinc-300 p-2 break-words">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
+                                                    <td className="border border-zinc-300 p-2 break-words">
                                                         {(item.totalKg * item.valuePerKg).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                     </td>
                                                 </tr>
@@ -280,8 +282,14 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             </div>
                             
                             <div className="mt-24 mb-12 flex justify-center">
-                                <div className="w-1/2 border-t border-zinc-800 pt-2">
+                                <div className="w-1/2 border-t border-zinc-800 pt-2 text-center">
                                     <p className="font-bold uppercase">Contratada: assinatura do representante legal</p>
+                                    {selectedProducer.representativeName && (
+                                        <p className="text-sm">{selectedProducer.representativeName}</p>
+                                    )}
+                                    {selectedProducer.representativeCpf && (
+                                        <p className="text-sm">CPF: {selectedProducer.representativeCpf}</p>
+                                    )}
                                 </div>
                             </div>
 

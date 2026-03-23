@@ -76,6 +76,8 @@ export interface PerCapitaSupplier {
   contractNumber?: string;
   address?: string;
   city?: string;
+  representativeName?: string;
+  representativeCpf?: string;
   monthlySchedule: Record<string, number[]>; // month name -> array of week numbers (1-5)
   contractItems?: ContractItem[];
   deliveries?: Delivery[];

@@ -24,6 +24,8 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
     const [contractNumber, setContractNumber] = useState('');
     const [address, setAddress] = useState('');
     const [city, setCity] = useState('');
+    const [representativeName, setRepresentativeName] = useState('');
+    const [representativeCpf, setRepresentativeCpf] = useState('');
     const [monthlySchedule, setMonthlySchedule] = useState<Record<string, number[]>>({});
     
     const [confirmConfig, setConfirmConfig] = useState<{
@@ -52,6 +54,8 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
         setContractNumber('');
         setAddress('');
         setCity('');
+        setRepresentativeName('');
+        setRepresentativeCpf('');
         setMonthlySchedule({});
         setIsAdding(false);
         setEditingId(null);
@@ -64,6 +68,8 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
         setContractNumber(supplier.contractNumber || '');
         setAddress(supplier.address || '');
         setCity(supplier.city || '');
+        setRepresentativeName(supplier.representativeName || '');
+        setRepresentativeCpf(supplier.representativeCpf || '');
         setMonthlySchedule(supplier.monthlySchedule || {});
         setEditingId(supplier.id);
         setIsAdding(true);
@@ -83,6 +89,8 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
             contractNumber: contractNumber.toUpperCase(),
             address: address.toUpperCase(),
             city: city.toUpperCase(),
+            representativeName: representativeName.toUpperCase(),
+            representativeCpf,
             monthlySchedule,
             contractItems: editingId ? suppliers.find(p => p.id === editingId)?.contractItems : []
         };
@@ -243,6 +251,27 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                                 onChange={e => setCity(e.target.value)}
                                 className={`w-full p-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-xl outline-none font-bold transition-all`}
                                 placeholder="NOME DA CIDADE"
+                            />
+                        </div>
+                        <div className="space-y-1 md:col-span-3">
+                            <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>Nome do Representante Legal</label>
+                            <input 
+                                type="text"
+                                value={representativeName}
+                                onChange={e => setRepresentativeName(e.target.value)}
+                                className={`w-full p-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-xl outline-none font-bold transition-all`}
+                                placeholder="NOME DO REPRESENTANTE"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>CPF do Representante</label>
+                            <input 
+                                type="text"
+                                value={representativeCpf}
+                                onChange={e => setRepresentativeCpf(e.target.value.replace(/[^\d]/g, ''))}
+                                className={`w-full p-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-xl outline-none font-bold transition-all font-mono`}
+                                placeholder="000.000.000-00"
+                                maxLength={14}
                             />
                         </div>
                     </div>
