@@ -1,6 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import type { PerCapitaSupplier } from '../types';
+import html2pdf from 'html2pdf.js';
 
 interface AdminContractGeneratorProps {
     producers: PerCapitaSupplier[];
@@ -9,13 +10,24 @@ interface AdminContractGeneratorProps {
 
 const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ producers, type }) => {
     const [selectedProducerId, setSelectedProducerId] = useState<string>('');
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const selectedProducer = useMemo(() => 
         producers.find(p => p.id === selectedProducerId),
     [producers, selectedProducerId]);
 
     const handlePrint = () => {
-        window.print();
+        if (!containerRef.current || !selectedProducer) return;
+        
+        const opt = {
+            margin:       15,
+            filename:     `Contrato_${selectedProducer.name.replace(/\s+/g, '_')}.pdf`,
+            image:        { type: 'jpeg' as const, quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm' as const, format: 'a4', orientation: 'portrait' as const }
+        };
+
+        html2pdf().set(opt).from(containerRef.current).save();
     };
 
     if (producers.length === 0) {
@@ -50,18 +62,15 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     className="px-8 py-3 bg-indigo-600 text-white font-black rounded-xl uppercase text-xs tracking-widest hover:bg-indigo-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center gap-2"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                    Imprimir Contrato
+                    Baixar PDF
                 </button>
             </div>
 
             {selectedProducer ? (
-                <div className="bg-white border border-zinc-200 rounded-3xl p-12 shadow-sm max-w-4xl mx-auto font-serif text-zinc-800 leading-relaxed print:shadow-none print:border-none print:p-0">
+                <div ref={containerRef} className="bg-white border border-zinc-200 rounded-3xl p-12 shadow-sm max-w-4xl mx-auto font-serif text-zinc-800 leading-relaxed print:shadow-none print:border-none print:p-0">
                     <div className="text-center space-y-4 mb-12">
-                        <div className="flex justify-center mb-4">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Bras%C3%A3o_do_estado_de_S%C3%A3o_Paulo.svg/1200px-Bras%C3%A3o_do_estado_de_S%C3%A3o_Paulo.svg.png" alt="Brasão SP" className="h-20 w-auto" />
-                        </div>
                         <h1 className="text-2xl font-bold uppercase">Contrato</h1>
                         <p className="font-bold">CONTRATO N. <span className="font-bold">{selectedProducer.contractNumber || '_____/2026'}</span></p>
                     </div>
