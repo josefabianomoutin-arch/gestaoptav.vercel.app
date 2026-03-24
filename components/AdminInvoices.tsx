@@ -424,7 +424,6 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                         }
                     });
                 const items = Array.from(itemsMap.values());
-                if(items.length === 0 && totalValue === 0) return;
                 const validDates = deliveries.map(d => d.date).filter(d => d && d !== "Invalid Date");
                 const earliestDate = validDates.length > 0 ? validDates.sort()[0] : new Date().toISOString().split('T')[0];
                 const barcode = deliveries.find(d => d.barcode)?.barcode;
