@@ -1,8 +1,9 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole } from '../types';
+import { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, VehicleInspection } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import ConfirmModal from './ConfirmModal';
+import VehicleInspectionTab from './VehicleInspectionTab';
 
 interface AdminVehicleExitOrderProps {
     orders: VehicleExitOrder[];
@@ -21,6 +22,10 @@ interface AdminVehicleExitOrderProps {
     onRegisterValidationRole?: (vr: Omit<ValidationRole, 'id'>) => Promise<{ success: boolean; message: string }>;
     onUpdateValidationRole?: (vr: ValidationRole) => Promise<{ success: boolean; message: string }>;
     onDeleteValidationRole?: (id: string) => Promise<void>;
+    inspections?: VehicleInspection[];
+    onRegisterInspection?: (inspection: Omit<VehicleInspection, 'id'>) => Promise<{ success: boolean; message: string }>;
+    onUpdateInspection?: (inspection: VehicleInspection) => Promise<{ success: boolean; message: string }>;
+    onDeleteInspection?: (id: string) => Promise<void>;
     onUpdateVehicleExitOrder?: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
     readOnly?: boolean;
     securityMode?: boolean;
@@ -34,6 +39,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     vehicleAssets, onRegisterVehicleAsset, onUpdateVehicleAsset, onDeleteVehicleAsset,
     driverAssets, onRegisterDriverAsset, onUpdateDriverAsset, onDeleteDriverAsset,
     validationRoles, onRegisterValidationRole, onUpdateValidationRole, onDeleteValidationRole,
+    inspections = [], onRegisterInspection, onUpdateInspection, onDeleteInspection,
     onUpdateVehicleExitOrder,
     readOnly = false,
     securityMode = false,
@@ -41,7 +47,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     hideEdit = false,
     showGateTab = false
 }) => {
-    const [activeSubTab, setActiveSubTab] = useState<'orders' | 'assets' | 'gate'>('orders');
+    const [activeSubTab, setActiveSubTab] = useState<'orders' | 'assets' | 'gate' | 'inspections'>('orders');
     const [activeAssetTab, setActiveAssetTab] = useState<'vehicles' | 'drivers' | 'roles'>('vehicles');
     
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -833,12 +839,20 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                             </button>
                                         )}
                                         {!readOnly && !hideAssets && (
-                                            <button 
-                                                onClick={() => setActiveSubTab('assets')}
-                                                className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'assets' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                                            >
-                                                Cadastros
-                                            </button>
+                                            <>
+                                                <button 
+                                                    onClick={() => setActiveSubTab('inspections')}
+                                                    className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'inspections' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                                >
+                                                    Inspeções
+                                                </button>
+                                                <button 
+                                                    onClick={() => setActiveSubTab('assets')}
+                                                    className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'assets' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                                >
+                                                    Cadastros
+                                                </button>
+                                            </>
                                         )}
                                     </div>
             </div>
@@ -1208,6 +1222,16 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         </div>
                     )}
                 </div>
+            )}
+            {activeSubTab === 'inspections' && !readOnly && !hideAssets && (
+                <VehicleInspectionTab 
+                    inspections={inspections}
+                    vehicleAssets={vehicleAssets}
+                    driverAssets={driverAssets}
+                    onRegister={onRegisterInspection!}
+                    onUpdate={onUpdateInspection!}
+                    onDelete={onDeleteInspection!}
+                />
             )}
             {activeSubTab === 'assets' && !readOnly && !hideAssets && (
                 <div className="space-y-6 mt-12">

@@ -1,11 +1,12 @@
 
 import React from 'react';
 import { Truck } from 'lucide-react';
-import { VehicleExitOrder, DriverAsset, VehicleAsset, ValidationRole } from '../types';
+import { VehicleExitOrder, DriverAsset, VehicleAsset, ValidationRole, VehicleInspection } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 
 interface JulioDashboardProps {
   vehicleExitOrders: VehicleExitOrder[];
+  vehicleInspections: VehicleInspection[];
   driverAssets: DriverAsset[];
   vehicleAssets: VehicleAsset[];
   validationRoles: ValidationRole[];
@@ -22,10 +23,14 @@ interface JulioDashboardProps {
   onRegisterValidationRole: (vr: Omit<ValidationRole, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateValidationRole: (vr: ValidationRole) => Promise<{ success: boolean; message: string }>;
   onDeleteValidationRole: (id: string) => Promise<void>;
+  onRegisterVehicleInspection: (inspection: Omit<VehicleInspection, 'id'>) => Promise<{ success: boolean; message: string }>;
+  onUpdateVehicleInspection: (inspection: VehicleInspection) => Promise<{ success: boolean; message: string }>;
+  onDeleteVehicleInspection: (id: string) => Promise<void>;
 }
 
 const JulioDashboard: React.FC<JulioDashboardProps> = ({
   vehicleExitOrders,
+  vehicleInspections,
   driverAssets,
   vehicleAssets,
   validationRoles,
@@ -42,6 +47,9 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
   onRegisterValidationRole,
   onUpdateValidationRole,
   onDeleteValidationRole,
+  onRegisterVehicleInspection,
+  onUpdateVehicleInspection,
+  onDeleteVehicleInspection,
 }) => {
   return (
     <div className="min-h-screen bg-gray-50">
@@ -63,6 +71,7 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
       <main className="p-4 max-w-7xl mx-auto">
         <AdminVehicleExitOrder 
           orders={vehicleExitOrders}
+          inspections={vehicleInspections}
           vehicleAssets={vehicleAssets}
           driverAssets={driverAssets}
           validationRoles={validationRoles}
@@ -78,6 +87,9 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
           onRegisterValidationRole={onRegisterValidationRole}
           onUpdateValidationRole={onUpdateValidationRole}
           onDeleteValidationRole={onDeleteValidationRole}
+          onRegisterInspection={onRegisterVehicleInspection}
+          onUpdateInspection={onUpdateVehicleInspection}
+          onDeleteInspection={onDeleteVehicleInspection}
           hideAssets={false}
           securityMode={false}
           showGateTab={true}

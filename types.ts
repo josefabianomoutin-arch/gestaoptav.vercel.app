@@ -270,4 +270,28 @@ export interface ValidationRole {
   password?: string;
 }
 
+export interface VehicleInspection {
+  id: string;
+  vehicleId: string;
+  driverId: string;
+  date: string; // ISO string
+  type: 'INÍCIO DO PLANTÃO' | 'QUEBRA DURANTE O PERCURSO';
+  breakdownDescription?: string;
+  
+  lightingIssues: string[];
+  lightingDescription?: string;
+  
+  fluidIssues: string[];
+  fluidDescription?: string;
+  
+  mechanicIssues: string[];
+  mechanicDescription?: string;
+  
+  wheelIssues: string[];
+  wheelDescription?: string;
+  
+  damageIssues: string[];
+  damageDescription?: string;
+}
+
 export type UserRole = 'admin' | 'supplier' | 'producer' | 'pereciveis_supplier' | 'almoxarifado' | 'itesp' | 'financeiro' | 'subportaria' | 'cardapio' | 'infraestrutura' | 'ordem_saida' | 'julio' | 'readonly';

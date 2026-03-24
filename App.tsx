@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Toaster, toast } from 'sonner';
-import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, MenuRow, ContractItem, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, DailyAllowance, Staff, ValidationRole } from './types';
+import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, MenuRow, ContractItem, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, DailyAllowance, Staff, ValidationRole, VehicleInspection } from './types';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
@@ -29,6 +29,7 @@ let financialRecordsRef: any;
 let thirdPartyEntriesRef: any;
 let acquisitionItemsRef: any;
 let vehicleExitOrdersRef: any;
+let vehicleInspectionsRef: any;
 let vehicleAssetsRef: any;
 let driverAssetsRef: any;
 let dailyAllowancesRef: any;
@@ -50,6 +51,7 @@ try {
   thirdPartyEntriesRef = ref(database, 'thirdPartyEntries');
   acquisitionItemsRef = ref(database, 'acquisitionItems');
   vehicleExitOrdersRef = ref(database, 'vehicleExitOrders');
+  vehicleInspectionsRef = ref(database, 'vehicleInspections');
   vehicleAssetsRef = ref(database, 'vehicleAssets');
   driverAssetsRef = ref(database, 'driverAssets');
   dailyAllowancesRef = ref(database, 'dailyAllowances');
@@ -73,6 +75,7 @@ const App: React.FC = () => {
   const [thirdPartyEntries, setThirdPartyEntries] = useState<ThirdPartyEntryLog[]>([]);
   const [acquisitionItems, setAcquisitionItems] = useState<AcquisitionItem[]>([]);
   const [vehicleExitOrders, setVehicleExitOrders] = useState<VehicleExitOrder[]>([]);
+  const [vehicleInspections, setVehicleInspections] = useState<VehicleInspection[]>([]);
   const [vehicleAssets, setVehicleAssets] = useState<VehicleAsset[]>([]);
   const [driverAssets, setDriverAssets] = useState<DriverAsset[]>([]);
   const [dailyAllowances, setDailyAllowances] = useState<DailyAllowance[]>([]);
@@ -140,6 +143,10 @@ const App: React.FC = () => {
     onValue(vehicleExitOrdersRef, (snapshot) => {
       const data = snapshot.val();
       setVehicleExitOrders(data ? Object.values(data) : []);
+    });
+    onValue(vehicleInspectionsRef, (snapshot) => {
+      const data = snapshot.val();
+      setVehicleInspections(data ? Object.values(data) : []);
     });
     onValue(vehicleAssetsRef, (snapshot) => {
       const data = snapshot.val();
@@ -1469,6 +1476,7 @@ const App: React.FC = () => {
       return (
         <JulioDashboard
           vehicleExitOrders={vehicleExitOrders}
+          vehicleInspections={vehicleInspections}
           driverAssets={driverAssets}
           vehicleAssets={vehicleAssets}
           validationRoles={validationRoles}
@@ -1516,6 +1524,16 @@ const App: React.FC = () => {
             return { success: true, message: 'Cargo de validação atualizado' };
           }}
           onDeleteValidationRole={async (id) => remove(child(validationRolesRef, id))}
+          onRegisterVehicleInspection={async (inspection) => {
+            const r = push(vehicleInspectionsRef);
+            await set(r, { ...inspection, id: r.key });
+            return { success: true, message: 'Inspeção registrada' };
+          }}
+          onUpdateVehicleInspection={async (inspection) => {
+            await set(child(vehicleInspectionsRef, inspection.id), inspection);
+            return { success: true, message: 'Inspeção atualizada' };
+          }}
+          onDeleteVehicleInspection={async (id) => remove(child(vehicleInspectionsRef, id))}
         />
       );
     }
