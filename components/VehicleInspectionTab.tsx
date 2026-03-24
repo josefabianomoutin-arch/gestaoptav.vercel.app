@@ -192,8 +192,8 @@ const VehicleInspectionTab: React.FC<VehicleInspectionTabProps> = ({
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl border border-gray-100 my-8">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl border border-gray-100 max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="p-8 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white/80 backdrop-blur-md z-10 rounded-t-[2rem]">
               <div>
                 <h3 className="text-2xl font-black text-gray-800 uppercase tracking-tighter italic">
