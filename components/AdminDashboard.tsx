@@ -135,7 +135,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       { key: 'SEGURANÇA EXTERNA', name: 'Segurança Externa', default: 'externa2026' },
       { key: 'INFRAESTRUTURA', name: 'Infraestrutura', default: 'infra2026' },
       { key: 'ORDEM DE SAIDA', name: 'Ordem de Saída', default: 'saida2026' },
-      { key: 'JULIO CESAR NOGUEIRA', name: 'Julio Cesar Nogueira', default: '431385464' },
+      { key: 'SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA', name: 'Seção de Infraestrutura e Logística', default: '431385464' },
   ];
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const backupInputRef = useRef<HTMLInputElement>(null);

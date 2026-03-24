@@ -216,8 +216,9 @@ const App: React.FC = () => {
       setUser({ name: 'ORDEM DE SAIDA', cpf: 'saida2026', role: 'ordem_saida' });
       return true;
     }
-    if (cleanName === 'JULIO CESAR NOGUEIRA' && numericPass === (systemPasswords['JULIO CESAR NOGUEIRA'] || '431385464')) {
-      setUser({ name: 'JULIO CESAR NOGUEIRA', cpf: '431385464', role: 'julio' });
+    const julioPass = systemPasswords['SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA'] || systemPasswords['JULIO CESAR NOGUEIRA'] || '431385464';
+    if ((cleanName === 'SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA' || cleanName === 'JULIO CESAR NOGUEIRA') && rawPass === julioPass) {
+      setUser({ name: 'SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA', cpf: '431385464', role: 'julio' });
       return true;
     }
     const supplier = suppliers.find(s => s.cpf.replace(/\D/g, '') === numericPass);
