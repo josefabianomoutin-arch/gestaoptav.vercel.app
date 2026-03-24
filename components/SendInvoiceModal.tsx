@@ -52,6 +52,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
       reader.onloadend = async () => {
         const base64String = reader.result as string;
         try {
+          console.log('Iniciando onSave no Modal...', { invoiceNumber, fileSize: base64String.length });
           // Timeout de segurança de 45 segundos para a operação completa de salvamento
           const savePromise = onSave(invoiceNumber, base64String);
           const saveTimeout = new Promise((_, reject) => 
@@ -59,6 +60,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
           );
 
           await Promise.race([savePromise, saveTimeout]);
+          console.log('onSave concluído no Modal');
           
           setIsUploading(false);
           setIsSaved(true);
