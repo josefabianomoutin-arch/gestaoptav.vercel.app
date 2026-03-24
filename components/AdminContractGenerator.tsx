@@ -306,14 +306,12 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                                 
                                 <div className="grid grid-cols-2 gap-8">
                                     <div className="border-t border-zinc-800 pt-2">
-                                        <p className="text-xs">1. _______________________________</p>
                                         <p className="text-xs font-bold uppercase mt-1">JOSE FABIANO MOUTIN</p>
                                         <p className="text-[10px]">RG.: 26.528.522-7-SSP/SP</p>
                                         <p className="text-[10px]">CPF: 152.103.618-70</p>
                                     </div>
 
                                     <div className="border-t border-zinc-800 pt-2">
-                                        <p className="text-xs">2. _______________________________</p>
                                         <p className="text-xs font-bold uppercase mt-1">RICARDO SAMUEL SCARAMAL</p>
                                         <p className="text-[10px]">RG.: 34.637.703-1-SSP/SP</p>
                                         <p className="text-[10px]">CPF: 331.900.598-70</p>
