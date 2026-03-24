@@ -19,13 +19,13 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
     const handlePrint = () => {
         if (!containerRef.current || !selectedProducer) return;
         
-        const opt = {
-            margin:       10,
+        const opt: any = {
+            margin:       [15, 15, 15, 15],
             filename:     `Contrato_${selectedProducer.name.replace(/\s+/g, '_')}.pdf`,
             image:        { type: 'jpeg' as const, quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
+            html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
             jsPDF:        { unit: 'mm' as const, format: 'a4', orientation: 'portrait' as const },
-            pagebreak:    { mode: ['css', 'legacy'] }
+            pagebreak:    { mode: ['css', 'legacy'], avoid: '.avoid-break' }
         };
 
         html2pdf().set(opt).from(containerRef.current).save();
@@ -70,10 +70,10 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
             </div>
 
             {selectedProducer ? (
-                <div ref={containerRef} className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm max-w-4xl mx-auto font-serif text-zinc-800 leading-normal print:shadow-none print:border-none print:p-0">
-                    <div className="text-center space-y-1 mb-2 pt-0">
-                        <h1 className="text-xl font-bold uppercase">Contrato</h1>
-                        <p className="font-bold text-sm">CONTRATO N. <span className="font-bold">{selectedProducer.contractNumber || '_____/2026'}</span></p>
+                <div ref={containerRef} className="bg-white border border-zinc-200 rounded-3xl p-10 shadow-sm max-w-4xl mx-auto font-serif text-zinc-800 leading-relaxed print:shadow-none print:border-none print:p-0">
+                    <div className="text-center space-y-1 mb-8 pt-10">
+                        <h1 className="text-2xl font-bold uppercase">Contrato</h1>
+                        <p className="font-bold text-base">CONTRATO N. <span className="font-bold">{selectedProducer.contractNumber || '_____/2026'}</span></p>
                     </div>
 
                     <div className="space-y-0">
@@ -99,7 +99,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             e pelos mesmos foi dito na presença das testemunhas ao final consignadas, que em face da autorização da inexigibilidade da licitação constante no Processo SEI 006.00091368/2026-57, nos termos do artigo 74, inciso IV, c.c. o artigo 79 da Lei Federal nº 14.133/2021, pelo presente instrumento avençam um contrato de aquisição de gêneros alimentícios da Agricultura Familiar para atender o Programa Paulista da Agricultura de Interesse Social – PPAIS, sujeitando-se às normas da Lei Federal nº 14.133/2021, Decreto Estadual nº 68.304/2024 e demais normas regulamentares à espécie, inclusive a Lei Estadual nº 14.591/2011, regulamentada pelo Decreto nº 57.755/2012, alterados pelo Decreto nº 60.055/2014, Decreto nº 62.282/2016, e Decreto nº 68.734/2024, e às seguintes cláusulas e condições que reciprocamente outorgam e aceitam:
                         </p>
 
-                        <div className="space-y-4 text-justify">
+                        <div className="space-y-4 text-justify avoid-break">
                             <h2 className="font-bold underline uppercase">CLÁUSULA PRIMEIRA – DO OBJETO</h2>
                             <p>Constitui objeto do presente contrato a aquisição de:</p>
                             
@@ -152,7 +152,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             </p>
                         </div>
 
-                        <div className="space-y-4 text-justify">
+                        <div className="space-y-4 text-justify avoid-break">
                             <h2 className="font-bold underline uppercase">CLÁUSULA SEGUNDA – PRAZO E LOCAL DE ENTREGA, PERÍODO DE FORNECIMENTO E RECEBIMENTO DO OBJETO</h2>
                             <p>1. O objeto da presente contratação será entregue parceladamente, nos prazos e locais determinados pela CONTRATANTE, conforme cronograma de fornecimento Anexo I do presente contrato;</p>
                             <p>2. A Comissão de recepção de Material, no momento da entrega dos produtos, irá verificar se eles estão em conformidade com as especificações contidas no Edital, tendo o prazo de 24 (vinte e quatro) horas para exigir as devidas substituições ou complementações;</p>
@@ -305,13 +305,13 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                                 <p className="font-bold uppercase mb-6">TESTEMUNHAS:</p>
                                 
                                 <div className="grid grid-cols-2 gap-8">
-                                    <div className="border-t border-zinc-800 pt-2">
+                                    <div className="pt-2">
                                         <p className="text-xs font-bold uppercase mt-1">JOSE FABIANO MOUTIN</p>
                                         <p className="text-[10px]">RG.: 26.528.522-7-SSP/SP</p>
                                         <p className="text-[10px]">CPF: 152.103.618-70</p>
                                     </div>
 
-                                    <div className="border-t border-zinc-800 pt-2">
+                                    <div className="pt-2">
                                         <p className="text-xs font-bold uppercase mt-1">RICARDO SAMUEL SCARAMAL</p>
                                         <p className="text-[10px]">RG.: 34.637.703-1-SSP/SP</p>
                                         <p className="text-[10px]">CPF: 331.900.598-70</p>

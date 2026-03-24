@@ -423,18 +423,29 @@ const App: React.FC = () => {
 
   const handleSaveInvoice = useCallback(async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string) => {
     try {
+      console.log('Iniciando handleSaveInvoice:', { supplierCpf, deliveryIds, invoiceNumber });
       let finalInvoiceUrl = invoiceUrl;
       if (invoiceUrl.startsWith('data:')) {
         try {
           const invoiceId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.pdf`;
           const fileRef = storageRef(storage, `invoices/${invoiceId}`);
-          await uploadString(fileRef, invoiceUrl, 'data_url');
+          console.log('Fazendo upload para o Storage...');
+          
+          const uploadPromise = uploadString(fileRef, invoiceUrl, 'data_url');
+          const uploadTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout no upload do arquivo (30s)')), 30000));
+          
+          await Promise.race([uploadPromise, uploadTimeout]);
           finalInvoiceUrl = await getDownloadURL(fileRef);
+          console.log('Upload concluído:', finalInvoiceUrl);
         } catch (storageError) {
           console.error("Storage failed, falling back to RTDB", storageError);
           const invoiceId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
           const invoiceRef = child(ref(database), `invoices/${invoiceId}`);
-          await set(invoiceRef, invoiceUrl);
+          
+          const setPromise = set(invoiceRef, invoiceUrl);
+          const setTimeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao salvar no RTDB (Fallback)')), 20000));
+          
+          await Promise.race([setPromise, setTimeoutPromise]);
           finalInvoiceUrl = `rtdb://invoices/${invoiceId}`;
         }
       }
@@ -442,47 +453,60 @@ const App: React.FC = () => {
       const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
       if (isMainSupplier) {
         const supplierRef = child(suppliersRef, supplierCpf);
-        await runTransaction(supplierRef, (currentData: Supplier) => {
-          if (currentData) {
-            const deliveries = currentData.deliveries || [];
-            deliveries.forEach(d => {
-              if (deliveryIds.includes(d.id)) {
-                d.invoiceUploaded = true;
-                d.invoiceNumber = invoiceNumber;
-                d.invoiceUrl = finalInvoiceUrl;
-              }
-            });
-            currentData.deliveries = deliveries;
-          }
-          return currentData;
-        });
-        return;
-      }
-
-      await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
-        if (currentData) {
-          const findAndUpdate = (list: any[] | undefined) => {
-            const s = list?.find(p => p.cpfCnpj === supplierCpf);
-            if (s) {
-              const deliveries = s.deliveries || [];
-              deliveries.forEach((d: any) => {
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao salvar nota fiscal (Main)')), 15000));
+        
+        console.log('Iniciando transação MainSupplier...');
+        await Promise.race([
+          runTransaction(supplierRef, (currentData: Supplier) => {
+            if (currentData) {
+              const deliveries = currentData.deliveries || [];
+              deliveries.forEach(d => {
                 if (deliveryIds.includes(d.id)) {
                   d.invoiceUploaded = true;
                   d.invoiceNumber = invoiceNumber;
                   d.invoiceUrl = finalInvoiceUrl;
                 }
               });
-              s.deliveries = deliveries;
-              return true;
+              currentData.deliveries = deliveries;
             }
-            return false;
-          };
-          if (!findAndUpdate(currentData.ppaisProducers)) {
-            findAndUpdate(currentData.pereciveisSuppliers);
+            return currentData;
+          }),
+          timeoutPromise
+        ]);
+        console.log('Transação MainSupplier concluída');
+        return;
+      }
+
+      const timeoutPromisePC = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao salvar nota fiscal (PerCapita)')), 15000));
+      console.log('Iniciando transação PerCapita...');
+      await Promise.race([
+        runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+          if (currentData) {
+            const findAndUpdate = (list: any[] | undefined) => {
+              const s = list?.find(p => p.cpfCnpj === supplierCpf);
+              if (s) {
+                const deliveries = s.deliveries || [];
+                deliveries.forEach((d: any) => {
+                  if (deliveryIds.includes(d.id)) {
+                    d.invoiceUploaded = true;
+                    d.invoiceNumber = invoiceNumber;
+                    d.invoiceUrl = finalInvoiceUrl;
+                  }
+                });
+                s.deliveries = deliveries;
+                return true;
+              }
+              return false;
+            };
+            if (!findAndUpdate(currentData.ppaisProducers)) {
+              findAndUpdate(currentData.pereciveisSuppliers);
+            }
           }
-        }
-        return currentData;
-      });
+          return currentData;
+        }),
+        timeoutPromisePC
+      ]);
+      console.log('Transação PerCapita concluída');
     } catch (error) {
       console.error('Erro ao salvar nota fiscal:', error);
       throw new Error('Falha ao salvar nota fiscal: ' + (error instanceof Error ? error.message : String(error)));

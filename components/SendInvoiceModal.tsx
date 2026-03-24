@@ -52,7 +52,14 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
       reader.onloadend = async () => {
         const base64String = reader.result as string;
         try {
-          await onSave(invoiceNumber, base64String);
+          // Timeout de segurança de 45 segundos para a operação completa de salvamento
+          const savePromise = onSave(invoiceNumber, base64String);
+          const saveTimeout = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('A operação demorou demais. Verifique sua conexão.')), 45000)
+          );
+
+          await Promise.race([savePromise, saveTimeout]);
+          
           setIsUploading(false);
           setIsSaved(true);
         } catch (error: any) {
