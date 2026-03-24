@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Truck } from 'lucide-react';
 import { VehicleExitOrder, DriverAsset, VehicleAsset, ValidationRole, VehicleInspection } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
@@ -51,21 +51,60 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
   onUpdateVehicleInspection,
   onDeleteVehicleInspection,
 }) => {
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'BOM DIA';
+    if (hour >= 12 && hour < 18) return 'BOA TARDE';
+    return 'BOA NOITE';
+  }, []);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const vehiclesOutside = useMemo(() => {
+    return vehicleExitOrders.filter(o => o.exitTime && !o.returnTime);
+  }, [vehicleExitOrders]);
+
+  const availableVehicles = useMemo(() => {
+    const outsidePlates = vehiclesOutside.map(o => o.plate);
+    return vehicleAssets.filter(v => !outsidePlates.includes(v.plate));
+  }, [vehicleAssets, vehiclesOutside]);
+
+  const vehiclesPendingInspection = useMemo(() => {
+    const inspectedVehicleIds = vehicleInspections
+      .filter(i => i.date.startsWith(todayStr))
+      .map(i => i.vehicleId);
+    
+    return vehicleAssets.filter(v => !inspectedVehicleIds.includes(v.id));
+  }, [vehicleAssets, vehicleInspections, todayStr]);
+
+  const marqueeMessage = `${greeting}, JULIO E FARLEY: ` +
+    `VEÍCULOS FORA DA UNIDADE: ${vehiclesOutside.length > 0 ? vehiclesOutside.map(o => `${o.vehicle} (${o.plate}) - MOT: ${o.responsibleServer} - DEST: ${o.destination}`).join(' • ') : 'NENHUM'} | ` +
+    `VEÍCULOS DISPONÍVEIS: ${availableVehicles.length > 0 ? availableVehicles.map(v => `${v.model} (${v.plate})`).join(' • ') : 'NENHUM'} | ` +
+    `VEÍCULOS AGUARDANDO INSPEÇÃO HOJE: ${vehiclesPendingInspection.length > 0 ? vehiclesPendingInspection.map(v => `${v.model} (${v.plate})`).join(' • ') : 'NENHUM'}`;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-indigo-950 text-white p-4 shadow-xl flex justify-between items-center sticky top-0 z-50 border-b border-indigo-800">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-shrink-0">
           <div className="bg-indigo-600 p-2 rounded-xl shadow-inner">
             <Truck className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-lg font-black uppercase italic tracking-tighter leading-none">
+            <h1 className="text-lg font-black uppercase italic tracking-tighter leading-none whitespace-nowrap">
               SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA
             </h1>
             <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest">Gestão de Ordem de Saída</p>
           </div>
         </div>
-        <button onClick={onLogout} className="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-black py-2 px-4 rounded-xl text-[10px] uppercase transition-all border border-red-900/50">Sair</button>
+
+        {/* MENSAGEM DINÂMICA DE SAUDAÇÃO E VEÍCULOS */}
+        <div className="flex-1 mx-4 md:mx-10 bg-blue-50 border-2 border-blue-200 rounded-2xl p-2 overflow-hidden whitespace-nowrap relative h-12 flex items-center shadow-inner">
+            <div className="animate-marquee inline-block text-blue-900 font-black text-xs md:text-sm uppercase italic tracking-tight">
+                {marqueeMessage}
+            </div>
+        </div>
+
+        <button onClick={onLogout} className="flex-shrink-0 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-black py-2 px-4 rounded-xl text-[10px] uppercase transition-all border border-red-900/50">Sair</button>
       </header>
 
       <main className="p-4 max-w-7xl mx-auto">
@@ -95,6 +134,19 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
           showGateTab={true}
         />
       </main>
+
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+          display: inline-block;
+          white-space: nowrap;
+          animation: marquee 35s linear infinite;
+          padding-left: 100%;
+        }
+      `}</style>
     </div>
   );
 };
