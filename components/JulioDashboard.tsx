@@ -143,7 +143,7 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
         .animate-marquee {
           display: inline-block;
           white-space: nowrap;
-          animation: marquee 35s linear infinite;
+          animation: marquee 150s linear infinite;
           padding-left: 100%;
         }
       `}</style>
