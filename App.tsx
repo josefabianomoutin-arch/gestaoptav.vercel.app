@@ -38,6 +38,7 @@ let dailyAllowancesRef: any;
 let staffRef: any;
 let validationRolesRef: any;
 let systemPasswordsRef: any;
+let maintenanceSchedulesRef: any;
 
 try {
   database = getDatabase(app);
@@ -61,6 +62,7 @@ try {
   staffRef = ref(database, 'staff');
   validationRolesRef = ref(database, 'validationRoles');
   systemPasswordsRef = ref(database, 'systemPasswords');
+  maintenanceSchedulesRef = ref(database, 'maintenanceSchedules');
 } catch (error) {
   console.error("Erro ao inicializar Firebase:", error);
 }
@@ -86,6 +88,7 @@ const App: React.FC = () => {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [validationRoles, setValidationRoles] = useState<ValidationRole[]>([]);
   const [systemPasswords, setSystemPasswords] = useState<Record<string, string>>({});
+  const [maintenanceSchedules, setMaintenanceSchedules] = useState<MaintenanceSchedule[]>([]);
 
   useEffect(() => {
     if (!database) return;
@@ -180,7 +183,45 @@ const App: React.FC = () => {
     onValue(systemPasswordsRef, (snapshot) => {
       setSystemPasswords(snapshot.val() || {});
     });
+    onValue(maintenanceSchedulesRef, (snapshot) => {
+      const data = snapshot.val();
+      setMaintenanceSchedules(data ? Object.values(data) : []);
+    });
   }, []);
+
+  const handleRegisterMaintenanceSchedule = async (schedule: Omit<MaintenanceSchedule, 'id'>) => {
+    try {
+      const newScheduleRef = push(maintenanceSchedulesRef);
+      const newSchedule = { ...schedule, id: newScheduleRef.key as string };
+      await set(newScheduleRef, newSchedule);
+      toast.success('Agendamento de manutenção registrado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao registrar agendamento:', error);
+      toast.error('Erro ao registrar agendamento.');
+    }
+  };
+
+  const handleUpdateMaintenanceSchedule = async (id: string, updates: Partial<MaintenanceSchedule>) => {
+    try {
+      const scheduleRef = child(maintenanceSchedulesRef, id);
+      await update(scheduleRef, updates);
+      toast.success('Agendamento atualizado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar agendamento:', error);
+      toast.error('Erro ao atualizar agendamento.');
+    }
+  };
+
+  const handleDeleteMaintenanceSchedule = async (id: string) => {
+    try {
+      const scheduleRef = child(maintenanceSchedulesRef, id);
+      await remove(scheduleRef);
+      toast.success('Agendamento removido com sucesso!');
+    } catch (error) {
+      console.error('Erro ao remover agendamento:', error);
+      toast.error('Erro ao remover agendamento.');
+    }
+  };
 
   const handleLogin = (nameInput: string, passwordInput: string) => {
     const cleanName = (nameInput || '').trim().toUpperCase();
@@ -1368,8 +1409,12 @@ const App: React.FC = () => {
           standardMenu={standardMenu}
           dailyMenus={dailyMenus}
           serviceOrders={serviceOrders}
+          maintenanceSchedules={maintenanceSchedules}
           onUpdateServiceOrder={handleUpdateServiceOrder}
           onDeleteServiceOrder={handleDeleteServiceOrder}
+          onRegisterMaintenanceSchedule={handleRegisterMaintenanceSchedule}
+          onUpdateMaintenanceSchedule={handleUpdateMaintenanceSchedule}
+          onDeleteMaintenanceSchedule={handleDeleteMaintenanceSchedule}
           vehicleInspections={vehicleInspections}
           onRegisterVehicleInspection={async (inspection) => {
             const r = push(vehicleInspectionsRef);
@@ -1542,8 +1587,12 @@ const App: React.FC = () => {
           vehicleAssets={vehicleAssets}
           validationRoles={validationRoles}
           serviceOrders={serviceOrders}
+          maintenanceSchedules={maintenanceSchedules}
           onUpdateServiceOrder={handleUpdateServiceOrder}
           onDeleteServiceOrder={handleDeleteServiceOrder}
+          onRegisterMaintenanceSchedule={handleRegisterMaintenanceSchedule}
+          onUpdateMaintenanceSchedule={handleUpdateMaintenanceSchedule}
+          onDeleteMaintenanceSchedule={handleDeleteMaintenanceSchedule}
           onLogout={handleLogout}
           onRegisterVehicleExitOrder={async (order) => {
             const r = push(vehicleExitOrdersRef);
@@ -1611,6 +1660,8 @@ const App: React.FC = () => {
         <SubportariaDashboard 
           suppliers={suppliers} 
           thirdPartyEntries={thirdPartyEntries}
+          maintenanceSchedules={maintenanceSchedules}
+          onUpdateMaintenanceSchedule={handleUpdateMaintenanceSchedule}
           onUpdateThirdPartyEntry={async (log) => {
             await set(child(thirdPartyEntriesRef, log.id), log);
             return { success: true, message: 'Atualizado' };
@@ -1647,9 +1698,13 @@ const App: React.FC = () => {
           driverAssets={driverAssets}
           validationRoles={validationRoles}
           serviceOrders={serviceOrders}
+          maintenanceSchedules={maintenanceSchedules}
           vehicleInspections={vehicleInspections}
           onUpdateServiceOrder={handleUpdateServiceOrder}
           onDeleteServiceOrder={handleDeleteServiceOrder}
+          onRegisterMaintenanceSchedule={handleRegisterMaintenanceSchedule}
+          onUpdateMaintenanceSchedule={handleUpdateMaintenanceSchedule}
+          onDeleteMaintenanceSchedule={handleDeleteMaintenanceSchedule}
           onRegister={async (order) => {
             const r = push(vehicleExitOrdersRef);
             const id = r.key || `order-${Date.now()}`;

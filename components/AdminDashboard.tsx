@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
-import type { Supplier, ContractItem, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, Delivery, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, UserRole, ServiceOrder, VehicleInspection } from '../types';
+import type { Supplier, ContractItem, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, Delivery, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, UserRole, ServiceOrder, VehicleInspection, MaintenanceSchedule } from '../types';
 import AdminAnalytics from './AdminAnalytics';
 import AdminContractItems from './AdminContractItems';
 import WeekSelector from './WeekSelector';
@@ -86,8 +86,12 @@ interface AdminDashboardProps {
   onUpdateVehicleInspection: (inspection: VehicleInspection) => Promise<{ success: boolean; message: string }>;
   onDeleteVehicleInspection: (id: string) => Promise<void>;
   serviceOrders: ServiceOrder[];
+  maintenanceSchedules: MaintenanceSchedule[];
   onUpdateServiceOrder: (order: ServiceOrder) => Promise<{ success: boolean; message: string }>;
   onDeleteServiceOrder: (id: string) => Promise<{ success: boolean; message: string }>;
+  onRegisterMaintenanceSchedule: (schedule: Omit<MaintenanceSchedule, 'id'>) => Promise<{ success: boolean; message: string }>;
+  onUpdateMaintenanceSchedule: (schedule: MaintenanceSchedule) => Promise<{ success: boolean; message: string }>;
+  onDeleteMaintenanceSchedule: (id: string) => Promise<void>;
   validationRoles: any[];
   onUpdateSupplierObservations?: (cpf: string, observations: string) => Promise<{ success: boolean; message?: string }>;
   systemPasswords: Record<string, string>;
@@ -129,8 +133,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     onUpdateVehicleInspection,
     onDeleteVehicleInspection,
     serviceOrders = [],
+    maintenanceSchedules = [],
     onUpdateServiceOrder,
     onDeleteServiceOrder,
+    onRegisterMaintenanceSchedule,
+    onUpdateMaintenanceSchedule,
+    onDeleteMaintenanceSchedule,
     validationRoles = []
   } = props;
   const [activeTab, setActiveTab] = useState<AdminTab>('register');
@@ -392,6 +400,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           orders={serviceOrders}
           onUpdate={onUpdateServiceOrder}
           onDelete={onDeleteServiceOrder}
+          maintenanceSchedules={props.maintenanceSchedules}
+          onRegisterMaintenanceSchedule={props.onRegisterMaintenanceSchedule}
+          onUpdateMaintenanceSchedule={props.onUpdateMaintenanceSchedule}
+          onDeleteMaintenanceSchedule={props.onDeleteMaintenanceSchedule}
       />;
       case 'analytics': return <AdminAnalytics suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} />;
       case 'graphs': return <AdminGraphs 

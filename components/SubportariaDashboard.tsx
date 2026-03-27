@@ -1,13 +1,15 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import type { Supplier, Delivery, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole } from '../types';
+import type { Supplier, Delivery, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, MaintenanceSchedule } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 import { Camera, CheckCircle, XCircle, RefreshCw, UserCheck, AlertTriangle } from 'lucide-react';
 
 interface SubportariaDashboardProps {
   suppliers: Supplier[];
   thirdPartyEntries: ThirdPartyEntryLog[];
+  maintenanceSchedules: MaintenanceSchedule[];
+  onUpdateMaintenanceSchedule: (schedule: MaintenanceSchedule) => Promise<{ success: boolean; message: string }>;
   onUpdateThirdPartyEntry: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message: string }>;
   onDeleteThirdPartyEntry: (id: string) => Promise<void>;
   onLogout: () => void;
@@ -27,6 +29,8 @@ const formatDate = (dateString: string) => {
 const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({ 
     suppliers, 
     thirdPartyEntries, 
+    maintenanceSchedules,
+    onUpdateMaintenanceSchedule,
     onUpdateThirdPartyEntry, 
     onDeleteThirdPartyEntry,
     onLogout,
@@ -37,7 +41,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     onUpdateVehicleExitOrder
 }) => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-    const [activeTab, setActiveTab] = useState<'agenda' | 'vehicles'>('agenda');
+    const [activeTab, setActiveTab] = useState<'agenda' | 'vehicles' | 'seguranca'>('agenda');
 
     // Facial Recognition State
     const [isVerifying, setIsVerifying] = useState(false);
@@ -252,6 +256,12 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                     >
                         Veículos
                     </button>
+                    <button 
+                        onClick={() => setActiveTab('seguranca')}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'seguranca' ? 'bg-indigo-600 text-white' : 'text-indigo-300 hover:bg-white/5'}`}
+                    >
+                        Segurança Externa
+                    </button>
                     <button onClick={onLogout} className="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-black py-2 px-4 rounded-xl text-[10px] uppercase transition-all border border-red-900/50 ml-2">Sair</button>
                 </div>
             </header>
@@ -398,7 +408,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                         </div>
                     </div>
                     </>
-                ) : (
+                ) : activeTab === 'vehicles' ? (
                     <div className="animate-fade-in">
                         <AdminVehicleExitOrder 
                             orders={vehicleExitOrders}
@@ -419,6 +429,89 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                             hideAssets={true}
                             securityMode={true}
                         />
+                    </div>
+                ) : (
+                    <div className="animate-fade-in space-y-6">
+                        <div className="bg-white p-5 rounded-[2rem] shadow-lg border border-slate-200">
+                            <div className="flex flex-col gap-4">
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic">Manutenções Agendadas</h2>
+                                        <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Controle de Segurança Externa</p>
+                                    </div>
+                                    <div className="bg-indigo-50 px-3 py-1 rounded-full">
+                                        <span className="text-[10px] font-black text-indigo-600 uppercase">{maintenanceSchedules.length} Agendamentos</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            {maintenanceSchedules.length > 0 ? maintenanceSchedules.map(schedule => (
+                                <div key={schedule.id} className="bg-white rounded-[2rem] shadow-md border-2 border-indigo-50 p-6">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <h3 className="text-lg font-black text-indigo-950 uppercase tracking-tighter">{schedule.description}</h3>
+                                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">
+                                                {formatDate(schedule.date)} às {schedule.time}
+                                            </p>
+                                        </div>
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                            schedule.status === 'concluido' ? 'bg-green-100 text-green-700' :
+                                            schedule.status === 'em_andamento' ? 'bg-blue-100 text-blue-700' :
+                                            'bg-yellow-100 text-yellow-700'
+                                        }`}>
+                                            {schedule.status.replace('_', ' ')}
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local</p>
+                                            <p className="text-sm font-bold text-slate-700">{schedule.location}</p>
+                                        </div>
+                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Acompanhante</p>
+                                            <p className="text-sm font-bold text-slate-700">{schedule.accompanyingPerson}</p>
+                                        </div>
+                                    </div>
+
+                                    {schedule.toolsNeeded && (
+                                        <div className="mt-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ferramentas Necessárias</p>
+                                            <p className="text-sm font-bold text-slate-700 whitespace-pre-wrap">{schedule.toolsNeeded}</p>
+                                        </div>
+                                    )}
+
+                                    <div className="mt-6 flex justify-end gap-2">
+                                        {schedule.status === 'agendado' && (
+                                            <button
+                                                onClick={() => onUpdateMaintenanceSchedule({ ...schedule, status: 'em_andamento' })}
+                                                className="bg-blue-600 hover:bg-blue-700 text-white font-black py-2 px-6 rounded-xl text-[10px] uppercase transition-all shadow-md"
+                                            >
+                                                Iniciar Manutenção
+                                            </button>
+                                        )}
+                                        {schedule.status === 'em_andamento' && (
+                                            <button
+                                                onClick={() => onUpdateMaintenanceSchedule({ ...schedule, status: 'concluido' })}
+                                                className="bg-green-600 hover:bg-green-700 text-white font-black py-2 px-6 rounded-xl text-[10px] uppercase transition-all shadow-md"
+                                            >
+                                                Concluir Manutenção
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            )) : (
+                                <div className="text-center py-20 bg-white/50 rounded-[3rem] border-4 border-dashed border-slate-200">
+                                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <AlertTriangle className="h-8 w-8 text-slate-300" />
+                                    </div>
+                                    <p className="text-sm font-black text-slate-400 uppercase tracking-widest italic">Nenhuma manutenção</p>
+                                    <p className="text-[10px] font-bold text-slate-300 mt-1 uppercase">Agendada no momento</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </main>

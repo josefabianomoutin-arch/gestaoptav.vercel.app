@@ -11,7 +11,7 @@ interface ServiceOrderDashboardProps {
 }
 
 const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
-  serviceOrders,
+  serviceOrders = [],
   onRegisterServiceOrder,
   onLogout,
 }) => {
@@ -63,10 +63,10 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
-      case 'ALTA': return <span className="bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-[0_0_10px_rgba(239,68,68,0.2)]">Alta</span>;
-      case 'MÉDIA': return <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-[0_0_10px_rgba(245,158,11,0.2)]">Média</span>;
-      case 'BAIXA': return <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-[0_0_10px_rgba(16,185,129,0.2)]">Baixa</span>;
-      default: return <span className="bg-white/5 text-white/40 border border-white/10 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">Aguardando Inspeção</span>;
+      case 'ALTA': return <span className="bg-red-100 text-red-700 border border-red-200 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">Alta</span>;
+      case 'MÉDIA': return <span className="bg-amber-100 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">Média</span>;
+      case 'BAIXA': return <span className="bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">Baixa</span>;
+      default: return <span className="bg-gray-100 text-gray-500 border border-gray-200 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">Aguardando Inspeção</span>;
     }
   };
 
@@ -85,43 +85,43 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-indigo-500/30 overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-indigo-500/30 overflow-x-hidden">
       {/* Background Effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-black/40 backdrop-blur-2xl border-b border-white/5 p-4 md:p-6">
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-2xl border-b border-gray-200 p-4 md:p-6 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-5">
             <div className="relative">
-              <div className="absolute inset-0 bg-indigo-600 blur-lg opacity-50 animate-pulse" />
-              <div className="relative bg-gradient-to-br from-indigo-500 to-indigo-700 p-3.5 rounded-2xl shadow-2xl">
+              <div className="absolute inset-0 bg-indigo-600 blur-lg opacity-20 animate-pulse" />
+              <div className="relative bg-gradient-to-br from-indigo-500 to-indigo-700 p-3.5 rounded-2xl shadow-xl">
                 <ClipboardList className="h-7 w-7 text-white" />
               </div>
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter leading-none bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter leading-none text-indigo-950">
                 ORDEM DE SERVIÇO
               </h1>
               <div className="flex items-center gap-2 mt-1.5">
                 <div className="h-1 w-1 bg-indigo-500 rounded-full animate-ping" />
-                <p className="text-[10px] text-indigo-400 font-black uppercase tracking-[0.3em]">Portal de Solicitações Infraestrutura</p>
+                <p className="text-[10px] text-indigo-600 font-black uppercase tracking-[0.3em]">Portal de Solicitações Infraestrutura</p>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-6">
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="group relative bg-white text-black hover:bg-indigo-600 hover:text-white font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all flex items-center gap-3 active:scale-95 shadow-[0_10px_20px_rgba(255,255,255,0.1)] overflow-hidden"
+              className="group relative bg-indigo-600 text-white hover:bg-indigo-700 font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all flex items-center gap-3 active:scale-95 shadow-lg overflow-hidden"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
               <Plus className="h-4 w-4 relative z-10" />
               <span className="relative z-10">Nova Solicitação</span>
             </button>
-            <button onClick={onLogout} className="text-white/20 hover:text-red-500 font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:tracking-[0.3em]">Sair</button>
+            <button onClick={onLogout} className="text-gray-400 hover:text-red-500 font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:tracking-[0.3em]">Sair</button>
           </div>
         </div>
       </header>
@@ -132,45 +132,45 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
             sortedOrders.map((order, idx) => (
               <div 
                 key={order.id} 
-                className="group bg-white/[0.03] border border-white/10 rounded-[2.5rem] p-8 hover:border-indigo-500/40 transition-all hover:bg-white/[0.06] relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500"
+                className="group bg-white border border-gray-200 rounded-[2.5rem] p-8 hover:border-indigo-300 transition-all hover:shadow-xl relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500"
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
-                <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
                   {getStatusIcon(order.status)}
                 </div>
                 
                 <div className="flex flex-col h-full">
                   <div className="mb-6">
                     <div className="flex items-center gap-2.5 mb-4">
-                      <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                      <span className="bg-indigo-50 text-indigo-600 border border-indigo-100 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest">
                         {order.serviceType}
                       </span>
-                      <span className="bg-white/5 text-white/40 border border-white/10 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                      <span className="bg-gray-100 text-gray-500 border border-gray-200 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest">
                         {order.category}
                       </span>
                     </div>
-                    <h3 className="text-2xl font-black text-white uppercase tracking-tighter leading-tight mb-2 group-hover:text-indigo-400 transition-colors">
+                    <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter leading-tight mb-2 group-hover:text-indigo-600 transition-colors">
                       {order.requestingSector}
                     </h3>
                     <div className="flex items-center gap-2">
-                      <div className="w-4 h-[1px] bg-white/20" />
-                      <p className="text-[10px] text-white/30 font-black uppercase tracking-widest">Solicitante: <span className="text-white/60">{order.requester}</span></p>
+                      <div className="w-4 h-[1px] bg-gray-300" />
+                      <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Solicitante: <span className="text-gray-600">{order.requester}</span></p>
                     </div>
                   </div>
 
-                  <div className="bg-black/40 rounded-3xl p-6 mb-6 flex-grow border border-white/5 group-hover:border-indigo-500/20 transition-colors">
-                    <p className="text-sm text-white/60 italic leading-relaxed line-clamp-4 font-medium">
+                  <div className="bg-gray-50 rounded-3xl p-6 mb-6 flex-grow border border-gray-100 group-hover:border-indigo-100 transition-colors">
+                    <p className="text-sm text-gray-600 italic leading-relaxed line-clamp-4 font-medium">
                       "{order.description}"
                     </p>
                   </div>
 
-                  <div className="flex justify-between items-end pt-6 border-t border-white/5">
+                  <div className="flex justify-between items-end pt-6 border-t border-gray-100">
                     <div className="space-y-2">
-                      <p className="text-[9px] text-white/20 font-black uppercase tracking-widest">Prioridade</p>
+                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">Prioridade</p>
                       {getPriorityBadge(order.priority)}
                     </div>
                     <div className="text-right space-y-2">
-                      <p className="text-[9px] text-white/20 font-black uppercase tracking-widest">Status Atual</p>
+                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">Status Atual</p>
                       <div className="flex items-center gap-2 justify-end">
                         <div className={`w-2 h-2 rounded-full ${
                           order.status === 'concluido' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 
@@ -178,9 +178,9 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
                           order.status === 'cancelado' ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]'
                         }`} />
                         <span className={`text-xs font-black uppercase italic tracking-tight ${
-                          order.status === 'concluido' ? 'text-emerald-400' : 
-                          order.status === 'em_andamento' ? 'text-blue-400' : 
-                          order.status === 'cancelado' ? 'text-red-400' : 'text-amber-400'
+                          order.status === 'concluido' ? 'text-emerald-600' : 
+                          order.status === 'em_andamento' ? 'text-blue-600' : 
+                          order.status === 'cancelado' ? 'text-red-600' : 'text-amber-600'
                         }`}>
                           {order.status.replace('_', ' ')}
                         </span>
@@ -189,11 +189,11 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
                   </div>
 
                   {order.projectStage && (
-                    <div className="mt-4 pt-4 border-t border-white/5">
-                      <p className="text-[9px] text-white/20 font-black uppercase tracking-widest mb-2">Andamento do Projeto</p>
-                      <div className="bg-blue-500/10 border border-blue-500/20 px-3 py-2 rounded-xl inline-flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                        <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mb-2">Andamento do Projeto</p>
+                      <div className="bg-blue-50 border border-blue-100 px-3 py-2 rounded-xl inline-flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                        <span className="text-[10px] font-black text-blue-700 uppercase tracking-widest">
                           {getProjectStageText(order.projectStage)}
                         </span>
                       </div>
@@ -201,12 +201,12 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
                   )}
                   
                   {order.inspectionObservations && (
-                    <div className="mt-6 p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl group-hover:bg-indigo-500/10 transition-colors">
+                    <div className="mt-6 p-4 bg-indigo-50 border border-indigo-100 rounded-2xl group-hover:bg-indigo-100/50 transition-colors">
                       <div className="flex items-center gap-2 mb-2">
-                        <AlertCircle className="h-3 w-3 text-indigo-400" />
-                        <p className="text-[9px] text-indigo-400 font-black uppercase tracking-widest">Feedback Infraestrutura</p>
+                        <AlertCircle className="h-3 w-3 text-indigo-600" />
+                        <p className="text-[9px] text-indigo-600 font-black uppercase tracking-widest">Feedback Infraestrutura</p>
                       </div>
-                      <p className="text-[11px] text-indigo-200/60 leading-relaxed font-medium">{order.inspectionObservations}</p>
+                      <p className="text-[11px] text-indigo-800 leading-relaxed font-medium">{order.inspectionObservations}</p>
                     </div>
                   )}
                 </div>
@@ -215,13 +215,13 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
           ) : (
             <div className="col-span-full py-32 text-center">
               <div className="relative inline-block mb-8">
-                <div className="absolute inset-0 bg-white/5 blur-3xl rounded-full" />
-                <div className="relative bg-white/[0.03] border border-white/10 w-28 h-28 rounded-full flex items-center justify-center mx-auto">
-                  <ClipboardList className="h-12 w-12 text-white/10" />
+                <div className="absolute inset-0 bg-indigo-50 blur-3xl rounded-full" />
+                <div className="relative bg-gray-50 border border-gray-200 w-28 h-28 rounded-full flex items-center justify-center mx-auto">
+                  <ClipboardList className="h-12 w-12 text-gray-300" />
                 </div>
               </div>
-              <h2 className="text-2xl font-black text-white/30 uppercase tracking-[0.3em] italic">Vazio Absoluto</h2>
-              <p className="text-white/10 text-sm mt-3 font-bold uppercase tracking-widest">Nenhuma solicitação registrada no momento</p>
+              <h2 className="text-2xl font-black text-gray-300 uppercase tracking-[0.3em] italic">Vazio Absoluto</h2>
+              <p className="text-gray-400 text-sm mt-3 font-bold uppercase tracking-widest">Nenhuma solicitação registrada no momento</p>
             </div>
           )}
         </div>

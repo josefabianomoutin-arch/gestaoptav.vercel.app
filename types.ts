@@ -309,4 +309,18 @@ export interface ServiceOrder {
   projectStage?: '1_aquisicao_material' | '2_disponibilidade_mao_obra' | '3_em_execucao' | '4_finalizada' | string;
 }
 
+export interface MaintenanceSchedule {
+  id: string;
+  serviceOrderId?: string;
+  description: string;
+  date: string;
+  time: string;
+  location: string;
+  accompanyingPerson: string;
+  toolsNeeded: string;
+  status: 'agendado' | 'em_andamento' | 'concluido' | 'cancelado';
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type UserRole = 'admin' | 'supplier' | 'producer' | 'pereciveis_supplier' | 'almoxarifado' | 'itesp' | 'financeiro' | 'subportaria' | 'cardapio' | 'infraestrutura' | 'ordem_saida' | 'julio' | 'readonly' | 'ordem_servico';
