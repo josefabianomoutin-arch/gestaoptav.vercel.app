@@ -358,7 +358,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
 
         {activeSubTab === 'saldos' && (
             <div className="space-y-12 animate-fade-in-up">
-                <div className="max-w-md mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
                     <div className={`bg-white p-8 rounded-3xl shadow-xl border-b-8 flex justify-between items-center ${totalsGlobal.recurso - totalsGlobal.utilizado >= 0 ? 'border-green-600' : 'border-red-900'}`}>
                         <div>
                             <p className="text-[10px] font-black text-gray-400 uppercase mb-1 tracking-widest">Saldo Geral da Unidade</p>
@@ -366,6 +366,21 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
                         </div>
                         <div className={`p-4 rounded-2xl ${totalsGlobal.recurso - totalsGlobal.utilizado >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-100 text-red-900'}`}>
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" /></svg>
+                        </div>
+                    </div>
+                    <div className="bg-white p-8 rounded-3xl shadow-xl border-b-8 border-indigo-600 flex justify-between items-center">
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase mb-1 tracking-widest">Total Geral (PTRES 380302, 380303, 380304, 380308)</p>
+                            <p className="text-4xl font-black text-indigo-700">
+                                {formatCurrency(
+                                    linkedBalances
+                                        .filter(b => ['380302', '380303', '380304', '380308'].includes(b.ptres))
+                                        .reduce((acc, b) => acc + b.totalSaldo, 0)
+                                )}
+                            </p>
+                        </div>
+                        <div className="p-4 bg-indigo-50 rounded-2xl text-indigo-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                         </div>
                     </div>
                 </div>
