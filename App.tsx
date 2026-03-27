@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Toaster, toast } from 'sonner';
-import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, MenuRow, ContractItem, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, DailyAllowance, Staff, ValidationRole, VehicleInspection } from './types';
+import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, MenuRow, ContractItem, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, DailyAllowance, Staff, ValidationRole, VehicleInspection, ServiceOrder } from './types';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
@@ -12,6 +12,7 @@ import SubportariaDashboard from './components/SubportariaDashboard';
 import MenuDashboard from './components/MenuDashboard';
 import VehicleOrderDashboard from './components/VehicleOrderDashboard';
 import JulioDashboard from './components/JulioDashboard';
+import ServiceOrderDashboard from './components/ServiceOrderDashboard';
 import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
 import { ref as storageRef, uploadString, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { app, storage } from './firebaseConfig';
@@ -30,6 +31,7 @@ let thirdPartyEntriesRef: any;
 let acquisitionItemsRef: any;
 let vehicleExitOrdersRef: any;
 let vehicleInspectionsRef: any;
+let serviceOrdersRef: any;
 let vehicleAssetsRef: any;
 let driverAssetsRef: any;
 let dailyAllowancesRef: any;
@@ -52,6 +54,7 @@ try {
   acquisitionItemsRef = ref(database, 'acquisitionItems');
   vehicleExitOrdersRef = ref(database, 'vehicleExitOrders');
   vehicleInspectionsRef = ref(database, 'vehicleInspections');
+  serviceOrdersRef = ref(database, 'serviceOrders');
   vehicleAssetsRef = ref(database, 'vehicleAssets');
   driverAssetsRef = ref(database, 'driverAssets');
   dailyAllowancesRef = ref(database, 'dailyAllowances');
@@ -76,6 +79,7 @@ const App: React.FC = () => {
   const [acquisitionItems, setAcquisitionItems] = useState<AcquisitionItem[]>([]);
   const [vehicleExitOrders, setVehicleExitOrders] = useState<VehicleExitOrder[]>([]);
   const [vehicleInspections, setVehicleInspections] = useState<VehicleInspection[]>([]);
+  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
   const [vehicleAssets, setVehicleAssets] = useState<VehicleAsset[]>([]);
   const [driverAssets, setDriverAssets] = useState<DriverAsset[]>([]);
   const [dailyAllowances, setDailyAllowances] = useState<DailyAllowance[]>([]);
@@ -148,6 +152,11 @@ const App: React.FC = () => {
       const data = snapshot.val();
       setVehicleInspections(data ? Object.values(data) : []);
     });
+
+    onValue(serviceOrdersRef, (snapshot) => {
+      const data = snapshot.val();
+      setServiceOrders(data ? Object.values(data) : []);
+    });
     onValue(vehicleAssetsRef, (snapshot) => {
       const data = snapshot.val();
       setVehicleAssets(data ? Object.values(data) : []);
@@ -176,6 +185,12 @@ const App: React.FC = () => {
   const handleLogin = (nameInput: string, passwordInput: string) => {
     const cleanName = (nameInput || '').trim().toUpperCase();
     const rawPass = (passwordInput || '').trim();
+
+    if (cleanName === 'ORDEM DE SERVIÇO' && rawPass === 'serviço') {
+      setUser({ name: 'ORDEM DE SERVIÇO', cpf: 'os-user', role: 'ordem_servico' });
+      return true;
+    }
+
     const numericPass = rawPass.replace(/\D/g, '');
 
     // ACESSO ESPECÍFICO: DANIELE GARCIA POSSIDONIO
@@ -256,6 +271,38 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('Erro ao atualizar senha:', error);
       return { success: false, message: String(error) };
+    }
+  };
+
+  const handleRegisterServiceOrder = async (order: Omit<ServiceOrder, 'id'>) => {
+    try {
+      const newRef = push(serviceOrdersRef);
+      const id = newRef.key || `so-${Date.now()}`;
+      await set(newRef, { ...order, id });
+      return { success: true, message: 'Ordem de serviço registrada com sucesso!' };
+    } catch (e) {
+      console.error('Erro ao registrar ordem de serviço:', e);
+      return { success: false, message: 'Falha ao registrar ordem de serviço.' };
+    }
+  };
+
+  const handleUpdateServiceOrder = async (order: ServiceOrder) => {
+    try {
+      await set(child(serviceOrdersRef, order.id), order);
+      return { success: true, message: 'Ordem de serviço atualizada com sucesso!' };
+    } catch (e) {
+      console.error('Erro ao atualizar ordem de serviço:', e);
+      return { success: false, message: 'Falha ao atualizar ordem de serviço.' };
+    }
+  };
+
+  const handleDeleteServiceOrder = async (id: string) => {
+    try {
+      await remove(child(serviceOrdersRef, id));
+      return { success: true, message: 'Ordem de serviço excluída com sucesso!' };
+    } catch (e) {
+      console.error('Erro ao excluir ordem de serviço:', e);
+      return { success: false, message: 'Falha ao excluir ordem de serviço.' };
     }
   };
 
@@ -1565,6 +1612,16 @@ const App: React.FC = () => {
       );
     }
 
+    if (user.role === 'ordem_servico') {
+      return (
+        <ServiceOrderDashboard
+          orders={serviceOrders}
+          onRegister={handleRegisterServiceOrder}
+          onLogout={handleLogout}
+        />
+      );
+    }
+
     if (user.role === 'infraestrutura' || user.role === 'ordem_saida') {
       return (
         <VehicleOrderDashboard 
@@ -1572,6 +1629,9 @@ const App: React.FC = () => {
           vehicleAssets={vehicleAssets}
           driverAssets={driverAssets}
           validationRoles={validationRoles}
+          serviceOrders={serviceOrders}
+          onUpdateServiceOrder={handleUpdateServiceOrder}
+          onDeleteServiceOrder={handleDeleteServiceOrder}
           onRegister={async (order) => {
             const r = push(vehicleExitOrdersRef);
             const id = r.key || `order-${Date.now()}`;

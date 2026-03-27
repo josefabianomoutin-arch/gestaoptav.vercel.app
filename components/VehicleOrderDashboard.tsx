@@ -1,13 +1,17 @@
 
 import React, { useState, useMemo } from 'react';
-import type { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole } from '../types';
+import type { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, ServiceOrder } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
+import AdminServiceOrder from './AdminServiceOrder';
 
 interface VehicleOrderDashboardProps {
   orders: VehicleExitOrder[];
   vehicleAssets: VehicleAsset[];
   driverAssets: DriverAsset[];
   validationRoles: ValidationRole[];
+  serviceOrders: ServiceOrder[];
+  onUpdateServiceOrder: (order: ServiceOrder) => Promise<{ success: boolean; message: string }>;
+  onDeleteServiceOrder: (id: string) => Promise<{ success: boolean; message: string }>;
   onRegister: (order: Omit<VehicleExitOrder, 'id'>) => Promise<{ success: boolean; message: string; id?: string }>;
   onUpdate: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
   onDelete: (id: string) => Promise<void>;
@@ -26,6 +30,9 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
   vehicleAssets,
   driverAssets,
   validationRoles,
+  serviceOrders,
+  onUpdateServiceOrder,
+  onDeleteServiceOrder,
   onRegister,
   onUpdate,
   onDelete,
@@ -38,6 +45,7 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
   onLogout,
   role
 }) => {
+  const [activeTab, setActiveTab] = useState<'veiculos' | 'servicos'>('veiculos');
   const [sessionOrderIds, setSessionOrderIds] = useState<string[]>([]);
 
   const filteredOrders = orders;
@@ -49,42 +57,75 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-indigo-950 text-white p-4 shadow-xl flex justify-between items-center sticky top-0 z-50 border-b border-indigo-800">
-        <div className="flex items-center gap-3">
-          <div className="bg-indigo-600 p-2 rounded-xl shadow-inner">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-600 p-2 rounded-xl shadow-inner">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-lg font-black uppercase italic tracking-tighter leading-none">
+                {role === 'infraestrutura' ? 'Infraestrutura' : 'Ordem de Saída'}
+              </h1>
+              <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest">Gestão de Veículos</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-black uppercase italic tracking-tighter leading-none">
-              {role === 'infraestrutura' ? 'Infraestrutura' : 'Ordem de Saída'}
-            </h1>
-            <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest">Gestão de Veículos</p>
-          </div>
+
+          <nav className="flex gap-2">
+            <button
+              onClick={() => setActiveTab('veiculos')}
+              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
+                activeTab === 'veiculos'
+                  ? 'bg-indigo-600 text-white shadow-lg'
+                  : 'text-indigo-300 hover:bg-indigo-900/50'
+              }`}
+            >
+              Veículos
+            </button>
+            <button
+              onClick={() => setActiveTab('servicos')}
+              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
+                activeTab === 'servicos'
+                  ? 'bg-indigo-600 text-white shadow-lg'
+                  : 'text-indigo-300 hover:bg-indigo-900/50'
+              }`}
+            >
+              Ordens de Serviço
+            </button>
+          </nav>
         </div>
         <button onClick={onLogout} className="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-black py-2 px-4 rounded-xl text-[10px] uppercase transition-all border border-red-900/50">Sair</button>
       </header>
 
       <main className="p-4 max-w-7xl mx-auto">
-        <AdminVehicleExitOrder 
-          orders={filteredOrders}
-          vehicleAssets={vehicleAssets}
-          driverAssets={driverAssets}
-          validationRoles={validationRoles}
-          onRegister={handleRegister}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-          onRegisterVehicleAsset={onRegisterVehicleAsset}
-          onUpdateVehicleAsset={onUpdateVehicleAsset}
-          onDeleteVehicleAsset={onDeleteVehicleAsset}
-          onRegisterDriverAsset={onRegisterDriverAsset}
-          onUpdateDriverAsset={onUpdateDriverAsset}
-          onDeleteDriverAsset={onDeleteDriverAsset}
-          readOnly={false}
-          hideAssets={true}
-          hideEdit={false}
-          showGateTab={true}
-        />
+        {activeTab === 'veiculos' ? (
+          <AdminVehicleExitOrder 
+            orders={filteredOrders}
+            vehicleAssets={vehicleAssets}
+            driverAssets={driverAssets}
+            validationRoles={validationRoles}
+            onRegister={handleRegister}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+            onRegisterVehicleAsset={onRegisterVehicleAsset}
+            onUpdateVehicleAsset={onUpdateVehicleAsset}
+            onDeleteVehicleAsset={onDeleteVehicleAsset}
+            onRegisterDriverAsset={onRegisterDriverAsset}
+            onUpdateDriverAsset={onUpdateDriverAsset}
+            onDeleteDriverAsset={onDeleteDriverAsset}
+            readOnly={false}
+            hideAssets={true}
+            hideEdit={false}
+            showGateTab={true}
+          />
+        ) : (
+          <AdminServiceOrder
+            orders={serviceOrders}
+            onUpdate={onUpdateServiceOrder}
+            onDelete={onDeleteServiceOrder}
+          />
+        )}
       </main>
     </div>
   );

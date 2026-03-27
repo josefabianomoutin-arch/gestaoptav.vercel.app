@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
-import type { Supplier, ContractItem, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, Delivery, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, UserRole } from '../types';
+import type { Supplier, ContractItem, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, Delivery, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, UserRole, ServiceOrder } from '../types';
 import AdminAnalytics from './AdminAnalytics';
 import AdminContractItems from './AdminContractItems';
 import WeekSelector from './WeekSelector';
@@ -16,11 +16,12 @@ import AdminStandardMenu from './AdminStandardMenu';
 import AdminFinancialManager from './AdminFinancialManager';
 import AdminThirdPartyEntry from './AdminThirdPartyEntry';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
+import AdminServiceOrder from './AdminServiceOrder';
 import ConfirmModal from './ConfirmModal';
 
 import WarehouseMovementForm from './WarehouseMovementForm';
 
-type AdminTab = 'info' | 'register' | 'contracts' | 'finance' | 'analytics' | 'graphs' | 'schedule' | 'invoices' | 'perCapita' | 'cleaning' | 'vehicleExitOrder' | 'thirdPartyEntry' | 'directorPerCapita' | 'menu' | 'almoxarifado';
+type AdminTab = 'info' | 'register' | 'contracts' | 'finance' | 'analytics' | 'graphs' | 'schedule' | 'invoices' | 'perCapita' | 'cleaning' | 'vehicleExitOrder' | 'thirdPartyEntry' | 'directorPerCapita' | 'menu' | 'almoxarifado' | 'serviceOrder';
 
 interface AdminDashboardProps {
   user: { name: string; cpf: string; role: UserRole };
@@ -80,6 +81,9 @@ interface AdminDashboardProps {
   onRegisterDriverAsset: (asset: Omit<DriverAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateDriverAsset: (asset: DriverAsset) => Promise<{ success: boolean; message: string }>;
   onDeleteDriverAsset: (id: string) => Promise<void>;
+  serviceOrders: ServiceOrder[];
+  onUpdateServiceOrder: (order: ServiceOrder) => Promise<{ success: boolean; message: string }>;
+  onDeleteServiceOrder: (id: string) => Promise<{ success: boolean; message: string }>;
   validationRoles: any[];
   onUpdateSupplierObservations?: (cpf: string, observations: string) => Promise<{ success: boolean; message?: string }>;
   systemPasswords: Record<string, string>;
@@ -114,7 +118,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     standardMenu, 
     dailyMenus, 
     acquisitionItems = [],
-    onUpdateContractForItem
+    onUpdateContractForItem,
+    serviceOrders = [],
+    onUpdateServiceOrder,
+    onDeleteServiceOrder
   } = props;
   const [activeTab, setActiveTab] = useState<AdminTab>('register');
   const [supplierSubTab, setSupplierSubTab] = useState<'list' | 'new'>('list'); 
@@ -161,6 +168,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     { id: 'schedule', name: 'Agenda', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a1 1 0 00-1-1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg> },
     { id: 'invoices', name: 'Notas Fiscais', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z" /><path d="M3 8a2 2 0 012-2v10h8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" /></svg> },
     { id: 'cleaning', name: 'Limpeza', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" /></svg> },
+    { id: 'serviceOrder', name: 'Ordens Serviço', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" /><path d="M11 3.5v3a1 1 0 001 1h3m-6 4H7v2h3v-2zm0 3H7v2h3v-2z" /></svg> },
     { id: 'vehicleExitOrder', name: 'Ordem Saída', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" /><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v4.5h2V8a1 1 0 00-1-1z" /><path d="M16 13l3.35 2.235a.75.75 0 01.15 1.065l-.5.75a.75.75 0 01-1.065.15L16 15.5V13z" /></svg> },
     { id: 'thirdPartyEntry', name: 'Terceiros', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg> },
     { id: 'menu', name: 'Cardápio', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" /><path d="M11 3.5v3a1 1 0 001 1h3m-6 4H7v2h3v-2zm0 3H7v2h3v-2z" /></svg> },
@@ -365,6 +373,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           onUpdateDriverAsset={props.onUpdateDriverAsset}
           onDeleteDriverAsset={props.onDeleteDriverAsset}
           validationRoles={props.validationRoles}
+      />;
+      case 'serviceOrder': return <AdminServiceOrder
+          orders={serviceOrders}
+          onUpdate={onUpdateServiceOrder}
+          onDelete={onDeleteServiceOrder}
       />;
       case 'analytics': return <AdminAnalytics suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} />;
       case 'graphs': return <AdminGraphs 

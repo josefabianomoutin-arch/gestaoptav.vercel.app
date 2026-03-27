@@ -294,4 +294,18 @@ export interface VehicleInspection {
   damageDescription?: string;
 }
 
-export type UserRole = 'admin' | 'supplier' | 'producer' | 'pereciveis_supplier' | 'almoxarifado' | 'itesp' | 'financeiro' | 'subportaria' | 'cardapio' | 'infraestrutura' | 'ordem_saida' | 'julio' | 'readonly';
+export interface ServiceOrder {
+  id: string;
+  requestingSector: string;
+  serviceType: 'hidraulico' | 'eletrico' | 'mecânico' | 'alvenaria' | 'estrutural';
+  category: 'reforma' | 'manutenção';
+  priority: 'ALTA' | 'MÉDIA' | 'BAIXA' | 'PENDENTE';
+  requester: string;
+  description: string;
+  status: 'pendente' | 'em_andamento' | 'concluido' | 'cancelado';
+  createdAt: string;
+  updatedAt?: string;
+  inspectionObservations?: string;
+}
+
+export type UserRole = 'admin' | 'supplier' | 'producer' | 'pereciveis_supplier' | 'almoxarifado' | 'itesp' | 'financeiro' | 'subportaria' | 'cardapio' | 'infraestrutura' | 'ordem_saida' | 'julio' | 'readonly' | 'ordem_servico';
