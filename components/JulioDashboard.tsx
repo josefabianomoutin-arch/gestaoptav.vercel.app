@@ -1,8 +1,9 @@
 
 import React, { useMemo } from 'react';
 import { Truck } from 'lucide-react';
-import { VehicleExitOrder, DriverAsset, VehicleAsset, ValidationRole, VehicleInspection } from '../types';
+import { VehicleExitOrder, DriverAsset, VehicleAsset, ValidationRole, VehicleInspection, ServiceOrder } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
+import AdminServiceOrder from './AdminServiceOrder';
 
 interface JulioDashboardProps {
   vehicleExitOrders: VehicleExitOrder[];
@@ -10,7 +11,11 @@ interface JulioDashboardProps {
   driverAssets: DriverAsset[];
   vehicleAssets: VehicleAsset[];
   validationRoles: ValidationRole[];
+  serviceOrders: ServiceOrder[];
   onLogout: () => void;
+  onRegisterServiceOrder?: (order: Omit<ServiceOrder, 'id'>) => Promise<{ success: boolean; message: string }>;
+  onUpdateServiceOrder: (order: ServiceOrder) => Promise<{ success: boolean; message: string }>;
+  onDeleteServiceOrder: (id: string) => Promise<{ success: boolean; message: string }>;
   onRegisterVehicleExitOrder: (order: Omit<VehicleExitOrder, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateVehicleExitOrder: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
   onDeleteVehicleExitOrder: (id: string) => Promise<void>;
@@ -34,7 +39,10 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
   driverAssets,
   vehicleAssets,
   validationRoles,
+  serviceOrders,
   onLogout,
+  onUpdateServiceOrder,
+  onDeleteServiceOrder,
   onRegisterVehicleExitOrder,
   onUpdateVehicleExitOrder,
   onDeleteVehicleExitOrder,
@@ -51,6 +59,8 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
   onUpdateVehicleInspection,
   onDeleteVehicleInspection,
 }) => {
+  const [activeTab, setActiveTab] = React.useState<'veiculos' | 'servicos'>('veiculos');
+
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour >= 5 && hour < 12) return 'BOM DIA';
@@ -85,16 +95,41 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-indigo-950 text-white p-4 shadow-xl flex justify-between items-center sticky top-0 z-50 border-b border-indigo-800">
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <div className="bg-indigo-600 p-2 rounded-xl shadow-inner">
-            <Truck className="h-6 w-6" />
+        <div className="flex items-center gap-6 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-600 p-2 rounded-xl shadow-inner">
+              <Truck className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-lg font-black uppercase italic tracking-tighter leading-none whitespace-nowrap">
+                SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA
+              </h1>
+              <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest">Gestão de Ordem de Saída</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-black uppercase italic tracking-tighter leading-none whitespace-nowrap">
-              SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA
-            </h1>
-            <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest">Gestão de Ordem de Saída</p>
-          </div>
+
+          <nav className="flex gap-2">
+            <button
+              onClick={() => setActiveTab('veiculos')}
+              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
+                activeTab === 'veiculos'
+                  ? 'bg-indigo-600 text-white shadow-lg'
+                  : 'text-indigo-300 hover:bg-indigo-900/50'
+              }`}
+            >
+              Veículos
+            </button>
+            <button
+              onClick={() => setActiveTab('servicos')}
+              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
+                activeTab === 'servicos'
+                  ? 'bg-indigo-600 text-white shadow-lg'
+                  : 'text-indigo-300 hover:bg-indigo-900/50'
+              }`}
+            >
+              Ordens de Serviço
+            </button>
+          </nav>
         </div>
 
         {/* MENSAGEM DINÂMICA DE SAUDAÇÃO E VEÍCULOS */}
@@ -108,31 +143,41 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
       </header>
 
       <main className="p-4 max-w-7xl mx-auto">
-        <AdminVehicleExitOrder 
-          orders={vehicleExitOrders}
-          inspections={vehicleInspections}
-          vehicleAssets={vehicleAssets}
-          driverAssets={driverAssets}
-          validationRoles={validationRoles}
-          onRegister={onRegisterVehicleExitOrder}
-          onUpdate={onUpdateVehicleExitOrder}
-          onDelete={onDeleteVehicleExitOrder}
-          onRegisterVehicleAsset={onRegisterVehicleAsset}
-          onUpdateVehicleAsset={onUpdateVehicleAsset}
-          onDeleteVehicleAsset={onDeleteVehicleAsset}
-          onRegisterDriverAsset={onRegisterDriverAsset}
-          onUpdateDriverAsset={onUpdateDriverAsset}
-          onDeleteDriverAsset={onDeleteDriverAsset}
-          onRegisterValidationRole={onRegisterValidationRole}
-          onUpdateValidationRole={onUpdateValidationRole}
-          onDeleteValidationRole={onDeleteValidationRole}
-          onRegisterInspection={onRegisterVehicleInspection}
-          onUpdateInspection={onUpdateVehicleInspection}
-          onDeleteInspection={onDeleteVehicleInspection}
-          hideAssets={false}
-          securityMode={false}
-          showGateTab={true}
-        />
+        {activeTab === 'veiculos' ? (
+          <AdminVehicleExitOrder 
+            orders={vehicleExitOrders}
+            inspections={vehicleInspections}
+            vehicleAssets={vehicleAssets}
+            driverAssets={driverAssets}
+            validationRoles={validationRoles}
+            onRegister={onRegisterVehicleExitOrder}
+            onUpdate={onUpdateVehicleExitOrder}
+            onDelete={onDeleteVehicleExitOrder}
+            onRegisterVehicleAsset={onRegisterVehicleAsset}
+            onUpdateVehicleAsset={onUpdateVehicleAsset}
+            onDeleteVehicleAsset={onDeleteVehicleAsset}
+            onRegisterDriverAsset={onRegisterDriverAsset}
+            onUpdateDriverAsset={onUpdateDriverAsset}
+            onDeleteDriverAsset={onDeleteDriverAsset}
+            onRegisterValidationRole={onRegisterValidationRole}
+            onUpdateValidationRole={onUpdateValidationRole}
+            onDeleteValidationRole={onDeleteValidationRole}
+            onRegisterInspection={onRegisterVehicleInspection}
+            onUpdateInspection={onUpdateVehicleInspection}
+            onDeleteInspection={onDeleteVehicleInspection}
+            hideAssets={false}
+            securityMode={false}
+            showGateTab={true}
+          />
+        ) : (
+          <AdminServiceOrder
+            orders={serviceOrders}
+            onUpdate={onUpdateServiceOrder}
+            onDelete={async (id) => {
+              await onDeleteServiceOrder(id);
+            }}
+          />
+        )}
       </main>
 
       <style>{`

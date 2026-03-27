@@ -817,87 +817,101 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     };
 
     return (
-        <div className="space-y-6 animate-fade-in pb-20">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tighter italic">Ordem de Saída de Veículo</h2>
-                    <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mt-1">Gestão de Deslocamentos Oficiais</p>
+        <div className="space-y-8 animate-fade-in relative pb-20">
+            {/* Background Effects */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/5 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-[120px] animate-pulse delay-700" />
+            </div>
+
+            <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white/80 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-xl border border-white/20">
+                <div className="flex items-center gap-4">
+                    <div className="bg-indigo-600 p-4 rounded-3xl shadow-lg shadow-indigo-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 className="text-3xl font-black text-indigo-950 uppercase tracking-tighter italic leading-none">Controle de Frota</h2>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Gestão de Saídas, Retornos e Ativos</p>
+                    </div>
                 </div>
-                                    <div className="flex gap-2">
-                                        <button 
-                                            onClick={() => setActiveSubTab('orders')}
-                                            className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'orders' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                                        >
-                                            Ordens
-                                        </button>
-                                        {(securityMode || showGateTab) && (
-                                            <button 
-                                                onClick={() => setActiveSubTab('gate')}
-                                                className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'gate' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                                            >
-                                                Sub Portaria
-                                            </button>
-                                        )}
-                                        {!readOnly && !hideAssets && (
-                                            <>
-                                                <button 
-                                                    onClick={() => setActiveSubTab('inspections')}
-                                                    className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'inspections' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                                                >
-                                                    Inspeções
-                                                </button>
-                                                <button 
-                                                    onClick={() => setActiveSubTab('assets')}
-                                                    className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'assets' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                                                >
-                                                    Cadastros
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
+
+                <div className="flex flex-wrap gap-2 bg-gray-100/50 p-2 rounded-3xl backdrop-blur-sm border border-gray-200/50">
+                    <button 
+                        onClick={() => setActiveSubTab('orders')}
+                        className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'orders' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-500 hover:bg-white/50'}`}
+                    >
+                        Ordens
+                    </button>
+                    {(securityMode || showGateTab) && (
+                        <button 
+                            onClick={() => setActiveSubTab('gate')}
+                            className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'gate' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-500 hover:bg-white/50'}`}
+                        >
+                            Sub Portaria
+                        </button>
+                    )}
+                    {!readOnly && !hideAssets && (
+                        <>
+                            <button 
+                                onClick={() => setActiveSubTab('inspections')}
+                                className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'inspections' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-500 hover:bg-white/50'}`}
+                            >
+                                Inspeções
+                            </button>
+                            <button 
+                                onClick={() => setActiveSubTab('assets')}
+                                className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'assets' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-500 hover:bg-white/50'}`}
+                            >
+                                Cadastros
+                            </button>
+                        </>
+                    )}
+                </div>
             </div>
 
             {activeSubTab === 'orders' && (
-                <>
+                <div className="relative z-10 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {!readOnly && !securityMode && (
                         <div className="flex justify-end">
                             <button 
                                 onClick={() => { setEditingOrder(null); setIsModalOpen(true); }}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 px-8 rounded-2xl transition-all shadow-lg shadow-indigo-100 active:scale-95 uppercase text-[10px] tracking-widest flex items-center gap-2"
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 px-10 rounded-2xl transition-all shadow-xl shadow-indigo-100 active:scale-95 uppercase text-xs tracking-widest flex items-center gap-2 group"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                                Nova Ordem
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                Nova Ordem de Saída
                             </button>
                         </div>
                     )}
 
-                    <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden">
+                    <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] shadow-xl border border-white/20 overflow-hidden">
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="bg-gray-50 text-[10px] uppercase text-gray-400 font-black">
+                            <table className="w-full text-sm border-collapse">
+                                <thead className="bg-gray-50/50 text-[10px] uppercase text-gray-400 font-black tracking-widest">
                                     <tr>
-                                        <th className="p-4 text-left">Data</th>
-                                        <th className="p-4 text-left">Veículo / Placa</th>
-                                        <th className="p-4 text-left">Responsável</th>
-                                        <th className="p-4 text-left">Destino</th>
-                                        <th className="p-4 text-left">FCT</th>
+                                        <th className="p-6 text-left">Data</th>
+                                        <th className="p-6 text-left">Veículo / Placa</th>
+                                        <th className="p-6 text-left">Responsável</th>
+                                        <th className="p-6 text-left">Destino</th>
+                                        <th className="p-6 text-left">FCT</th>
                                         {(securityMode || orders.some(o => o.exitTime || o.returnTime)) && (
                                             <>
-                                                <th className="p-4 text-center">Saída</th>
-                                                <th className="p-4 text-center">Retorno</th>
+                                                <th className="p-6 text-center">Saída</th>
+                                                <th className="p-6 text-center">Retorno</th>
                                             </>
                                         )}
-                                        <th className="p-4 text-center">Ações</th>
+                                        <th className="p-6 text-center">Ações</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-50">
+                                <tbody className="divide-y divide-gray-100">
                                     {orders.length > 0 ? (
                                         <>
                                             {/* Ordens com Anexo */}
                                             {groupedOrders.withPdf.length > 0 && (
                                                 <>
                                                     <tr className="bg-indigo-50/30">
-                                                        <td colSpan={8} className="p-2 text-[10px] font-black text-indigo-600 uppercase tracking-widest text-center border-y border-indigo-100">
+                                                        <td colSpan={8} className="p-3 text-[10px] font-black text-indigo-600 uppercase tracking-widest text-center border-y border-indigo-100/50 backdrop-blur-sm">
                                                             Ordens com Anexo (PDF)
                                                         </td>
                                                     </tr>
@@ -908,7 +922,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                             {groupedOrders.withoutPdf.length > 0 && (
                                                 <>
                                                     <tr className="bg-amber-50/30">
-                                                        <td colSpan={8} className="p-2 text-[10px] font-black text-amber-600 uppercase tracking-widest text-center border-y border-amber-100">
+                                                        <td colSpan={8} className="p-3 text-[10px] font-black text-amber-600 uppercase tracking-widest text-center border-y border-amber-100/50 backdrop-blur-sm">
                                                             Ordens sem Anexo
                                                         </td>
                                                     </tr>
@@ -917,13 +931,22 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                             )}
                                         </>
                                     ) : (
-                                        <tr><td colSpan={8} className="p-20 text-center text-gray-400 italic font-bold uppercase tracking-widest">Nenhuma ordem registrada</td></tr>
+                                        <tr>
+                                            <td colSpan={8} className="p-20 text-center">
+                                                <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                    </svg>
+                                                </div>
+                                                <p className="text-gray-400 font-black uppercase tracking-widest italic">Nenhuma ordem registrada</p>
+                                            </td>
+                                        </tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                </>
+                </div>
             )}
             {activeSubTab === 'gate' && (
                 <div className="space-y-6">

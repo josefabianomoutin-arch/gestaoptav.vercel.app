@@ -1367,6 +1367,9 @@ const App: React.FC = () => {
           onDeleteDirectorWithdrawal={async (id) => remove(child(directorWithdrawalsRef, id))}
           standardMenu={standardMenu}
           dailyMenus={dailyMenus}
+          serviceOrders={serviceOrders}
+          onUpdateServiceOrder={handleUpdateServiceOrder}
+          onDeleteServiceOrder={handleDeleteServiceOrder}
           onUpdateStandardMenu={async (m) => set(standardMenuRef, m)}
           onUpdateDailyMenu={async (m) => set(dailyMenusRef, m)}
           onRegisterEntry={handleRegisterWarehouseEntry}
@@ -1527,6 +1530,9 @@ const App: React.FC = () => {
           driverAssets={driverAssets}
           vehicleAssets={vehicleAssets}
           validationRoles={validationRoles}
+          serviceOrders={serviceOrders}
+          onUpdateServiceOrder={handleUpdateServiceOrder}
+          onDeleteServiceOrder={handleDeleteServiceOrder}
           onLogout={handleLogout}
           onRegisterVehicleExitOrder={async (order) => {
             const r = push(vehicleExitOrdersRef);
@@ -1615,8 +1621,8 @@ const App: React.FC = () => {
     if (user.role === 'ordem_servico') {
       return (
         <ServiceOrderDashboard
-          orders={serviceOrders}
-          onRegister={handleRegisterServiceOrder}
+          serviceOrders={serviceOrders}
+          onRegisterServiceOrder={handleRegisterServiceOrder}
           onLogout={handleLogout}
         />
       );
@@ -1630,6 +1636,7 @@ const App: React.FC = () => {
           driverAssets={driverAssets}
           validationRoles={validationRoles}
           serviceOrders={serviceOrders}
+          vehicleInspections={vehicleInspections}
           onUpdateServiceOrder={handleUpdateServiceOrder}
           onDeleteServiceOrder={handleDeleteServiceOrder}
           onRegister={async (order) => {
@@ -1666,6 +1673,16 @@ const App: React.FC = () => {
             return { success: true, message: 'Atualizado' };
           }}
           onDeleteDriverAsset={async (id) => remove(child(driverAssetsRef, id))}
+          onRegisterVehicleInspection={async (inspection) => {
+            const r = push(vehicleInspectionsRef);
+            await set(r, { ...inspection, id: r.key });
+            return { success: true, message: 'Inspeção registrada' };
+          }}
+          onUpdateVehicleInspection={async (inspection) => {
+            await set(child(vehicleInspectionsRef, inspection.id), inspection);
+            return { success: true, message: 'Inspeção atualizada' };
+          }}
+          onDeleteVehicleInspection={async (id) => remove(child(vehicleInspectionsRef, id))}
           onValidateOrder={async (orderId, validatedBy, validationRole) => {
             const timestamp = new Date().toISOString();
             await update(child(vehicleExitOrdersRef, orderId), {

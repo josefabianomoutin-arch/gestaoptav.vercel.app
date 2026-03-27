@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import type { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, ServiceOrder } from '../types';
+import type { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, ServiceOrder, VehicleInspection } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 import AdminServiceOrder from './AdminServiceOrder';
 
@@ -10,6 +10,7 @@ interface VehicleOrderDashboardProps {
   driverAssets: DriverAsset[];
   validationRoles: ValidationRole[];
   serviceOrders: ServiceOrder[];
+  vehicleInspections?: VehicleInspection[];
   onUpdateServiceOrder: (order: ServiceOrder) => Promise<{ success: boolean; message: string }>;
   onDeleteServiceOrder: (id: string) => Promise<{ success: boolean; message: string }>;
   onRegister: (order: Omit<VehicleExitOrder, 'id'>) => Promise<{ success: boolean; message: string; id?: string }>;
@@ -21,6 +22,9 @@ interface VehicleOrderDashboardProps {
   onRegisterDriverAsset: (asset: Omit<DriverAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateDriverAsset: (asset: DriverAsset) => Promise<{ success: boolean; message: string }>;
   onDeleteDriverAsset: (id: string) => Promise<void>;
+  onRegisterVehicleInspection?: (inspection: Omit<VehicleInspection, 'id'>) => Promise<{ success: boolean; message: string }>;
+  onUpdateVehicleInspection?: (inspection: VehicleInspection) => Promise<{ success: boolean; message: string }>;
+  onDeleteVehicleInspection?: (id: string) => Promise<void>;
   onLogout: () => void;
   role: 'infraestrutura' | 'ordem_saida';
 }
@@ -31,6 +35,7 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
   driverAssets,
   validationRoles,
   serviceOrders,
+  vehicleInspections = [],
   onUpdateServiceOrder,
   onDeleteServiceOrder,
   onRegister,
@@ -42,6 +47,9 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
   onRegisterDriverAsset,
   onUpdateDriverAsset,
   onDeleteDriverAsset,
+  onRegisterVehicleInspection,
+  onUpdateVehicleInspection,
+  onDeleteVehicleInspection,
   onLogout,
   role
 }) => {
@@ -105,6 +113,7 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
             vehicleAssets={vehicleAssets}
             driverAssets={driverAssets}
             validationRoles={validationRoles}
+            inspections={vehicleInspections}
             onRegister={handleRegister}
             onUpdate={onUpdate}
             onDelete={onDelete}
@@ -114,6 +123,9 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
             onRegisterDriverAsset={onRegisterDriverAsset}
             onUpdateDriverAsset={onUpdateDriverAsset}
             onDeleteDriverAsset={onDeleteDriverAsset}
+            onRegisterInspection={onRegisterVehicleInspection}
+            onUpdateInspection={onUpdateVehicleInspection}
+            onDeleteInspection={onDeleteVehicleInspection}
             readOnly={false}
             hideAssets={true}
             hideEdit={false}
