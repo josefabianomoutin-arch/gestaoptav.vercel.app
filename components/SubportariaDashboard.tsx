@@ -446,115 +446,153 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                             </div>
                         </div>
 
-                        <div className="space-y-4">
-                            {maintenanceSchedules.length > 0 ? maintenanceSchedules.map(schedule => (
-                                <div key={schedule.id} className="bg-white rounded-[2rem] shadow-md border-2 border-indigo-50 p-6">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div>
-                                            <h3 className="text-lg font-black text-indigo-950 uppercase tracking-tighter">{schedule.description}</h3>
-                                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">
-                                                {formatDate(schedule.date)} às {schedule.time}
-                                            </p>
-                                        </div>
-                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                                            schedule.status === 'concluido' ? 'bg-green-100 text-green-700' :
-                                            schedule.status === 'em_andamento' ? 'bg-blue-100 text-blue-700' :
-                                            'bg-yellow-100 text-yellow-700'
-                                        }`}>
-                                            {schedule.status.replace('_', ' ')}
-                                        </span>
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local</p>
-                                            <p className="text-sm font-bold text-slate-700">{schedule.location}</p>
-                                        </div>
-                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Acompanhante</p>
-                                            <p className="text-sm font-bold text-slate-700">{schedule.accompanyingPerson}</p>
-                                        </div>
-                                    </div>
-
-                                    {schedule.tools && schedule.tools.some(t => t.trim() !== '') && (
-                                        <div className="mt-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Relação de Ferramentas</p>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
-                                                {schedule.tools.filter(t => t.trim() !== '').map((tool, i) => (
-                                                    <p key={i} className="text-xs font-bold text-slate-600 flex items-center gap-2">
-                                                        <span className="w-4 h-4 bg-slate-200 rounded-full flex items-center justify-center text-[8px]">{i + 1}</span>
-                                                        {tool}
-                                                    </p>
-                                                ))}
+                                           {maintenanceSchedules.length > 0 ? maintenanceSchedules.map((schedule, index) => (
+                                <div key={schedule.id} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${index * 50}ms` }}>
+                                    <div className="p-8">
+                                        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center">
+                                                    <Wrench className="h-6 w-6 text-indigo-600" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">Manutenção Agendada</h4>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">ID: {schedule.id.slice(-6)}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${
+                                                    schedule.status === 'concluido' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                                    schedule.status === 'em_andamento' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                                    'bg-amber-100 text-amber-700 border-amber-200'
+                                                }`}>
+                                                    {schedule.status.replace('_', ' ')}
+                                                </span>
+                                                <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${
+                                                    schedule.toolsStatus === 'dentro' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                                    schedule.toolsStatus === 'devolvido' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                                    'bg-slate-100 text-slate-600 border-slate-200'
+                                                }`}>
+                                                    {schedule.toolsStatus === 'dentro' ? 'DENTRO DA UNIDADE' : 
+                                                     schedule.toolsStatus === 'devolvido' ? 'BAIXA DADA (DEVOLVIDO)' : 
+                                                     'FORA DA UNIDADE'}
+                                                </span>
                                             </div>
                                         </div>
-                                    )}
 
-                                    {schedule.toolsNeeded && (
-                                        <div className="mt-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Observações Adicionais</p>
-                                            <p className="text-sm font-bold text-slate-700 whitespace-pre-wrap">{schedule.toolsNeeded}</p>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Data e Hora</p>
+                                                <p className="text-sm font-black text-slate-900">{schedule.date} às {schedule.time}</p>
+                                            </div>
+                                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local</p>
+                                                <p className="text-sm font-black text-slate-900">{schedule.location}</p>
+                                            </div>
+                                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Acompanhante</p>
+                                                <p className="text-sm font-black text-slate-900">{schedule.accompanyingPerson}</p>
+                                            </div>
                                         </div>
-                                    )}
 
-                                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {schedule.entryAuthorizedAt && (
-                                            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
-                                                <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Entrada Liberada</p>
-                                                <p className="text-[10px] font-bold text-blue-700">{new Date(schedule.entryAuthorizedAt).toLocaleString('pt-BR')}</p>
+                                        {schedule.tools && schedule.tools.some(t => t.trim() !== '') && (
+                                            <div className="mb-6">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <div className="w-6 h-6 bg-slate-100 rounded-lg flex items-center justify-center">
+                                                        <ClipboardList className="h-3 w-3 text-slate-500" />
+                                                    </div>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Inventário de Ferramentas</p>
+                                                </div>
+                                                <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2">
+                                                    {schedule.tools.filter(t => t.trim() !== '').map((tool, i) => (
+                                                        <div key={i} className="flex items-center gap-3 py-1 border-b border-slate-100/50 last:border-0">
+                                                            <span className="w-5 h-5 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-[9px] font-black text-slate-400 shadow-sm">{String(i + 1).padStart(2, '0')}</span>
+                                                            <span className="text-xs font-bold text-slate-700 truncate">{tool}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         )}
-                                        {schedule.returnAuthorizedAt && (
-                                            <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                                                <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Retorno Liberado</p>
-                                                <p className="text-[10px] font-bold text-emerald-700">{new Date(schedule.returnAuthorizedAt).toLocaleString('pt-BR')}</p>
+
+                                        {schedule.toolsNeeded && (
+                                            <div className="mb-6 bg-amber-50/50 p-4 rounded-2xl border border-amber-100/50">
+                                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Observações Adicionais</p>
+                                                <p className="text-sm font-bold text-amber-900 italic leading-relaxed">"{schedule.toolsNeeded}"</p>
                                             </div>
                                         )}
-                                    </div>
 
-                                    <div className="mt-6 flex flex-wrap justify-end gap-2">
-                                        {schedule.toolsStatus === 'fora' && (
-                                            <button
-                                                onClick={() => onUpdateMaintenanceSchedule(schedule.id, { 
-                                                    toolsStatus: 'dentro',
-                                                    entryAuthorizedBy: 'Segurança Externa',
-                                                    entryAuthorizedAt: new Date().toISOString()
-                                                })}
-                                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2 px-6 rounded-xl text-[10px] uppercase transition-all shadow-md"
-                                            >
-                                                Liberar Entrada de Ferramentas
-                                            </button>
-                                        )}
-                                        {schedule.toolsStatus === 'dentro' && (
-                                            <button
-                                                onClick={() => onUpdateMaintenanceSchedule(schedule.id, { 
-                                                    toolsStatus: 'devolvido',
-                                                    returnAuthorizedBy: 'Segurança Externa',
-                                                    returnAuthorizedAt: new Date().toISOString()
-                                                })}
-                                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2 px-6 rounded-xl text-[10px] uppercase transition-all shadow-md"
-                                            >
-                                                Liberar Retorno de Ferramentas
-                                            </button>
-                                        )}
-                                        {schedule.status === 'agendado' && (
-                                            <button
-                                                onClick={() => onUpdateMaintenanceSchedule(schedule.id, { status: 'em_andamento' })}
-                                                className="bg-blue-600 hover:bg-blue-700 text-white font-black py-2 px-6 rounded-xl text-[10px] uppercase transition-all shadow-md"
-                                            >
-                                                Iniciar Manutenção
-                                            </button>
-                                        )}
-                                        {schedule.status === 'em_andamento' && (
-                                            <button
-                                                onClick={() => onUpdateMaintenanceSchedule(schedule.id, { status: 'concluido' })}
-                                                className="bg-green-600 hover:bg-green-700 text-white font-black py-2 px-6 rounded-xl text-[10px] uppercase transition-all shadow-md"
-                                            >
-                                                Concluir Manutenção
-                                            </button>
-                                        )}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                                            {schedule.entryAuthorizedAt && (
+                                                <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex items-center gap-4">
+                                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                                                        <Clock className="h-5 w-5 text-blue-600" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest leading-none mb-1">Entrada Liberada</p>
+                                                        <p className="text-xs font-black text-blue-700">{new Date(schedule.entryAuthorizedAt).toLocaleString('pt-BR')}</p>
+                                                        <p className="text-[8px] font-bold text-blue-400 uppercase mt-0.5">Por: {schedule.entryAuthorizedBy}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {schedule.returnAuthorizedAt && (
+                                                <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex items-center gap-4">
+                                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                                                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest leading-none mb-1">Retorno Liberado</p>
+                                                        <p className="text-xs font-black text-emerald-700">{new Date(schedule.returnAuthorizedAt).toLocaleString('pt-BR')}</p>
+                                                        <p className="text-[8px] font-bold text-emerald-400 uppercase mt-0.5">Por: {schedule.returnAuthorizedBy}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex flex-wrap justify-end gap-3 pt-6 border-t border-slate-100">
+                                            {schedule.toolsStatus === 'fora' && (
+                                                <button
+                                                    onClick={() => onUpdateMaintenanceSchedule(schedule.id, { 
+                                                        toolsStatus: 'dentro',
+                                                        entryAuthorizedBy: 'Segurança Externa',
+                                                        entryAuthorizedAt: new Date().toISOString()
+                                                    })}
+                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all shadow-lg shadow-indigo-100 flex items-center gap-2 active:scale-95"
+                                                >
+                                                    <LogIn className="h-4 w-4" /> Liberar Entrada de Ferramentas
+                                                </button>
+                                            )}
+                                            {schedule.toolsStatus === 'dentro' && (
+                                                <button
+                                                    onClick={() => onUpdateMaintenanceSchedule(schedule.id, { 
+                                                        toolsStatus: 'devolvido',
+                                                        returnAuthorizedBy: 'Segurança Externa',
+                                                        returnAuthorizedAt: new Date().toISOString()
+                                                    })}
+                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all shadow-lg shadow-emerald-100 flex items-center gap-2 active:scale-95"
+                                                >
+                                                    <LogOut className="h-4 w-4" /> Liberar Retorno de Ferramentas
+                                                </button>
+                                            )}
+                                            {schedule.status === 'agendado' && (
+                                                <button
+                                                    onClick={() => onUpdateMaintenanceSchedule(schedule.id, { status: 'em_andamento' })}
+                                                    className="bg-blue-600 hover:bg-blue-700 text-white font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all shadow-lg shadow-blue-100 flex items-center gap-2 active:scale-95"
+                                                >
+                                                    <Play className="h-4 w-4" /> Iniciar Manutenção
+                                                </button>
+                                            )}
+                                            {schedule.status === 'em_andamento' && (
+                                                <button
+                                                    onClick={() => onUpdateMaintenanceSchedule(schedule.id, { status: 'concluido' })}
+                                                    className="bg-green-600 hover:bg-green-700 text-white font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all shadow-lg shadow-green-100 flex items-center gap-2 active:scale-95"
+                                                >
+                                                    <CheckCircle2 className="h-4 w-4" /> Concluir Manutenção
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
+                            ))
+           </div>
                             )) : (
                                 <div className="text-center py-20 bg-white/50 rounded-[3rem] border-4 border-dashed border-slate-200">
                                     <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">

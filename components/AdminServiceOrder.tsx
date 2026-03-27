@@ -480,7 +480,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
       {/* Schedule Modal */}
       {schedulingOrderId && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-emerald-50/50">
               <h3 className="text-2xl font-black text-emerald-950 uppercase tracking-tighter italic">Agendar Manutenção</h3>
               <button 
@@ -491,60 +491,92 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               </button>
             </div>
             
-            <form onSubmit={handleScheduleSubmit} className="p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Data</label>
-                  <input
-                    type="date"
-                    required
-                    value={scheduleForm.date}
-                    onChange={(e) => setScheduleForm({ ...scheduleForm, date: e.target.value })}
-                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all"
-                  />
+            <form onSubmit={handleScheduleSubmit} className="p-8 space-y-8 max-h-[80vh] overflow-y-auto custom-scrollbar">
+              {/* Seção 1: Informações Gerais */}
+              <div className="bg-gray-50/50 p-6 rounded-[32px] border border-gray-100 space-y-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 bg-emerald-100 rounded-xl flex items-center justify-center">
+                    <Calendar className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <h4 className="text-xs font-black text-emerald-900 uppercase tracking-widest">Informações do Agendamento</h4>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Hora</label>
-                  <input
-                    type="time"
-                    required
-                    value={scheduleForm.time}
-                    onChange={(e) => setScheduleForm({ ...scheduleForm, time: e.target.value })}
-                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all"
-                  />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Data da Manutenção</label>
+                    <input
+                      type="date"
+                      required
+                      value={scheduleForm.date}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, date: e.target.value })}
+                      className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all shadow-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Horário Previsto</label>
+                    <input
+                      type="time"
+                      required
+                      value={scheduleForm.time}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, time: e.target.value })}
+                      className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all shadow-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Local da Manutenção</label>
+                    <input
+                      type="text"
+                      required
+                      value={scheduleForm.location}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, location: e.target.value })}
+                      className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all shadow-sm"
+                      placeholder="Ex: Bloco A, Sala 102"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Responsável pelo Acompanhamento</label>
+                    <input
+                      type="text"
+                      required
+                      value={scheduleForm.accompanyingPerson}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, accompanyingPerson: e.target.value })}
+                      className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all shadow-sm"
+                      placeholder="Nome do responsável"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Local</label>
-                <input
-                  type="text"
-                  required
-                  value={scheduleForm.location}
-                  onChange={(e) => setScheduleForm({ ...scheduleForm, location: e.target.value })}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all"
-                  placeholder="Ex: Bloco A, Sala 102"
-                />
-              </div>
+              {/* Seção 2: Inventário de Ferramentas */}
+              <div className="bg-emerald-50/30 p-6 rounded-[32px] border border-emerald-100/50 space-y-6">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-emerald-200/50 rounded-xl flex items-center justify-center">
+                      <Wrench className="h-4 w-4 text-emerald-700" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-emerald-900 uppercase tracking-widest leading-none">Relação de Ferramentas</h4>
+                      <p className="text-[9px] font-bold text-emerald-600/70 uppercase mt-1">Máximo de 25 itens para controle de entrada/saída</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleForm({ ...scheduleForm, tools: Array(25).fill('') })}
+                    className="text-[9px] font-black text-emerald-700 uppercase hover:text-emerald-900 transition-colors bg-white px-3 py-1.5 rounded-lg border border-emerald-100 shadow-sm"
+                  >
+                    Limpar Tudo
+                  </button>
+                </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pessoa que irá acompanhar</label>
-                <input
-                  type="text"
-                  required
-                  value={scheduleForm.accompanyingPerson}
-                  onChange={(e) => setScheduleForm({ ...scheduleForm, accompanyingPerson: e.target.value })}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all"
-                  placeholder="Nome do responsável"
-                />
-              </div>
-
-              <div className="space-y-4">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Relação de Ferramentas (25 Campos)</label>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-3 max-h-[300px] overflow-y-auto p-4 bg-gray-50 rounded-3xl border border-gray-100">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-1">
                   {Array(25).fill(0).map((_, i) => (
-                    <div key={i} className="space-y-1">
-                      <span className="text-[8px] font-bold text-gray-400 uppercase ml-1">Item {i + 1}</span>
+                    <div key={i} className="relative group">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-emerald-300 group-focus-within:text-emerald-500 transition-colors">
+                        {String(i + 1).padStart(2, '0')}
+                      </div>
                       <input
                         type="text"
                         value={scheduleForm.tools?.[i] || ''}
@@ -553,8 +585,8 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                           newTools[i] = e.target.value;
                           setScheduleForm({ ...scheduleForm, tools: newTools });
                         }}
-                        className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-[10px] font-bold focus:ring-2 focus:ring-emerald-500 transition-all"
-                        placeholder={`Ferramenta ${i + 1}`}
+                        className="w-full bg-white border border-gray-100 rounded-xl pl-8 pr-3 py-2.5 text-[10px] font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all shadow-sm placeholder:text-gray-300"
+                        placeholder={`Ferramenta...`}
                       />
                     </div>
                   ))}
@@ -568,7 +600,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                   value={scheduleForm.toolsNeeded}
                   onChange={(e) => setScheduleForm({ ...scheduleForm, toolsNeeded: e.target.value })}
                   className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all resize-none"
-                  placeholder="Outras informações sobre as ferramentas..."
+                  placeholder="Outras informações importantes sobre as ferramentas ou o serviço..."
                 />
               </div>
 
