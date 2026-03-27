@@ -318,7 +318,13 @@ export interface MaintenanceSchedule {
   location: string;
   accompanyingPerson: string;
   toolsNeeded: string;
+  tools?: string[]; // Array of 25 tool fields
   status: 'agendado' | 'em_andamento' | 'concluido' | 'cancelado';
+  toolsStatus?: 'fora' | 'dentro' | 'devolvido';
+  entryAuthorizedBy?: string;
+  entryAuthorizedAt?: string;
+  returnAuthorizedBy?: string;
+  returnAuthorizedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

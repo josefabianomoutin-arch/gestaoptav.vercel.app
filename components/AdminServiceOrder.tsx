@@ -38,7 +38,9 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
     location: '',
     accompanyingPerson: '',
     toolsNeeded: '',
-    status: 'agendado'
+    tools: Array(25).fill(''),
+    status: 'agendado',
+    toolsStatus: 'fora'
   });
 
   const filteredOrders = orders.filter(order => {
@@ -86,7 +88,9 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
         location: scheduleForm.location || '',
         accompanyingPerson: scheduleForm.accompanyingPerson || '',
         toolsNeeded: scheduleForm.toolsNeeded || '',
+        tools: scheduleForm.tools || Array(25).fill(''),
         status: 'agendado',
+        toolsStatus: 'fora',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
@@ -97,7 +101,9 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
         location: '',
         accompanyingPerson: '',
         toolsNeeded: '',
-        status: 'agendado'
+        tools: Array(25).fill(''),
+        status: 'agendado',
+        toolsStatus: 'fora'
       });
     } catch (error) {
       console.error(error);
@@ -274,7 +280,21 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                           </div>
                           <div>
                             <p className="text-[10px] text-emerald-600/70 font-bold uppercase">Ferramentas</p>
-                            <p className="text-sm text-emerald-900 font-black">{ms.toolsNeeded || 'Nenhuma'}</p>
+                            <p className="text-sm text-emerald-900 font-black">
+                              {ms.tools?.filter(t => t.trim() !== '').length || 0} itens relacionados
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-emerald-600/70 font-bold uppercase">Status das Ferramentas</p>
+                            <span className={`inline-block mt-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                              ms.toolsStatus === 'dentro' ? 'bg-blue-200 text-blue-800' :
+                              ms.toolsStatus === 'devolvido' ? 'bg-emerald-200 text-emerald-800' :
+                              'bg-zinc-200 text-zinc-800'
+                            }`}>
+                              {ms.toolsStatus === 'dentro' ? 'DENTRO DA UNIDADE' : 
+                               ms.toolsStatus === 'devolvido' ? 'BAIXA DADA (DEVOLVIDO)' : 
+                               'FORA DA UNIDADE'}
+                            </span>
                           </div>
                           <div className="md:col-span-2">
                             <p className="text-[10px] text-emerald-600/70 font-bold uppercase">Status do Agendamento</p>
@@ -519,14 +539,36 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                 />
               </div>
 
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Relação de Ferramentas (25 Campos)</label>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-3 max-h-[300px] overflow-y-auto p-4 bg-gray-50 rounded-3xl border border-gray-100">
+                  {Array(25).fill(0).map((_, i) => (
+                    <div key={i} className="space-y-1">
+                      <span className="text-[8px] font-bold text-gray-400 uppercase ml-1">Item {i + 1}</span>
+                      <input
+                        type="text"
+                        value={scheduleForm.tools?.[i] || ''}
+                        onChange={(e) => {
+                          const newTools = [...(scheduleForm.tools || Array(25).fill(''))];
+                          newTools[i] = e.target.value;
+                          setScheduleForm({ ...scheduleForm, tools: newTools });
+                        }}
+                        className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-[10px] font-bold focus:ring-2 focus:ring-emerald-500 transition-all"
+                        placeholder={`Ferramenta ${i + 1}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Ferramentas Necessárias</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Observações Adicionais</label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={scheduleForm.toolsNeeded}
                   onChange={(e) => setScheduleForm({ ...scheduleForm, toolsNeeded: e.target.value })}
                   className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all resize-none"
-                  placeholder="Liste as ferramentas necessárias (opcional)..."
+                  placeholder="Outras informações sobre as ferramentas..."
                 />
               </div>
 

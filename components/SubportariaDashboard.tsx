@@ -9,7 +9,7 @@ interface SubportariaDashboardProps {
   suppliers: Supplier[];
   thirdPartyEntries: ThirdPartyEntryLog[];
   maintenanceSchedules: MaintenanceSchedule[];
-  onUpdateMaintenanceSchedule: (schedule: MaintenanceSchedule) => Promise<{ success: boolean; message: string }>;
+  onUpdateMaintenanceSchedule: (id: string, updates: Partial<MaintenanceSchedule>) => Promise<void>;
   onUpdateThirdPartyEntry: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message: string }>;
   onDeleteThirdPartyEntry: (id: string) => Promise<void>;
   onLogout: () => void;
@@ -476,17 +476,70 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                         </div>
                                     </div>
 
+                                    {schedule.tools && schedule.tools.some(t => t.trim() !== '') && (
+                                        <div className="mt-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Relação de Ferramentas</p>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
+                                                {schedule.tools.filter(t => t.trim() !== '').map((tool, i) => (
+                                                    <p key={i} className="text-xs font-bold text-slate-600 flex items-center gap-2">
+                                                        <span className="w-4 h-4 bg-slate-200 rounded-full flex items-center justify-center text-[8px]">{i + 1}</span>
+                                                        {tool}
+                                                    </p>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {schedule.toolsNeeded && (
                                         <div className="mt-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ferramentas Necessárias</p>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Observações Adicionais</p>
                                             <p className="text-sm font-bold text-slate-700 whitespace-pre-wrap">{schedule.toolsNeeded}</p>
                                         </div>
                                     )}
 
-                                    <div className="mt-6 flex justify-end gap-2">
+                                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {schedule.entryAuthorizedAt && (
+                                            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                                                <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Entrada Liberada</p>
+                                                <p className="text-[10px] font-bold text-blue-700">{new Date(schedule.entryAuthorizedAt).toLocaleString('pt-BR')}</p>
+                                            </div>
+                                        )}
+                                        {schedule.returnAuthorizedAt && (
+                                            <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                                                <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Retorno Liberado</p>
+                                                <p className="text-[10px] font-bold text-emerald-700">{new Date(schedule.returnAuthorizedAt).toLocaleString('pt-BR')}</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="mt-6 flex flex-wrap justify-end gap-2">
+                                        {schedule.toolsStatus === 'fora' && (
+                                            <button
+                                                onClick={() => onUpdateMaintenanceSchedule(schedule.id, { 
+                                                    toolsStatus: 'dentro',
+                                                    entryAuthorizedBy: 'Segurança Externa',
+                                                    entryAuthorizedAt: new Date().toISOString()
+                                                })}
+                                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2 px-6 rounded-xl text-[10px] uppercase transition-all shadow-md"
+                                            >
+                                                Liberar Entrada de Ferramentas
+                                            </button>
+                                        )}
+                                        {schedule.toolsStatus === 'dentro' && (
+                                            <button
+                                                onClick={() => onUpdateMaintenanceSchedule(schedule.id, { 
+                                                    toolsStatus: 'devolvido',
+                                                    returnAuthorizedBy: 'Segurança Externa',
+                                                    returnAuthorizedAt: new Date().toISOString()
+                                                })}
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2 px-6 rounded-xl text-[10px] uppercase transition-all shadow-md"
+                                            >
+                                                Liberar Retorno de Ferramentas
+                                            </button>
+                                        )}
                                         {schedule.status === 'agendado' && (
                                             <button
-                                                onClick={() => onUpdateMaintenanceSchedule({ ...schedule, status: 'em_andamento' })}
+                                                onClick={() => onUpdateMaintenanceSchedule(schedule.id, { status: 'em_andamento' })}
                                                 className="bg-blue-600 hover:bg-blue-700 text-white font-black py-2 px-6 rounded-xl text-[10px] uppercase transition-all shadow-md"
                                             >
                                                 Iniciar Manutenção
@@ -494,7 +547,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                         )}
                                         {schedule.status === 'em_andamento' && (
                                             <button
-                                                onClick={() => onUpdateMaintenanceSchedule({ ...schedule, status: 'concluido' })}
+                                                onClick={() => onUpdateMaintenanceSchedule(schedule.id, { status: 'concluido' })}
                                                 className="bg-green-600 hover:bg-green-700 text-white font-black py-2 px-6 rounded-xl text-[10px] uppercase transition-all shadow-md"
                                             >
                                                 Concluir Manutenção
