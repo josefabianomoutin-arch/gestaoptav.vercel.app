@@ -30,11 +30,11 @@ interface VehicleOrderDashboardProps {
 }
 
 const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
-  orders,
-  vehicleAssets,
-  driverAssets,
-  validationRoles,
-  serviceOrders,
+  orders = [],
+  vehicleAssets = [],
+  driverAssets = [],
+  validationRoles = [],
+  serviceOrders = [],
   vehicleInspections = [],
   onUpdateServiceOrder,
   onDeleteServiceOrder,

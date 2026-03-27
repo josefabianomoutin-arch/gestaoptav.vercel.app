@@ -35,10 +35,10 @@ interface AdminVehicleExitOrderProps {
 }
 
 const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({ 
-    orders, onRegister, onUpdate, onDelete,
-    vehicleAssets, onRegisterVehicleAsset, onUpdateVehicleAsset, onDeleteVehicleAsset,
-    driverAssets, onRegisterDriverAsset, onUpdateDriverAsset, onDeleteDriverAsset,
-    validationRoles, onRegisterValidationRole, onUpdateValidationRole, onDeleteValidationRole,
+    orders = [], onRegister, onUpdate, onDelete,
+    vehicleAssets = [], onRegisterVehicleAsset, onUpdateVehicleAsset, onDeleteVehicleAsset,
+    driverAssets = [], onRegisterDriverAsset, onUpdateDriverAsset, onDeleteDriverAsset,
+    validationRoles = [], onRegisterValidationRole, onUpdateValidationRole, onDeleteValidationRole,
     inspections = [], onRegisterInspection, onUpdateInspection, onDeleteInspection,
     onUpdateVehicleExitOrder,
     readOnly = false,

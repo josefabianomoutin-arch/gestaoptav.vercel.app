@@ -1370,6 +1370,17 @@ const App: React.FC = () => {
           serviceOrders={serviceOrders}
           onUpdateServiceOrder={handleUpdateServiceOrder}
           onDeleteServiceOrder={handleDeleteServiceOrder}
+          vehicleInspections={vehicleInspections}
+          onRegisterVehicleInspection={async (inspection) => {
+            const r = push(vehicleInspectionsRef);
+            await set(r, { ...inspection, id: r.key });
+            return { success: true, message: 'Inspeção registrada' };
+          }}
+          onUpdateVehicleInspection={async (inspection) => {
+            await set(child(vehicleInspectionsRef, inspection.id), inspection);
+            return { success: true, message: 'Inspeção atualizada' };
+          }}
+          onDeleteVehicleInspection={async (id) => remove(child(vehicleInspectionsRef, id))}
           onUpdateStandardMenu={async (m) => set(standardMenuRef, m)}
           onUpdateDailyMenu={async (m) => set(dailyMenusRef, m)}
           onRegisterEntry={handleRegisterWarehouseEntry}

@@ -10,7 +10,7 @@ interface AdminServiceOrderProps {
   onDelete: (id: string) => Promise<void>;
 }
 
-const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({ orders, onUpdate, onDelete }) => {
+const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({ orders = [], onUpdate, onDelete }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('todos');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -61,6 +61,16 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({ orders, onUpdate,
       case 'MÉDIA': return 'bg-amber-500 text-white';
       case 'BAIXA': return 'bg-emerald-500 text-white';
       default: return 'bg-gray-400 text-white';
+    }
+  };
+
+  const getProjectStageText = (stage?: string) => {
+    switch(stage) {
+      case '1_aquisicao_material': return '1ª Etapa: Aquisição de Material';
+      case '2_disponibilidade_mao_obra': return '2ª Etapa: Disponibilidade de Mão de Obra';
+      case '3_em_execucao': return '3ª Etapa: Em Execução';
+      case '4_finalizada': return '4ª Etapa: Finalizada';
+      default: return null;
     }
   };
 
@@ -126,7 +136,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({ orders, onUpdate,
               <div className="p-8 relative z-10">
                 {editingId === order.id ? (
                   <div className="space-y-6 animate-in fade-in duration-300">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                       <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Prioridade (Pós-Inspeção)</label>
                         <select
@@ -151,6 +161,20 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({ orders, onUpdate,
                           <option value="em_andamento">Em Andamento</option>
                           <option value="concluido">Concluído</option>
                           <option value="cancelado">Cancelado</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Etapa do Projeto</label>
+                        <select
+                          value={editForm?.projectStage || ''}
+                          onChange={(e) => setEditForm({ ...editForm!, projectStage: e.target.value })}
+                          className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all"
+                        >
+                          <option value="">Não definida</option>
+                          <option value="1_aquisicao_material">1ª Etapa: Aquisição de Material</option>
+                          <option value="2_disponibilidade_mao_obra">2ª Etapa: Disponibilidade de Mão de Obra</option>
+                          <option value="3_em_execucao">3ª Etapa: Em Execução</option>
+                          <option value="4_finalizada">4ª Etapa: Finalizada</option>
                         </select>
                       </div>
                       <div className="space-y-2">
@@ -206,6 +230,11 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({ orders, onUpdate,
                         <span className="bg-zinc-100 text-zinc-600 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-zinc-200">
                           {order.category}
                         </span>
+                        {getProjectStageText(order.projectStage) && (
+                          <span className="bg-blue-100 text-blue-700 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-200">
+                            {getProjectStageText(order.projectStage)}
+                          </span>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

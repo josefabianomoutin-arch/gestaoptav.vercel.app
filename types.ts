@@ -306,6 +306,7 @@ export interface ServiceOrder {
   createdAt: string;
   updatedAt?: string;
   inspectionObservations?: string;
+  projectStage?: '1_aquisicao_material' | '2_disponibilidade_mao_obra' | '3_em_execucao' | '4_finalizada' | string;
 }
 
 export type UserRole = 'admin' | 'supplier' | 'producer' | 'pereciveis_supplier' | 'almoxarifado' | 'itesp' | 'financeiro' | 'subportaria' | 'cardapio' | 'infraestrutura' | 'ordem_saida' | 'julio' | 'readonly' | 'ordem_servico';

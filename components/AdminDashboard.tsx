@@ -130,7 +130,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     onDeleteVehicleInspection,
     serviceOrders = [],
     onUpdateServiceOrder,
-    onDeleteServiceOrder
+    onDeleteServiceOrder,
+    validationRoles = []
   } = props;
   const [activeTab, setActiveTab] = useState<AdminTab>('register');
   const [supplierSubTab, setSupplierSubTab] = useState<'list' | 'new'>('list'); 

@@ -74,6 +74,16 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
     return [...serviceOrders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [serviceOrders]);
 
+  const getProjectStageText = (stage?: string) => {
+    switch(stage) {
+      case '1_aquisicao_material': return '1ª Etapa: Aquisição de Material';
+      case '2_disponibilidade_mao_obra': return '2ª Etapa: Disponibilidade de Mão de Obra';
+      case '3_em_execucao': return '3ª Etapa: Em Execução';
+      case '4_finalizada': return '4ª Etapa: Finalizada';
+      default: return null;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-indigo-500/30 overflow-x-hidden">
       {/* Background Effects */}
@@ -177,6 +187,18 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
                       </div>
                     </div>
                   </div>
+
+                  {order.projectStage && (
+                    <div className="mt-4 pt-4 border-t border-white/5">
+                      <p className="text-[9px] text-white/20 font-black uppercase tracking-widest mb-2">Andamento do Projeto</p>
+                      <div className="bg-blue-500/10 border border-blue-500/20 px-3 py-2 rounded-xl inline-flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                        <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">
+                          {getProjectStageText(order.projectStage)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   
                   {order.inspectionObservations && (
                     <div className="mt-6 p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl group-hover:bg-indigo-500/10 transition-colors">
@@ -207,114 +229,116 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-in fade-in duration-500">
-          <div className="bg-[#0a0a0a] border border-white/10 w-full max-w-xl rounded-[3rem] overflow-hidden shadow-[0_0_100px_rgba(79,70,229,0.15)] relative">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white border border-gray-200 w-full max-w-xl rounded-3xl shadow-2xl relative max-h-[90vh] flex flex-col">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-600 to-transparent" />
             
-            <div className="bg-indigo-600 p-8 flex justify-between items-center">
+            <div className="bg-indigo-600 p-6 flex justify-between items-center rounded-t-3xl shrink-0">
               <div>
-                <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">Nova Solicitação</h2>
+                <h2 className="text-xl font-black text-white uppercase italic tracking-tighter">Nova Solicitação</h2>
                 <p className="text-[10px] text-indigo-200 font-black uppercase tracking-[0.3em] mt-1">Infraestrutura e Logística</p>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="bg-black/20 hover:bg-black/40 p-3 rounded-2xl transition-all active:scale-90">
+              <button onClick={() => setIsModalOpen(false)} className="bg-black/20 hover:bg-black/40 p-2 rounded-xl transition-all active:scale-90">
                 <XCircle className="h-6 w-6 text-white" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-10 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-2.5">
-                  <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-1">Setor Solicitante</label>
-                  <input
-                    required
-                    type="text"
-                    value={formData.requestingSector}
-                    onChange={(e) => setFormData({ ...formData, requestingSector: e.target.value })}
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-white/10"
-                    placeholder="Ex: ADMINISTRATIVO"
-                  />
+            <div className="overflow-y-auto p-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-1">Setor Solicitante</label>
+                    <input
+                      required
+                      type="text"
+                      value={formData.requestingSector}
+                      onChange={(e) => setFormData({ ...formData, requestingSector: e.target.value })}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-400"
+                      placeholder="Ex: ADMINISTRATIVO"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-1">Nome do Solicitante</label>
+                    <input
+                      required
+                      type="text"
+                      value={formData.requester}
+                      onChange={(e) => setFormData({ ...formData, requester: e.target.value })}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-400"
+                      placeholder="NOME COMPLETO"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2.5">
-                  <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-1">Nome do Solicitante</label>
-                  <input
-                    required
-                    type="text"
-                    value={formData.requester}
-                    onChange={(e) => setFormData({ ...formData, requester: e.target.value })}
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-white/10"
-                    placeholder="NOME COMPLETO"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-2.5">
-                  <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-1">Tipo de Serviço</label>
-                  <div className="relative">
-                    <select
-                      value={formData.serviceType}
-                      onChange={(e) => setFormData({ ...formData, serviceType: e.target.value as any })}
-                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer"
-                    >
-                      <option value="hidraulico" className="bg-[#0a0a0a]">HIDRÁULICO</option>
-                      <option value="eletrico" className="bg-[#0a0a0a]">ELÉTRICO</option>
-                      <option value="mecânico" className="bg-[#0a0a0a]">MECÂNICO</option>
-                      <option value="alvenaria" className="bg-[#0a0a0a]">ALVENARIA</option>
-                      <option value="estrutural" className="bg-[#0a0a0a]">ESTRUTURAL</option>
-                    </select>
-                    <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-white/20">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-1">Tipo de Serviço</label>
+                    <div className="relative">
+                      <select
+                        value={formData.serviceType}
+                        onChange={(e) => setFormData({ ...formData, serviceType: e.target.value as any })}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="hidraulico">HIDRÁULICO</option>
+                        <option value="eletrico">ELÉTRICO</option>
+                        <option value="mecânico">MECÂNICO</option>
+                        <option value="alvenaria">ALVENARIA</option>
+                        <option value="estrutural">ESTRUTURAL</option>
+                      </select>
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-1">Classificação</label>
+                    <div className="relative">
+                      <select
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="manutenção">MANUTENÇÃO</option>
+                        <option value="reforma">REFORMA</option>
+                      </select>
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="space-y-2.5">
-                  <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-1">Classificação</label>
-                  <div className="relative">
-                    <select
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
-                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer"
-                    >
-                      <option value="manutenção" className="bg-[#0a0a0a]">MANUTENÇÃO</option>
-                      <option value="reforma" className="bg-[#0a0a0a]">REFORMA</option>
-                    </select>
-                    <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-white/20">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
-                    </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-1">Descrição Detalhada</label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all resize-none placeholder:text-gray-400"
+                    placeholder="DESCREVA O PROBLEMA OU NECESSIDADE..."
+                  />
+                </div>
+
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                    <p className="text-[10px] text-amber-800 font-bold uppercase tracking-widest leading-tight">
+                      A prioridade será definida pela Seção de Infraestrutura após inspeção técnica.
+                    </p>
                   </div>
                 </div>
-              </div>
 
-              <div className="space-y-2.5">
-                <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-1">Descrição Detalhada</label>
-                <textarea
-                  required
-                  rows={4}
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full bg-white/[0.03] border border-white/10 rounded-3xl px-5 py-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all resize-none placeholder:text-white/10"
-                  placeholder="DESCREVA O PROBLEMA OU NECESSIDADE..."
-                />
-              </div>
-
-              <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="h-4 w-4 text-amber-500" />
-                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-tight">
-                    A prioridade será definida pela Seção de Infraestrutura após inspeção técnica.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                disabled={loading}
-                type="submit"
-                className="group relative w-full bg-white text-black hover:bg-indigo-600 hover:text-white font-black py-5 rounded-2xl text-sm uppercase tracking-[0.3em] transition-all shadow-[0_20px_40px_rgba(255,255,255,0.05)] active:scale-[0.98] overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span className="relative z-10">{loading ? 'PROCESSANDO...' : 'ENVIAR SOLICITAÇÃO'}</span>
-              </button>
-            </form>
+                <button
+                  disabled={loading}
+                  type="submit"
+                  className="group relative w-full bg-indigo-600 text-white hover:bg-indigo-700 font-black py-4 rounded-xl text-sm uppercase tracking-[0.3em] transition-all shadow-lg active:scale-[0.98] overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <span className="relative z-10">{loading ? 'PROCESSANDO...' : 'ENVIAR SOLICITAÇÃO'}</span>
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       )}
