@@ -600,7 +600,7 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
             comprasCode: itemComprasCode,
             becCode: itemBecCode,
             commitmentNumber: a.commitmentNumber,
-            commitmentValue: parseFloat(a.commitmentValue.replace(',', '.'))
+            commitmentValue: parseFloat(a.commitmentValue.toString().replace(',', '.')) || 0
         })).filter(a => !isNaN(a.totalKg));
 
         const result = await onSave(finalAssignments);
@@ -746,7 +746,7 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
                                         <label className="text-[8px] font-black text-gray-400 uppercase block mb-0.5 ml-1">V. Empenho (R$)</label>
                                         <input 
                                             type="text" 
-                                            value={a.commitmentValue} 
+                                            value={a.commitmentValue || ''}
                                             onChange={e => setAssignments(assignments.map(assign => assign.supplierCpf === a.supplierCpf ? { ...assign, commitmentValue: e.target.value.replace(/[^0-9,.]/g, '') } : assign))}
                                             className="w-full p-2 border-2 border-gray-50 rounded-lg text-center font-mono text-xs focus:border-indigo-400 outline-none transition-all bg-white"
                                         />
