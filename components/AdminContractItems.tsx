@@ -6,7 +6,7 @@ import ConfirmModal from './ConfirmModal';
 interface AdminContractItemsProps {
   suppliers: Supplier[];
   warehouseLog: WarehouseMovement[];
-  onUpdateContractForItem: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string }[]) => Promise<{ success: boolean, message: string }>;
+  onUpdateContractForItem: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string, commitmentNumber?: string, commitmentValue?: number }[]) => Promise<{ success: boolean, message: string }>;
 }
 
 const superNormalize = (text: string) => {
@@ -63,12 +63,15 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
 
                 existing.totalContracted += Number(ci.totalKg) || 0;
                 existing.totalValueContracted += (Number(ci.totalKg) || 0) * (Number(ci.valuePerKg) || 0);
+                existing.totalCommitmentValue = (existing.totalCommitmentValue || 0) + (Number(ci.commitmentValue) || 0);
                 existing.suppliersCount += 1;
                 existing.details.push({ 
                     supplierName: s.name, 
                     supplierCpf: s.cpf, 
                     amount: Number(ci.totalKg), 
-                    price: Number(ci.valuePerKg) 
+                    price: Number(ci.valuePerKg),
+                    commitmentNumber: ci.commitmentNumber,
+                    commitmentValue: Number(ci.commitmentValue)
                 });
                 
                 map.set(normName, existing);
@@ -121,13 +124,14 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
         return filteredItems.reduce((acc, item) => {
             acc.contractedWeight += item.totalContracted;
             acc.contractedValue += item.totalValueContracted;
+            acc.commitmentValue += (item.totalCommitmentValue || 0);
             acc.deliveredWeight += item.totalDelivered;
             acc.deliveredValue += item.totalValueDelivered;
             acc.exitedWeight += item.totalExited;
             acc.exitedValue += item.totalValueExited;
             return acc;
         }, { 
-            contractedWeight: 0, contractedValue: 0, 
+            contractedWeight: 0, contractedValue: 0, commitmentValue: 0,
             deliveredWeight: 0, deliveredValue: 0, 
             exitedWeight: 0, exitedValue: 0 
         });
@@ -212,10 +216,14 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
             )}
 
             <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div className="bg-white p-4 rounded-2xl shadow-lg border-b-4 border-indigo-500">
                         <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Total Contratado (Valor)</p>
                         <p className="text-xl font-black text-indigo-700">{totals.contractedValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-2xl shadow-lg border-b-4 border-orange-500">
+                        <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Valor Empenhado</p>
+                        <p className="text-xl font-black text-orange-700">{totals.commitmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                     </div>
                     <div className="bg-white p-4 rounded-2xl shadow-lg border-b-4 border-green-500">
                         <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Entradas (Notas Fiscais)</p>
@@ -226,8 +234,8 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
                         <p className="text-xl font-black text-red-700">{totals.exitedValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                     </div>
                     <div className="bg-white p-4 rounded-2xl shadow-lg border-b-4 border-blue-500">
-                        <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Saldo a Entregar (Valor)</p>
-                        <p className="text-xl font-black text-blue-700">{Math.max(0, totals.contractedValue - totals.deliveredValue).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Saldo a Empenhar</p>
+                        <p className="text-xl font-black text-blue-700">{Math.max(0, totals.contractedValue - totals.commitmentValue).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                     </div>
                 </div>
 
@@ -474,7 +482,7 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
 // --- Modal de Gestão de Fornecedores por Item ---
 export interface ManageContractSuppliersModalProps {
     itemName: string;
-    currentSuppliers: { supplierName: string, supplierCpf: string, amount: number, price: number }[];
+    currentSuppliers: { supplierName: string, supplierCpf: string, amount: number, price: number, commitmentNumber?: string, commitmentValue?: number }[];
     allSuppliers: Supplier[];
     unit: string;
     category?: string;
@@ -482,7 +490,7 @@ export interface ManageContractSuppliersModalProps {
     becCode?: string;
     acquiredQuantity?: number;
     onClose: () => void;
-    onSave: (assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string }[]) => Promise<void>;
+    onSave: (assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string, commitmentNumber?: string, commitmentValue?: number }[]) => Promise<void>;
 }
 
 export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModalProps> = ({ itemName, currentSuppliers, allSuppliers, unit, category, comprasCode, becCode, acquiredQuantity, onClose, onSave }) => {
@@ -494,7 +502,9 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
         unit: unit,
         category: category || 'OUTROS',
         comprasCode: comprasCode || '',
-        becCode: becCode || ''
+        becCode: becCode || '',
+        commitmentNumber: s.commitmentNumber || '',
+        commitmentValue: String(s.commitmentValue || 0).replace('.', ',')
     })));
 
     const [itemCategory, setItemCategory] = useState(category || 'OUTROS');
@@ -588,7 +598,9 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
             unit: a.unit,
             category: itemCategory,
             comprasCode: itemComprasCode,
-            becCode: itemBecCode
+            becCode: itemBecCode,
+            commitmentNumber: a.commitmentNumber,
+            commitmentValue: parseFloat(a.commitmentValue.replace(',', '.'))
         })).filter(a => !isNaN(a.totalKg));
 
         const result = await onSave(finalAssignments);
@@ -718,6 +730,24 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
                                             type="text" 
                                             value={a.valuePerKg} 
                                             onChange={e => handleValueChange(a.supplierCpf, 'valuePerKg', e.target.value)} 
+                                            className="w-full p-2 border-2 border-gray-50 rounded-lg text-center font-mono text-xs focus:border-indigo-400 outline-none transition-all bg-white"
+                                        />
+                                    </div>
+                                    <div className="w-full md:w-28">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase block mb-0.5 ml-1">Nº Empenho</label>
+                                        <input 
+                                            type="text" 
+                                            value={a.commitmentNumber} 
+                                            onChange={e => setAssignments(assignments.map(assign => assign.supplierCpf === a.supplierCpf ? { ...assign, commitmentNumber: e.target.value } : assign))}
+                                            className="w-full p-2 border-2 border-gray-50 rounded-lg text-center font-mono text-xs focus:border-indigo-400 outline-none transition-all bg-white"
+                                        />
+                                    </div>
+                                    <div className="w-full md:w-28">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase block mb-0.5 ml-1">V. Empenho (R$)</label>
+                                        <input 
+                                            type="text" 
+                                            value={a.commitmentValue} 
+                                            onChange={e => setAssignments(assignments.map(assign => assign.supplierCpf === a.supplierCpf ? { ...assign, commitmentValue: e.target.value.replace(/[^0-9,.]/g, '') } : assign))}
                                             className="w-full p-2 border-2 border-gray-50 rounded-lg text-center font-mono text-xs focus:border-indigo-400 outline-none transition-all bg-white"
                                         />
                                     </div>

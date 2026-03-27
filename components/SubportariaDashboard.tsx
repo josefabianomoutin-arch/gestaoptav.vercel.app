@@ -592,8 +592,8 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                     </div>
                                 </div>
                             ))
-           </div>
-                            )) : (
+                        </div>
+                    ) : (
                                 <div className="text-center py-20 bg-white/50 rounded-[3rem] border-4 border-dashed border-slate-200">
                                     <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                         <AlertTriangle className="h-8 w-8 text-slate-300" />

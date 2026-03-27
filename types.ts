@@ -39,6 +39,8 @@ export interface ContractItem {
   comprasCode?: string;
   becCode?: string;
   category?: 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'OUTROS';
+  commitmentNumber?: string;
+  commitmentValue?: number;
 }
 
 export interface Supplier {
