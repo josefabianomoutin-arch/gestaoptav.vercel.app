@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import type { Supplier, Delivery, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, MaintenanceSchedule } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
-import { Camera, CheckCircle, XCircle, RefreshCw, UserCheck, AlertTriangle } from 'lucide-react';
+import { Camera, CheckCircle, XCircle, RefreshCw, UserCheck, AlertTriangle, Play, CheckCircle2, LogIn, LogOut, ClipboardList, Clock, Wrench, Calendar } from 'lucide-react';
 
 interface SubportariaDashboardProps {
   suppliers: Supplier[];
@@ -449,11 +449,6 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                            {maintenanceSchedules.length > 0 ? maintenanceSchedules.map((schedule, index) => (
                                 <div key={schedule.id} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${index * 50}ms` }}>
                                     <div className="p-8">
-                                        {/* ... content ... */}
-                                    </div>
-                                </div>
-                            )) : (
-                                    <div className="p-8">
                                         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center">
@@ -500,19 +495,39 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                         </div>
 
                                         {schedule.tools && schedule.tools.some(t => t.trim() !== '') && (
-                                            <div className="mb-6">
-                                                <div className="flex items-center gap-2 mb-3">
-                                                    <div className="w-6 h-6 bg-slate-100 rounded-lg flex items-center justify-center">
-                                                        <ClipboardList className="h-3 w-3 text-slate-500" />
-                                                    </div>
-                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Inventário de Ferramentas</p>
-                                                </div>
-                                                <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2">
-                                                    {schedule.tools.filter(t => t.trim() !== '').map((tool, i) => (
-                                                        <div key={i} className="flex items-center gap-3 py-1 border-b border-slate-100/50 last:border-0">
-                                                            <span className="w-5 h-5 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-[9px] font-black text-slate-400 shadow-sm">{String(i + 1).padStart(2, '0')}</span>
-                                                            <span className="text-xs font-bold text-slate-700 truncate">{tool}</span>
+                                            <div className="mb-8">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shadow-sm">
+                                                            <Wrench className="h-5 w-5 text-indigo-600" />
                                                         </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Inventário de Ferramentas</p>
+                                                            <h5 className="text-sm font-black text-slate-900 uppercase tracking-tighter italic">Conferência Obrigatória</h5>
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-slate-100 px-4 py-2 rounded-xl border border-slate-200">
+                                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                                            {schedule.tools.filter(t => t.trim() !== '').length} Itens Relacionados
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="bg-slate-50/50 p-6 rounded-[2.5rem] border border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                    {schedule.tools.filter(t => t.trim() !== '').map((tool, i) => (
+                                                        <label key={i} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-all cursor-pointer group">
+                                                            <div className="relative flex items-center justify-center">
+                                                                <input 
+                                                                    type="checkbox" 
+                                                                    className="peer h-6 w-6 appearance-none border-2 border-slate-200 rounded-lg checked:bg-indigo-600 checked:border-indigo-600 transition-all cursor-pointer"
+                                                                />
+                                                                <CheckCircle2 className="absolute h-4 w-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Item {String(i + 1).padStart(2, '0')}</p>
+                                                                <p className="text-xs font-bold text-slate-700 truncate group-hover:text-indigo-900 transition-colors">{tool}</p>
+                                                            </div>
+                                                        </label>
                                                     ))}
                                                 </div>
                                             </div>
@@ -596,10 +611,8 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="text-center py-20 bg-white/50 rounded-[3rem] border-4 border-dashed border-slate-200">
+                            )) : (
+                                <div className="text-center py-20 bg-white/50 rounded-[3rem] border-4 border-dashed border-slate-200">
                             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <AlertTriangle className="h-8 w-8 text-slate-300" />
                             </div>
@@ -608,12 +621,10 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                         </div>
                     )}
                 </div>
-            </div>
-        </div>
-    );
-};
+            )}
+        </main>
 
-{/* Modal de Verificação Facial */}
+        {/* Modal de Verificação Facial */}
 {isVerifying && verifyingLog && (
     <div className="fixed inset-0 bg-indigo-950/90 backdrop-blur-xl z-[200] flex items-center justify-center p-4 animate-fade-in">
         <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -754,122 +765,6 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
         cursor: pointer;
     }
 `}</style>
-
-                                <p className="text-indigo-300 font-bold text-[10px] uppercase tracking-widest mt-1">Comparação de Identidade Biométrica</p>
-                            </div>
-                            <button 
-                                onClick={() => { stopCamera(); setIsVerifying(false); }}
-                                className="p-2 hover:bg-white/10 rounded-full transition-colors"
-                            >
-                                <XCircle className="h-8 w-8" />
-                            </button>
-                        </div>
-
-                        <div className="p-8 overflow-y-auto flex-1 space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                {/* Foto de Referência */}
-                                <div className="space-y-4">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Foto de Cadastro</p>
-                                    <div className="aspect-square bg-slate-100 rounded-[2.5rem] overflow-hidden border-4 border-slate-50 shadow-inner">
-                                        <img src={verifyingLog.photo} alt="Referência" className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="bg-indigo-50 p-4 rounded-2xl text-center">
-                                        <p className="text-xs font-black text-indigo-900 uppercase">{verifyingLog.companyName}</p>
-                                        <p className="text-[10px] font-bold text-indigo-400 uppercase mt-1">Documento: {verifyingLog.companyCnpj}</p>
-                                    </div>
-                                </div>
-
-                                  {/* Câmera ao Vivo / Captura */}
-                                  <div className="space-y-4">
-                                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Captura ao Vivo</p>
-                                      <div className="aspect-square bg-black rounded-[2.5rem] overflow-hidden border-4 border-slate-50 shadow-2xl relative">
-                                          {cameraError ? (
-                                              <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center text-red-400">
-                                                  <AlertTriangle className="h-12 w-12 mb-2" />
-                                                  <p className="text-xs font-bold uppercase">{cameraError}</p>
-                                              </div>
-                                          ) : isCameraActive ? (
-                                              <video 
-                                                  ref={videoRef} 
-                                                  autoPlay 
-                                                  playsInline 
-                                                  muted
-                                                  className="w-full h-full object-cover"
-                                              />
-                                          ) : capturedPhoto ? (
-                                              <img src={capturedPhoto} alt="Capturada" className="w-full h-full object-cover" />
-                                          ) : (
-                                              <div className="w-full h-full flex items-center justify-center">
-                                                  <Camera className="h-12 w-12 text-slate-700 animate-pulse" />
-                                              </div>
-                                          )}
-
-                                        {verificationStatus === 'verifying' && (
-                                            <div className="absolute inset-0 bg-indigo-900/40 backdrop-blur-sm flex flex-col items-center justify-center text-white">
-                                                <RefreshCw className="h-12 w-12 animate-spin mb-4" />
-                                                <p className="text-sm font-black uppercase tracking-widest">Analisando Biometria...</p>
-                                            </div>
-                                        )}
-
-                                        {verificationStatus === 'success' && (
-                                            <div className="absolute inset-0 bg-green-500/80 backdrop-blur-sm flex flex-col items-center justify-center text-white animate-fade-in">
-                                                <CheckCircle className="h-20 w-20 mb-4" />
-                                                <p className="text-xl font-black uppercase tracking-widest">Identidade Confirmada</p>
-                                                <p className="text-[10px] font-bold uppercase mt-2">Compatibilidade: {verificationResult?.confidence}%</p>
-                                            </div>
-                                        )}
-
-                                        {verificationStatus === 'failed' && (
-                                            <div className="absolute inset-0 bg-red-600/80 backdrop-blur-sm flex flex-col items-center justify-center text-white animate-fade-in p-6 text-center">
-                                                <AlertTriangle className="h-20 w-20 mb-4" />
-                                                <p className="text-xl font-black uppercase tracking-widest">Falha na Identificação</p>
-                                                <p className="text-[10px] font-bold uppercase mt-2">{verificationResult?.reason || 'As fotos não correspondem.'}</p>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {isCameraActive && (
-                                        <button 
-                                            onClick={handleVerify}
-                                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl uppercase text-xs tracking-widest shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
-                                        >
-                                            <Camera className="h-5 w-5" />
-                                            Capturar e Verificar
-                                        </button>
-                                    )}
-
-                                    {!isCameraActive && verificationStatus === 'idle' && (
-                                        <button 
-                                            onClick={startCamera}
-                                            className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-black py-4 rounded-2xl uppercase text-xs tracking-widest transition-all flex items-center justify-center gap-2"
-                                        >
-                                            <RefreshCw className="h-5 w-5" />
-                                            Reiniciar Câmera
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
-                            <button 
-                                onClick={() => { stopCamera(); setIsVerifying(false); }}
-                                className="flex-1 bg-white border-2 border-slate-200 text-slate-400 font-black py-4 rounded-2xl uppercase text-xs tracking-widest hover:bg-slate-100 transition-all"
-                            >
-                                Cancelar
-                            </button>
-                            <button 
-                                onClick={confirmArrival}
-                                disabled={verificationStatus !== 'success'}
-                                className="flex-[2] bg-indigo-900 text-white font-black py-4 rounded-2xl uppercase text-xs tracking-widest shadow-xl hover:bg-indigo-950 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                <UserCheck className="h-5 w-5" />
-                                Confirmar Entrada
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Canvas oculto para captura de foto */}
             <canvas ref={canvasRef} className="hidden" />

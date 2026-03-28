@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ClipboardList, Search, Filter, CheckCircle2, XCircle, Clock, AlertCircle, Edit3, Trash2, Save, X, CalendarPlus } from 'lucide-react';
+import { ClipboardList, Search, Filter, CheckCircle2, XCircle, Clock, AlertCircle, Edit3, Trash2, Save, X, CalendarPlus, Calendar, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { ServiceOrder, MaintenanceSchedule } from '../types';
 
@@ -551,30 +551,30 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               </div>
 
               {/* Seção 2: Inventário de Ferramentas */}
-              <div className="bg-emerald-50/30 p-6 rounded-[32px] border border-emerald-100/50 space-y-6">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-emerald-200/50 rounded-xl flex items-center justify-center">
-                      <Wrench className="h-4 w-4 text-emerald-700" />
+              <div className="bg-emerald-50/30 p-8 rounded-[40px] border border-emerald-100/50 space-y-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-emerald-200/50 rounded-2xl flex items-center justify-center shadow-sm">
+                      <Wrench className="h-6 w-6 text-emerald-700" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-black text-emerald-900 uppercase tracking-widest leading-none">Relação de Ferramentas</h4>
-                      <p className="text-[9px] font-bold text-emerald-600/70 uppercase mt-1">Máximo de 25 itens para controle de entrada/saída</p>
+                      <h4 className="text-lg font-black text-emerald-900 uppercase tracking-tighter italic leading-none">Inventário de Ferramentas</h4>
+                      <p className="text-[10px] font-bold text-emerald-600/70 uppercase mt-1 tracking-widest">Controle de entrada e saída (Máx. 25 itens)</p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setScheduleForm({ ...scheduleForm, tools: Array(25).fill('') })}
-                    className="text-[9px] font-black text-emerald-700 uppercase hover:text-emerald-900 transition-colors bg-white px-3 py-1.5 rounded-lg border border-emerald-100 shadow-sm"
+                    className="text-[10px] font-black text-emerald-700 uppercase hover:bg-emerald-100 transition-all bg-white px-6 py-3 rounded-2xl border border-emerald-100 shadow-sm flex items-center gap-2"
                   >
-                    Limpar Tudo
+                    <Trash2 className="h-3 w-3" /> Limpar Tudo
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 p-1">
                   {Array(25).fill(0).map((_, i) => (
                     <div key={i} className="relative group">
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-emerald-300 group-focus-within:text-emerald-500 transition-colors">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-emerald-300 group-focus-within:text-emerald-500 transition-colors">
                         {String(i + 1).padStart(2, '0')}
                       </div>
                       <input
@@ -585,8 +585,8 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                           newTools[i] = e.target.value;
                           setScheduleForm({ ...scheduleForm, tools: newTools });
                         }}
-                        className="w-full bg-white border border-gray-100 rounded-xl pl-8 pr-3 py-2.5 text-[10px] font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all shadow-sm placeholder:text-gray-300"
-                        placeholder={`Ferramenta...`}
+                        className="w-full bg-white border border-gray-100 rounded-2xl pl-10 pr-4 py-3.5 text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all shadow-sm placeholder:text-gray-300 hover:border-emerald-200"
+                        placeholder={`Item ${i + 1}...`}
                       />
                     </div>
                   ))}
