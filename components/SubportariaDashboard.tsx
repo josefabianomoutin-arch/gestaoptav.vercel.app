@@ -481,6 +481,28 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                             </div>
                                         </div>
 
+                                        {schedule.exitAuthorizationUrl && (
+                                            <div className="mb-8">
+                                                <a 
+                                                    href={schedule.exitAuthorizationUrl} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-4 p-5 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 transition-all group transform hover:-translate-y-1"
+                                                >
+                                                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
+                                                        <FileText className="h-6 w-6 text-white" />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest leading-none mb-1">Conferência de Pessoas e Materiais</p>
+                                                        <p className="text-sm font-black uppercase tracking-tighter italic">Visualizar Autorização de Saída (PDF)</p>
+                                                    </div>
+                                                    <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+                                                        <Play className="h-4 w-4 text-white" />
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        )}
+
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                                             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Data e Hora</p>
@@ -554,25 +576,6 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                             }
                                             return null;
                                         })()}
-
-                                        {schedule.exitAuthorizationUrl && (
-                                            <div className="mb-6">
-                                                <a 
-                                                    href={schedule.exitAuthorizationUrl} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-100 hover:bg-indigo-100 transition-all group"
-                                                >
-                                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                                                        <FileText className="h-5 w-5 text-indigo-600" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1">Documento Anexo</p>
-                                                        <p className="text-xs font-black text-indigo-900 uppercase tracking-tighter italic">Visualizar Autorização de Saída (PDF)</p>
-                                                    </div>
-                                                </a>
-                                            </div>
-                                        )}
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                                             {schedule.entryAuthorizedAt && (
