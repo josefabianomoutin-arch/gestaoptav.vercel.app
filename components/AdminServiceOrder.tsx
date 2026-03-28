@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ClipboardList, Search, Filter, CheckCircle2, XCircle, Clock, AlertCircle, Edit3, Trash2, Save, X, CalendarPlus, Calendar, Wrench } from 'lucide-react';
+import { ClipboardList, Search, Filter, CheckCircle2, XCircle, Clock, AlertCircle, Edit3, Trash2, Save, X, CalendarPlus, Calendar, Wrench, FileText, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { ServiceOrder, MaintenanceSchedule } from '../types';
 
@@ -40,7 +40,8 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
     toolsNeeded: '',
     tools: Array(25).fill(''),
     status: 'agendado',
-    toolsStatus: 'fora'
+    toolsStatus: 'fora',
+    exitAuthorizationUrl: ''
   });
 
   const filteredOrders = orders.filter(order => {
@@ -91,6 +92,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
         tools: scheduleForm.tools || Array(25).fill(''),
         status: 'agendado',
         toolsStatus: 'fora',
+        exitAuthorizationUrl: scheduleForm.exitAuthorizationUrl || '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
@@ -103,7 +105,8 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
         toolsNeeded: '',
         tools: Array(25).fill(''),
         status: 'agendado',
-        toolsStatus: 'fora'
+        toolsStatus: 'fora',
+        exitAuthorizationUrl: ''
       });
     } catch (error) {
       console.error(error);
@@ -593,15 +596,64 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Observações Adicionais</label>
-                <textarea
-                  rows={2}
-                  value={scheduleForm.toolsNeeded}
-                  onChange={(e) => setScheduleForm({ ...scheduleForm, toolsNeeded: e.target.value })}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all resize-none"
-                  placeholder="Outras informações importantes sobre as ferramentas ou o serviço..."
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Observações Adicionais</label>
+                  <textarea
+                    rows={4}
+                    value={scheduleForm.toolsNeeded}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, toolsNeeded: e.target.value })}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all resize-none"
+                    placeholder="Outras informações importantes sobre as ferramentas ou o serviço..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Autorização de Saída (PDF)</label>
+                  <div className="relative h-[116px]">
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setScheduleForm({ ...scheduleForm, exitAuthorizationUrl: reader.result as string });
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className={`w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center transition-all ${
+                      scheduleForm.exitAuthorizationUrl 
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-600' 
+                        : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-emerald-300'
+                    }`}>
+                      {scheduleForm.exitAuthorizationUrl ? (
+                        <>
+                          <FileText className="h-8 w-8 mb-2" />
+                          <p className="text-[10px] font-black uppercase tracking-widest">PDF Carregado</p>
+                          <button 
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setScheduleForm({ ...scheduleForm, exitAuthorizationUrl: '' });
+                            }}
+                            className="mt-1 text-[8px] font-black text-red-500 hover:text-red-700 uppercase"
+                          >
+                            Remover
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-8 w-8 mb-2" />
+                          <p className="text-[10px] font-black uppercase tracking-widest">Clique ou arraste o PDF</p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="flex justify-end gap-4 pt-4 border-t border-gray-100">

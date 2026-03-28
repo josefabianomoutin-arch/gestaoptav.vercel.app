@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import type { Supplier, Delivery, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, MaintenanceSchedule } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
-import { Camera, CheckCircle, XCircle, RefreshCw, UserCheck, AlertTriangle, Play, CheckCircle2, LogIn, LogOut, ClipboardList, Clock, Wrench, Calendar } from 'lucide-react';
+import { Camera, CheckCircle, XCircle, RefreshCw, UserCheck, AlertTriangle, Play, CheckCircle2, LogIn, LogOut, ClipboardList, Clock, Wrench, Calendar, FileText } from 'lucide-react';
 
 interface SubportariaDashboardProps {
   suppliers: Supplier[];
@@ -537,6 +537,25 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                             <div className="mb-6 bg-amber-50/50 p-4 rounded-2xl border border-amber-100/50">
                                                 <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Observações Adicionais</p>
                                                 <p className="text-sm font-bold text-amber-900 italic leading-relaxed">"{schedule.toolsNeeded}"</p>
+                                            </div>
+                                        )}
+
+                                        {schedule.exitAuthorizationUrl && (
+                                            <div className="mb-6">
+                                                <a 
+                                                    href={schedule.exitAuthorizationUrl} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-100 hover:bg-indigo-100 transition-all group"
+                                                >
+                                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                                                        <FileText className="h-5 w-5 text-indigo-600" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1">Documento Anexo</p>
+                                                        <p className="text-xs font-black text-indigo-900 uppercase tracking-tighter italic">Visualizar Autorização de Saída (PDF)</p>
+                                                    </div>
+                                                </a>
                                             </div>
                                         )}
 

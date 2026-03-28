@@ -323,6 +323,7 @@ export interface MaintenanceSchedule {
   tools?: string[]; // Array of 25 tool fields
   status: 'agendado' | 'em_andamento' | 'concluido' | 'cancelado';
   toolsStatus?: 'fora' | 'dentro' | 'devolvido';
+  exitAuthorizationUrl?: string;
   entryAuthorizedBy?: string;
   entryAuthorizedAt?: string;
   returnAuthorizedBy?: string;
