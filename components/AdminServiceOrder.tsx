@@ -28,6 +28,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
   const [filterStage, setFilterStage] = useState<string>('todas');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<ServiceOrder | null>(null);
+  const [editScheduleForm, setEditScheduleForm] = useState<MaintenanceSchedule | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   
   // Maintenance Schedule Modal State
@@ -59,17 +60,33 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
   const handleEdit = (order: ServiceOrder) => {
     setEditingId(order.id);
     setEditForm({ ...order });
+    const schedule = maintenanceSchedules.find(s => s.serviceOrderId === order.id);
+    if (schedule) {
+      setEditScheduleForm({ ...schedule });
+    } else {
+      setEditScheduleForm(null);
+    }
   };
 
   const handleSave = async () => {
     if (!editForm) return;
-    const result = await onUpdate(editForm);
-    if (result.success) {
-      setEditingId(null);
-      setEditForm(null);
-      toast.success(result.message);
-    } else {
-      toast.error(result.message);
+    
+    try {
+      const result = await onUpdate(editForm);
+      if (result.success) {
+        if (editScheduleForm && onUpdateMaintenanceSchedule) {
+          await onUpdateMaintenanceSchedule(editScheduleForm.id, editScheduleForm);
+        }
+        setEditingId(null);
+        setEditForm(null);
+        setEditScheduleForm(null);
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao salvar as alterações');
     }
   };
 
@@ -358,7 +375,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
             <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-indigo-50/50">
               <h3 className="text-2xl font-black text-indigo-950 uppercase tracking-tighter italic">Editar Ordem de Serviço</h3>
               <button 
-                onClick={() => { setEditingId(null); setEditForm(null); }}
+                onClick={() => { setEditingId(null); setEditForm(null); setEditScheduleForm(null); }}
                 className="text-gray-400 hover:text-gray-600 transition-colors bg-white p-2 rounded-full shadow-sm"
               >
                 <X className="h-6 w-6" />
@@ -428,11 +445,146 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                   placeholder="Adicione detalhes sobre a inspeção ou progresso do serviço..."
                 />
               </div>
+
+              {editScheduleForm && (
+                <div className="pt-6 border-t border-gray-100 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                      <Calendar className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">Editar Agendamento de Manutenção</h4>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Data do Serviço</label>
+                      <input
+                        type="date"
+                        value={editScheduleForm.date}
+                        onChange={(e) => setEditScheduleForm({ ...editScheduleForm, date: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Horário Previsto</label>
+                      <input
+                        type="time"
+                        value={editScheduleForm.time}
+                        onChange={(e) => setEditScheduleForm({ ...editScheduleForm, time: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Local da Manutenção</label>
+                      <input
+                        type="text"
+                        value={editScheduleForm.location}
+                        onChange={(e) => setEditScheduleForm({ ...editScheduleForm, location: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all"
+                        placeholder="Ex: Bloco A, Sala 203..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Inventário de Ferramentas / Materiais</label>
+                      <button 
+                        type="button"
+                        onClick={() => setEditScheduleForm({ ...editScheduleForm, tools: Array(25).fill('') })}
+                        className="text-[8px] font-black text-red-500 hover:text-red-700 uppercase tracking-widest transition-colors"
+                      >
+                        Limpar Tudo
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                      {editScheduleForm.tools?.map((tool, index) => (
+                        <div key={index} className="relative group">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-gray-300 group-focus-within:text-emerald-400 transition-colors">
+                            {String(index + 1).padStart(2, '0')}
+                          </span>
+                          <input
+                            type="text"
+                            value={tool}
+                            onChange={(e) => {
+                              const newTools = [...(editScheduleForm.tools || Array(25).fill(''))];
+                              newTools[index] = e.target.value;
+                              setEditScheduleForm({ ...editScheduleForm, tools: newTools });
+                            }}
+                            className="w-full bg-gray-50 border border-gray-100 rounded-xl pl-8 pr-3 py-2 text-[11px] font-bold focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-gray-300"
+                            placeholder="Descrever item..."
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Observações do Agendamento</label>
+                      <textarea
+                        rows={4}
+                        value={editScheduleForm.toolsNeeded}
+                        onChange={(e) => setEditScheduleForm({ ...editScheduleForm, toolsNeeded: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all resize-none"
+                        placeholder="Outras informações importantes sobre as ferramentas ou o serviço..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Autorização de Saída (PDF)</label>
+                      <div className="relative h-[116px]">
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setEditScheduleForm({ ...editScheduleForm, exitAuthorizationUrl: reader.result as string });
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className={`w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center transition-all ${
+                          editScheduleForm.exitAuthorizationUrl 
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-600' 
+                            : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-emerald-300'
+                        }`}>
+                          {editScheduleForm.exitAuthorizationUrl ? (
+                            <>
+                              <FileText className="h-8 w-8 mb-2" />
+                              <p className="text-[10px] font-black uppercase tracking-widest">PDF Carregado</p>
+                              <button 
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditScheduleForm({ ...editScheduleForm, exitAuthorizationUrl: '' });
+                                }}
+                                className="mt-1 text-[8px] font-black text-red-500 hover:text-red-700 uppercase"
+                              >
+                                Remover
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-8 w-8 mb-2" />
+                              <p className="text-[10px] font-black uppercase tracking-widest">Clique ou arraste o PDF</p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-4">
               <button 
-                onClick={() => { setEditingId(null); setEditForm(null); }}
+                onClick={() => { setEditingId(null); setEditForm(null); setEditScheduleForm(null); }}
                 className="bg-white hover:bg-gray-100 text-gray-600 font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all flex items-center gap-2 border border-gray-200"
               >
                 <X className="h-4 w-4" /> Cancelar
