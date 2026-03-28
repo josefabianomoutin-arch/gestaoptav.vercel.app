@@ -1661,6 +1661,7 @@ const App: React.FC = () => {
           suppliers={suppliers} 
           thirdPartyEntries={thirdPartyEntries}
           maintenanceSchedules={maintenanceSchedules}
+          serviceOrders={serviceOrders}
           onUpdateMaintenanceSchedule={handleUpdateMaintenanceSchedule}
           onUpdateThirdPartyEntry={async (log) => {
             await set(child(thirdPartyEntriesRef, log.id), log);

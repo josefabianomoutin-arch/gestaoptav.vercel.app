@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import type { Supplier, Delivery, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, MaintenanceSchedule } from '../types';
+import type { Supplier, Delivery, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, MaintenanceSchedule, ServiceOrder } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 import { Camera, CheckCircle, XCircle, RefreshCw, UserCheck, AlertTriangle, Play, CheckCircle2, LogIn, LogOut, ClipboardList, Clock, Wrench, Calendar, FileText } from 'lucide-react';
 
@@ -9,6 +9,7 @@ interface SubportariaDashboardProps {
   suppliers: Supplier[];
   thirdPartyEntries: ThirdPartyEntryLog[];
   maintenanceSchedules: MaintenanceSchedule[];
+  serviceOrders: ServiceOrder[];
   onUpdateMaintenanceSchedule: (id: string, updates: Partial<MaintenanceSchedule>) => Promise<void>;
   onUpdateThirdPartyEntry: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message: string }>;
   onDeleteThirdPartyEntry: (id: string) => Promise<void>;
@@ -30,6 +31,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     suppliers, 
     thirdPartyEntries, 
     maintenanceSchedules,
+    serviceOrders,
     onUpdateMaintenanceSchedule,
     onUpdateThirdPartyEntry, 
     onDeleteThirdPartyEntry,
@@ -539,6 +541,19 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                                 <p className="text-sm font-bold text-amber-900 italic leading-relaxed">"{schedule.toolsNeeded}"</p>
                                             </div>
                                         )}
+
+                                        {(() => {
+                                            const relatedOrder = serviceOrders.find(o => o.id === schedule.serviceOrderId);
+                                            if (relatedOrder && relatedOrder.inspectionObservations) {
+                                                return (
+                                                    <div className="mb-6 bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50">
+                                                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Observações da Infraestrutura</p>
+                                                        <p className="text-sm font-bold text-blue-900 italic leading-relaxed">"{relatedOrder.inspectionObservations}"</p>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
 
                                         {schedule.exitAuthorizationUrl && (
                                             <div className="mb-6">
