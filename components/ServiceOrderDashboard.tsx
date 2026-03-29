@@ -71,7 +71,18 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
   };
 
   const sortedOrders = useMemo(() => {
-    return [...serviceOrders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const priorityWeight: Record<string, number> = {
+      'ALTA': 0,
+      'MÉDIA': 1,
+      'BAIXA': 2,
+      'PENDENTE': 3
+    };
+    return [...serviceOrders].sort((a, b) => {
+      const weightA = priorityWeight[a.priority] ?? 4;
+      const weightB = priorityWeight[b.priority] ?? 4;
+      if (weightA !== weightB) return weightA - weightB;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
   }, [serviceOrders]);
 
   const getProjectStageText = (stage?: string) => {
@@ -284,6 +295,7 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
                         <option value="mecânico">MECÂNICO</option>
                         <option value="alvenaria">ALVENARIA</option>
                         <option value="estrutural">ESTRUTURAL</option>
+                        <option value="pintura">PINTURA</option>
                       </select>
                       <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>

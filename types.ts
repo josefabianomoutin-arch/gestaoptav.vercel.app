@@ -299,7 +299,7 @@ export interface VehicleInspection {
 export interface ServiceOrder {
   id: string;
   requestingSector: string;
-  serviceType: 'hidraulico' | 'eletrico' | 'mecânico' | 'alvenaria' | 'estrutural';
+  serviceType: 'hidraulico' | 'eletrico' | 'mecânico' | 'alvenaria' | 'estrutural' | 'pintura';
   category: 'reforma' | 'manutenção';
   priority: 'ALTA' | 'MÉDIA' | 'BAIXA' | 'PENDENTE';
   requester: string;

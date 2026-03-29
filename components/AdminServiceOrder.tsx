@@ -55,6 +55,17 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
     const matchesStage = filterStage === 'todas' || order.projectStage === filterStage;
     
     return matchesSearch && matchesStatus && matchesStage;
+  }).sort((a, b) => {
+    const priorityWeight: Record<string, number> = {
+      'ALTA': 0,
+      'MÉDIA': 1,
+      'BAIXA': 2,
+      'PENDENTE': 3
+    };
+    const weightA = priorityWeight[a.priority] ?? 4;
+    const weightB = priorityWeight[b.priority] ?? 4;
+    if (weightA !== weightB) return weightA - weightB;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
   const handleEdit = (order: ServiceOrder) => {

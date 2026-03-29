@@ -241,7 +241,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
                     </div>
                     <div>
-                        <h1 className="text-lg font-black uppercase italic tracking-tighter leading-none">Manutenções Agendadas</h1>
+                        <h1 className="text-lg font-black uppercase italic tracking-tighter leading-none">Segurança Externa</h1>
                         <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest">Controle de Fluxo</p>
                     </div>
                 </div>
@@ -262,7 +262,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                         onClick={() => setActiveTab('seguranca')}
                         className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'seguranca' ? 'bg-indigo-600 text-white' : 'text-indigo-300 hover:bg-white/5'}`}
                     >
-                        Manutenções Agendadas
+                        Segurança Externa
                     </button>
                     <button onClick={onLogout} className="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-black py-2 px-4 rounded-xl text-[10px] uppercase transition-all border border-red-900/50 ml-2">Sair</button>
                 </div>
@@ -438,7 +438,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                             <div className="flex flex-col gap-4">
                                 <div className="flex justify-between items-end">
                                     <div>
-                                        <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic">Manutenções Agendadas</h2>
+                                        <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic">Segurança Externa</h2>
                                         <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Controle de Segurança Externa</p>
                                     </div>
                                     <div className="bg-indigo-50 px-3 py-1 rounded-full">
@@ -457,7 +457,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                                     <Wrench className="h-6 w-6 text-indigo-600" />
                                                 </div>
                                                 <div>
-                                                    <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">Manutenção Agendada</h4>
+                                                    <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">Segurança Externa</h4>
                                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">ID: {schedule.id.slice(-6)}</p>
                                                 </div>
                                             </div>
@@ -653,7 +653,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <AlertTriangle className="h-8 w-8 text-slate-300" />
                             </div>
-                            <p className="text-sm font-black text-slate-400 uppercase tracking-widest italic">Nenhuma manutenção</p>
+                            <p className="text-sm font-black text-slate-400 uppercase tracking-widest italic">Nenhuma Segurança Externa</p>
                             <p className="text-[10px] font-bold text-slate-300 mt-1 uppercase">Agendada no momento</p>
                         </div>
                     )}
