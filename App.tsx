@@ -530,8 +530,15 @@ const App: React.FC = () => {
           const fileRef = storageRef(storage, `invoices/${invoiceId}`);
           
           // Converter base64 para Blob para um upload mais estável
-          const response = await fetch(invoiceUrl);
-          const blob = await response.blob();
+          const base64Data = invoiceUrl.split(',')[1];
+          const contentType = invoiceUrl.split(',')[0].split(':')[1].split(';')[0];
+          const byteCharacters = atob(base64Data);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: contentType });
           
           console.log('Fazendo upload para o Storage (Blob)...', blob.size);
           toast.loading('Fazendo upload do arquivo...', { id: toastId });
