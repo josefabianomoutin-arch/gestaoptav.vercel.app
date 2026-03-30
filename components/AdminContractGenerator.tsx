@@ -16,6 +16,22 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
         producers.find(p => p.id === selectedProducerId),
     [producers, selectedProducerId]);
 
+    const contractDate = useMemo(() => {
+        const now = new Date();
+        const day = now.getDate();
+        const month = now.toLocaleString('pt-BR', { month: 'long' });
+        const year = now.getFullYear();
+        const capitalizedMonth = month.charAt(0).toUpperCase() + month.slice(1);
+        
+        const daysInWords = [
+            'zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez',
+            'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove', 'vinte',
+            'vinte e um', 'vinte e dois', 'vinte e três', 'vinte e quatro', 'vinte e cinco', 'vinte e seis', 'vinte e sete', 'vinte e oito', 'vinte e nove', 'trinta', 'trinta e um'
+        ];
+
+        return `Aos ${daysInWords[day]}(${day}) dias do mês de ${capitalizedMonth} do ano de ${year}`;
+    }, []);
+
     const handlePrint = () => {
         if (!containerRef.current || !selectedProducer) return;
         
@@ -89,7 +105,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         </div>
 
                         <p className="text-justify">
-                            Aos oito(8) dias do mês de Abril do ano de 2026, nesta cidade de Taiúva, comparecem de um lado o Estado de São Paulo, Secretaria de Administração Penitenciária, por intermédio da Penitenciária de Taiúva, inscrita no CNPJ sob o n.º 96.291.141/0152-92, neste ato representada pelo Senhor DOUGLAS FERNANDO SEMENZIN GALDINO, brasileiro, Chefe de Departamento, portador da CI/RG nº 32.518574-8-SSP/SP e inscrito no CPF/MF. nº 290.990.228-59, doravante designado simplesmente Contratante, e, de outro lado, 
+                            {contractDate}, nesta cidade de Taiúva, comparecem de um lado o Estado de São Paulo, Secretaria de Administração Penitenciária, por intermédio da Penitenciária de Taiúva, inscrita no CNPJ sob o n.º 96.291.141/0152-92, neste ato representada pelo Senhor DOUGLAS FERNANDO SEMENZIN GALDINO, brasileiro, Chefe de Departamento, portador da CI/RG nº 32.518574-8-SSP/SP e inscrito no CPF/MF. nº 290.990.228-59, doravante designado simplesmente Contratante, e, de outro lado, 
                             <span className="font-bold"> {selectedProducer.name}</span>, 
                             inscrito/a no CPF/CNPJ nº <span className="font-bold">{selectedProducer.cpfCnpj}</span>, 
                             residente na <span className="font-bold">{selectedProducer.address || '____________________'}</span>, 
