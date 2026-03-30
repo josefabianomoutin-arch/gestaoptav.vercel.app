@@ -115,6 +115,23 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         onConfirm: () => {},
     });
 
+    const inTransitPlates = useMemo(() => {
+        return orders
+            .filter(o => o.exitTime && !o.returnTime)
+            .map(o => o.plate.replace(/[^A-Z0-9]/g, '').toUpperCase());
+    }, [orders]);
+
+    const availableVehicles = useMemo(() => {
+        return vehicleAssets.filter(v => {
+            const plate = v.plate.replace(/[^A-Z0-9]/g, '').toUpperCase();
+            // Se estiver editando, o veículo da própria ordem deve estar disponível
+            if (editingOrder && editingOrder.plate.replace(/[^A-Z0-9]/g, '').toUpperCase() === plate) {
+                return true;
+            }
+            return !inTransitPlates.includes(plate);
+        });
+    }, [vehicleAssets, inTransitPlates, editingOrder]);
+
     useEffect(() => {
         if (securityMode) {
             setActiveSubTab('gate');
@@ -1605,7 +1622,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                             value={formData.vehicle}
                                             onChange={e => {
                                                 const val = e.target.value.toUpperCase();
-                                                const found = vehicleAssets.find(v => v.model === val);
+                                                const found = availableVehicles.find(v => v.model === val);
                                                 if (found) {
                                                     setFormData({ ...formData, vehicle: found.model, plate: found.plate, assetNumber: found.assetNumber });
                                                 } else {
@@ -1615,7 +1632,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                             className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
                                         />
                                         <datalist id="vehicle-models">
-                                            {vehicleAssets.map(v => <option key={v.id} value={v.model}>{v.plate}</option>)}
+                                            {availableVehicles.map(v => <option key={v.id} value={v.model}>{v.plate}</option>)}
                                         </datalist>
                                     </div>
                                     <div className="space-y-1">

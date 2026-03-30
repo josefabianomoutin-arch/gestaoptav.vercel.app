@@ -271,7 +271,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         return ppaisProducers.map(p => ({
             ...p,
             cpf: p.cpfCnpj,
-            deliveries: [],
+            deliveries: p.deliveries || [],
             allowedWeeks: [],
             initialValue: Object.values(p.contractItems || {}).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
         } as Supplier));
@@ -281,7 +281,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         return pereciveisSuppliers.map(p => ({
             ...p,
             cpf: p.cpfCnpj,
-            deliveries: [],
+            deliveries: p.deliveries || [],
             allowedWeeks: [],
             initialValue: Object.values(p.contractItems || {}).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
         } as Supplier));
@@ -499,13 +499,24 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
     }, [monthlyExecution, categoryMonthlyAverages]);
 
     const contractedItemsSummary = useMemo(() => {
-        const summary = new Map<string, { contracted: number; received: number; remaining: number; unit: string; originalName: string; suppliers: Set<string>; empenhos: Set<string> }>();
+        const summary = new Map<string, { contracted: number; received: number; remaining: number; unit: string; originalName: string; suppliers: Set<string>; empenhos: Set<string>; addendum: number }>();
+        const allSources = [...(suppliers || []), ...ppaisAsSuppliers, ...pereciveisAsSuppliers];
 
-        suppliers?.forEach(supplier => {
+        allSources.forEach(supplier => {
             supplier.contractItems?.forEach(item => {
                 const normalizedName = normalizeItemName(item.name);
                 if (!summary.has(normalizedName)) {
-                    summary.set(normalizedName, { contracted: 0, received: 0, remaining: 0, unit: item.unit || 'KG', originalName: item.name, suppliers: new Set(), empenhos: new Set() });
+                    const acqItem = acquisitionItems.find(ai => normalizeItemName(ai.name) === normalizedName);
+                    summary.set(normalizedName, { 
+                        contracted: 0, 
+                        received: 0, 
+                        remaining: 0, 
+                        unit: item.unit || 'KG', 
+                        originalName: item.name, 
+                        suppliers: new Set(), 
+                        empenhos: new Set(),
+                        addendum: acqItem?.contractAddendum || 0
+                    });
                 }
                 const data = summary.get(normalizedName)!;
                 data.contracted += item.totalKg || 0;
@@ -527,7 +538,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         });
 
         const result = Array.from(summary.entries()).map(([name, data]) => {
-            const percentage = data.contracted > 0 ? (data.received / data.contracted) * 100 : 0;
+            const totalContracted = data.contracted + data.addendum;
+            const percentage = totalContracted > 0 ? (data.received / totalContracted) * 100 : 0;
             let status = 'NORMAL';
             if (data.received === 0) status = 'SEM_ENTREGA';
             else if (percentage >= 100) status = 'CONCLUIDO';
@@ -536,9 +548,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
 
             return {
                 name: data.originalName,
-                contracted: data.contracted,
+                contracted: totalContracted,
                 received: data.received,
-                remaining: Math.max(0, data.contracted - data.received),
+                remaining: Math.max(0, totalContracted - data.received),
                 unit: data.unit,
                 percentage,
                 status,

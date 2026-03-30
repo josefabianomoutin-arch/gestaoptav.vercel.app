@@ -30,6 +30,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
     const [acquiredQuantity, setAcquiredQuantity] = useState('0');
     const [stockBalance, setStockBalance] = useState('0');
     const [unitValue, setUnitValue] = useState('0');
+    const [contractAddendum, setContractAddendum] = useState('0');
     const [isSaving, setIsSaving] = useState(false);
 
     // Confirmation Modal State
@@ -55,10 +56,10 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
 
     const totalCategoryValue = useMemo(() => {
         return filteredItems.reduce((sum, item) => {
-            const quantity = category === 'PPAIS' ? item.acquiredQuantity : item.stockBalance;
+            const quantity = item.acquiredQuantity + (item.contractAddendum || 0);
             return sum + ((item.unitValue || 0) * quantity);
         }, 0);
-    }, [filteredItems, category]);
+    }, [filteredItems]);
 
     const topScrollRef = React.useRef<HTMLDivElement>(null);
     const bottomScrollRef = React.useRef<HTMLDivElement>(null);
@@ -126,6 +127,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                             <th class="text-center">Natureza de Despesa</th>
                             <th class="text-center">Unid.</th>
                             <th class="text-right">Qtd. Adquirida</th>
+                            <th class="text-right">Aditivo</th>
                             ${category !== 'PPAIS' && category !== 'PERECÍVEIS' ? '<th class="text-right">Saldo Estoque</th>' : '<th class="text-right">Peso por Fornecedor</th><th class="text-right">Valor por Fornecedor</th>'}
                             <th class="text-right">Valor da Mediana</th>
                             <th class="text-right">Valor Total</th>
@@ -133,7 +135,8 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                     </thead>
                     <tbody>
                         ${filteredItems.map((item, index) => {
-                            const totalValue = item.acquiredQuantity * (item.unitValue || 0);
+                            const totalQuantity = item.acquiredQuantity + (item.contractAddendum || 0);
+                            const totalValue = totalQuantity * (item.unitValue || 0);
                             
                             let extraCols = '';
                             if (category !== 'PPAIS' && category !== 'PERECÍVEIS') {
@@ -141,7 +144,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                             } else {
                                 const suppliersForItem = suppliers.filter(s => Object.values(s.contractItems || {}).some((ci: any) => ci.name === item.name));
                                 const numSuppliers = suppliersForItem.length || 1;
-                                const weightPerSupplier = item.acquiredQuantity / numSuppliers;
+                                const weightPerSupplier = totalQuantity / numSuppliers;
                                 const valuePerSupplier = totalValue / numSuppliers;
                                 extraCols = `
                                     <td class="text-right">${weightPerSupplier.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
@@ -158,6 +161,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                     <td class="text-center">${item.expenseNature || '---'}</td>
                                     <td class="text-center">${item.unit}</td>
                                     <td class="text-right">${item.acquiredQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                    <td class="text-right">${(item.contractAddendum || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                                     ${extraCols}
                                     <td class="text-right">${formatCurrency(item.unitValue || 0)}</td>
                                     <td class="text-right">${formatCurrency(totalValue)}</td>
@@ -194,6 +198,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                 acquiredQuantity: parseFloat(acquiredQuantity.replace(',', '.')) || 0,
                 stockBalance: parseFloat(stockBalance.replace(',', '.')) || 0,
                 unitValue: parseFloat(unitValue.replace(',', '.')) || 0,
+                contractAddendum: parseFloat(contractAddendum.replace(',', '.')) || 0,
                 category
             };
 
@@ -214,6 +219,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
         setAcquiredQuantity('0');
         setStockBalance('0');
         setUnitValue('0');
+        setContractAddendum('0');
         setIsAdding(false);
         setEditingId(null);
     };
@@ -228,6 +234,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
         setAcquiredQuantity(String(item.acquiredQuantity).replace('.', ','));
         setStockBalance(String(item.stockBalance).replace('.', ','));
         setUnitValue(String(item.unitValue || 0).replace('.', ','));
+        setContractAddendum(String(item.contractAddendum || 0).replace('.', ','));
         setEditingId(item.id);
         setIsAdding(true);
     };
@@ -380,6 +387,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                 <th className="p-6 text-center whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Classificação</th>
                                 <th className="p-6 text-center border-r border-zinc-100 font-serif italic normal-case">Unid.</th>
                                 <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Logística</th>
+                                <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Aditivo de Contrato</th>
                                 {category !== 'PPAIS' && category !== 'PERECÍVEIS' ? (
                                     <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Estoque</th>
                                 ) : (
@@ -464,6 +472,14 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                             </span>
                                         </div>
                                     </td>
+                                    <td className="p-6 text-right border-r border-zinc-50 bg-amber-50/20">
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest mb-1">Aditivo de Contrato</span>
+                                            <span className="font-mono text-sm font-black text-amber-600">
+                                                {(item.contractAddendum || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                    </td>
                                     {category !== 'PPAIS' && category !== 'PERECÍVEIS' ? (
                                         <td className="p-6 text-right border-r border-zinc-50 bg-emerald-50/20">
                                             <div className="flex flex-col items-end">
@@ -477,7 +493,8 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         const supplierCount = suppliers.filter(s => 
                                             Object.values(s.contractItems || {}).some((ci: any) => ci.name === item.name)
                                         ).length || 1;
-                                        const weightPerSupplier = item.acquiredQuantity / supplierCount;
+                                        const totalQuantity = item.acquiredQuantity + (item.contractAddendum || 0);
+                                        const weightPerSupplier = totalQuantity / supplierCount;
                                         const valuePerSupplier = (item.unitValue || 0) * weightPerSupplier;
                                         return (
                                             <>
@@ -512,7 +529,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                             <div className="flex flex-col items-end">
                                                 <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Total Item</span>
                                                 <span className="font-mono text-sm font-black text-zinc-900 whitespace-nowrap">
-                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((item.unitValue || 0) * ((category === 'PPAIS' || category === 'PERECÍVEIS') ? item.acquiredQuantity : item.stockBalance))}
+                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((item.unitValue || 0) * (item.acquiredQuantity + (item.contractAddendum || 0)))}
                                                 </span>
                                             </div>
                                         </div>
@@ -702,6 +719,15 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         type="text" 
                                         value={unitValue} 
                                         onChange={e => setUnitValue(e.target.value)} 
+                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Aditivo de Contrato</label>
+                                    <input 
+                                        type="text" 
+                                        value={contractAddendum} 
+                                        onChange={e => setContractAddendum(e.target.value)} 
                                         className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all"
                                     />
                                 </div>

@@ -203,6 +203,7 @@ export interface AcquisitionItem {
   acquiredQuantity: number;
   stockBalance: number;
   unitValue?: number;
+  contractAddendum?: number;
   category: 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA';
   contractItemName?: string; // NOVO: Vinculação com item do contrato
 }
