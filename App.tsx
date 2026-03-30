@@ -812,18 +812,38 @@ const App: React.FC = () => {
       try {
         const invoiceId = `inv_upd_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.pdf`;
         const fileRef = storageRef(storage, `invoices/${invoiceId}`);
-        await uploadString(fileRef, invoiceUrl, 'data_url');
+        
+        // Converter base64 para Blob para um upload mais estável
+        const base64Data = invoiceUrl.split(',')[1];
+        const contentType = invoiceUrl.split(',')[0].split(':')[1].split(';')[0];
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: contentType });
+
+        console.log('Fazendo upload para o Storage (Blob) via Admin...', blob.size);
+        const uploadPromise = uploadBytes(fileRef, blob);
+        const uploadTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout no upload do arquivo (30s)')), 30000));
+        await Promise.race([uploadPromise, uploadTimeout]);
         finalInvoiceUrl = await getDownloadURL(fileRef);
+        console.log('Upload Admin concluído:', finalInvoiceUrl);
       } catch (storageError) {
         console.warn("Storage failed, falling back to RTDB", storageError);
         try {
+          // Se o storage falhar, tentamos salvar no RTDB apenas se o arquivo não for gigante
+          if (invoiceUrl.length > 500000) { // ~500KB limit for RTDB strings to avoid hanging
+             throw new Error("O arquivo é muito grande para o servidor de backup. Tente um arquivo menor ou verifique sua conexão.");
+          }
           const invoiceId = `inv_upd_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
           const invoiceRef = child(ref(database), `invoices/${invoiceId}`);
           await set(invoiceRef, invoiceUrl);
           finalInvoiceUrl = `rtdb://invoices/${invoiceId}`;
-        } catch (e) {
+        } catch (e: any) {
           console.error("Error saving invoice PDF to RTDB:", e);
-          return { success: false, message: 'Erro ao salvar o arquivo PDF.' };
+          return { success: false, message: e.message || 'Erro ao salvar o arquivo PDF no backup.' };
         }
       }
     }
@@ -832,47 +852,59 @@ const App: React.FC = () => {
     if (isMainSupplier) {
       const supplierRef = child(suppliersRef, supplierCpf);
       try {
-        await runTransaction(supplierRef, (currentData: Supplier) => {
-          if (currentData && currentData.deliveries) {
-            currentData.deliveries = currentData.deliveries.map(d => {
-                if (d.invoiceNumber === invoiceNumber) {
-                    return { ...d, invoiceUrl: finalInvoiceUrl };
-                }
-                return d;
-            });
-          }
-          return currentData;
-        });
-        return { success: true };
+        const snapshot = await get(supplierRef);
+        const currentData = snapshot.val() as Supplier;
+        if (currentData && currentData.deliveries) {
+          const deliveries = currentData.deliveries.map(d => {
+            if (d.invoiceNumber === invoiceNumber) {
+              return { ...d, invoiceUrl: finalInvoiceUrl };
+            }
+            return d;
+          });
+          await update(supplierRef, { deliveries });
+          return { success: true };
+        }
+        return { success: false, message: 'Dados do fornecedor não encontrados.' };
       } catch (e) {
+        console.error("Error updating supplier invoice URL:", e);
         return { success: false, message: 'Erro ao gravar no banco de dados.' };
       }
     }
 
     try {
-      await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
-        if (currentData) {
-          const findAndUpdate = (list: any[] | undefined) => {
-            const s = list?.find(p => p.cpfCnpj === supplierCpf);
-            if (s && s.deliveries) {
-              s.deliveries = s.deliveries.map((d: any) => {
-                  if (d.invoiceNumber === invoiceNumber) {
-                      return { ...d, invoiceUrl: finalInvoiceUrl };
-                  }
-                  return d;
-              });
-              return true;
-            }
-            return false;
-          };
-          if (!findAndUpdate(currentData.ppaisProducers)) {
-            findAndUpdate(currentData.pereciveisSuppliers);
+      const snapshotPC = await get(perCapitaConfigRef);
+      const currentData = snapshotPC.val() as PerCapitaConfig;
+      if (currentData) {
+        let found = false;
+        const updateList = async (list: any[] | undefined, listName: string) => {
+          if (!list) return false;
+          const index = list.findIndex(p => p.cpfCnpj === supplierCpf);
+          if (index !== -1) {
+            const deliveries = list[index].deliveries || [];
+            const updatedDeliveries = deliveries.map((d: any) => {
+              if (d.invoiceNumber === invoiceNumber) {
+                return { ...d, invoiceUrl: finalInvoiceUrl };
+              }
+              return d;
+            });
+            await update(child(perCapitaConfigRef, `${listName}/${index}`), { deliveries: updatedDeliveries });
+            found = true;
+            return true;
           }
+          return false;
+        };
+
+        if (!(await updateList(currentData.ppaisProducers, 'ppaisProducers'))) {
+          await updateList(currentData.pereciveisSuppliers, 'pereciveisSuppliers');
         }
-        return currentData;
-      });
-      return { success: true };
+
+        if (found) {
+          return { success: true };
+        }
+      }
+      return { success: false, message: 'Fornecedor não encontrado no sistema.' };
     } catch (e) {
+      console.error("Error updating per capita invoice URL:", e);
       return { success: false, message: 'Erro ao gravar no banco de dados.' };
     }
   }, [suppliers, suppliersRef, perCapitaConfigRef]);

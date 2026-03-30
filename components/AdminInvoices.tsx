@@ -613,9 +613,15 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
             const reader = new FileReader();
             reader.onload = async (event) => {
                 const base64 = event.target?.result as string;
-                const res = await onUpdateInvoiceUrl(invoice.supplierCpf, invoice.invoiceNumber, base64);
-                setIsUploadingPdf(null);
-                if (!res.success) alert(res.message || 'Erro ao anexar PDF.');
+                try {
+                    const res = await onUpdateInvoiceUrl(invoice.supplierCpf, invoice.invoiceNumber, base64);
+                    if (!res.success) alert(res.message || 'Erro ao anexar PDF.');
+                } catch (error) {
+                    console.error("Error attaching PDF:", error);
+                    alert('Erro ao anexar PDF.');
+                } finally {
+                    setIsUploadingPdf(null);
+                }
             };
             reader.onerror = () => {
                 setIsUploadingPdf(null);
