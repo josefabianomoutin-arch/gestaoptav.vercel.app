@@ -916,6 +916,58 @@ const App: React.FC = () => {
     }
   }, [suppliers, suppliersRef, perCapitaConfigRef]);
 
+  const handleMarkInvoiceAsOpened = useCallback(async (supplierCpf: string, invoiceNumber: string) => {
+    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+    if (isMainSupplier) {
+      const supplierRef = child(suppliersRef, supplierCpf);
+      try {
+        await runTransaction(supplierRef, (currentData: Supplier) => {
+          if (currentData && currentData.deliveries) {
+            currentData.deliveries = currentData.deliveries.map(d => {
+              if (d.invoiceNumber === invoiceNumber && !d.opened) {
+                return { ...d, opened: true };
+              }
+              return d;
+            });
+          }
+          return currentData;
+        });
+        return { success: true };
+      } catch (e) {
+        console.error("Error marking invoice as opened:", e);
+        return { success: false };
+      }
+    }
+
+    try {
+      await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+        if (currentData) {
+          const findAndMark = (list: any[] | undefined) => {
+            const s = list?.find(p => p.cpfCnpj === supplierCpf);
+            if (s && s.deliveries) {
+              s.deliveries = s.deliveries.map((d: any) => {
+                if (d.invoiceNumber === invoiceNumber && !d.opened) {
+                  return { ...d, opened: true };
+                }
+                return d;
+              });
+              return true;
+            }
+            return false;
+          };
+          if (!findAndMark(currentData.ppaisProducers)) {
+            findAndMark(currentData.pereciveisSuppliers);
+          }
+        }
+        return currentData;
+      });
+      return { success: true };
+    } catch (e) {
+      console.error("Error marking per capita invoice as opened:", e);
+      return { success: false };
+    }
+  }, [suppliers, suppliersRef, perCapitaConfigRef]);
+
   const handleReopenInvoice = async (supplierCpf: string, invoiceNumber: string) => {
     const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
     if (isMainSupplier) {
@@ -1485,6 +1537,7 @@ const App: React.FC = () => {
           onUpdateInvoiceItems={handleUpdateInvoiceItems}
           onUpdateInvoiceUrl={handleUpdateInvoiceUrl}
           onManualInvoiceEntry={handleManualInvoiceEntry}
+          onMarkInvoiceAsOpened={handleMarkInvoiceAsOpened}
           onDeleteWarehouseEntry={async (l) => {
               // Se for saída, devolve a quantidade para o saldo do lote
               if (l.type === 'saída') {
@@ -1576,6 +1629,7 @@ const App: React.FC = () => {
                onDeleteInvoice={handleDeleteInvoice}
                onUpdateInvoiceItems={handleUpdateInvoiceItems}
                onManualInvoiceEntry={handleManualInvoiceEntry}
+               onMarkInvoiceAsOpened={handleMarkInvoiceAsOpened}
                thirdPartyEntries={thirdPartyEntries}
                onRegisterThirdPartyEntry={async (l) => {
                    const r = push(thirdPartyEntriesRef);

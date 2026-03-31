@@ -17,6 +17,7 @@ interface InvoiceInfo {
     barcode?: string;
     nl?: string; // NOVO
     pd?: string; // NOVO
+    opened?: boolean; // NOVO
     date: string; // The earliest date associated with this invoice
     totalValue: number;
     items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; exitedQuantity?: number }[];
@@ -29,6 +30,7 @@ interface AdminInvoicesProps {
     onDeleteInvoice: (supplierCpf: string, invoiceNumber: string) => Promise<{ success: boolean; message?: string }>;
     onUpdateInvoiceItems: (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => Promise<{ success: boolean; message?: string }>;
     onUpdateInvoiceUrl: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => Promise<{ success: boolean; message?: string }>;
+    onMarkInvoiceAsOpened: (supplierCpf: string, invoiceNumber: string) => Promise<{ success: boolean }>;
     onManualInvoiceEntry: (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => Promise<{ success: boolean; message?: string }>;
     mode?: 'admin' | 'warehouse_entry' | 'warehouse_exit';
     onRegisterExit?: (payload: any) => Promise<{ success: boolean; message: string }>;
@@ -261,7 +263,7 @@ const handlePrintLabels = (invoices: InvoiceInfo[]) => {
     printWindow.document.close();
 };
 
-const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, onReopenInvoice, onDeleteInvoice, onUpdateInvoiceItems, onUpdateInvoiceUrl, onManualInvoiceEntry, mode = 'admin', onRegisterExit }) => {
+const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, onReopenInvoice, onDeleteInvoice, onUpdateInvoiceItems, onUpdateInvoiceUrl, onMarkInvoiceAsOpened, onManualInvoiceEntry, mode = 'admin', onRegisterExit }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortKey, setSortKey] = useState<'supplierName' | 'date' | 'totalValue'>('date');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -434,7 +436,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                 const invoiceUrl = deliveries.find(d => d.invoiceUrl)?.invoiceUrl;
                 const nl = deliveries.find(d => d.nl)?.nl;
                 const pd = deliveries.find(d => d.pd)?.pd;
-                invoicesMap.set(invoiceId, { id: invoiceId, supplierName: supplier.name, supplierCpf: supplier.cpf, invoiceNumber, invoiceUrl, barcode, receiptTermNumber, invoiceDate, nl, pd, date: earliestDate, totalValue, items });
+                const opened = deliveries.some(d => d.opened);
+                invoicesMap.set(invoiceId, { id: invoiceId, supplierName: supplier.name, supplierCpf: supplier.cpf, invoiceNumber, invoiceUrl, barcode, receiptTermNumber, invoiceDate, nl, pd, opened, date: earliestDate, totalValue, items });
             });
         });
         return Array.from(invoicesMap.values());
@@ -636,7 +639,10 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
         input.click();
     };
 
-    const handleOpenPdf = async (url: string) => {
+    const handleOpenPdf = async (url: string, invoice?: InvoiceInfo) => {
+        if (invoice && !invoice.opened) {
+            onMarkInvoiceAsOpened(invoice.supplierCpf, invoice.invoiceNumber);
+        }
         let finalUrl = url;
         if (url.startsWith('rtdb://')) {
             const path = url.substring(7); // remove 'rtdb://'
@@ -678,6 +684,13 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
         } else {
             window.open(finalUrl, '_blank');
         }
+    };
+
+    const getRowColor = (invoice: InvoiceInfo) => {
+        if (!invoice.invoiceUrl) return 'hover:bg-gray-50';
+        if (!invoice.opened) return 'bg-red-50 hover:bg-red-100';
+        if (!invoice.nl || !invoice.pd) return 'bg-yellow-50 hover:bg-yellow-100';
+        return 'hover:bg-gray-50';
     };
 
     return (
@@ -799,7 +812,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                             const isExpanded = expandedInvoiceId === invoice.id;
                                             return (
                                                 <React.Fragment key={invoice.id}>
-                                                    <tr className="border-b hover:bg-gray-50 transition-colors">
+                                                    <tr className={`border-b transition-colors ${getRowColor(invoice)}`}>
                                                         <td className="p-3 text-center font-mono text-gray-500">{index + 1}</td>
                                                         <td className="p-3">
                                                             <div className="flex items-center gap-4">
@@ -830,7 +843,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                                 {invoice.invoiceNumber}
                                                                 {invoice.invoiceUrl && (
                                                                     <button 
-                                                                        onClick={() => handleOpenPdf(invoice.invoiceUrl!)}
+                                                                        onClick={() => handleOpenPdf(invoice.invoiceUrl!, invoice)}
                                                                         className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md font-bold hover:bg-indigo-100 transition-colors flex items-center gap-1"
                                                                         title="Ver PDF"
                                                                     >
@@ -948,7 +961,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                             const isExpanded = expandedInvoiceId === invoice.id;
                                             return (
                                                 <React.Fragment key={invoice.id}>
-                                                    <tr className="border-b hover:bg-gray-50 transition-colors">
+                                                    <tr className={`border-b transition-colors ${getRowColor(invoice)}`}>
                                                         <td className="p-3 text-center font-mono text-gray-500">{index + 1}</td>
                                                         <td className="p-3">
                                                             <div className="flex items-center gap-4">
@@ -1081,14 +1094,14 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                             filteredAndSortedInvoices.length > 0 ? filteredAndSortedInvoices.map((invoice, index) => {
                             if (activeSubTab === 'uploaded') {
                                 return (
-                                    <tr key={invoice.id} className="border-b hover:bg-gray-50 transition-colors">
+                                    <tr key={invoice.id} className={`border-b transition-colors ${getRowColor(invoice)}`}>
                                         <td className="p-3 font-mono">{formatDate(invoice.date)}</td>
                                         <td className="p-3 font-mono">{invoice.invoiceNumber}</td>
                                         <td className="p-3 font-bold text-gray-800">{invoice.supplierName}</td>
                                         <td className="p-3">
                                             {invoice.invoiceUrl ? (
                                                 <button 
-                                                    onClick={() => handleOpenPdf(invoice.invoiceUrl!)}
+                                                    onClick={() => handleOpenPdf(invoice.invoiceUrl!, invoice)}
                                                     className="flex items-center gap-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
@@ -1120,7 +1133,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                             const isExpanded = expandedInvoiceId === invoice.id;
                             return (
                                 <React.Fragment key={invoice.id}>
-                                    <tr className="border-b hover:bg-gray-50 transition-colors">
+                                    <tr className={`border-b transition-colors ${getRowColor(invoice)}`}>
                                         <td className="p-3 text-center font-mono text-gray-500">{index + 1}</td>
                                         <td className="p-3">
                                             <div className="flex items-center gap-4">
@@ -1151,7 +1164,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                 {invoice.invoiceNumber}
                                                 {invoice.invoiceUrl && (
                                                     <button 
-                                                        onClick={() => handleOpenPdf(invoice.invoiceUrl!)}
+                                                        onClick={() => handleOpenPdf(invoice.invoiceUrl!, invoice)}
                                                         className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md font-bold hover:bg-indigo-100 transition-colors flex items-center gap-1"
                                                         title="Ver PDF"
                                                     >

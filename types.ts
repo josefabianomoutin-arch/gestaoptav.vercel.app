@@ -15,6 +15,7 @@ export interface Delivery {
   receiptTermNumber?: string; // NOVO: Número do termo de recebimento
   nl?: string; // NOVO: Nota de Lançamento
   pd?: string; // NOVO: Programação de Desembolso
+  opened?: boolean; // NOVO: Indica se a nota foi aberta pelo responsável
   lots?: {
     id: string;
     lotNumber: string;

@@ -15,6 +15,7 @@ interface AlmoxarifadoDashboardProps {
     onReopenInvoice: (supplierCpf: string, invoiceNumber: string) => void;
     onDeleteInvoice: (supplierCpf: string, invoiceNumber: string) => void;
     onUpdateInvoiceItems: (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => Promise<{ success: boolean; message?: string }>;
+    onMarkInvoiceAsOpened: (supplierCpf: string, invoiceNumber: string) => Promise<{ success: boolean }>;
     onManualInvoiceEntry: (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => Promise<{ success: boolean; message?: string }>;
     thirdPartyEntries: ThirdPartyEntryLog[];
     onRegisterThirdPartyEntry: (log: Omit<ThirdPartyEntryLog, 'id'>) => Promise<{ success: boolean; message: string }>;
@@ -65,6 +66,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     onDeleteInvoice,
     onUpdateInvoiceItems,
     onManualInvoiceEntry,
+    onMarkInvoiceAsOpened,
     thirdPartyEntries,
     vehicleAssets,
     onRegisterVehicleAsset,
@@ -571,6 +573,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         onDeleteInvoice={onDeleteInvoice} 
                         onUpdateInvoiceItems={onUpdateInvoiceItems} 
                         onManualInvoiceEntry={onManualInvoiceEntry}
+                        onMarkInvoiceAsOpened={onMarkInvoiceAsOpened}
                         mode="warehouse_entry"
                     />
                 ) : activeTab === 'exit' ? (
@@ -581,6 +584,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         onDeleteInvoice={onDeleteInvoice} 
                         onUpdateInvoiceItems={onUpdateInvoiceItems} 
                         onManualInvoiceEntry={onManualInvoiceEntry}
+                        onMarkInvoiceAsOpened={onMarkInvoiceAsOpened}
                         mode="warehouse_exit"
                         onRegisterExit={onRegisterWithdrawal}
                     />
