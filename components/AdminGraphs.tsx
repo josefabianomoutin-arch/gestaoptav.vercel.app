@@ -115,8 +115,16 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
     const dailyCost = totalContractValue / 365; 
     const perPersonDaily = dailyCost / perCapitaDenominator;
 
+    const totalMonthly = suppliers.reduce((acc, s) => {
+      return acc + Object.values(s.contractItems || {}).reduce((sum: any, item: any) => {
+        const value = (item.totalKg || 0) * (item.valuePerKg || 0);
+        const divisor = (item.category === 'PERECÍVEIS' || item.category === 'ESTOCÁVEIS') ? 4 : 8;
+        return sum + (value / divisor);
+      }, 0);
+    }, 0);
+
     return {
-      totalMonthly: totalContractValue / 8,
+      totalMonthly: totalMonthly,
       dailyTotal: dailyCost,
       perPersonDaily: perPersonDaily
     };

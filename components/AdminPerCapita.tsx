@@ -391,13 +391,36 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
             const weight = getContractItemWeight({ totalKg: item.totalQuantity, unit: item.unit });
             return sum + weight;
         }, 0);
-        return (totalKgOfAllItems / perCapitaDenominator) / 8;
+        
+        // Cálculo ponderado da média mensal de peso
+        let totalMonthlyWeight = 0;
+        ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS'].forEach(cat => {
+            const catItems = itemData.filter(item => item.category === cat);
+            const catWeight = catItems.reduce((sum, item) => {
+                const [unitType] = (item.unit || 'kg-1').split('-');
+                if (['litro', 'embalagem', 'caixa', 'dz'].some(u => unitType.includes(u))) return sum;
+                return sum + getContractItemWeight({ totalKg: item.totalQuantity, unit: item.unit });
+            }, 0);
+            const divisor = (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') ? 4 : 8;
+            totalMonthlyWeight += catWeight / divisor;
+        });
+
+        return totalMonthlyWeight / perCapitaDenominator;
     }, [itemData, perCapitaDenominator]);
     
     const totalPerCapitaValue = useMemo(() => {
         if (perCapitaDenominator === 0) return 0;
-        const totalValueOfAllItems = itemData.reduce((sum, item) => sum + item.totalValue, 0);
-        return (totalValueOfAllItems / perCapitaDenominator) / 8;
+        
+        // Cálculo ponderado da média mensal de valor
+        let totalMonthlyValue = 0;
+        ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS'].forEach(cat => {
+            const catItems = itemData.filter(item => item.category === cat);
+            const catValue = catItems.reduce((sum, item) => sum + item.totalValue, 0);
+            const divisor = (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') ? 4 : 8;
+            totalMonthlyValue += catValue / divisor;
+        });
+
+        return totalMonthlyValue / perCapitaDenominator;
     }, [itemData, perCapitaDenominator]);
 
     const activeCategories = useMemo(() => {
@@ -477,7 +500,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                 const quantity = item.acquiredQuantity || 0;
                 return sum + ((item.unitValue || 0) * quantity);
             }, 0);
-            averages[cat] = total / 8; // Maio-Dez / 8 meses
+            // Média mensal: 4 meses para PERECÍVEIS e ESTOCÁVEIS, 8 meses para os demais (PPAIS)
+            const divisor = (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') ? 4 : 8;
+            averages[cat] = total / divisor;
         });
         return averages;
     }, [activeCategories, acquisitionItems]);

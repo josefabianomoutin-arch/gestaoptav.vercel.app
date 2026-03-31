@@ -315,13 +315,13 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                             <span className="text-[8px] font-black text-zinc-400 uppercase">67% do Orçamento</span>
                         </div>
                     </div>
-                    {(category === 'PPAIS' || category === 'PERECÍVEIS') ? (
+                    {(category === 'PPAIS' || category === 'PERECÍVEIS' || category === 'ESTOCÁVEIS') ? (
                         <div className="bg-emerald-900 p-6 rounded-3xl border border-emerald-800 shadow-lg flex flex-col justify-between relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-12 -mt-12"></div>
-                            <span className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.2em] relative z-10">Média Mensal (8m)</span>
+                            <span className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.2em] relative z-10">Média Mensal ({category === 'PPAIS' ? '8m' : '4m'})</span>
                             <div className="mt-2 text-white relative z-10">
                                 <span className="text-2xl font-black font-mono tracking-tighter">
-                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCategoryValue / 8)}
+                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCategoryValue / (category === 'PPAIS' ? 8 : 4))}
                                 </span>
                             </div>
                             <div className="mt-4 flex items-center gap-2 relative z-10">
