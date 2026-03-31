@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ClipboardList, Search, Filter, CheckCircle2, XCircle, Clock, AlertCircle, Edit3, Trash2, Save, X, CalendarPlus, Calendar, Wrench, FileText, Upload } from 'lucide-react';
+import { ClipboardList, Search, Filter, CheckCircle2, XCircle, Clock, AlertCircle, Edit3, Trash2, Save, X, CalendarPlus, Calendar, Wrench, FileText, Upload, ShieldCheck, Printer, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { ServiceOrder, MaintenanceSchedule } from '../types';
 
@@ -12,6 +12,7 @@ interface AdminServiceOrderProps {
   onRegisterMaintenanceSchedule?: (schedule: Omit<MaintenanceSchedule, 'id'>) => Promise<void>;
   onUpdateMaintenanceSchedule?: (id: string, updates: Partial<MaintenanceSchedule>) => Promise<void>;
   onDeleteMaintenanceSchedule?: (id: string) => Promise<void>;
+  systemPasswords?: Record<string, string>;
 }
 
 const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({ 
@@ -21,7 +22,8 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
   maintenanceSchedules = [],
   onRegisterMaintenanceSchedule,
   onUpdateMaintenanceSchedule,
-  onDeleteMaintenanceSchedule
+  onDeleteMaintenanceSchedule,
+  systemPasswords = {}
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('todos');
@@ -31,6 +33,11 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
   const [editScheduleForm, setEditScheduleForm] = useState<MaintenanceSchedule | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   
+  // Validation State
+  const [validatingScheduleId, setValidatingScheduleId] = useState<string | null>(null);
+  const [validationRole, setValidationRole] = useState<'chief' | 'director' | null>(null);
+  const [validationPassword, setValidationPassword] = useState('');
+
   // Maintenance Schedule Modal State
   const [schedulingOrderId, setSchedulingOrderId] = useState<string | null>(null);
   const [scheduleForm, setScheduleForm] = useState<Partial<MaintenanceSchedule>>({
@@ -102,6 +109,96 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
     }
   };
 
+  const handleValidate = async () => {
+    if (!validatingScheduleId || !validationRole || !onUpdateMaintenanceSchedule) return;
+
+    const key = validationRole === 'chief' ? 'WALTER RODRIGUES JUNIOR' : 'ALFREDO GUILHERME LOPES';
+    const correctPassword = systemPasswords[key] || (validationRole === 'chief' ? 'chefe123' : 'diretor123');
+
+    if (validationPassword === correctPassword) {
+      const updates: Partial<MaintenanceSchedule> = validationRole === 'chief' 
+        ? { validatedByChief: true, validatedByChiefAt: new Date().toISOString() }
+        : { validatedByDirector: true, validatedByDirectorAt: new Date().toISOString() };
+      
+      await onUpdateMaintenanceSchedule(validatingScheduleId, updates);
+      toast.success(`Validado por ${key} com sucesso!`);
+      setValidatingScheduleId(null);
+      setValidationRole(null);
+      setValidationPassword('');
+    } else {
+      toast.error('Senha incorreta.');
+    }
+  };
+
+  const generatePDF = (schedule: MaintenanceSchedule, order: ServiceOrder) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const pplsList = (schedule.ppls || []).filter(p => p.trim() !== '').map(p => `<li>${p}</li>`).join('');
+    const validationDate = schedule.validatedByDirectorAt ? new Date(schedule.validatedByDirectorAt) : new Date();
+    const dateOptions: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+    const dateInFull = validationDate.toLocaleDateString('pt-BR', dateOptions);
+
+    const html = `
+      <html>
+        <head>
+          <title>Autorização de Saída</title>
+          <style>
+            body { font-family: sans-serif; padding: 40px; line-height: 1.6; }
+            .header { text-align: center; font-weight: bold; margin-bottom: 40px; font-size: 18px; }
+            .content { margin-bottom: 40px; }
+            .ppls { margin: 20px 0; list-style: none; padding: 0; }
+            .ppls li { margin-bottom: 5px; }
+            .signatures { margin-top: 80px; }
+            .signature-block { margin-bottom: 60px; text-align: center; }
+            .signature-line { border-top: 1px solid black; width: 300px; margin: 0 auto 5px; }
+            .role { font-size: 12px; color: #666; }
+            @media print {
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">AUTORIZAÇÃO DE SAÍDA PARA TRABALHO</div>
+          
+          <div class="content">
+            <p>Senhores Chefes;</p>
+            <p>Ficam os PPL’s abaixo qualificados, AUTORIZADOS a trabalhar no setor de MANUTENÇÃO EXTERNA – horário das ${schedule.time}, no dia ${new Date(schedule.date).toLocaleDateString('pt-BR')}, devidamente acompanhado por Policial Penal.</p>
+            <p>Taiúva, ${dateInFull}.</p>
+            <p><strong>NOME/MATRICULA</strong></p>
+            <ul class="ppls">
+              ${pplsList || '<li>Nenhum PPL designado</li>'}
+            </ul>
+          </div>
+
+          <div class="signatures">
+            <div class="signature-block">
+              <div class="signature-line"></div>
+              <div>WALTER RODRIGUES JUNIOR</div>
+              <div class="role">Chefe de Seç. de Formação Educ, Trab. e Capacitação Profiss.</div>
+            </div>
+
+            <div class="signature-block">
+              <div class="signature-line"></div>
+              <div>ALFREDO GUILHERME LOPES</div>
+              <div class="role">Diretor do Centro de Segurança e Disciplina</div>
+            </div>
+          </div>
+
+          <script>
+            window.onload = () => {
+              window.print();
+              setTimeout(() => window.close(), 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   const handleScheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!onRegisterMaintenanceSchedule || !schedulingOrderId) return;
@@ -123,6 +220,8 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
         status: 'agendado',
         toolsStatus: 'fora',
         exitAuthorizationUrl: scheduleForm.exitAuthorizationUrl || '',
+        validatedByChief: false,
+        validatedByDirector: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
@@ -345,6 +444,58 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                             }`}>
                               {ms.status.replace('_', ' ')}
                             </span>
+                          </div>
+
+                          <div className="md:col-span-2 pt-4 border-t border-emerald-100/50">
+                            <div className="flex flex-wrap items-center gap-4">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    if (!ms.validatedByChief) {
+                                      setValidatingScheduleId(ms.id);
+                                      setValidationRole('chief');
+                                    }
+                                  }}
+                                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                    ms.validatedByChief 
+                                      ? 'bg-emerald-100 text-emerald-700 cursor-default' 
+                                      : 'bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                                  }`}
+                                >
+                                  <ShieldCheck className={`h-3 w-3 ${ms.validatedByChief ? 'text-emerald-500' : 'text-emerald-300'}`} />
+                                  {ms.validatedByChief ? 'Validado pelo Chefe' : 'Validar Chefe'}
+                                </button>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    if (!ms.validatedByDirector) {
+                                      setValidatingScheduleId(ms.id);
+                                      setValidationRole('director');
+                                    }
+                                  }}
+                                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                    ms.validatedByDirector 
+                                      ? 'bg-emerald-100 text-emerald-700 cursor-default' 
+                                      : 'bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                                  }`}
+                                >
+                                  <ShieldCheck className={`h-3 w-3 ${ms.validatedByDirector ? 'text-emerald-500' : 'text-emerald-300'}`} />
+                                  {ms.validatedByDirector ? 'Validado pelo Diretor' : 'Validar Diretor'}
+                                </button>
+                              </div>
+
+                              {ms.validatedByChief && ms.validatedByDirector && (
+                                <button
+                                  onClick={() => generatePDF(ms, order)}
+                                  className="flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-sm"
+                                >
+                                  <Printer className="h-3 w-3" />
+                                  Gerar Autorização (PDF)
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -670,6 +821,51 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                 className="flex-1 py-4 text-sm font-black text-red-600 uppercase hover:bg-red-50 transition-colors border-l border-gray-100"
               >
                 Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Validation Modal */}
+      {validatingScheduleId && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-8 text-center">
+              <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Lock className="h-8 w-8 text-indigo-600" />
+              </div>
+              <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Validação de Segurança</h3>
+              <p className="text-sm text-gray-500 font-medium mb-6">
+                Insira a senha do {validationRole === 'chief' ? 'Chefe Walter Rodrigues Junior' : 'Diretor Alfredo Guilherme Lopes'} para validar esta autorização.
+              </p>
+              
+              <input
+                type="password"
+                value={validationPassword}
+                onChange={(e) => setValidationPassword(e.target.value)}
+                placeholder="Digite a senha..."
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 text-center text-lg font-black tracking-[0.5em] focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handleValidate()}
+              />
+            </div>
+            <div className="flex border-t border-gray-100">
+              <button 
+                onClick={() => {
+                  setValidatingScheduleId(null);
+                  setValidationRole(null);
+                  setValidationPassword('');
+                }}
+                className="flex-1 py-5 text-xs font-black text-gray-500 uppercase hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleValidate}
+                className="flex-1 py-5 text-xs font-black text-indigo-600 uppercase hover:bg-indigo-50 transition-colors border-l border-gray-100"
+              >
+                Validar Assinatura
               </button>
             </div>
           </div>

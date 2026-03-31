@@ -162,6 +162,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       { key: 'INFRAESTRUTURA', name: 'Infraestrutura', default: 'infra2026' },
       { key: 'ORDEM DE SAIDA', name: 'Ordem de Saída', default: 'saida2026' },
       { key: 'SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA', name: 'Seção de Infraestrutura e Logística', default: '431385464' },
+      { key: 'WALTER RODRIGUES JUNIOR', name: 'Chefe Walter Rodrigues Junior', default: 'chefe123' },
+      { key: 'ALFREDO GUILHERME LOPES', name: 'Diretor Alfredo Guilherme Lopes', default: 'diretor123' },
   ];
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const backupInputRef = useRef<HTMLInputElement>(null);
@@ -405,6 +407,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           onRegisterMaintenanceSchedule={props.onRegisterMaintenanceSchedule}
           onUpdateMaintenanceSchedule={props.onUpdateMaintenanceSchedule}
           onDeleteMaintenanceSchedule={props.onDeleteMaintenanceSchedule}
+          systemPasswords={props.systemPasswords}
       />;
       case 'analytics': return <AdminAnalytics suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} />;
       case 'graphs': return <AdminGraphs 

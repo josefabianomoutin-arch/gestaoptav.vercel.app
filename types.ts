@@ -329,6 +329,10 @@ export interface MaintenanceSchedule {
   status: 'agendado' | 'em_andamento' | 'concluido' | 'cancelado';
   toolsStatus?: 'fora' | 'dentro' | 'devolvido';
   exitAuthorizationUrl?: string;
+  validatedByChief?: boolean;
+  validatedByChiefAt?: string;
+  validatedByDirector?: boolean;
+  validatedByDirectorAt?: string;
   entryAuthorizedBy?: string;
   entryAuthorizedAt?: string;
   returnAuthorizedBy?: string;
