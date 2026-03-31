@@ -1667,7 +1667,7 @@ const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({ invoice, supplier, 
                                         </div>
                                         <div className="w-20">
                                             <label className="text-[7px] font-black text-gray-400 uppercase ml-1 text-center block">Qtd ({unit})</label>
-                                            <input type="text" value={item.kg} onChange={e => handleItemChange(item.id, 'kg', e.target.value)} placeholder="0,00" className="w-full h-8 px-2 border border-gray-200 rounded-lg text-[10px] text-center font-mono focus:ring-2 focus:ring-teal-400 outline-none bg-white" required />
+                                            <input type="text" value={item.kg} onChange={e => handleItemChange(item.id, 'kg', e.target.value.replace(/[^0-9,]/g, ''))} placeholder="0,00" className="w-full h-8 px-2 border border-gray-200 rounded-lg text-[10px] text-center font-mono focus:ring-2 focus:ring-teal-400 outline-none bg-white" required />
                                         </div>
                                         <div className="flex items-center gap-1 mt-3">
                                             <button 
@@ -1710,7 +1710,7 @@ const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({ invoice, supplier, 
                                         </div>
                                         <div>
                                             <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Validade</label>
-                                            <input type="date" value={item.exp} onChange={handleItemChange.bind(null, item.id, 'exp')} className="w-full h-7 px-2 border border-gray-200 rounded-lg text-[10px] focus:ring-2 focus:ring-teal-400 outline-none bg-white" />
+                                            <input type="date" value={item.exp} onChange={e => handleItemChange(item.id, 'exp', e.target.value)} className="w-full h-7 px-2 border border-gray-200 rounded-lg text-[10px] focus:ring-2 focus:ring-teal-400 outline-none bg-white" />
                                         </div>
                                     </div>
                                 </div>
