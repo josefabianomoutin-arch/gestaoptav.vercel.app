@@ -507,6 +507,15 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         return averages;
     }, [activeCategories, acquisitionItems]);
 
+    const getIsActiveMonth = (month: string, category: string) => {
+        const fullPeriod = ['Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        const shortPeriod = ['Maio', 'Junho', 'Julho', 'Agosto'];
+        if (category === 'PERECÍVEIS' || category === 'ESTOCÁVEIS') {
+            return shortPeriod.includes(month);
+        }
+        return fullPeriod.includes(month);
+    };
+
     const totalContractValue = useMemo(() => {
         const targetCategories = ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS'];
         let total = 0;
@@ -514,7 +523,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         targetCategories.forEach(cat => {
             months.forEach(month => {
                 const execVal = monthlyExecution[month]?.[cat] || 0;
-                const isActiveMonth = ['Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].includes(month);
+                const isActiveMonth = getIsActiveMonth(month, cat);
                 const futureVal = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
                 total += execVal > 0 ? execVal : futureVal;
             });
@@ -738,10 +747,10 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                     const quota = monthlyQuota[month] || 0;
                                     const exec = monthlyExecution[month];
                                     const advance = monthlyAdvances[month] || 0;
-                                    const isActiveMonth = ['Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].includes(month);
                                     
                                     const totalSpent = activeCategories.reduce((sum, cat) => {
                                         const value = exec[cat] || 0;
+                                        const isActiveMonth = getIsActiveMonth(month, cat);
                                         const futureValue = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
                                         return sum + (value > 0 ? value : futureValue);
                                     }, 0) + advance;
@@ -754,6 +763,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                             <td className="p-4 text-right font-mono font-bold text-indigo-600 bg-indigo-50/30">{formatCurrency(quota)}</td>
                                             {activeCategories.map(cat => {
                                                 const value = exec[cat] || 0;
+                                                const isActiveMonth = getIsActiveMonth(month, cat);
                                                 const futureValue = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
                                                 const displayValue = value > 0 ? value : futureValue;
                                                 const isFuture = value === 0 && futureValue > 0;
@@ -784,7 +794,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                         let catTotal = 0;
                                         months.forEach(month => {
                                             const execVal = monthlyExecution[month]?.[cat] || 0;
-                                            const isActiveMonth = ['Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].includes(month);
+                                            const isActiveMonth = getIsActiveMonth(month, cat);
                                             const futureVal = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
                                             catTotal += execVal > 0 ? execVal : futureVal;
                                         });
