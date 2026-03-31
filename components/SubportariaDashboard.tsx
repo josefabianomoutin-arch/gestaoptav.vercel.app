@@ -232,6 +232,120 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
         await onUpdateThirdPartyEntry(updatedLog);
     };
 
+    const generatePDF = (schedule: MaintenanceSchedule, order: ServiceOrder) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const pplsList = (schedule.ppls || []).filter(p => p.trim() !== '').map(p => `<li>${p}</li>`).join('');
+        const validationDate = schedule.validatedByDirectorAt ? new Date(schedule.validatedByDirectorAt) : new Date();
+        const dateOptions: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+        const dateInFull = validationDate.toLocaleDateString('pt-BR', dateOptions);
+
+        const formatTimestamp = (ts?: string) => {
+            if (!ts) return '';
+            return new Date(ts).toLocaleString('pt-BR');
+        };
+
+        const html = `
+            <html>
+                <head>
+                    <title>Autorização de Saída</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 40px; line-height: 1.6; color: #333; }
+                        .header { text-align: center; font-weight: bold; margin-bottom: 40px; font-size: 18px; text-decoration: underline; }
+                        .content { margin-bottom: 30px; text-align: justify; }
+                        .date-centered { text-align: center; margin: 30px 0; font-weight: bold; }
+                        .ppls { margin: 20px 0; list-style: none; padding: 0; }
+                        .ppls li { margin-bottom: 5px; border-bottom: 1px dotted #ccc; padding-bottom: 2px; }
+                        .signatures { margin-top: 60px; display: flex; flex-direction: column; align-items: center; gap: 40px; }
+                        .signature-block { text-align: center; width: 100%; max-width: 500px; }
+                        .digital-signature {
+                            border: 2px solid #000;
+                            padding: 10px 20px;
+                            display: inline-block;
+                            text-align: center;
+                            margin-bottom: 10px;
+                            background: #fff;
+                            position: relative;
+                        }
+                        .signature-badge {
+                            font-size: 9px;
+                            color: #000;
+                            font-weight: bold;
+                            text-transform: uppercase;
+                            border-bottom: 1px solid #000;
+                            margin-bottom: 5px;
+                            padding-bottom: 2px;
+                            letter-spacing: 1px;
+                        }
+                        .signature-details {
+                            font-size: 12px;
+                            font-weight: bold;
+                        }
+                        .signature-timestamp {
+                            font-size: 9px;
+                            font-weight: normal;
+                            margin-top: 2px;
+                        }
+                        .role { font-size: 11px; font-weight: bold; margin-top: 5px; }
+                        @media print {
+                            .no-print { display: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">AUTORIZAÇÃO DE SAÍDA PARA TRABALHO</div>
+                    
+                    <div class="content">
+                        <p>Senhores Chefes;</p>
+                        <p>Ficam os PPL’s abaixo qualificados, AUTORIZADOS a trabalhar no setor de MANUTENÇÃO EXTERNA – horário das <strong>${schedule.time}</strong>, no dia <strong>${new Date(schedule.date).toLocaleDateString('pt-BR')}</strong>, devidamente acompanhado por Policial Penal.</p>
+                        
+                        <div class="date-centered">Taiúva, ${dateInFull}.</div>
+                        
+                        <p><strong>NOME/MATRICULA</strong></p>
+                        <ul class="ppls">
+                            ${pplsList || '<li>Nenhum PPL designado</li>'}
+                        </ul>
+                    </div>
+
+                    <div class="signatures">
+                        <div class="signature-block">
+                            <div class="digital-signature">
+                                <div class="signature-badge">Validado Digitalmente</div>
+                                <div class="signature-details">
+                                    WALTER RODRIGUES JUNIOR<br/>
+                                    <div class="signature-timestamp">Autenticado em: ${formatTimestamp(schedule.validatedByChiefAt)}</div>
+                                </div>
+                            </div>
+                            <div class="role">Chefe de Seç. de Formação Educ, Trab. e Capacitação Profiss.</div>
+                        </div>
+
+                        <div class="signature-block">
+                            <div class="digital-signature">
+                                <div class="signature-badge">Validado Digitalmente</div>
+                                <div class="signature-details">
+                                    ALFREDO GUILHERME LOPES<br/>
+                                    <div class="signature-timestamp">Autenticado em: ${formatTimestamp(schedule.validatedByDirectorAt)}</div>
+                                </div>
+                            </div>
+                            <div class="role">Diretor do Centro de Segurança e Disciplina</div>
+                        </div>
+                    </div>
+
+                    <script>
+                        window.onload = () => {
+                            window.print();
+                            setTimeout(() => window.close(), 500);
+                        };
+                    </script>
+                </body>
+            </html>
+        `;
+
+        printWindow.document.write(html);
+        printWindow.document.close();
+    };
+
     return (
         <div className="min-h-screen bg-slate-100 text-slate-900 font-sans pb-10">
             {/* Header Compacto para Mobile */}
@@ -241,7 +355,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
                     </div>
                     <div>
-                        <h1 className="text-lg font-black uppercase italic tracking-tighter leading-none">Manutenções Agendadas</h1>
+                        <h1 className="text-lg font-black uppercase italic tracking-tighter leading-none">Manutenção Externa</h1>
                         <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest">Controle de Fluxo</p>
                     </div>
                 </div>
@@ -262,7 +376,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                         onClick={() => setActiveTab('seguranca')}
                         className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'seguranca' ? 'bg-indigo-600 text-white' : 'text-indigo-300 hover:bg-white/5'}`}
                     >
-                        Manutenções Agendadas
+                        Manutenção Externa
                     </button>
                     <button onClick={onLogout} className="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-black py-2 px-4 rounded-xl text-[10px] uppercase transition-all border border-red-900/50 ml-2">Sair</button>
                 </div>
@@ -438,7 +552,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                             <div className="flex flex-col gap-4">
                                 <div className="flex justify-between items-end">
                                     <div>
-                                        <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic">Manutenções Agendadas</h2>
+                                        <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic">Manutenção Externa</h2>
                                         <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Controle de Segurança Externa</p>
                                     </div>
                                     <div className="bg-indigo-50 px-3 py-1 rounded-full">
@@ -481,25 +595,26 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                             </div>
                                         </div>
 
-                                        {schedule.exitAuthorizationUrl && (
+                                        {schedule.validatedByChief && schedule.validatedByDirector && (
                                             <div className="mb-8">
-                                                <a 
-                                                    href={schedule.exitAuthorizationUrl} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-4 p-5 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 transition-all group transform hover:-translate-y-1"
+                                                <button 
+                                                    onClick={() => {
+                                                        const order = serviceOrders.find(o => o.id === schedule.serviceOrderId);
+                                                        if (order) generatePDF(schedule, order);
+                                                    }}
+                                                    className="w-full flex items-center gap-4 p-5 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 transition-all group transform hover:-translate-y-1"
                                                 >
                                                     <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
                                                         <FileText className="h-6 w-6 text-white" />
                                                     </div>
-                                                    <div className="flex-1">
+                                                    <div className="flex-1 text-left">
                                                         <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest leading-none mb-1">Conferência de Pessoas e Materiais</p>
                                                         <p className="text-sm font-black uppercase tracking-tighter italic">Visualizar Autorização de Saída (PDF)</p>
                                                     </div>
                                                     <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
                                                         <Play className="h-4 w-4 text-white" />
                                                     </div>
-                                                </a>
+                                                </button>
                                             </div>
                                         )}
 

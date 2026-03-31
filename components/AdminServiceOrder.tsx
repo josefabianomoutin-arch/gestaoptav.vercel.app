@@ -139,20 +139,53 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
     const dateOptions: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
     const dateInFull = validationDate.toLocaleDateString('pt-BR', dateOptions);
 
+    const formatTimestamp = (ts?: string) => {
+      if (!ts) return '';
+      return new Date(ts).toLocaleString('pt-BR');
+    };
+
     const html = `
       <html>
         <head>
           <title>Autorização de Saída</title>
           <style>
-            body { font-family: sans-serif; padding: 40px; line-height: 1.6; }
-            .header { text-align: center; font-weight: bold; margin-bottom: 40px; font-size: 18px; }
-            .content { margin-bottom: 40px; }
+            body { font-family: sans-serif; padding: 40px; line-height: 1.6; color: #333; }
+            .header { text-align: center; font-weight: bold; margin-bottom: 40px; font-size: 18px; text-decoration: underline; }
+            .content { margin-bottom: 30px; text-align: justify; }
+            .date-centered { text-align: center; margin: 30px 0; font-weight: bold; }
             .ppls { margin: 20px 0; list-style: none; padding: 0; }
-            .ppls li { margin-bottom: 5px; }
-            .signatures { margin-top: 80px; }
-            .signature-block { margin-bottom: 60px; text-align: center; }
-            .signature-line { border-top: 1px solid black; width: 300px; margin: 0 auto 5px; }
-            .role { font-size: 12px; color: #666; }
+            .ppls li { margin-bottom: 5px; border-bottom: 1px dotted #ccc; padding-bottom: 2px; }
+            .signatures { margin-top: 60px; display: flex; flex-direction: column; align-items: center; gap: 40px; }
+            .signature-block { text-align: center; width: 100%; max-width: 500px; }
+            .digital-signature {
+              border: 2px solid #000;
+              padding: 10px 20px;
+              display: inline-block;
+              text-align: center;
+              margin-bottom: 10px;
+              background: #fff;
+              position: relative;
+            }
+            .signature-badge {
+              font-size: 9px;
+              color: #000;
+              font-weight: bold;
+              text-transform: uppercase;
+              border-bottom: 1px solid #000;
+              margin-bottom: 5px;
+              padding-bottom: 2px;
+              letter-spacing: 1px;
+            }
+            .signature-details {
+              font-size: 12px;
+              font-weight: bold;
+            }
+            .signature-timestamp {
+              font-size: 9px;
+              font-weight: normal;
+              margin-top: 2px;
+            }
+            .role { font-size: 11px; font-weight: bold; margin-top: 5px; }
             @media print {
               .no-print { display: none; }
             }
@@ -163,8 +196,10 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
           
           <div class="content">
             <p>Senhores Chefes;</p>
-            <p>Ficam os PPL’s abaixo qualificados, AUTORIZADOS a trabalhar no setor de MANUTENÇÃO EXTERNA – horário das ${schedule.time}, no dia ${new Date(schedule.date).toLocaleDateString('pt-BR')}, devidamente acompanhado por Policial Penal.</p>
-            <p>Taiúva, ${dateInFull}.</p>
+            <p>Ficam os PPL’s abaixo qualificados, AUTORIZADOS a trabalhar no setor de MANUTENÇÃO EXTERNA – horário das <strong>${schedule.time}</strong>, no dia <strong>${new Date(schedule.date).toLocaleDateString('pt-BR')}</strong>, devidamente acompanhado por Policial Penal.</p>
+            
+            <div class="date-centered">Taiúva, ${dateInFull}.</div>
+            
             <p><strong>NOME/MATRICULA</strong></p>
             <ul class="ppls">
               ${pplsList || '<li>Nenhum PPL designado</li>'}
@@ -173,14 +208,24 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
 
           <div class="signatures">
             <div class="signature-block">
-              <div class="signature-line"></div>
-              <div>WALTER RODRIGUES JUNIOR</div>
+              <div class="digital-signature">
+                <div class="signature-badge">Validado Digitalmente</div>
+                <div class="signature-details">
+                  WALTER RODRIGUES JUNIOR<br/>
+                  <div class="signature-timestamp">Autenticado em: ${formatTimestamp(schedule.validatedByChiefAt)}</div>
+                </div>
+              </div>
               <div class="role">Chefe de Seç. de Formação Educ, Trab. e Capacitação Profiss.</div>
             </div>
 
             <div class="signature-block">
-              <div class="signature-line"></div>
-              <div>ALFREDO GUILHERME LOPES</div>
+              <div class="digital-signature">
+                <div class="signature-badge">Validado Digitalmente</div>
+                <div class="signature-details">
+                  ALFREDO GUILHERME LOPES<br/>
+                  <div class="signature-timestamp">Autenticado em: ${formatTimestamp(schedule.validatedByDirectorAt)}</div>
+                </div>
+              </div>
               <div class="role">Diretor do Centro de Segurança e Disciplina</div>
             </div>
           </div>
