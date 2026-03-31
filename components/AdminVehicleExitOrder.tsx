@@ -60,6 +60,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         password: ''
     });
     const [validatingOrder, setValidatingOrder] = useState<VehicleExitOrder | null>(null);
+    const [selectedValidationRoleId, setSelectedValidationRoleId] = useState<string>('');
     const [validationPassword, setValidationPassword] = useState('');
     const [isUploadingPdf, setIsUploadingPdf] = useState<string | null>(null);
     const [editingOrder, setEditingOrder] = useState<VehicleExitOrder | null>(null);
@@ -765,14 +766,22 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             validationRole: order.validationRole || '',
             validatedBy: order.validatedBy || ''
         });
+        
+        // Find the correct role ID based on both role name and responsible name
+        const role = validationRoles.find(r => 
+            r.roleName === order.validationRole && 
+            r.responsibleName === order.validatedBy
+        );
+        setSelectedValidationRoleId(role ? role.id : '');
+        
         setIsValidationModalOpen(true);
     };
 
     const handleConfirmValidation = async () => {
-        if (!validatingOrder || !formData.validationRole) return;
+        if (!validatingOrder || !selectedValidationRoleId) return;
 
         // Verify password
-        const selectedRole = validationRoles.find(r => r.roleName === formData.validationRole);
+        const selectedRole = validationRoles.find(r => r.id === selectedValidationRoleId);
         if (selectedRole && selectedRole.password) {
             if (validationPassword !== selectedRole.password) {
                 alert('Senha de validação incorreta!');
@@ -782,8 +791,8 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
         const updatedOrder: VehicleExitOrder = {
             ...validatingOrder,
-            validationRole: formData.validationRole,
-            validatedBy: formData.validatedBy,
+            validationRole: selectedRole?.roleName || '',
+            validatedBy: selectedRole?.responsibleName || '',
             validationTimestamp: new Date().toISOString()
         };
 
@@ -792,6 +801,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             setIsValidationModalOpen(false);
             setValidatingOrder(null);
             setValidationPassword('');
+            setSelectedValidationRoleId('');
         } else {
             alert(response.message);
         }
@@ -1489,13 +1499,14 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Selecione o Cargo/Responsável para Validar</label>
                                 <select 
-                                    value={formData.validationRole}
+                                    value={selectedValidationRoleId}
                                     onChange={e => {
-                                        const roleName = e.target.value;
-                                        const role = validationRoles.find(r => r.roleName === roleName);
+                                        const roleId = e.target.value;
+                                        const role = validationRoles.find(r => r.id === roleId);
+                                        setSelectedValidationRoleId(roleId);
                                         setFormData({ 
                                             ...formData, 
-                                            validationRole: roleName,
+                                            validationRole: role ? role.roleName : '',
                                             validatedBy: role ? role.responsibleName : ''
                                         });
                                     }}
@@ -1503,14 +1514,14 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                 >
                                     <option value="">SELECIONE O RESPONSÁVEL</option>
                                     {validationRoles.map(role => (
-                                        <option key={role.id} value={role.roleName}>
+                                        <option key={role.id} value={role.id}>
                                             {role.roleName} - {role.responsibleName}
                                         </option>
                                     ))}
                                 </select>
                             </div>
 
-                            {formData.validationRole && (
+                            {selectedValidationRoleId && (
                                 <div className="space-y-2 animate-fade-in">
                                     <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Senha de Validação</label>
                                     <input 
@@ -1537,14 +1548,14 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         </div>
                         <div className="p-6 bg-gray-50 flex gap-3">
                             <button 
-                                onClick={() => { setIsValidationModalOpen(false); setValidationPassword(''); }}
+                                onClick={() => { setIsValidationModalOpen(false); setValidationPassword(''); setSelectedValidationRoleId(''); }}
                                 className="flex-1 bg-white border-2 border-gray-200 text-gray-400 font-black py-3 rounded-2xl uppercase text-[10px] tracking-widest hover:bg-gray-100 transition-all"
                             >
                                 Cancelar
                             </button>
                             <button 
                                 onClick={handleConfirmValidation}
-                                disabled={!formData.validationRole || !validationPassword}
+                                disabled={!selectedValidationRoleId || !validationPassword}
                                 className="flex-[2] bg-indigo-600 text-white font-black py-3 rounded-2xl uppercase text-[10px] tracking-widest shadow-lg hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Confirmar Validação
