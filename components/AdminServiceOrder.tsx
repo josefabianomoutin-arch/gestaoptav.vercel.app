@@ -40,6 +40,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
     accompanyingPerson: '',
     toolsNeeded: '',
     tools: Array(25).fill(''),
+    ppls: Array(5).fill(''),
     status: 'agendado',
     toolsStatus: 'fora',
     exitAuthorizationUrl: ''
@@ -118,6 +119,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
         accompanyingPerson: scheduleForm.accompanyingPerson || '',
         toolsNeeded: scheduleForm.toolsNeeded || '',
         tools: scheduleForm.tools || Array(25).fill(''),
+        ppls: scheduleForm.ppls || Array(5).fill(''),
         status: 'agendado',
         toolsStatus: 'fora',
         exitAuthorizationUrl: scheduleForm.exitAuthorizationUrl || '',
@@ -132,6 +134,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
         accompanyingPerson: '',
         toolsNeeded: '',
         tools: Array(25).fill(''),
+        ppls: Array(5).fill(''),
         status: 'agendado',
         toolsStatus: 'fora',
         exitAuthorizationUrl: ''
@@ -316,6 +319,12 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                             </p>
                           </div>
                           <div>
+                            <p className="text-[10px] text-emerald-600/70 font-bold uppercase">Mão de Obra (PPLs)</p>
+                            <p className="text-sm text-emerald-900 font-black">
+                              {ms.ppls?.filter(p => p.trim() !== '').length || 0} PPLs designados
+                            </p>
+                          </div>
+                          <div>
                             <p className="text-[10px] text-emerald-600/70 font-bold uppercase">Status das Ferramentas</p>
                             <span className={`inline-block mt-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                               ms.toolsStatus === 'dentro' ? 'bg-blue-200 text-blue-800' :
@@ -494,6 +503,30 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                         className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all"
                         placeholder="Ex: Bloco A, Sala 203..."
                       />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Mão de Obra (PPLs)</label>
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                      {Array(5).fill(0).map((_, i) => (
+                        <div key={i} className="relative group">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-emerald-300 group-focus-within:text-emerald-500 transition-colors">
+                            PPL {i + 1}
+                          </span>
+                          <input
+                            type="text"
+                            value={editScheduleForm.ppls?.[i] || ''}
+                            onChange={(e) => {
+                              const newPpls = [...(editScheduleForm.ppls || Array(5).fill(''))];
+                              newPpls[i] = e.target.value;
+                              setEditScheduleForm({ ...editScheduleForm, ppls: newPpls });
+                            }}
+                            className="w-full bg-gray-50 border border-gray-100 rounded-xl pl-12 pr-3 py-2.5 text-[11px] font-bold focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-gray-300"
+                            placeholder="Nome do PPL..."
+                          />
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -712,6 +745,30 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                       className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all shadow-sm"
                       placeholder="Nome do responsável"
                     />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Mão de Obra (PPLs)</label>
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    {Array(5).fill(0).map((_, i) => (
+                      <div key={i} className="relative group">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-emerald-300 group-focus-within:text-emerald-500 transition-colors">
+                          PPL {i + 1}
+                        </span>
+                        <input
+                          type="text"
+                          value={scheduleForm.ppls?.[i] || ''}
+                          onChange={(e) => {
+                            const newPpls = [...(scheduleForm.ppls || Array(5).fill(''))];
+                            newPpls[i] = e.target.value;
+                            setScheduleForm({ ...scheduleForm, ppls: newPpls });
+                          }}
+                          className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-3 py-2.5 text-[11px] font-bold focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-gray-300"
+                          placeholder="Nome do PPL..."
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

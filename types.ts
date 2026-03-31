@@ -322,6 +322,7 @@ export interface MaintenanceSchedule {
   accompanyingPerson: string;
   toolsNeeded: string;
   tools?: string[]; // Array of 25 tool fields
+  ppls?: string[]; // Array of 5 PPL fields
   status: 'agendado' | 'em_andamento' | 'concluido' | 'cancelado';
   toolsStatus?: 'fora' | 'dentro' | 'devolvido';
   exitAuthorizationUrl?: string;
