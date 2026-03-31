@@ -409,20 +409,24 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                     .filter(d => d.item && d.item !== 'AGENDAMENTO PENDENTE')
                     .forEach(d => {
                         const itemName = d.item || 'Item não especificado';
-                        if (itemsMap.has(itemName)) {
-                            const existing = itemsMap.get(itemName);
+                        const lotNumber = d.lots?.[0]?.lotNumber || '';
+                        const expirationDate = d.lots?.[0]?.expirationDate || '';
+                        const itemKey = `${itemName}-${lotNumber}-${expirationDate}`;
+
+                        if (itemsMap.has(itemKey)) {
+                            const existing = itemsMap.get(itemKey);
                             existing.kg += (d.kg || 0);
                             existing.value += (d.value || 0);
                         } else {
                             const exitedQuantity = (warehouseLog || [])
-                                .filter(log => log.type === 'saída' && log.inboundInvoice === invoiceNumber && log.itemName === itemName && log.supplierName === supplier.name)
+                                .filter(log => log.type === 'saída' && log.inboundInvoice === invoiceNumber && log.itemName === itemName && log.supplierName === supplier.name && (log.lotNumber === lotNumber || (!log.lotNumber && !lotNumber)))
                                 .reduce((sum, log) => sum + (Number(log.quantity) || 0), 0);
-                            itemsMap.set(itemName, {
+                            itemsMap.set(itemKey, {
                                 name: itemName,
                                 kg: d.kg || 0,
                                 value: d.value || 0,
-                                lotNumber: d.lots?.[0]?.lotNumber,
-                                expirationDate: d.lots?.[0]?.expirationDate,
+                                lotNumber: lotNumber || undefined,
+                                expirationDate: expirationDate || undefined,
                                 exitedQuantity
                             });
                         }
@@ -1412,85 +1416,112 @@ const ManualInvoiceModal: React.FC<ManualInvoiceModalProps> = ({ suppliers, onCl
 
     return (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-[100] p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 animate-fade-in-up max-h-[90vh] flex flex-col">
-                <div className="flex justify-between items-center mb-6 border-b pb-4 shrink-0">
-                    <h2 className="text-2xl font-black text-teal-800 uppercase tracking-tighter">Lançamento de Nota Manual</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-3xl font-light">&times;</button>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-4 animate-fade-in-up max-h-[95vh] flex flex-col">
+                <div className="flex justify-between items-center mb-3 border-b pb-2 shrink-0">
+                    <h2 className="text-lg font-black text-teal-800 uppercase tracking-tighter">Lançamento de Nota Manual</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-2xl font-light">&times;</button>
                 </div>
-                <form onSubmit={handleFormSubmit} className="flex-1 flex flex-col overflow-hidden space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase">Fornecedor</label>
-                            <select value={selectedCpf} onChange={e => setSelectedCpf(e.target.value)} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-teal-400 bg-white" required>
+                <form onSubmit={handleFormSubmit} className="flex-1 flex flex-col overflow-hidden">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 mb-3 shrink-0 bg-gray-50 p-2 rounded-xl border">
+                        <div className="space-y-0.5">
+                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Fornecedor</label>
+                            <select value={selectedCpf} onChange={e => setSelectedCpf(e.target.value)} className="w-full h-7 px-2 border rounded-lg text-[10px] outline-none focus:ring-2 focus:ring-teal-400 bg-white" required>
                                 <option value="">-- SELECIONE --</option>
                                 {suppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
                             </select>
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase">Data de Chegada</label>
-                            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-teal-400" required />
+                        <div className="space-y-0.5">
+                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Data Chegada</label>
+                            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full h-7 px-2 border rounded-lg text-[10px] outline-none focus:ring-2 focus:ring-teal-400" required />
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase">Data da Nota Fiscal</label>
-                            <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-teal-400" required />
+                        <div className="space-y-0.5">
+                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Data NF</label>
+                            <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} className="w-full h-7 px-2 border rounded-lg text-[10px] outline-none focus:ring-2 focus:ring-teal-400" required />
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase">Nº Nota Fiscal</label>
-                            <input type="text" value={nf} onChange={e => setNf(e.target.value)} placeholder="000123" className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-teal-400" required />
+                        <div className="space-y-0.5">
+                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Nº Nota Fiscal</label>
+                            <input type="text" value={nf} onChange={e => setNf(e.target.value)} placeholder="000123" className="w-full h-7 px-2 border rounded-lg text-[10px] outline-none focus:ring-2 focus:ring-teal-400" required />
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase">Chave de Acesso (Código de Barras)</label>
-                            <input type="text" value={barcode} onChange={e => setBarcode(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }} placeholder="44 dígitos" className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-teal-400 font-mono" />
+                        <div className="space-y-0.5 md:col-span-2">
+                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Chave de Acesso (44 dígitos)</label>
+                            <input type="text" value={barcode} onChange={e => setBarcode(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }} placeholder="Código de barras" className="w-full h-7 px-2 border rounded-lg text-[10px] outline-none focus:ring-2 focus:ring-teal-400 font-mono" />
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase">Número da Nota de Empenho</label>
-                            <input type="text" value={receiptTermNumber} onChange={e => setReceiptTermNumber(e.target.value)} placeholder="Ex: 001/2026" className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-teal-400" />
+                        <div className="space-y-0.5">
+                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Nota de Empenho</label>
+                            <input type="text" value={receiptTermNumber} onChange={e => setReceiptTermNumber(e.target.value)} placeholder="Ex: 001/2026" className="w-full h-7 px-2 border rounded-lg text-[10px] outline-none focus:ring-2 focus:ring-teal-400" />
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase">NL (Nota de Lançamento)</label>
-                            <input type="text" value={nl} onChange={e => setNl(e.target.value)} placeholder="NL" className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-teal-400" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase">PD (Programação de Desembolso)</label>
-                            <input type="text" value={pd} onChange={e => setPd(e.target.value)} placeholder="PD" className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-teal-400" />
-                        </div>
-                    </div>
-                    <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-                        {items.map(item => (
-                            <div key={item.id} className="bg-gray-50 p-4 rounded-xl border space-y-3">
-                                <div className="flex gap-2 items-end">
-                                    <div className="flex-1">
-                                        <label className="text-[9px] font-black text-gray-400 uppercase">Item</label>
-                                        <select value={item.name} onChange={e => setItems(prev => prev.map(it => it.id === item.id ? { ...it, name: e.target.value } : it))} className="w-full p-2 border rounded-lg text-sm bg-white" required>
-                                            <option value="">-- Selecione o Item --</option>
-                                            {availableContractItems.map(ci => <option key={ci.name} value={ci.name}>{ci.name}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="w-32">
-                                        <label className="text-[9px] font-black text-gray-400 uppercase">Quantidade</label>
-                                        <input type="text" value={item.kg} onChange={e => setItems(prev => prev.map(it => it.id === item.id ? { ...it, kg: e.target.value.replace(/[^0-9,]/g, '') } : it))} placeholder="0,00" className="w-full p-2 border rounded-lg text-sm text-center font-mono" required />
-                                    </div>
-                                    <button type="button" onClick={() => setItems(prev => prev.filter(it => it.id !== item.id))} className="text-red-400 hover:text-red-600 p-2 mb-0.5"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-[9px] font-black text-gray-400 uppercase">Lote</label>
-                                        <input type="text" value={item.lot} onChange={e => setItems(prev => prev.map(it => it.id === item.id ? { ...it, lot: e.target.value.toUpperCase() } : it))} placeholder="LOTE" className="w-full p-2 border rounded-lg text-xs font-mono" />
-                                    </div>
-                                    <div>
-                                        <label className="text-[9px] font-black text-gray-400 uppercase">Validade</label>
-                                        <input type="date" value={item.exp} onChange={e => setItems(prev => prev.map(it => it.id === item.id ? { ...it, exp: e.target.value } : it))} className="w-full p-2 border rounded-lg text-xs" />
-                                    </div>
-                                </div>
+                        <div className="space-y-0.5">
+                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">NL / PD</label>
+                            <div className="flex gap-1">
+                                <input type="text" value={nl} onChange={e => setNl(e.target.value)} placeholder="NL" className="w-1/2 h-7 px-2 border rounded-lg text-[10px] outline-none focus:ring-2 focus:ring-teal-400" />
+                                <input type="text" value={pd} onChange={e => setPd(e.target.value)} placeholder="PD" className="w-1/2 h-7 px-2 border rounded-lg text-[10px] outline-none focus:ring-2 focus:ring-teal-400" />
                             </div>
-                        ))}
-                        <button type="button" onClick={() => setItems([...items, { id: `new-${Date.now()}`, name: '', kg: '', lot: '', exp: '' }])} className="w-full py-2 border-2 border-dashed border-teal-200 text-teal-600 font-bold rounded-xl text-xs uppercase hover:bg-teal-50 transition-colors">+ Adicionar Item</button>
+                        </div>
                     </div>
-                    <div className="flex justify-between items-center pt-6 border-t shrink-0">
-                        <div className="text-right"><p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Valor Total NF</p><p className="text-2xl font-black text-green-700 leading-none">{formatCurrency(totalValue)}</p></div>
-                        <div className="space-x-3">
-                            <button type="button" onClick={onClose} className="bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-xs">Cancelar</button>
-                            <button type="submit" disabled={isSaving || !selectedCpf} className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg disabled:bg-gray-400">{isSaving ? 'Salvando...' : 'Confirmar Lançamento'}</button>
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar mb-3 min-h-0">
+                        <div className="sticky top-0 bg-white z-10 pb-1 border-b mb-1">
+                            <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Itens da Nota Fiscal:</p>
+                        </div>
+                        {items.map(item => {
+                            const contract = (Object.values(selectedSupplier?.contractItems || {}) as any[]).find((ci: any) => ci.name === item.name);
+                            const unit = getDisplayUnit(contract as any);
+                            return (
+                                <div key={item.id} className="bg-gray-50 p-2 rounded-xl border border-gray-100 hover:border-teal-100 transition-colors space-y-1.5">
+                                    <div className="flex gap-2 items-center">
+                                        <div className="flex-1">
+                                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Item</label>
+                                            <select value={item.name} onChange={e => setItems(prev => prev.map(it => it.id === item.id ? { ...it, name: e.target.value } : it))} className="w-full h-8 px-2 border border-gray-200 rounded-lg text-[10px] bg-white focus:ring-2 focus:ring-teal-400 outline-none" required>
+                                                <option value="">-- Selecione o Item --</option>
+                                                {availableContractItems.map(ci => <option key={ci.name} value={ci.name}>{ci.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="w-20">
+                                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1 text-center block">Qtd ({unit})</label>
+                                            <input type="text" value={item.kg} onChange={e => setItems(prev => prev.map(it => it.id === item.id ? { ...it, kg: e.target.value.replace(/[^0-9,]/g, '') } : it))} placeholder="0,00" className="w-full h-8 px-2 border border-gray-200 rounded-lg text-[10px] text-center font-mono focus:ring-2 focus:ring-teal-400 outline-none bg-white" required />
+                                        </div>
+                                        <div className="flex items-center gap-1 mt-3">
+                                            <button 
+                                                type="button" 
+                                                title="Duplicar Item (Novo Lote)"
+                                                onClick={() => {
+                                                    const idx = items.findIndex(it => it.id === item.id);
+                                                    const newItems = [...items];
+                                                    newItems.splice(idx + 1, 0, { ...item, id: `dup-${Date.now()}`, kg: '', lot: '', exp: '' });
+                                                    setItems(newItems);
+                                                }}
+                                                className="bg-teal-50 text-teal-600 hover:bg-teal-100 p-1.5 rounded-lg transition-colors"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
+                                            </button>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setItems(prev => prev.filter(it => it.id !== item.id))} 
+                                                className="bg-red-50 text-red-600 hover:bg-red-100 p-1.5 rounded-lg transition-colors"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Lote</label>
+                                            <input type="text" value={item.lot} onChange={e => setItems(prev => prev.map(it => it.id === item.id ? { ...it, lot: e.target.value.toUpperCase() } : it))} placeholder="LOTE" className="w-full h-7 px-2 border border-gray-200 rounded-lg text-[10px] font-mono focus:ring-2 focus:ring-teal-400 outline-none bg-white" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Validade</label>
+                                            <input type="date" value={item.exp} onChange={e => setItems(prev => prev.map(it => it.id === item.id ? { ...it, exp: e.target.value } : it))} className="w-full h-7 px-2 border border-gray-200 rounded-lg text-[10px] focus:ring-2 focus:ring-teal-400 outline-none bg-white" />
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        <button type="button" onClick={() => setItems([...items, { id: `new-${Date.now()}`, name: '', kg: '', lot: '', exp: '' }])} className="w-full py-2 border-2 border-dashed border-teal-200 text-teal-600 font-black rounded-xl text-[9px] uppercase hover:bg-teal-50 transition-colors">+ Adicionar Novo Item à Nota</button>
+                    </div>
+                    <div className="flex justify-between items-center pt-3 border-t shrink-0">
+                        <div className="text-right"><p className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Valor Total NF</p><p className="text-xl font-black text-green-700 leading-none">{formatCurrency(totalValue)}</p></div>
+                        <div className="space-x-2">
+                            <button type="button" onClick={onClose} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-xl font-bold uppercase tracking-widest text-[10px]">Cancelar</button>
+                            <button type="submit" disabled={isSaving || !selectedCpf} className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg disabled:bg-gray-400">{isSaving ? 'Salvando...' : 'Confirmar Lançamento'}</button>
                         </div>
                     </div>
                 </form>
@@ -1568,56 +1599,55 @@ const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({ invoice, supplier, 
     };
     return (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-[100] p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 animate-fade-in-up max-h-[90vh] flex flex-col">
-                <div className="flex justify-between items-center mb-4 border-b pb-4 shrink-0">
-                    <div><h2 className="text-xl font-bold text-gray-800">Editar NF {invoice.invoiceNumber}</h2><p className="text-xs text-gray-500 uppercase font-black">{invoice.supplierName}</p></div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-3xl font-light">&times;</button>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-4 animate-fade-in-up max-h-[95vh] flex flex-col">
+                <div className="flex justify-between items-center mb-3 border-b pb-2 shrink-0">
+                    <div><h2 className="text-lg font-black text-teal-800 uppercase tracking-tighter">Editar NF {invoice.invoiceNumber}</h2><p className="text-[8px] text-gray-400 uppercase font-black">{invoice.supplierName}</p></div>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-2xl font-light">&times;</button>
                 </div>
                 <form onSubmit={handleFormSubmit} className="flex-1 flex flex-col overflow-hidden">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 shrink-0">
-                        <div className="bg-gray-50 p-2 rounded-xl border space-y-0.5">
-                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Nº Nota Fiscal</label>
-                            <input type="text" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} className="w-full h-9 px-3 border rounded-lg text-sm font-mono outline-none focus:ring-2 focus:ring-teal-400" />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 mb-3 shrink-0 bg-gray-50 p-2 rounded-xl border">
+                        <div className="space-y-0.5">
+                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Nº Nota Fiscal</label>
+                            <input type="text" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} className="w-full h-7 px-2 border rounded-lg text-[10px] font-mono outline-none focus:ring-2 focus:ring-teal-400" />
                         </div>
-                        <div className="bg-gray-50 p-2 rounded-xl border space-y-0.5">
-                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Data Chegada</label>
-                            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full h-9 px-3 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-400" />
+                        <div className="space-y-0.5">
+                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Data Chegada</label>
+                            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full h-7 px-2 border rounded-lg text-[10px] outline-none focus:ring-2 focus:ring-teal-400" />
                         </div>
-                        <div className="bg-gray-50 p-2 rounded-xl border space-y-0.5">
-                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Data NF</label>
-                            <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} className="w-full h-9 px-3 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-400" />
+                        <div className="space-y-0.5">
+                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Data NF</label>
+                            <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} className="w-full h-7 px-2 border rounded-lg text-[10px] outline-none focus:ring-2 focus:ring-teal-400" />
                         </div>
-                        <div className="bg-gray-50 p-2 rounded-xl border space-y-0.5 md:col-span-2">
-                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Chave de Acesso</label>
-                            <input type="text" value={barcode} onChange={e => setBarcode(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }} placeholder="44 dígitos" className="w-full h-9 px-3 border rounded-lg text-sm font-mono outline-none focus:ring-2 focus:ring-teal-400" />
+                        <div className="space-y-0.5">
+                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Nota de Empenho</label>
+                            <input type="text" value={receiptTermNumber} onChange={e => setReceiptTermNumber(e.target.value)} placeholder="Ex: 001/2026" className="w-full h-7 px-2 border rounded-lg text-[10px] outline-none focus:ring-2 focus:ring-teal-400" />
                         </div>
-                        <div className="bg-gray-50 p-2 rounded-xl border space-y-0.5">
-                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Nota de Empenho</label>
-                            <input type="text" value={receiptTermNumber} onChange={e => setReceiptTermNumber(e.target.value)} placeholder="Ex: 001/2026" className="w-full h-9 px-3 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-400" />
+                        <div className="space-y-0.5 md:col-span-3">
+                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Chave de Acesso</label>
+                            <input type="text" value={barcode} onChange={e => setBarcode(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }} placeholder="44 dígitos" className="w-full h-7 px-2 border rounded-lg text-[10px] font-mono outline-none focus:ring-2 focus:ring-teal-400" />
                         </div>
-                        <div className="bg-gray-50 p-2 rounded-xl border space-y-0.5">
-                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">NL</label>
-                            <input type="text" value={nl} onChange={e => setNl(e.target.value)} placeholder="NL" className="w-full h-9 px-3 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-400" />
-                        </div>
-                        <div className="bg-gray-50 p-2 rounded-xl border space-y-0.5">
-                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">PD</label>
-                            <input type="text" value={pd} onChange={e => setPd(e.target.value)} placeholder="PD" className="w-full h-9 px-3 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-400" />
+                        <div className="space-y-0.5">
+                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">NL / PD</label>
+                            <div className="flex gap-1">
+                                <input type="text" value={nl} onChange={e => setNl(e.target.value)} placeholder="NL" className="w-1/2 h-7 px-2 border rounded-lg text-[10px] outline-none focus:ring-2 focus:ring-teal-400" />
+                                <input type="text" value={pd} onChange={e => setPd(e.target.value)} placeholder="PD" className="w-1/2 h-7 px-2 border rounded-lg text-[10px] outline-none focus:ring-2 focus:ring-teal-400" />
+                            </div>
                         </div>
                     </div>
                     
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar mb-4">
-                        <div className="sticky top-0 bg-white z-10 pb-2 space-y-2 border-b mb-2">
-                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Itens da Nota Fiscal:</p>
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar mb-3 min-h-0">
+                        <div className="sticky top-0 bg-white z-10 pb-1 space-y-1 border-b mb-1">
+                            <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Itens da Nota Fiscal:</p>
                             <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                 </span>
                                 <input 
                                     type="text" 
                                     placeholder="Filtrar itens para editar..." 
                                     value={itemSearch}
                                     onChange={e => setItemSearch(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-teal-400 transition-all"
+                                    className="w-full pl-7 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-[10px] outline-none focus:ring-2 focus:ring-teal-400 transition-all"
                                 />
                             </div>
                         </div>
@@ -1626,60 +1656,75 @@ const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({ invoice, supplier, 
                             const contract = (Object.values(supplier.contractItems || {}) as any[]).find((ci: any) => ci.name === item.name);
                             const unit = getDisplayUnit(contract as any);
                             return (
-                                <div key={item.id} className="bg-gray-50 p-3 rounded-xl border border-gray-100 hover:border-teal-100 transition-colors space-y-2">
+                                <div key={item.id} className="bg-gray-50 p-2 rounded-xl border border-gray-100 hover:border-teal-100 transition-colors space-y-1.5">
                                     <div className="flex gap-2 items-center">
                                         <div className="flex-1">
-                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Item</label>
-                                            <select value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-teal-400 outline-none" required>
+                                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Item</label>
+                                            <select value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full h-8 px-2 border border-gray-200 rounded-lg text-[10px] bg-white focus:ring-2 focus:ring-teal-400 outline-none" required>
                                                 <option value="">-- Selecione o Item --</option>
                                                 {availableContractItems.map(ci => <option key={ci.name} value={ci.name}>{ci.name}</option>)}
                                             </select>
                                         </div>
-                                        <div className="w-24">
-                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1 text-center block">Qtd ({unit})</label>
-                                            <input type="text" value={item.kg} onChange={e => handleItemChange(item.id, 'kg', e.target.value)} placeholder="0,00" className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs text-center font-mono focus:ring-2 focus:ring-teal-400 outline-none bg-white" required />
+                                        <div className="w-20">
+                                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1 text-center block">Qtd ({unit})</label>
+                                            <input type="text" value={item.kg} onChange={e => handleItemChange(item.id, 'kg', e.target.value)} placeholder="0,00" className="w-full h-8 px-2 border border-gray-200 rounded-lg text-[10px] text-center font-mono focus:ring-2 focus:ring-teal-400 outline-none bg-white" required />
                                         </div>
-                                        <button 
-                                            type="button" 
-                                            onClick={() => {
-                                                setConfirmConfig({
-                                                    isOpen: true,
-                                                    title: 'Excluir Item',
-                                                    message: `Deseja realmente remover o item "${item.name}" desta nota?`,
-                                                    onConfirm: () => {
-                                                        setItems(prev => prev.filter(it => it.id !== item.id));
-                                                        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-                                                    },
-                                                    variant: 'danger'
-                                                });
-                                            }} 
-                                            className="text-red-400 hover:text-red-600 p-1 mt-3 transition-colors"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                        </button>
+                                        <div className="flex items-center gap-1 mt-3">
+                                            <button 
+                                                type="button" 
+                                                title="Duplicar Item (Novo Lote)"
+                                                onClick={() => {
+                                                    const idx = items.findIndex(it => it.id === item.id);
+                                                    const newItems = [...items];
+                                                    newItems.splice(idx + 1, 0, { ...item, id: `dup-${Date.now()}`, kg: '', lot: '', exp: '' });
+                                                    setItems(newItems);
+                                                }}
+                                                className="bg-teal-50 text-teal-600 hover:bg-teal-100 p-1.5 rounded-lg transition-colors"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
+                                            </button>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => {
+                                                    setConfirmConfig({
+                                                        isOpen: true,
+                                                        title: 'Excluir Item',
+                                                        message: `Deseja realmente remover o item "${item.name}" desta nota?`,
+                                                        onConfirm: () => {
+                                                            setItems(prev => prev.filter(it => it.id !== item.id));
+                                                            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                                                        },
+                                                        variant: 'danger'
+                                                    });
+                                                }} 
+                                                className="bg-red-50 text-red-600 hover:bg-red-100 p-1.5 rounded-lg transition-colors"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-2 gap-2">
                                         <div>
-                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Lote</label>
-                                            <input type="text" value={item.lot} onChange={e => handleItemChange(item.id, 'lot', e.target.value.toUpperCase())} placeholder="LOTE" className="w-full h-8 px-3 border border-gray-200 rounded-lg text-[10px] font-mono focus:ring-2 focus:ring-teal-400 outline-none bg-white" />
+                                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Lote</label>
+                                            <input type="text" value={item.lot} onChange={e => handleItemChange(item.id, 'lot', e.target.value.toUpperCase())} placeholder="LOTE" className="w-full h-7 px-2 border border-gray-200 rounded-lg text-[10px] font-mono focus:ring-2 focus:ring-teal-400 outline-none bg-white" />
                                         </div>
                                         <div>
-                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Validade</label>
-                                            <input type="date" value={item.exp} onChange={e => handleItemChange(item.id, 'exp', e.target.value)} className="w-full h-8 px-3 border border-gray-200 rounded-lg text-[10px] focus:ring-2 focus:ring-teal-400 outline-none bg-white" />
+                                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Validade</label>
+                                            <input type="date" value={item.exp} onChange={handleItemChange.bind(null, item.id, 'exp')} className="w-full h-7 px-2 border border-gray-200 rounded-lg text-[10px] focus:ring-2 focus:ring-teal-400 outline-none bg-white" />
                                         </div>
                                     </div>
                                 </div>
                             );
                         }) : (
-                            <div className="text-center py-6 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                                <p className="text-xs text-gray-400 font-bold uppercase">Nenhum item encontrado</p>
+                            <div className="text-center py-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                                <p className="text-[10px] text-gray-400 font-bold uppercase">Nenhum item encontrado</p>
                             </div>
                         )}
-                        <button type="button" onClick={() => setItems([...items, { id: `new-${Date.now()}`, name: '', kg: '', lot: '', exp: '' }])} className="w-full py-2 border-2 border-dashed border-teal-200 text-teal-600 font-black rounded-xl text-[10px] uppercase hover:bg-teal-50 transition-colors">+ Adicionar Item à Nota</button>
+                        <button type="button" onClick={() => setItems([...items, { id: `new-${Date.now()}`, name: '', kg: '', lot: '', exp: '' }])} className="w-full py-2 border-2 border-dashed border-teal-200 text-teal-600 font-black rounded-xl text-[9px] uppercase hover:bg-teal-50 transition-colors">+ Adicionar Item à Nota</button>
                     </div>
 
-                    <div className="flex justify-between items-center pt-4 border-t shrink-0">
-                        <div className="text-right"><p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">Novo Total</p><p className="text-xl font-black text-green-700">{formatCurrency(totalValue)}</p></div>
+                    <div className="flex justify-between items-center pt-3 border-t shrink-0">
+                        <div className="text-right"><p className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Novo Total</p><p className="text-xl font-black text-green-700">{formatCurrency(totalValue)}</p></div>
                         <div className="space-x-2"><button type="button" onClick={onClose} className="bg-gray-100 text-gray-600 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancelar</button><button type="submit" disabled={isSaving} className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest disabled:bg-gray-400">{isSaving ? 'Gravando...' : 'Salvar Alterações'}</button></div>
                     </div>
                 </form>
