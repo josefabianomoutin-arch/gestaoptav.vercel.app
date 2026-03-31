@@ -562,218 +562,232 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                             </div>
                         </div>
 
-                                           {maintenanceSchedules.length > 0 ? maintenanceSchedules.map((schedule, index) => (
-                                <div key={schedule.id} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${index * 50}ms` }}>
-                                    <div className="p-8">
-                                        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center">
-                                                    <Wrench className="h-6 w-6 text-indigo-600" />
-                                                </div>
-                                                <div>
-                                                    <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">Manutenção Agendada</h4>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">ID: {schedule.id.slice(-6)}</p>
-                                                </div>
+                        {maintenanceSchedules.length > 0 ? maintenanceSchedules.map((schedule, index) => (
+                            <div key={schedule.id} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${index * 50}ms` }}>
+                                <div className="p-8">
+                                    <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center">
+                                                <Wrench className="h-6 w-6 text-indigo-600" />
                                             </div>
-                                            <div className="flex flex-wrap gap-2">
-                                                <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${
-                                                    schedule.status === 'concluido' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                                                    schedule.status === 'em_andamento' ? 'bg-blue-100 text-blue-700 border-blue-200' :
-                                                    'bg-amber-100 text-amber-700 border-amber-200'
-                                                }`}>
-                                                    {schedule.status.replace('_', ' ')}
-                                                </span>
-                                                <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${
-                                                    schedule.toolsStatus === 'dentro' ? 'bg-blue-100 text-blue-700 border-blue-200' :
-                                                    schedule.toolsStatus === 'devolvido' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                                                    'bg-slate-100 text-slate-600 border-slate-200'
-                                                }`}>
-                                                    {schedule.toolsStatus === 'dentro' ? 'DENTRO DA UNIDADE' : 
-                                                     schedule.toolsStatus === 'devolvido' ? 'BAIXA DADA (DEVOLVIDO)' : 
-                                                     'FORA DA UNIDADE'}
-                                                </span>
+                                            <div>
+                                                <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">Manutenção Agendada</h4>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">ID: {schedule.id.slice(-6)}</p>
                                             </div>
                                         </div>
-
-                                        {schedule.validatedByChief && schedule.validatedByDirector && (
-                                            <div className="mb-8">
-                                                <button 
-                                                    onClick={() => {
-                                                        const order = serviceOrders.find(o => o.id === schedule.serviceOrderId);
-                                                        if (order) generatePDF(schedule, order);
-                                                    }}
-                                                    className="w-full flex items-center gap-4 p-5 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 transition-all group transform hover:-translate-y-1"
-                                                >
-                                                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
-                                                        <FileText className="h-6 w-6 text-white" />
-                                                    </div>
-                                                    <div className="flex-1 text-left">
-                                                        <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest leading-none mb-1">Conferência de Pessoas e Materiais</p>
-                                                        <p className="text-sm font-black uppercase tracking-tighter italic">Visualizar Autorização de Saída (PDF)</p>
-                                                    </div>
-                                                    <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
-                                                        <Play className="h-4 w-4 text-white" />
-                                                    </div>
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Data e Hora</p>
-                                                <p className="text-sm font-black text-slate-900">{schedule.date} às {schedule.time}</p>
-                                            </div>
-                                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local</p>
-                                                <p className="text-sm font-black text-slate-900">{schedule.location}</p>
-                                            </div>
-                                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Acompanhante</p>
-                                                <p className="text-sm font-black text-slate-900">{schedule.accompanyingPerson}</p>
-                                            </div>
-                                        </div>
-
-                                        {schedule.tools && schedule.tools.some(t => t.trim() !== '') && (
-                                            <div className="mb-8">
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shadow-sm">
-                                                            <Wrench className="h-5 w-5 text-indigo-600" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Inventário de Ferramentas</p>
-                                                            <h5 className="text-sm font-black text-slate-900 uppercase tracking-tighter italic">Conferência Obrigatória</h5>
-                                                        </div>
-                                                    </div>
-                                                    <div className="bg-slate-100 px-4 py-2 rounded-xl border border-slate-200">
-                                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                                            {schedule.tools.filter(t => t.trim() !== '').length} Itens Relacionados
-                                                        </p>
-                                                    </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            <div className="flex items-center gap-2 mr-2">
+                                                <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter border ${schedule.validatedByChief ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                                                    <CheckCircle2 className={`h-3 w-3 ${schedule.validatedByChief ? 'text-green-600' : 'text-slate-300'}`} />
+                                                    Chefe
                                                 </div>
-                                                
-                                                <div className="bg-slate-50/50 p-6 rounded-[2.5rem] border border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                    {schedule.tools.filter(t => t.trim() !== '').map((tool, i) => (
-                                                        <label key={i} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-all cursor-pointer group">
-                                                            <div className="relative flex items-center justify-center">
-                                                                <input 
-                                                                    type="checkbox" 
-                                                                    className="peer h-6 w-6 appearance-none border-2 border-slate-200 rounded-lg checked:bg-indigo-600 checked:border-indigo-600 transition-all cursor-pointer"
-                                                                />
-                                                                <CheckCircle2 className="absolute h-4 w-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Item {String(i + 1).padStart(2, '0')}</p>
-                                                                <p className="text-xs font-bold text-slate-700 truncate group-hover:text-indigo-900 transition-colors">{tool}</p>
-                                                            </div>
-                                                        </label>
-                                                    ))}
+                                                <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter border ${schedule.validatedByDirector ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                                                    <CheckCircle2 className={`h-3 w-3 ${schedule.validatedByDirector ? 'text-green-600' : 'text-slate-300'}`} />
+                                                    Diretor
                                                 </div>
                                             </div>
-                                        )}
-
-                                        {schedule.toolsNeeded && (
-                                            <div className="mb-6 bg-amber-50/50 p-4 rounded-2xl border border-amber-100/50">
-                                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Observações Adicionais</p>
-                                                <p className="text-sm font-bold text-amber-900 italic leading-relaxed">"{schedule.toolsNeeded}"</p>
-                                            </div>
-                                        )}
-
-                                        {(() => {
-                                            const relatedOrder = serviceOrders.find(o => o.id === schedule.serviceOrderId);
-                                            if (relatedOrder && relatedOrder.inspectionObservations) {
-                                                return (
-                                                    <div className="mb-6 bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50">
-                                                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Observações da Infraestrutura</p>
-                                                        <p className="text-sm font-bold text-blue-900 italic leading-relaxed">"{relatedOrder.inspectionObservations}"</p>
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        })()}
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                                            {schedule.entryAuthorizedAt && (
-                                                <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex items-center gap-4">
-                                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                                                        <Clock className="h-5 w-5 text-blue-600" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest leading-none mb-1">Entrada Liberada</p>
-                                                        <p className="text-xs font-black text-blue-700">{new Date(schedule.entryAuthorizedAt).toLocaleString('pt-BR')}</p>
-                                                        <p className="text-[8px] font-bold text-blue-400 uppercase mt-0.5">Por: {schedule.entryAuthorizedBy}</p>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            {schedule.returnAuthorizedAt && (
-                                                <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex items-center gap-4">
-                                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                                                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest leading-none mb-1">Retorno Liberado</p>
-                                                        <p className="text-xs font-black text-emerald-700">{new Date(schedule.returnAuthorizedAt).toLocaleString('pt-BR')}</p>
-                                                        <p className="text-[8px] font-bold text-emerald-400 uppercase mt-0.5">Por: {schedule.returnAuthorizedBy}</p>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="flex flex-wrap justify-end gap-3 pt-6 border-t border-slate-100">
-                                            {schedule.toolsStatus === 'fora' && (
-                                                <button
-                                                    onClick={() => onUpdateMaintenanceSchedule(schedule.id, { 
-                                                        toolsStatus: 'dentro',
-                                                        entryAuthorizedBy: 'Segurança Externa',
-                                                        entryAuthorizedAt: new Date().toISOString()
-                                                    })}
-                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all shadow-lg shadow-indigo-100 flex items-center gap-2 active:scale-95"
-                                                >
-                                                    <LogIn className="h-4 w-4" /> Liberar Entrada de Ferramentas
-                                                </button>
-                                            )}
-                                            {schedule.toolsStatus === 'dentro' && (
-                                                <button
-                                                    onClick={() => onUpdateMaintenanceSchedule(schedule.id, { 
-                                                        toolsStatus: 'devolvido',
-                                                        returnAuthorizedBy: 'Segurança Externa',
-                                                        returnAuthorizedAt: new Date().toISOString()
-                                                    })}
-                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all shadow-lg shadow-emerald-100 flex items-center gap-2 active:scale-95"
-                                                >
-                                                    <LogOut className="h-4 w-4" /> Liberar Retorno de Ferramentas
-                                                </button>
-                                            )}
-                                            {schedule.status === 'agendado' && (
-                                                <button
-                                                    onClick={() => onUpdateMaintenanceSchedule(schedule.id, { status: 'em_andamento' })}
-                                                    className="bg-blue-600 hover:bg-blue-700 text-white font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all shadow-lg shadow-blue-100 flex items-center gap-2 active:scale-95"
-                                                >
-                                                    <Play className="h-4 w-4" /> Iniciar Manutenção
-                                                </button>
-                                            )}
-                                            {schedule.status === 'em_andamento' && (
-                                                <button
-                                                    onClick={() => onUpdateMaintenanceSchedule(schedule.id, { status: 'concluido' })}
-                                                    className="bg-green-600 hover:bg-green-700 text-white font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all shadow-lg shadow-green-100 flex items-center gap-2 active:scale-95"
-                                                >
-                                                    <CheckCircle2 className="h-4 w-4" /> Concluir Manutenção
-                                                </button>
-                                            )}
+                                            <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${
+                                                schedule.status === 'concluido' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                                schedule.status === 'em_andamento' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                                'bg-amber-100 text-amber-700 border-amber-200'
+                                            }`}>
+                                                {schedule.status.replace('_', ' ')}
+                                            </span>
+                                            <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${
+                                                schedule.toolsStatus === 'dentro' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                                schedule.toolsStatus === 'devolvido' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                                'bg-slate-100 text-slate-600 border-slate-200'
+                                            }`}>
+                                                {schedule.toolsStatus === 'dentro' ? 'DENTRO DA UNIDADE' : 
+                                                 schedule.toolsStatus === 'devolvido' ? 'BAIXA DADA (DEVOLVIDO)' : 
+                                                 'FORA DA UNIDADE'}
+                                            </span>
                                         </div>
                                     </div>
+
+                                    {schedule.validatedByChief && schedule.validatedByDirector && (
+                                        <div className="mb-8">
+                                            <button 
+                                                onClick={() => {
+                                                    const order = serviceOrders.find(o => o.id === schedule.serviceOrderId);
+                                                    if (order) generatePDF(schedule, order);
+                                                }}
+                                                className="w-full flex items-center gap-4 p-5 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 transition-all group transform hover:-translate-y-1"
+                                            >
+                                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
+                                                    <FileText className="h-6 w-6 text-white" />
+                                                </div>
+                                                <div className="flex-1 text-left">
+                                                    <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest leading-none mb-1">Conferência de Pessoas e Materiais</p>
+                                                    <p className="text-sm font-black uppercase tracking-tighter italic">Visualizar Autorização de Saída (PDF)</p>
+                                                </div>
+                                                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+                                                    <Play className="h-4 w-4 text-white" />
+                                                </div>
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Data e Hora</p>
+                                            <p className="text-sm font-black text-slate-900">{schedule.date} às {schedule.time}</p>
+                                        </div>
+                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local</p>
+                                            <p className="text-sm font-black text-slate-900">{schedule.location}</p>
+                                        </div>
+                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Acompanhante</p>
+                                            <p className="text-sm font-black text-slate-900">{schedule.accompanyingPerson}</p>
+                                        </div>
+                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">PPLs Designados</p>
+                                            <p className="text-sm font-black text-slate-900">{schedule.ppls?.filter(p => p.trim() !== '').length || 0} PPLs</p>
+                                        </div>
+                                    </div>
+
+                                    {schedule.tools && schedule.tools.some(t => t.trim() !== '') && (
+                                        <div className="mb-8">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shadow-sm">
+                                                        <Wrench className="h-5 w-5 text-indigo-600" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Inventário de Ferramentas</p>
+                                                        <h5 className="text-sm font-black text-slate-900 uppercase tracking-tighter italic">Conferência Obrigatória</h5>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-slate-100 px-4 py-2 rounded-xl border border-slate-200">
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                                        {schedule.tools.filter(t => t.trim() !== '').length} Itens Relacionados
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="bg-slate-50/50 p-6 rounded-[2.5rem] border border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {schedule.tools.filter(t => t.trim() !== '').map((tool, i) => (
+                                                    <label key={i} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-all cursor-pointer group">
+                                                        <div className="relative flex items-center justify-center">
+                                                            <input 
+                                                                type="checkbox" 
+                                                                className="peer h-6 w-6 appearance-none border-2 border-slate-200 rounded-lg checked:bg-indigo-600 checked:border-indigo-600 transition-all cursor-pointer"
+                                                            />
+                                                            <CheckCircle2 className="absolute h-4 w-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Item {String(i + 1).padStart(2, '0')}</p>
+                                                            <p className="text-xs font-bold text-slate-700 truncate group-hover:text-indigo-900 transition-colors">{tool}</p>
+                                                        </div>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {schedule.toolsNeeded && (
+                                        <div className="mb-6 bg-amber-50/50 p-4 rounded-2xl border border-amber-100/50">
+                                            <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Observações Adicionais</p>
+                                            <p className="text-sm font-bold text-amber-900 italic leading-relaxed">"{schedule.toolsNeeded}"</p>
+                                        </div>
+                                    )}
+
+                                    {(() => {
+                                        const relatedOrder = serviceOrders.find(o => o.id === schedule.serviceOrderId);
+                                        if (relatedOrder && relatedOrder.inspectionObservations) {
+                                            return (
+                                                <div className="mb-6 bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50">
+                                                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Observações da Infraestrutura</p>
+                                                    <p className="text-sm font-bold text-blue-900 italic leading-relaxed">"{relatedOrder.inspectionObservations}"</p>
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                                        {schedule.entryAuthorizedAt && (
+                                            <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                                                    <Clock className="h-5 w-5 text-blue-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest leading-none mb-1">Entrada Liberada</p>
+                                                    <p className="text-xs font-black text-blue-700">{new Date(schedule.entryAuthorizedAt).toLocaleString('pt-BR')}</p>
+                                                    <p className="text-[8px] font-bold text-blue-400 uppercase mt-0.5">Por: {schedule.entryAuthorizedBy}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {schedule.returnAuthorizedAt && (
+                                            <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                                                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest leading-none mb-1">Retorno Liberado</p>
+                                                    <p className="text-xs font-black text-emerald-700">{new Date(schedule.returnAuthorizedAt).toLocaleString('pt-BR')}</p>
+                                                    <p className="text-[8px] font-bold text-emerald-400 uppercase mt-0.5">Por: {schedule.returnAuthorizedBy}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-wrap justify-end gap-3 pt-6 border-t border-slate-100">
+                                        {schedule.toolsStatus === 'fora' && (
+                                            <button
+                                                onClick={() => onUpdateMaintenanceSchedule(schedule.id, { 
+                                                    toolsStatus: 'dentro',
+                                                    entryAuthorizedBy: 'Segurança Externa',
+                                                    entryAuthorizedAt: new Date().toISOString()
+                                                })}
+                                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all shadow-lg shadow-indigo-100 flex items-center gap-2 active:scale-95"
+                                            >
+                                                <LogIn className="h-4 w-4" /> Liberar Entrada de Ferramentas
+                                            </button>
+                                        )}
+                                        {schedule.toolsStatus === 'dentro' && (
+                                            <button
+                                                onClick={() => onUpdateMaintenanceSchedule(schedule.id, { 
+                                                    toolsStatus: 'devolvido',
+                                                    returnAuthorizedBy: 'Segurança Externa',
+                                                    returnAuthorizedAt: new Date().toISOString()
+                                                })}
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all shadow-lg shadow-emerald-100 flex items-center gap-2 active:scale-95"
+                                            >
+                                                <LogOut className="h-4 w-4" /> Liberar Retorno de Ferramentas
+                                            </button>
+                                        )}
+                                        {schedule.status === 'agendado' && (
+                                            <button
+                                                onClick={() => onUpdateMaintenanceSchedule(schedule.id, { status: 'em_andamento' })}
+                                                className="bg-blue-600 hover:bg-blue-700 text-white font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all shadow-lg shadow-blue-100 flex items-center gap-2 active:scale-95"
+                                            >
+                                                <Play className="h-4 w-4" /> Iniciar Manutenção
+                                            </button>
+                                        )}
+                                        {schedule.status === 'em_andamento' && (
+                                            <button
+                                                onClick={() => onUpdateMaintenanceSchedule(schedule.id, { status: 'concluido' })}
+                                                className="bg-green-600 hover:bg-green-700 text-white font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all shadow-lg shadow-green-100 flex items-center gap-2 active:scale-95"
+                                            >
+                                                <CheckCircle2 className="h-4 w-4" /> Concluir Manutenção
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                            )) : (
-                                <div className="text-center py-20 bg-white/50 rounded-[3rem] border-4 border-dashed border-slate-200">
-                            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <AlertTriangle className="h-8 w-8 text-slate-300" />
                             </div>
-                            <p className="text-sm font-black text-slate-400 uppercase tracking-widest italic">Nenhuma manutenção</p>
-                            <p className="text-[10px] font-bold text-slate-300 mt-1 uppercase">Agendada no momento</p>
-                        </div>
-                    )}
-                </div>
-            )}
+                        )) : (
+                            <div className="text-center py-20 bg-white/50 rounded-[3rem] border-4 border-dashed border-slate-200">
+                                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <AlertTriangle className="h-8 w-8 text-slate-300" />
+                                </div>
+                                <p className="text-sm font-black text-slate-400 uppercase tracking-widest italic">Nenhuma manutenção</p>
+                                <p className="text-[10px] font-bold text-slate-300 mt-1 uppercase">Agendada no momento</p>
+                            </div>
+                        )}
+                    </div>
+                )}
         </main>
 
         {/* Modal de Verificação Facial */}
