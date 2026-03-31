@@ -13,6 +13,8 @@ export interface Delivery {
   invoiceDate?: string; // NOVO: Data de emissão da NF
   barcode?: string; // NOVO: Código de barras da NF
   receiptTermNumber?: string; // NOVO: Número do termo de recebimento
+  nl?: string; // NOVO: Nota de Lançamento
+  pd?: string; // NOVO: Programação de Desembolso
   lots?: {
     id: string;
     lotNumber: string;

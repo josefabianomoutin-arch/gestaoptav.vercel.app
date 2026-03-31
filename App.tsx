@@ -693,7 +693,7 @@ const App: React.FC = () => {
 
   // --- GERENCIAMENTO DE NOTAS FISCAIS (ADMIN) ---
 
-  const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string) => {
+  const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => {
     const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
     if (isMainSupplier) {
       const supplierRef = child(suppliersRef, supplierCpf);
@@ -708,6 +708,8 @@ const App: React.FC = () => {
             const finalInvoiceNumber = newInvoiceNumber || invoiceNumber;
             const finalReceiptTerm = receiptTermNumber !== undefined ? receiptTermNumber : existingForNf[0].receiptTermNumber;
             const finalInvoiceDate = invoiceDate !== undefined ? invoiceDate : existingForNf[0].invoiceDate;
+            const finalNl = nl !== undefined ? nl : existingForNf[0].nl;
+            const finalPd = pd !== undefined ? pd : existingForNf[0].pd;
             const existingInvoiceUrl = existingForNf.find(d => d.invoiceUrl)?.invoiceUrl;
 
             // Remove itens antigos daquela nota
@@ -728,6 +730,8 @@ const App: React.FC = () => {
                 invoiceDate: finalInvoiceDate,
                 barcode: barcode,
                 receiptTermNumber: finalReceiptTerm,
+                nl: finalNl,
+                pd: finalPd,
                 lots: [{
                   id: `lot-edit-${Date.now()}-${idx}`,
                   lotNumber: item.lotNumber || 'EDITADO',
@@ -745,7 +749,6 @@ const App: React.FC = () => {
         console.error('Erro detalhado ao gravar no banco de dados (MainSupplier):', e);
         return { success: false, message: 'Erro ao gravar no banco de dados: ' + (e instanceof Error ? e.message : String(e)) };
       }
-      return;
     }
 
     try {
@@ -762,6 +765,8 @@ const App: React.FC = () => {
               const finalInvoiceNumber = newInvoiceNumber || invoiceNumber;
               const finalReceiptTerm = receiptTermNumber !== undefined ? receiptTermNumber : existingForNf[0].receiptTermNumber;
               const finalInvoiceDate = invoiceDate !== undefined ? invoiceDate : existingForNf[0].invoiceDate;
+              const finalNl = nl !== undefined ? nl : existingForNf[0].nl;
+              const finalPd = pd !== undefined ? pd : existingForNf[0].pd;
               const existingInvoiceUrl = existingForNf.find((d: any) => d.invoiceUrl)?.invoiceUrl;
 
               s.deliveries = s.deliveries.filter((d: any) => d.invoiceNumber !== invoiceNumber);
@@ -780,6 +785,8 @@ const App: React.FC = () => {
                   invoiceDate: finalInvoiceDate,
                   barcode: barcode,
                   receiptTermNumber: finalReceiptTerm,
+                  nl: finalNl,
+                  pd: finalPd,
                   lots: [{
                     id: `lot-edit-${Date.now()}-${idx}`,
                     lotNumber: item.lotNumber || 'EDITADO',
@@ -1027,7 +1034,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleManualInvoiceEntry = async (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string) => {
+  const handleManualInvoiceEntry = async (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => {
     let supplierName = '';
     const mainSupplier = suppliers.find(s => s.cpf === supplierCpf);
     if (mainSupplier) {
@@ -1087,6 +1094,8 @@ const App: React.FC = () => {
                 invoiceDate: invoiceDate,
                 barcode: barcode,
                 receiptTermNumber: receiptTermNumber,
+                nl: nl,
+                pd: pd,
                 lots: [{
                   id: le.lotId,
                   lotNumber: item.lotNumber || 'MANUAL',
@@ -1121,6 +1130,8 @@ const App: React.FC = () => {
                     invoiceDate: invoiceDate,
                     barcode: barcode,
                     receiptTermNumber: receiptTermNumber,
+                    nl: nl,
+                    pd: pd,
                     lots: [{
                       id: le.lotId,
                       lotNumber: item.lotNumber || 'MANUAL',
