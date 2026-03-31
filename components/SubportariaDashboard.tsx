@@ -249,86 +249,237 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
         const html = `
             <html>
                 <head>
-                    <title>Autorização de Saída</title>
+                    <title>Autorização de Saída - Manutenção Externa</title>
                     <style>
-                        body { font-family: sans-serif; padding: 40px; line-height: 1.6; color: #333; }
-                        .header { text-align: center; font-weight: bold; margin-bottom: 40px; font-size: 18px; text-decoration: underline; }
-                        .content { margin-bottom: 30px; text-align: justify; }
-                        .date-centered { text-align: center; margin: 30px 0; font-weight: bold; }
-                        .ppls { margin: 20px 0; list-style: none; padding: 0; }
-                        .ppls li { margin-bottom: 5px; border-bottom: 1px dotted #ccc; padding-bottom: 2px; }
-                        .signatures { margin-top: 60px; display: flex; flex-direction: column; align-items: center; gap: 40px; }
-                        .signature-block { text-align: center; width: 100%; max-width: 500px; }
+                        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+                        
+                        body { 
+                            font-family: 'Inter', sans-serif; 
+                            padding: 50px; 
+                            line-height: 1.5; 
+                            color: #1e293b;
+                            background-color: #fff;
+                        }
+                        
+                        .page-border {
+                            border: 1px solid #e2e8f0;
+                            padding: 40px;
+                            position: relative;
+                            min-height: 90vh;
+                        }
+
+                        .header { 
+                            text-align: center; 
+                            margin-bottom: 50px; 
+                        }
+                        
+                        .header h1 {
+                            font-size: 22px;
+                            font-weight: 900;
+                            text-transform: uppercase;
+                            letter-spacing: 2px;
+                            margin: 0;
+                            color: #0f172a;
+                            border-bottom: 4px solid #10b981;
+                            display: inline-block;
+                            padding-bottom: 8px;
+                        }
+
+                        .content { 
+                            margin-bottom: 40px; 
+                            font-size: 14px;
+                        }
+                        
+                        .salutation {
+                            font-weight: 700;
+                            margin-bottom: 20px;
+                            color: #475569;
+                        }
+
+                        .main-text {
+                            text-align: justify;
+                            margin-bottom: 30px;
+                        }
+
+                        .date-centered { 
+                            text-align: center; 
+                            margin: 40px 0; 
+                            font-weight: 700;
+                            font-size: 16px;
+                            color: #0f172a;
+                        }
+
+                        .ppl-section {
+                            margin-top: 30px;
+                        }
+
+                        .ppl-header {
+                            font-weight: 900;
+                            font-size: 12px;
+                            text-transform: uppercase;
+                            letter-spacing: 1px;
+                            color: #64748b;
+                            margin-bottom: 15px;
+                            border-bottom: 1px solid #e2e8f0;
+                            padding-bottom: 5px;
+                        }
+
+                        .ppls { 
+                            margin: 0; 
+                            list-style: none; 
+                            padding: 0; 
+                        }
+                        
+                        .ppls li { 
+                            padding: 10px 0;
+                            border-bottom: 1px dashed #cbd5e1;
+                            font-weight: 700;
+                            font-size: 15px;
+                            color: #1e293b;
+                        }
+
+                        .signatures { 
+                            margin-top: 60px; 
+                            display: flex; 
+                            flex-direction: column; 
+                            align-items: center; 
+                            gap: 30px; 
+                        }
+                        
+                        .signature-block { 
+                            text-align: center; 
+                            width: 100%; 
+                            max-width: 450px; 
+                        }
+
                         .digital-signature {
-                            border: 2px solid #000;
-                            padding: 10px 20px;
+                            border: 2px solid #10b981;
+                            border-radius: 12px;
+                            padding: 15px 25px;
                             display: inline-block;
                             text-align: center;
-                            margin-bottom: 10px;
-                            background: #fff;
+                            background: #f0fdf4;
                             position: relative;
+                            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
                         }
+
                         .signature-badge {
-                            font-size: 9px;
-                            color: #000;
-                            font-weight: bold;
+                            font-size: 10px;
+                            color: #059669;
+                            font-weight: 900;
                             text-transform: uppercase;
-                            border-bottom: 1px solid #000;
-                            margin-bottom: 5px;
-                            padding-bottom: 2px;
-                            letter-spacing: 1px;
+                            letter-spacing: 1.5px;
+                            margin-bottom: 8px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 5px;
                         }
+
+                        .signature-badge::before {
+                            content: '✓';
+                            background: #10b981;
+                            color: white;
+                            width: 14px;
+                            height: 14px;
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 8px;
+                        }
+
                         .signature-details {
-                            font-size: 12px;
-                            font-weight: bold;
+                            font-size: 14px;
+                            font-weight: 900;
+                            color: #064e3b;
+                            line-height: 1.2;
                         }
+
                         .signature-timestamp {
-                            font-size: 9px;
-                            font-weight: normal;
-                            margin-top: 2px;
+                            font-size: 10px;
+                            font-weight: 400;
+                            color: #059669;
+                            margin-top: 6px;
+                            font-family: monospace;
                         }
-                        .role { font-size: 11px; font-weight: bold; margin-top: 5px; }
+
+                        .role { 
+                            font-size: 11px; 
+                            font-weight: 700; 
+                            margin-top: 10px; 
+                            color: #475569;
+                            text-transform: uppercase;
+                        }
+
+                        .watermark {
+                            position: absolute;
+                            top: 50%;
+                            left: 50%;
+                            transform: translate(-50%, -50%) rotate(-45deg);
+                            font-size: 100px;
+                            font-weight: 900;
+                            color: rgba(16, 185, 129, 0.03);
+                            white-space: nowrap;
+                            pointer-events: none;
+                            z-index: -1;
+                            text-transform: uppercase;
+                        }
+
                         @media print {
+                            body { padding: 0; }
+                            .page-border { border: none; }
                             .no-print { display: none; }
                         }
                     </style>
                 </head>
                 <body>
-                    <div class="header">AUTORIZAÇÃO DE SAÍDA PARA TRABALHO</div>
-                    
-                    <div class="content">
-                        <p>Senhores Chefes;</p>
-                        <p>Ficam os PPL’s abaixo qualificados, AUTORIZADOS a trabalhar no setor de MANUTENÇÃO EXTERNA – horário das <strong>${schedule.time}</strong>, no dia <strong>${new Date(schedule.date).toLocaleDateString('pt-BR')}</strong>, devidamente acompanhado por Policial Penal.</p>
+                    <div class="page-border">
+                        <div class="watermark">AUTORIZADO</div>
                         
-                        <div class="date-centered">Taiúva, ${dateInFull}.</div>
+                        <div class="header">
+                            <h1>Autorização de Saída para Trabalho</h1>
+                        </div>
                         
-                        <p><strong>NOME/MATRICULA</strong></p>
-                        <ul class="ppls">
-                            ${pplsList || '<li>Nenhum PPL designado</li>'}
-                        </ul>
-                    </div>
-
-                    <div class="signatures">
-                        <div class="signature-block">
-                            <div class="digital-signature">
-                                <div class="signature-badge">Validado Digitalmente</div>
-                                <div class="signature-details">
-                                    WALTER RODRIGUES JUNIOR<br/>
-                                    <div class="signature-timestamp">Autenticado em: ${formatTimestamp(schedule.validatedByChiefAt)}</div>
-                                </div>
+                        <div class="content">
+                            <div class="salutation">Senhores Chefes,</div>
+                            
+                            <div class="main-text">
+                                Ficam os PPL’s abaixo qualificados, <strong>AUTORIZADOS</strong> a trabalhar no setor de <strong>MANUTENÇÃO EXTERNA</strong> – horário das <strong>${schedule.time}</strong>, no dia <strong>${new Date(schedule.date).toLocaleDateString('pt-BR')}</strong>, devidamente acompanhado por Policial Penal.
                             </div>
-                            <div class="role">Chefe de Seç. de Formação Educ, Trab. e Capacitação Profiss.</div>
+                            
+                            <div class="date-centered">Taiúva, ${dateInFull}.</div>
+                            
+                            <div class="ppl-section">
+                                <div class="ppl-header">NOME / MATRÍCULA</div>
+                                <ul class="ppls">
+                                    ${pplsList || '<li>Nenhum PPL designado</li>'}
+                                </ul>
+                            </div>
                         </div>
 
-                        <div class="signature-block">
-                            <div class="digital-signature">
-                                <div class="signature-badge">Validado Digitalmente</div>
-                                <div class="signature-details">
-                                    ALFREDO GUILHERME LOPES<br/>
-                                    <div class="signature-timestamp">Autenticado em: ${formatTimestamp(schedule.validatedByDirectorAt)}</div>
+                        <div class="signatures">
+                            <div class="signature-block">
+                                <div class="digital-signature">
+                                    <div class="signature-badge">Validado Digitalmente</div>
+                                    <div class="signature-details">
+                                        WALTER RODRIGUES JUNIOR
+                                        <div class="signature-timestamp">Autenticado em: ${formatTimestamp(schedule.validatedByChiefAt)}</div>
+                                    </div>
                                 </div>
+                                <div class="role">Chefe de Seç. de Formação Educ, Trab. e Capacitação Profiss.</div>
                             </div>
-                            <div class="role">Diretor do Centro de Segurança e Disciplina</div>
+
+                            <div class="signature-block">
+                                <div class="digital-signature">
+                                    <div class="signature-badge">Validado Digitalmente</div>
+                                    <div class="signature-details">
+                                        ALFREDO GUILHERME LOPES
+                                        <div class="signature-timestamp">Autenticado em: ${formatTimestamp(schedule.validatedByDirectorAt)}</div>
+                                    </div>
+                                </div>
+                                <div class="role">Diretor do Centro de Segurança e Disciplina</div>
+                            </div>
                         </div>
                     </div>
 
