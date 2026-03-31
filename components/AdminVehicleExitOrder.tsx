@@ -621,12 +621,17 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         </button>
                     ) : (
                         <>
-                            <button onClick={() => handlePrint(order)} className="p-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-colors" title="Imprimir">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                            </button>
                             {!readOnly && !hideEdit && (
-                                <button onClick={() => handleEdit(order)} className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors" title="Editar">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                <button 
+                                    onClick={() => handleEdit(order)} 
+                                    className={`p-2 rounded-xl transition-all ${order.validationRole ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                                    title={order.validationRole ? "Registrar Horários" : "Editar"}
+                                >
+                                    {order.validationRole ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                    )}
                                 </button>
                             )}
                             {!readOnly && (
@@ -1572,10 +1577,10 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                             <div className="flex justify-between items-center mb-4 border-b pb-3">
                                 <div>
                                     <h3 className="text-lg md:text-xl font-black text-gray-900 uppercase tracking-tighter italic">
-                                        {securityMode ? 'Registrar Horários' : editingOrder ? 'Editar Ordem' : 'Nova Ordem de Saída'}
+                                        {(securityMode || editingOrder?.validationRole) ? 'Registrar Horários' : editingOrder ? 'Editar Ordem' : 'Nova Ordem de Saída'}
                                     </h3>
                                     <p className="text-gray-400 font-bold text-[8px] uppercase tracking-widest mt-0.5">
-                                        {securityMode ? 'Informe os horários de saída e retorno' : 'Preencha os dados do deslocamento'}
+                                        {(securityMode || editingOrder?.validationRole) ? 'Informe os horários de saída e retorno' : 'Preencha os dados do deslocamento'}
                                     </p>
                                 </div>
                                 <button onClick={() => setIsModalOpen(false)} className="p-1.5 bg-gray-100 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-500 transition-all">
@@ -1584,7 +1589,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                             </div>
 
                             <form onSubmit={handleSubmit} className="space-y-4">
-                                {securityMode ? (
+                                { (securityMode || editingOrder?.validationRole) ? (
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1">
                                             <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Saída</label>
