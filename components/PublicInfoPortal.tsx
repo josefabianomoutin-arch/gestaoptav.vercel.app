@@ -9,6 +9,8 @@ interface PublicInfoPortalProps {
 }
 
 const PublicInfoPortal: React.FC<PublicInfoPortalProps> = ({ isOpen, onClose, infoList }) => {
+  const isAbrilVerde = new Date().getMonth() === 3; // April is index 3
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -28,7 +30,7 @@ const PublicInfoPortal: React.FC<PublicInfoPortalProps> = ({ isOpen, onClose, in
             className="relative w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
           >
             {/* Header */}
-            <div className="p-8 bg-indigo-900 text-white flex justify-between items-center">
+            <div className={`p-8 text-white flex justify-between items-center transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-900' : 'bg-indigo-900'}`}>
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-white/10 rounded-2xl">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -37,7 +39,7 @@ const PublicInfoPortal: React.FC<PublicInfoPortalProps> = ({ isOpen, onClose, in
                 </div>
                 <div>
                   <h2 className="text-2xl font-black uppercase tracking-tighter italic">Portal de Informações</h2>
-                  <p className="text-indigo-300 text-[10px] font-bold uppercase tracking-[0.2em]">Comunicados Oficiais • Gestão 2026</p>
+                  <p className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-colors duration-500 ${isAbrilVerde ? 'text-emerald-300' : 'text-indigo-300'}`}>Comunicados Oficiais • Gestão 2026</p>
                 </div>
               </div>
               <button 
@@ -51,7 +53,7 @@ const PublicInfoPortal: React.FC<PublicInfoPortalProps> = ({ isOpen, onClose, in
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
+            <div className={`flex-1 overflow-y-auto p-8 transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-50/30' : 'bg-slate-50'}`}>
               {infoList.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4 py-20">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -70,14 +72,14 @@ const PublicInfoPortal: React.FC<PublicInfoPortalProps> = ({ isOpen, onClose, in
                       className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all group"
                     >
                       <div className="flex justify-between items-start mb-4">
-                        <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-full">
+                        <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'}`}>
                           {info.sector}
                         </span>
                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                           {new Date(info.updatedAt).toLocaleDateString('pt-BR')}
                         </span>
                       </div>
-                      <h3 className="text-lg font-black text-slate-900 mb-2 uppercase tracking-tight leading-tight group-hover:text-indigo-600 transition-colors">
+                      <h3 className={`text-lg font-black text-slate-900 mb-2 uppercase tracking-tight leading-tight transition-colors duration-500 ${isAbrilVerde ? 'group-hover:text-emerald-600' : 'group-hover:text-indigo-600'}`}>
                         {info.title}
                       </h3>
                       <p className="text-slate-600 text-sm leading-relaxed font-medium">
@@ -91,7 +93,7 @@ const PublicInfoPortal: React.FC<PublicInfoPortalProps> = ({ isOpen, onClose, in
 
             {/* Footer */}
             <div className="p-6 bg-white border-t border-slate-100 flex justify-center">
-              <p className="text-[10px] text-slate-300 font-bold uppercase tracking-[0.3em]">
+              <p className={`text-[10px] font-bold uppercase tracking-[0.3em] transition-colors duration-500 ${isAbrilVerde ? 'text-emerald-300' : 'text-slate-300'}`}>
                 Transparência e Comunicação • Taiúva/SP
               </p>
             </div>
