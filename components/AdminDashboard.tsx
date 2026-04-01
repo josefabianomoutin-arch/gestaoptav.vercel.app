@@ -603,15 +603,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   return (
     <div className={`flex h-screen overflow-hidden font-sans ${isAbrilVerde ? 'bg-emerald-50' : 'bg-zinc-50'}`}>
       {/* Professional Sidebar Desktop */}
-      <aside className={`hidden md:flex w-72 flex-col shadow-2xl z-20 transition-all duration-500 ${isAbrilVerde ? 'bg-emerald-950 border-r border-emerald-800' : 'bg-zinc-900 border-r border-zinc-800'} text-white`}>
-        <div className={`p-8 border-b transition-colors duration-500 ${isAbrilVerde ? 'border-emerald-800/50' : 'border-white/5'}`}>
+      <aside className="hidden md:flex w-72 flex-col shadow-2xl z-20 transition-all duration-500 bg-zinc-900 border-r border-zinc-800 text-white">
+        <div className="p-8 border-b border-white/5">
           <div className="flex items-center gap-3 mb-2">
             <div className={`h-10 w-10 rounded-2xl flex items-center justify-center shadow-lg rotate-3 transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-600' : 'bg-indigo-600'}`}>
               <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tighter italic leading-none">GESTAO 2026</h1>
-              <p className={`text-[8px] font-bold uppercase tracking-[0.3em] mt-1 ${isAbrilVerde ? 'text-emerald-400' : 'text-indigo-400'}`}>Administrativo</p>
+              <p className="text-[8px] font-bold uppercase tracking-[0.3em] mt-1 text-indigo-400">Administrativo</p>
             </div>
           </div>
           {isAbrilVerde && (
@@ -629,8 +629,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
               onClick={() => setActiveTab(tab.id as any)}
               className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-300 group relative overflow-hidden ${
                 activeTab === tab.id 
-                  ? (isAbrilVerde ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/40' : 'bg-indigo-600 text-white shadow-xl shadow-indigo-900/40')
-                  : (isAbrilVerde ? 'text-emerald-400/60 hover:bg-emerald-900/50 hover:text-emerald-300' : 'text-white/60 hover:bg-white/5 hover:text-white')
+                  ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-900/40'
+                  : 'text-white/60 hover:bg-white/5 hover:text-white'
               }`}
             >
               <span className={`transition-colors relative z-10 ${activeTab === tab.id ? 'text-white' : 'text-white/20 group-hover:text-white/40'}`}>
@@ -638,16 +638,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
               </span>
               <span className="text-[10px] font-black uppercase tracking-widest relative z-10">{tab.name}</span>
               {activeTab === tab.id && (
-                <motion.div layoutId="activeTabGlow" className={`absolute inset-0 opacity-20 blur-xl ${isAbrilVerde ? 'bg-emerald-400' : 'bg-indigo-400'}`} />
+                <motion.div layoutId="activeTabGlow" className="absolute inset-0 opacity-20 blur-xl bg-indigo-400" />
               )}
             </button>
           ))}
         </nav>
 
-        <div className={`p-6 border-t transition-colors duration-500 ${isAbrilVerde ? 'border-emerald-800/50' : 'border-white/5'}`}>
+        <div className="p-6 border-t border-white/5">
           <button 
             onClick={onLogout}
-            className={`w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 ${isAbrilVerde ? 'bg-emerald-900/50 text-emerald-400 hover:bg-rose-600 hover:text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-rose-600 hover:text-white'}`}
+            className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 bg-zinc-800 text-zinc-400 hover:bg-rose-600 hover:text-white"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
             Sair do Sistema
@@ -656,22 +656,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       </aside>
 
       {/* Mobile Header */}
-      <header className={`md:hidden fixed top-0 left-0 right-0 h-16 text-white flex items-center justify-between px-6 z-[100] border-b border-white/5 ${isAbrilVerde ? 'bg-emerald-950' : 'bg-zinc-900'}`}>
+      <header className="md:hidden fixed top-0 left-0 right-0 h-16 text-white flex items-center justify-between px-6 z-[100] border-b border-white/5 bg-zinc-900">
         <h1 className="text-sm font-black uppercase italic tracking-tighter">GESTAO 2026</h1>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`p-2 rounded-lg ${isAbrilVerde ? 'bg-emerald-900' : 'bg-zinc-800'}`}>
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 rounded-lg bg-zinc-800">
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16m-7 6h7"} /></svg>
         </button>
       </header>
 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div className={`md:hidden fixed inset-0 z-[90] p-6 pt-24 overflow-y-auto animate-fade-in ${isAbrilVerde ? 'bg-emerald-950' : 'bg-zinc-900'}`}>
+        <div className="md:hidden fixed inset-0 z-[90] p-6 pt-24 overflow-y-auto animate-fade-in bg-zinc-900">
           <div className="grid grid-cols-2 gap-4">
             {visibleTabs.map(tab => (
               <button 
                 key={tab.id} 
                 onClick={() => { setActiveTab(tab.id); setIsMobileMenuOpen(false); }} 
-                className={`flex flex-col items-center justify-center p-6 rounded-3xl text-[9px] font-black uppercase gap-3 border-2 transition-all active:scale-95 ${activeTab === tab.id ? (isAbrilVerde ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-indigo-600 border-indigo-400 text-white') : (isAbrilVerde ? 'bg-emerald-900 border-emerald-800 text-emerald-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400')}`}
+                className={`flex flex-col items-center justify-center p-6 rounded-3xl text-[9px] font-black uppercase gap-3 border-2 transition-all active:scale-95 ${activeTab === tab.id ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}
               >
                 {React.cloneElement(tab.icon as React.ReactElement, { className: "h-6 w-6" })}
                 {tab.name}
