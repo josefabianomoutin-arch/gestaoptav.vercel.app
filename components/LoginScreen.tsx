@@ -1,15 +1,19 @@
 
 import React, { useState, useMemo } from 'react';
+import PublicInfoPortal from './PublicInfoPortal';
+import { PublicInfo } from '../types';
 
 interface LoginScreenProps {
   onLogin: (name: string, cpf: string) => boolean;
+  publicInfoList: PublicInfo[];
 }
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList }) => {
   const [loginName, setLoginName] = useState('');
   const [loginCpf, setLoginCpf] = useState('');
   const [loginError, setLoginError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isPortalOpen, setIsPortalOpen] = useState(false);
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,12 +110,29 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           </button>
         </form>
 
-        <div className="pt-6 text-center border-t border-gray-50">
+        <div className="pt-6 text-center border-t border-gray-50 flex flex-col items-center gap-4">
+            <button 
+              onClick={() => setIsPortalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-full hover:bg-indigo-100 transition-colors group"
+            >
+              <div className="p-1.5 bg-indigo-600 text-white rounded-full group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest">Portal de Informações</span>
+            </button>
             <p className="text-[9px] text-gray-300 font-bold uppercase tracking-widest">
                 TAIÚVA/SP &copy; 2026 • FINANÇAS
             </p>
         </div>
       </div>
+
+      <PublicInfoPortal 
+        isOpen={isPortalOpen} 
+        onClose={() => setIsPortalOpen(false)} 
+        infoList={publicInfoList} 
+      />
       <style>{`
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
         .animate-shake { animation: shake 0.2s ease-in-out 0s 2; }

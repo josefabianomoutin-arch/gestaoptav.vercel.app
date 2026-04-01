@@ -341,4 +341,12 @@ export interface MaintenanceSchedule {
   updatedAt: string;
 }
 
+export interface PublicInfo {
+  id: string;
+  title: string;
+  content: string;
+  sector: string; // e.g., 'CIPA', 'RH', 'FINANÇAS', 'GERAL', 'OUTROS'
+  updatedAt: string; // ISO string format expected for Date parsing
+}
+
 export type UserRole = 'admin' | 'supplier' | 'producer' | 'pereciveis_supplier' | 'almoxarifado' | 'itesp' | 'financeiro' | 'subportaria' | 'cardapio' | 'infraestrutura' | 'ordem_saida' | 'julio' | 'readonly' | 'ordem_servico';

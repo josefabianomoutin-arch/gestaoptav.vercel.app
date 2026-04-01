@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
-import type { Supplier, ContractItem, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, Delivery, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, UserRole, ServiceOrder, VehicleInspection, MaintenanceSchedule } from '../types';
+import type { Supplier, ContractItem, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, Delivery, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, UserRole, ServiceOrder, VehicleInspection, MaintenanceSchedule, PublicInfo } from '../types';
 import AdminAnalytics from './AdminAnalytics';
 import AdminContractItems from './AdminContractItems';
 import WeekSelector from './WeekSelector';
@@ -17,11 +17,12 @@ import AdminFinancialManager from './AdminFinancialManager';
 import AdminThirdPartyEntry from './AdminThirdPartyEntry';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 import AdminServiceOrder from './AdminServiceOrder';
+import AdminPublicInfo from './AdminPublicInfo';
 import ConfirmModal from './ConfirmModal';
 
 import WarehouseMovementForm from './WarehouseMovementForm';
 
-type AdminTab = 'info' | 'register' | 'contracts' | 'finance' | 'analytics' | 'graphs' | 'schedule' | 'invoices' | 'perCapita' | 'cleaning' | 'vehicleExitOrder' | 'thirdPartyEntry' | 'directorPerCapita' | 'menu' | 'almoxarifado' | 'serviceOrder';
+type AdminTab = 'info' | 'register' | 'contracts' | 'finance' | 'analytics' | 'graphs' | 'schedule' | 'invoices' | 'perCapita' | 'cleaning' | 'vehicleExitOrder' | 'thirdPartyEntry' | 'directorPerCapita' | 'menu' | 'almoxarifado' | 'serviceOrder' | 'publicInfo';
 
 interface AdminDashboardProps {
   user: { name: string; cpf: string; role: UserRole };
@@ -97,6 +98,9 @@ interface AdminDashboardProps {
   onUpdateSupplierObservations?: (cpf: string, observations: string) => Promise<{ success: boolean; message?: string }>;
   systemPasswords: Record<string, string>;
   onUpdateSystemPassword: (key: string, pass: string) => Promise<void>;
+  publicInfo: PublicInfo[];
+  onSavePublicInfo: (info: Omit<PublicInfo, 'id'> & { id?: string }) => Promise<void>;
+  onDeletePublicInfo: (id: string) => Promise<void>;
 }
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
@@ -193,6 +197,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     { id: 'vehicleExitOrder', name: 'Ordem Saída', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" /><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v4.5h2V8a1 1 0 00-1-1z" /><path d="M16 13l3.35 2.235a.75.75 0 01.15 1.065l-.5.75a.75.75 0 01-1.065.15L16 15.5V13z" /></svg> },
     { id: 'thirdPartyEntry', name: 'Terceiros', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg> },
     { id: 'menu', name: 'Cardápio', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" /><path d="M11 3.5v3a1 1 0 001 1h3m-6 4H7v2h3v-2zm0 3H7v2h3v-2z" /></svg> },
+    { id: 'publicInfo', name: 'Portal Público', icon: <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> },
     { id: 'analytics', name: 'Auditoria Analítica', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" /></svg> },
     { id: 'graphs', name: 'Gráficos', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" /><path d="M12 2.252A8.001 8.001 0 0117.748 8H12V2.252z" /></svg> },
     { id: 'info', name: 'Sistema', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm14 1a1 1 0 11-2 0 1 1 0 012 0zM2 13a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2zm14 1a1 1 0 11-2 0 1 1 0 012 0z" clipRule="evenodd" /></svg> },
@@ -422,6 +427,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           acquisitionItems={acquisitionItems}
       />;
       case 'menu': return <AdminStandardMenu suppliers={suppliers} template={props.standardMenu} dailyMenus={props.dailyMenus} onUpdateDailyMenus={props.onUpdateDailyMenu} inmateCount={perCapitaConfig.inmateCount || 0} />;
+      case 'publicInfo': return <AdminPublicInfo infoList={props.publicInfo} onSave={props.onSavePublicInfo} onDelete={props.onDeletePublicInfo} />;
       case 'almoxarifado': return <WarehouseMovementForm suppliers={suppliers} warehouseLog={warehouseLog} onRegisterEntry={props.onRegisterEntry} onRegisterWithdrawal={props.onRegisterWithdrawal} />;
       case 'info': 
         return (

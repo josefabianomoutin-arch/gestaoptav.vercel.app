@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Toaster, toast } from 'sonner';
-import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, MenuRow, ContractItem, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, DailyAllowance, Staff, ValidationRole, VehicleInspection, ServiceOrder, MaintenanceSchedule } from './types';
+import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, MenuRow, ContractItem, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, DailyAllowance, Staff, ValidationRole, VehicleInspection, ServiceOrder, MaintenanceSchedule, PublicInfo } from './types';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
@@ -39,6 +39,7 @@ let staffRef: any;
 let validationRolesRef: any;
 let systemPasswordsRef: any;
 let maintenanceSchedulesRef: any;
+let publicInfoRef: any;
 
 try {
   database = getDatabase(app);
@@ -63,6 +64,7 @@ try {
   validationRolesRef = ref(database, 'validationRoles');
   systemPasswordsRef = ref(database, 'systemPasswords');
   maintenanceSchedulesRef = ref(database, 'maintenanceSchedules');
+  publicInfoRef = ref(database, 'publicInfo');
 } catch (error) {
   console.error("Erro ao inicializar Firebase:", error);
 }
@@ -89,6 +91,7 @@ const App: React.FC = () => {
   const [validationRoles, setValidationRoles] = useState<ValidationRole[]>([]);
   const [systemPasswords, setSystemPasswords] = useState<Record<string, string>>({});
   const [maintenanceSchedules, setMaintenanceSchedules] = useState<MaintenanceSchedule[]>([]);
+  const [publicInfo, setPublicInfo] = useState<PublicInfo[]>([]);
 
   useEffect(() => {
     if (!database) return;
@@ -186,6 +189,10 @@ const App: React.FC = () => {
     onValue(maintenanceSchedulesRef, (snapshot) => {
       const data = snapshot.val();
       setMaintenanceSchedules(data ? Object.values(data) : []);
+    });
+    onValue(publicInfoRef, (snapshot) => {
+      const data = snapshot.val();
+      setPublicInfo(data ? Object.values(data) : []);
     });
   }, []);
 
@@ -348,6 +355,28 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => setUser(null);
+
+  const handleSavePublicInfo = async (info: Omit<PublicInfo, 'id'> & { id?: string }) => {
+    try {
+      const id = info.id || push(publicInfoRef).key;
+      if (!id) throw new Error('Falha ao gerar ID');
+      await set(child(publicInfoRef, id), { ...info, id });
+      toast.success('Informação pública salva com sucesso!');
+    } catch (error) {
+      console.error('Erro ao salvar informação pública:', error);
+      toast.error('Erro ao salvar informação pública.');
+    }
+  };
+
+  const handleDeletePublicInfo = async (id: string) => {
+    try {
+      await remove(child(publicInfoRef, id));
+      toast.success('Informação pública removida com sucesso!');
+    } catch (error) {
+      console.error('Erro ao remover informação pública:', error);
+      toast.error('Erro ao remover informação pública.');
+    }
+  };
 
   const handleRestoreFullBackup = async (fullData: any) => {
     try {
@@ -1420,7 +1449,7 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     if (!user) {
-      return <LoginScreen onLogin={handleLogin} />;
+      return <LoginScreen onLogin={handleLogin} publicInfoList={publicInfo} />;
     }
 
     if (user.role === 'admin') {
@@ -1593,6 +1622,9 @@ const App: React.FC = () => {
           onUpdateSystemPassword={async (key, pass) => {
             await set(child(systemPasswordsRef, key), pass);
           }}
+          publicInfo={publicInfo}
+          onSavePublicInfo={handleSavePublicInfo}
+          onDeletePublicInfo={handleDeletePublicInfo}
         />
       );
     }
