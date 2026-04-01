@@ -683,7 +683,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 flex flex-col min-w-0 relative pt-16 md:pt-0 transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-50/20' : 'bg-zinc-50'}`}>
+      <main className={`flex-1 flex flex-col min-w-0 relative pt-16 md:pt-0 transition-colors duration-500 ${isAbrilVerde ? 'bg-[#f0fdf4]' : 'bg-zinc-50'}`}>
+        {isAbrilVerde && (
+          <div className="absolute inset-0 overflow-hidden pointer-events-none flex flex-col items-center justify-center opacity-[0.015] select-none">
+            <h1 className="text-[20vw] font-black text-emerald-900 rotate-[-12deg] whitespace-nowrap">ABRIL VERDE</h1>
+            <h1 className="text-[15vw] font-black text-emerald-900 rotate-[-12deg] whitespace-nowrap mt-[-5vw]">SEGURANÇA</h1>
+          </div>
+        )}
         {/* Top Header Bar Desktop */}
         <header className={`hidden md:flex h-20 bg-white border-b items-center justify-between px-10 sticky top-0 z-10 transition-all duration-500 ${isAbrilVerde ? 'border-emerald-100 shadow-sm shadow-emerald-100/50' : 'border-zinc-200'}`}>
           <div className="flex items-center gap-4">

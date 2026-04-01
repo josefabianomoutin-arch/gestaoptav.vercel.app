@@ -205,7 +205,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <div className={`min-h-screen text-gray-800 pb-20 transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-950/5' : 'bg-gray-50'}`}>
+    <div className={`min-h-screen text-gray-800 pb-20 transition-colors duration-500 relative overflow-hidden ${isAbrilVerde ? 'bg-[#f0fdf4]' : 'bg-gray-50'}`}>
+      {isAbrilVerde && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none flex flex-col items-center justify-center opacity-[0.015] select-none">
+          <h1 className="text-[20vw] font-black text-emerald-900 rotate-[-12deg] whitespace-nowrap">ABRIL VERDE</h1>
+          <h1 className="text-[15vw] font-black text-emerald-900 rotate-[-12deg] whitespace-nowrap mt-[-5vw]">SEGURANÇA</h1>
+        </div>
+      )}
       <header className={`shadow-md p-4 flex justify-between items-center sticky top-0 z-50 transition-all duration-500 ${isAbrilVerde ? 'bg-emerald-950 text-white' : 'bg-white'}`}>
         <div className="flex items-center gap-4">
           <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg rotate-3 transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-600' : 'bg-indigo-600'}`}>
