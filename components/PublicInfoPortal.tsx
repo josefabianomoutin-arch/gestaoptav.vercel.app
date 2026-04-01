@@ -30,61 +30,99 @@ const PublicInfoPortal: React.FC<PublicInfoPortalProps> = ({ isOpen, onClose, in
             className="relative w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
           >
             {/* Header */}
-            <div className={`p-8 text-white flex justify-between items-center transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-900' : 'bg-indigo-900'}`}>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/10 rounded-2xl">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+            <div className={`p-10 text-white relative overflow-hidden transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-900' : 'bg-indigo-900'}`}>
+              {/* Decorative background elements */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-400/10 rounded-full -ml-10 -mb-10 blur-2xl"></div>
+              
+              <div className="relative z-10 flex justify-between items-center">
+                <div className="flex items-center gap-6">
+                  <motion.div 
+                    animate={{ rotate: [0, -10, 10, 0] }}
+                    transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
+                    className="p-4 bg-white/15 backdrop-blur-md rounded-3xl shadow-inner"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                    </svg>
+                  </motion.div>
+                  <div>
+                    <h2 className="text-3xl font-black uppercase tracking-tighter italic leading-none mb-2">Fique por dentro! 📢</h2>
+                    <p className={`text-[11px] font-bold uppercase tracking-[0.3em] opacity-80 transition-colors duration-500 ${isAbrilVerde ? 'text-emerald-300' : 'text-indigo-200'}`}>
+                      Novidades, Avisos e Transparência • 2026
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={onClose}
+                  className="p-3 hover:bg-white/20 rounded-2xl transition-all active:scale-90 group"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 group-hover:rotate-90 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                </div>
-                <div>
-                  <h2 className="text-2xl font-black uppercase tracking-tighter italic">Portal de Informações</h2>
-                  <p className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-colors duration-500 ${isAbrilVerde ? 'text-emerald-300' : 'text-indigo-300'}`}>Comunicados Oficiais • Gestão 2026</p>
-                </div>
+                </button>
               </div>
-              <button 
-                onClick={onClose}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l18 18" />
-                </svg>
-              </button>
             </div>
 
             {/* Content */}
-            <div className={`flex-1 overflow-y-auto p-8 transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-50/30' : 'bg-slate-50'}`}>
+            <div className={`flex-1 overflow-y-auto p-10 transition-colors duration-500 relative ${isAbrilVerde ? 'bg-[#f7fee7]/50' : 'bg-slate-50'}`}>
+              {/* Subtle background watermark */}
+              <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none select-none">
+                <h1 className="text-[15vw] font-black rotate-[-5deg]">COMUNICADOS</h1>
+              </div>
+
               {infoList.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4 py-20">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0l-8 8-8-8" />
-                  </svg>
-                  <p className="font-bold uppercase tracking-widest text-sm">Nenhuma informação disponível no momento</p>
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-6 py-20 relative z-10">
+                  <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center animate-pulse">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0l-8 8-8-8" />
+                    </svg>
+                  </div>
+                  <p className="font-black uppercase tracking-widest text-sm text-center max-w-xs leading-relaxed">
+                    Tudo tranquilo por aqui! <br/> <span className="font-medium normal-case opacity-60">Nenhum aviso novo no momento.</span>
+                  </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
                   {infoList.map((info, index) => (
                     <motion.div
                       key={info.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all group"
+                      initial={{ opacity: 0, y: 30, rotate: index % 2 === 0 ? -1 : 1 }}
+                      animate={{ opacity: 1, y: 0, rotate: 0 }}
+                      transition={{ delay: index * 0.1, type: "spring", stiffness: 100 }}
+                      whileHover={{ scale: 1.02, rotate: index % 2 === 0 ? 0.5 : -0.5 }}
+                      className="bg-white p-8 rounded-[2.5rem] shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] border border-white hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] transition-all group relative overflow-hidden"
                     >
-                      <div className="flex justify-between items-start mb-4">
-                        <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'}`}>
-                          {info.sector}
+                      {/* Decorative corner accent */}
+                      <div className={`absolute top-0 left-0 w-2 h-full transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-500' : 'bg-indigo-500'} opacity-20 group-hover:opacity-100`}></div>
+                      
+                      <div className="flex justify-between items-center mb-6">
+                        <span className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.15em] rounded-xl transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                          #{info.sector}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
                           {new Date(info.updatedAt).toLocaleDateString('pt-BR')}
-                        </span>
+                        </div>
                       </div>
-                      <h3 className={`text-lg font-black text-slate-900 mb-2 uppercase tracking-tight leading-tight transition-colors duration-500 ${isAbrilVerde ? 'group-hover:text-emerald-600' : 'group-hover:text-indigo-600'}`}>
+                      
+                      <h3 className={`text-xl font-black text-slate-900 mb-4 uppercase tracking-tight leading-tight transition-colors duration-500 ${isAbrilVerde ? 'group-hover:text-emerald-600' : 'group-hover:text-indigo-600'}`}>
                         {info.title}
                       </h3>
-                      <p className="text-slate-600 text-sm leading-relaxed font-medium">
-                        {info.content}
-                      </p>
+                      
+                      <div className="relative">
+                        <p className="text-slate-600 text-sm leading-relaxed font-medium line-clamp-6 group-hover:line-clamp-none transition-all duration-500">
+                          {info.content}
+                        </p>
+                      </div>
+
+                      <div className="mt-6 pt-6 border-t border-slate-50 flex justify-end">
+                        <span className={`text-[9px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${isAbrilVerde ? 'text-emerald-500' : 'text-indigo-500'}`}>
+                          Ler na íntegra →
+                        </span>
+                      </div>
                     </motion.div>
                   ))}
                 </div>
@@ -92,9 +130,12 @@ const PublicInfoPortal: React.FC<PublicInfoPortalProps> = ({ isOpen, onClose, in
             </div>
 
             {/* Footer */}
-            <div className="p-6 bg-white border-t border-slate-100 flex justify-center">
-              <p className={`text-[10px] font-bold uppercase tracking-[0.3em] transition-colors duration-500 ${isAbrilVerde ? 'text-emerald-300' : 'text-slate-300'}`}>
-                Transparência e Comunicação • Taiúva/SP
+            <div className="p-8 bg-white border-t border-slate-100 flex flex-col items-center gap-2">
+              <p className={`text-[11px] font-black uppercase tracking-[0.4em] transition-colors duration-500 ${isAbrilVerde ? 'text-emerald-400' : 'text-slate-400'}`}>
+                Transparência • Conexão • Unidade
+              </p>
+              <p className="text-[9px] text-slate-300 font-bold uppercase tracking-widest">
+                Taiúva/SP &copy; 2026
               </p>
             </div>
           </motion.div>
