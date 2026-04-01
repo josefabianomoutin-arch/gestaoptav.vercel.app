@@ -42,6 +42,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     validationRoles,
     onUpdateVehicleExitOrder
 }) => {
+    const isAbrilVerde = new Date().getMonth() === 3;
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [activeTab, setActiveTab] = useState<'agenda' | 'vehicles' | 'seguranca'>('agenda');
 
@@ -498,34 +499,36 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     };
 
     return (
-        <div className="min-h-screen bg-slate-100 text-slate-900 font-sans pb-10">
+        <div className={`min-h-screen text-slate-900 font-sans pb-10 ${isAbrilVerde ? 'bg-emerald-50' : 'bg-slate-100'}`}>
             {/* Header Compacto para Mobile */}
-            <header className="bg-indigo-950 text-white p-4 shadow-xl flex justify-between items-center sticky top-0 z-50 border-b border-indigo-800">
+            <header className={`p-4 shadow-xl flex justify-between items-center sticky top-0 z-50 border-b ${isAbrilVerde ? 'bg-emerald-950 border-emerald-800' : 'bg-indigo-950 border-indigo-800'} text-white`}>
                 <div className="flex items-center gap-3">
-                    <div className="bg-indigo-600 p-2 rounded-xl shadow-inner">
+                    <div className={`p-2 rounded-xl shadow-inner ${isAbrilVerde ? 'bg-emerald-600' : 'bg-indigo-600'}`}>
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
                     </div>
                     <div>
                         <h1 className="text-lg font-black uppercase italic tracking-tighter leading-none">Manutenção Externa</h1>
-                        <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest">Controle de Fluxo</p>
+                        <p className={`text-[9px] font-bold uppercase tracking-widest ${isAbrilVerde ? 'text-emerald-400' : 'text-indigo-400'}`}>
+                            {isAbrilVerde ? 'Campanha Abril Verde' : 'Controle de Fluxo'}
+                        </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <button 
                         onClick={() => setActiveTab('agenda')}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'agenda' ? 'bg-indigo-600 text-white' : 'text-indigo-300 hover:bg-white/5'}`}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'agenda' ? (isAbrilVerde ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white') : (isAbrilVerde ? 'text-emerald-300 hover:bg-white/5' : 'text-indigo-300 hover:bg-white/5')}`}
                     >
                         Agenda
                     </button>
                     <button 
                         onClick={() => setActiveTab('vehicles')}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'vehicles' ? 'bg-indigo-600 text-white' : 'text-indigo-300 hover:bg-white/5'}`}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'vehicles' ? (isAbrilVerde ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white') : (isAbrilVerde ? 'text-emerald-300 hover:bg-white/5' : 'text-indigo-300 hover:bg-white/5')}`}
                     >
                         Veículos
                     </button>
                     <button 
                         onClick={() => setActiveTab('seguranca')}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'seguranca' ? 'bg-indigo-600 text-white' : 'text-indigo-300 hover:bg-white/5'}`}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'seguranca' ? (isAbrilVerde ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white') : (isAbrilVerde ? 'text-emerald-300 hover:bg-white/5' : 'text-indigo-300 hover:bg-white/5')}`}
                     >
                         Manutenção Externa
                     </button>
@@ -541,11 +544,11 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                     <div className="flex flex-col gap-4">
                         <div className="flex justify-between items-end">
                             <div>
-                                <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic">Agenda do Dia</h2>
+                                <h2 className={`text-xl font-black uppercase tracking-tighter italic ${isAbrilVerde ? 'text-emerald-950' : 'text-indigo-950'}`}>Agenda do Dia</h2>
                                 <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">{formatDate(selectedDate)}</p>
                             </div>
-                            <div className="bg-indigo-50 px-3 py-1 rounded-full">
-                                <span className="text-[10px] font-black text-indigo-600 uppercase">{dailyAgenda.length} Agendamentos</span>
+                            <div className={`${isAbrilVerde ? 'bg-emerald-50' : 'bg-indigo-50'} px-3 py-1 rounded-full`}>
+                                <span className={`text-[10px] font-black uppercase ${isAbrilVerde ? 'text-emerald-600' : 'text-indigo-600'}`}>{dailyAgenda.length} Agendamentos</span>
                             </div>
                         </div>
                         
@@ -554,7 +557,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                 type="date" 
                                 value={selectedDate} 
                                 onChange={e => setSelectedDate(e.target.value)}
-                                className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-100 font-black text-indigo-900 transition-all appearance-none text-center"
+                                className={`w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-black transition-all appearance-none text-center ${isAbrilVerde ? 'focus:ring-emerald-100 text-emerald-900' : 'focus:ring-indigo-100 text-indigo-900'}`}
                             />
                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>

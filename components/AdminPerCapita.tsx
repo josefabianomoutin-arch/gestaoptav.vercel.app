@@ -391,14 +391,21 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         
         // Cálculo ponderado da média mensal de peso
         let totalMonthlyWeight = 0;
-        ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS'].forEach(cat => {
+        const categoriesToCalculate = ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS', 'KIT PPL', 'PRODUTOS DE LIMPEZA', 'AUTOMAÇÃO'];
+        
+        categoriesToCalculate.forEach(cat => {
             const catItems = itemData.filter(item => item.category === cat);
+            if (catItems.length === 0) return;
+
             const catWeight = catItems.reduce((sum, item) => {
                 const [unitType] = (item.unit || 'kg-1').split('-');
                 if (['litro', 'embalagem', 'caixa', 'dz'].some(u => unitType.includes(u))) return sum;
-                return sum + getContractItemWeight({ totalKg: item.totalQuantity, unit: item.unit });
+                return sum + (item.totalQuantity || 0); // Simplificando para usar a quantidade total se não for unidade especial
             }, 0);
-            const divisor = (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') ? 4 : 8;
+
+            // Divisor padrão de 12 meses para uma estimativa anual diluída, 
+            // ou ajuste conforme a natureza do contrato (ex: PPAIS costuma ser semestral/anual)
+            const divisor = (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') ? 4 : 12;
             totalMonthlyWeight += catWeight / divisor;
         });
 
@@ -411,10 +418,14 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         
         // Cálculo ponderado da média mensal de valor
         let totalMonthlyValue = 0;
-        ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS'].forEach(cat => {
+        const categoriesToCalculate = ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS', 'KIT PPL', 'PRODUTOS DE LIMPEZA', 'AUTOMAÇÃO'];
+
+        categoriesToCalculate.forEach(cat => {
             const catItems = itemData.filter(item => item.category === cat);
-            const catValue = catItems.reduce((sum, item) => sum + item.totalValue, 0);
-            const divisor = (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') ? 4 : 8;
+            if (catItems.length === 0) return;
+
+            const catValue = catItems.reduce((sum, item) => sum + (item.totalValue || 0), 0);
+            const divisor = (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') ? 4 : 12;
             totalMonthlyValue += catValue / divisor;
         });
 
@@ -594,7 +605,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         }).sort((a, b) => a.name.localeCompare(b.name));
 
         return result;
-    }, [suppliers]);
+    }, [suppliers, ppaisAsSuppliers, pereciveisAsSuppliers, acquisitionItems]);
 
     const filteredComparison = useMemo(() => {
         if (comparisonFilter === 'TODOS') return contractedItemsSummary;

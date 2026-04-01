@@ -45,6 +45,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   emailModalData,
   onCloseEmailModal
 }) => {
+  const isAbrilVerde = new Date().getMonth() === 3;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isSendInvoiceModalOpen, setIsSendInvoiceModalOpen] = useState(false);
@@ -204,23 +205,28 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <div className="min-h-screen text-gray-800 bg-gray-50 pb-20">
-      <header className="bg-white shadow-md p-4 flex justify-between items-center sticky top-0 z-50">
+    <div className={`min-h-screen text-gray-800 pb-20 transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-950/5' : 'bg-gray-50'}`}>
+      <header className={`shadow-md p-4 flex justify-between items-center sticky top-0 z-50 transition-all duration-500 ${isAbrilVerde ? 'bg-emerald-950 text-white' : 'bg-white'}`}>
         <div className="flex items-center gap-4">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg rotate-3 transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-600' : 'bg-indigo-600'}`}>
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+          </div>
           <div>
-            <h1 className={`text-xl font-black ${headerColor} uppercase tracking-tighter italic`}>Olá, {supplier.name.split(' ')[0]}!</h1>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{panelTitle}</p>
+            <h1 className={`text-xl font-black uppercase tracking-tighter italic leading-none ${isAbrilVerde ? 'text-white' : headerColor}`}>Olá, {supplier.name.split(' ')[0]}!</h1>
+            <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${isAbrilVerde ? 'text-emerald-400' : 'text-gray-400'}`}>
+              {isAbrilVerde ? 'Campanha Abril Verde 💚' : panelTitle}
+            </p>
           </div>
           <button 
             onClick={handlePlayGeneralHelp}
             disabled={isSpeaking}
-            className={`p-2 rounded-full transition-colors ${isSpeaking ? 'bg-indigo-200 text-indigo-800 animate-pulse' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+            className={`p-2 rounded-full transition-all ${isSpeaking ? (isAbrilVerde ? 'bg-emerald-800 text-white animate-pulse' : 'bg-indigo-200 text-indigo-800 animate-pulse') : (isAbrilVerde ? 'bg-emerald-900 text-emerald-400 hover:bg-emerald-800' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100')}`}
             title="Ajuda por Voz"
           >
             {isSpeaking ? <Volume2 className="h-5 w-5 animate-pulse" /> : <HelpCircle className="h-5 w-5" />}
           </button>
         </div>
-        <button onClick={onLogout} className="bg-red-50 text-red-600 font-black py-2 px-4 rounded-xl transition-all border border-red-100 text-[10px] uppercase tracking-widest active:scale-95">Sair</button>
+        <button onClick={onLogout} className={`font-black py-2.5 px-6 rounded-xl transition-all border text-[10px] uppercase tracking-widest active:scale-95 ${isAbrilVerde ? 'bg-emerald-900 text-emerald-100 border-emerald-800 hover:bg-rose-600 hover:text-white hover:border-rose-500' : 'bg-red-50 text-red-600 border-red-100 hover:bg-red-600 hover:text-white'}`}>Sair</button>
       </header>
 
       <main className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
@@ -229,14 +235,14 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="flex gap-2 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
             <button 
                 onClick={() => setActiveTab('calendar')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'calendar' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'calendar' ? (isAbrilVerde ? 'bg-emerald-600 text-white shadow-lg' : 'bg-indigo-600 text-white shadow-lg') : 'text-gray-400 hover:bg-gray-50'}`}
             >
                 <CalendarIcon className="h-4 w-4" />
                 Calendário e Agendamento
             </button>
             <button 
                 onClick={() => setActiveTab('invoices')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'invoices' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'invoices' ? (isAbrilVerde ? 'bg-emerald-600 text-white shadow-lg' : 'bg-indigo-600 text-white shadow-lg') : 'text-gray-400 hover:bg-gray-50'}`}
             >
                 <FileText className="h-4 w-4" />
                 Consulta de Notas Fiscais
