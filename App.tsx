@@ -1821,6 +1821,7 @@ const App: React.FC = () => {
       return (
         <ServiceOrderDashboard
           serviceOrders={serviceOrders}
+          maintenanceSchedules={maintenanceSchedules}
           onRegisterServiceOrder={handleRegisterServiceOrder}
           onLogout={handleLogout}
         />

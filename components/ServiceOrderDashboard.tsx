@@ -1,17 +1,19 @@
 
 import React, { useState, useMemo } from 'react';
-import { ClipboardList, Plus, Clock, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
+import { ClipboardList, Plus, Clock, CheckCircle2, AlertCircle, XCircle, Calendar, User, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import { ServiceOrder } from '../types';
+import { ServiceOrder, MaintenanceSchedule } from '../types';
 
 interface ServiceOrderDashboardProps {
   serviceOrders: ServiceOrder[];
+  maintenanceSchedules?: MaintenanceSchedule[];
   onRegisterServiceOrder: (order: Omit<ServiceOrder, 'id'>) => Promise<{ success: boolean; message: string }>;
   onLogout: () => void;
 }
 
 const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
   serviceOrders = [],
+  maintenanceSchedules = [],
   onRegisterServiceOrder,
   onLogout,
 }) => {
@@ -220,6 +222,48 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
                       <p className="text-[11px] text-indigo-800 leading-relaxed font-medium">{order.inspectionObservations}</p>
                     </div>
                   )}
+
+                  {maintenanceSchedules?.filter(ms => ms.serviceOrderId === order.id).map(ms => (
+                    <div key={ms.id} className="mt-4 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl group-hover:bg-emerald-100/50 transition-colors space-y-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Calendar className="h-3 w-3 text-emerald-600" />
+                        <p className="text-[9px] text-emerald-600 font-black uppercase tracking-widest">Agendamento de Manutenção</p>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 gap-2">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-3 w-3 text-emerald-400" />
+                          <p className="text-[10px] text-emerald-900 font-bold uppercase tracking-tight">
+                            Data: <span className="text-emerald-600">{new Date(ms.date).toLocaleDateString('pt-BR')} às {ms.time}</span>
+                          </p>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <User className="h-3 w-3 text-emerald-400" />
+                          <p className="text-[10px] text-emerald-900 font-bold uppercase tracking-tight">
+                            Acompanhante: <span className="text-emerald-600">{ms.accompanyingPerson}</span>
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Users className="h-3 w-3 text-emerald-400" />
+                          <div className="flex flex-col">
+                            <p className="text-[10px] text-emerald-900 font-bold uppercase tracking-tight">Mão de Obra (PPLs):</p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {ms.ppls?.filter(p => p.trim() !== '').map((ppl, pIdx) => (
+                                <span key={pIdx} className="bg-white px-2 py-0.5 rounded-lg text-[9px] font-black text-emerald-700 border border-emerald-100">
+                                  {ppl}
+                                </span>
+                              ))}
+                              {(!ms.ppls || ms.ppls.filter(p => p.trim() !== '').length === 0) && (
+                                <span className="text-[9px] text-emerald-400 font-bold italic">Nenhum PPL designado</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))
