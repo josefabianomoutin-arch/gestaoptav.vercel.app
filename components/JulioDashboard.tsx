@@ -176,6 +176,7 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
             hideAssets={false}
             securityMode={false}
             showGateTab={true}
+            userRole="julio"
           />
         ) : (
           <AdminServiceOrder

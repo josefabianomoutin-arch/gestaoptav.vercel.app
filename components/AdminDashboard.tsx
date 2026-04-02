@@ -404,6 +404,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           onRegisterInspection={onRegisterVehicleInspection}
           onUpdateInspection={onUpdateVehicleInspection}
           onDeleteInspection={onDeleteVehicleInspection}
+          userRole={props.user.role}
       />;
       case 'serviceOrder': return <AdminServiceOrder
           orders={serviceOrders}

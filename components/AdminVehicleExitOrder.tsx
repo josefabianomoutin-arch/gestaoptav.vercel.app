@@ -4,6 +4,8 @@ import { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, VehicleIns
 import { GoogleGenAI } from "@google/genai";
 import ConfirmModal from './ConfirmModal';
 import VehicleInspectionTab from './VehicleInspectionTab';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface AdminVehicleExitOrderProps {
     orders: VehicleExitOrder[];
@@ -32,6 +34,7 @@ interface AdminVehicleExitOrderProps {
     hideAssets?: boolean;
     hideEdit?: boolean;
     showGateTab?: boolean;
+    userRole?: string;
 }
 
 const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({ 
@@ -45,7 +48,8 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     securityMode = false,
     hideAssets = false,
     hideEdit = false,
-    showGateTab = false
+    showGateTab = false,
+    userRole = ''
 }) => {
     const [activeSubTab, setActiveSubTab] = useState<'orders' | 'assets' | 'gate' | 'inspections'>('orders');
     const [activeAssetTab, setActiveAssetTab] = useState<'vehicles' | 'drivers' | 'roles'>('vehicles');
@@ -515,6 +519,55 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         printWindow.document.close();
     };
 
+    const handleGenerateReportPDF = () => {
+        const doc = new jsPDF();
+        
+        // Header
+        doc.setFontSize(16);
+        doc.setTextColor(79, 70, 229); // Indigo-600
+        doc.text('RELATÓRIO DE ORDENS DE SAÍDA E CHECKLIST', 105, 15, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text('PENITENCIÁRIA DE TAIÚVA', 105, 22, { align: 'center' });
+        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 105, 28, { align: 'center' });
+
+        const tableData = orders.map(order => [
+            order.date.split('-').reverse().join('/'),
+            `${order.vehicle}\n(${order.plate})`,
+            order.responsibleServer,
+            order.destination,
+            order.exitTime || '-',
+            order.returnTime || '-',
+            order.checklist ? 
+                `ÁGUA: ${order.checklist.water ? 'OK' : 'NÃO OK'}\n` +
+                `ÓLEO: ${order.checklist.oil ? 'OK' : 'NÃO OK'}\n` +
+                `PNEUS: ${order.checklist.tires ? 'OK' : 'NÃO OK'}\n` +
+                `LUZES: ${order.checklist.lights ? 'OK' : 'NÃO OK'}` : 'N/A'
+        ]);
+
+        autoTable(doc, {
+            startY: 35,
+            head: [['DATA', 'VEÍCULO', 'RESPONSÁVEL', 'DESTINO', 'SAÍDA', 'RETORNO', 'CHECKLIST']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
+            styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak' },
+            columnStyles: {
+                0: { cellWidth: 18, halign: 'center' },
+                1: { cellWidth: 28 },
+                2: { cellWidth: 35 },
+                3: { cellWidth: 35 },
+                4: { cellWidth: 15, halign: 'center' },
+                5: { cellWidth: 15, halign: 'center' },
+                6: { cellWidth: 35, fontSize: 6 }
+            },
+            alternateRowStyles: { fillColor: [245, 247, 255] }
+        });
+
+        doc.save(`relatorio_frota_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
     const handleAttachPdf = async (order: VehicleExitOrder) => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -965,7 +1018,16 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             {activeSubTab === 'orders' && (
                 <div className="relative z-10 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {!readOnly && !securityMode && (
-                        <div className="flex justify-end">
+                        <div className="flex justify-end gap-3">
+                            {userRole === 'julio' && (
+                                <button 
+                                    onClick={() => handleGenerateReportPDF()}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 px-10 rounded-2xl transition-all shadow-xl shadow-emerald-100 active:scale-95 uppercase text-xs tracking-widest flex items-center gap-2 group"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m3.243-4.243a4 4 0 015.657 0L12 14.142l1.101-1.101a4 4 0 015.657 0M12 12V3" /></svg>
+                                    Relatório PDF
+                                </button>
+                            )}
                             <button 
                                 onClick={() => { setEditingOrder(null); setIsModalOpen(true); }}
                                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 px-10 rounded-2xl transition-all shadow-xl shadow-indigo-100 active:scale-95 uppercase text-xs tracking-widest flex items-center gap-2 group"
