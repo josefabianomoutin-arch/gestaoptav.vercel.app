@@ -102,6 +102,15 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     const [lastScannedPlate, setLastScannedPlate] = useState<string | null>(null);
     const autoScanIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Checklist Modal State
+    const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
+    const [vehicleChecklist, setVehicleChecklist] = useState({
+        water: null as boolean | null,
+        oil: null as boolean | null,
+        tires: null as boolean | null,
+        lights: null as boolean | null
+    });
+
     // Confirmation Modal State
     const [confirmConfig, setConfirmConfig] = useState<{
         isOpen: boolean;
@@ -716,9 +725,65 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
         if (editingOrder) {
             await onUpdate({ ...finalData, id: editingOrder.id });
+            setIsModalOpen(false);
+            setEditingOrder(null);
+            setFormData({
+                date: new Date().toISOString().split('T')[0],
+                vehicle: '',
+                plate: '',
+                assetNumber: '',
+                responsibleServer: '',
+                serverRole: '',
+                destination: '',
+                fctNumber: '',
+                companions: [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
+                observations: '',
+                exitTime: '',
+                exitDate: '',
+                returnTime: '',
+                returnDate: '',
+                validationRole: '',
+                validatedBy: ''
+            });
         } else {
-            await onRegister(finalData);
+            // Se for um novo cadastro, abre o checklist
+            setVehicleChecklist({
+                water: null,
+                oil: null,
+                tires: null,
+                lights: null
+            });
+            setIsChecklistModalOpen(true);
         }
+    };
+
+    const handleConfirmChecklist = async () => {
+        const finalData = { ...formData };
+        if (finalData.exitTime) {
+            if (!finalData.exitDate) finalData.exitDate = finalData.date;
+        } else {
+            finalData.exitDate = '';
+        }
+        
+        if (finalData.returnTime) {
+            if (!finalData.returnDate) finalData.returnDate = finalData.date;
+        } else {
+            finalData.returnDate = '';
+        }
+
+        // Adiciona o checklist ao objeto final
+        const orderWithChecklist = {
+            ...finalData,
+            checklist: {
+                water: vehicleChecklist.water || false,
+                oil: vehicleChecklist.oil || false,
+                tires: vehicleChecklist.tires || false,
+                lights: vehicleChecklist.lights || false
+            }
+        };
+
+        await onRegister(orderWithChecklist);
+        setIsChecklistModalOpen(false);
         setIsModalOpen(false);
         setEditingOrder(null);
         setFormData({
@@ -1982,6 +2047,96 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 {...confirmConfig} 
                 onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))} 
             />
+
+            {/* Checklist Modal */}
+            {isChecklistModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 border border-white/20">
+                        <div className="bg-indigo-600 p-8 text-white relative overflow-hidden">
+                            <div className="absolute top-[-20%] right-[-10%] w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+                            <h3 className="text-2xl font-black uppercase tracking-tighter italic flex items-center gap-3 relative z-10">
+                                <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                Checklist de Saída
+                            </h3>
+                        </div>
+                        
+                        <div className="p-8 space-y-8">
+                            <div className="space-y-2">
+                                <p className="text-xl font-black text-indigo-950 uppercase tracking-tight italic">
+                                    {(() => {
+                                        const hour = new Date().getHours();
+                                        if (hour >= 5 && hour < 12) return 'Bom dia';
+                                        if (hour >= 12 && hour < 18) return 'Boa tarde';
+                                        return 'Boa noite';
+                                    })()}, <span className="text-indigo-600 underline decoration-indigo-200 underline-offset-4">{formData.responsibleServer}</span>!
+                                </p>
+                                <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest leading-relaxed">
+                                    Vamos realizar a checagem dos itens do veículo antes de liberar a saída.
+                                </p>
+                            </div>
+
+                            <div className="space-y-3">
+                                {[
+                                    { id: 'water', label: 'Nível da água do radiador' },
+                                    { id: 'oil', label: 'Nível do óleo' },
+                                    { id: 'tires', label: 'Calibragem dos pneus' },
+                                    { id: 'lights', label: 'Luzes de sinalização' }
+                                ].map((item) => (
+                                    <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100 group hover:bg-indigo-50/30 transition-all">
+                                        <span className="text-[11px] font-black text-gray-600 uppercase tracking-tight group-hover:text-indigo-900 transition-colors">{item.label}</span>
+                                        <div className="flex gap-1.5">
+                                            <button 
+                                                onClick={() => setVehicleChecklist(prev => ({ ...prev, [item.id]: true }))}
+                                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${vehicleChecklist[item.id as keyof typeof vehicleChecklist] === true ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100 scale-105' : 'bg-white text-gray-400 border border-gray-200 hover:border-emerald-200 hover:text-emerald-600'}`}
+                                            >
+                                                OK
+                                            </button>
+                                            <button 
+                                                onClick={() => setVehicleChecklist(prev => ({ ...prev, [item.id]: false }))}
+                                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${vehicleChecklist[item.id as keyof typeof vehicleChecklist] === false ? 'bg-red-600 text-white shadow-lg shadow-red-100 scale-105' : 'bg-white text-gray-400 border border-gray-200 hover:border-red-200 hover:text-red-600'}`}
+                                            >
+                                                NÃO OK
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="flex gap-3 pt-4">
+                                <button 
+                                    onClick={() => setIsChecklistModalOpen(false)}
+                                    className="flex-1 px-6 py-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all active:scale-95"
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    onClick={handleConfirmChecklist}
+                                    disabled={!(vehicleChecklist.water !== null && vehicleChecklist.oil !== null && vehicleChecklist.tires !== null && vehicleChecklist.lights !== null) || !(vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights)}
+                                    className={`flex-1 px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl active:scale-95 ${
+                                        (vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights) 
+                                        ? 'bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700' 
+                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                                    }`}
+                                >
+                                    Liberar Saída
+                                </button>
+                            </div>
+                            
+                            {(!(vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights) && (vehicleChecklist.water !== null && vehicleChecklist.oil !== null && vehicleChecklist.tires !== null && vehicleChecklist.lights !== null)) && (
+                                <div className="bg-red-50 p-3 rounded-xl border border-red-100 animate-pulse">
+                                    <p className="text-center text-[9px] text-red-600 font-black uppercase tracking-widest">
+                                        Atenção: Todos os itens devem estar OK para liberar a saída do veículo.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

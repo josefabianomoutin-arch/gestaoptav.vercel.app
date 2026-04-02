@@ -246,6 +246,12 @@ export interface VehicleExitOrder {
   validatedBy?: string;
   validationRole?: string;
   validationTimestamp?: string;
+  checklist?: {
+    water: boolean;
+    oil: boolean;
+    tires: boolean;
+    lights: boolean;
+  };
 }
 
 export interface DailyAllowance {
