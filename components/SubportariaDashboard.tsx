@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import type { Supplier, Delivery, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, MaintenanceSchedule, ServiceOrder } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
-import { Camera, CheckCircle, XCircle, RefreshCw, UserCheck, AlertTriangle, Play, CheckCircle2, LogIn, LogOut, ClipboardList, Clock, Wrench, Calendar, FileText } from 'lucide-react';
+import { Camera, CheckCircle, XCircle, RefreshCw, UserCheck, AlertTriangle, Play, CheckCircle2, LogIn, LogOut, ClipboardList, Clock, Wrench, Calendar, FileText, ExternalLink, User, Users } from 'lucide-react';
 
 interface SubportariaDashboardProps {
   suppliers: Supplier[];
@@ -759,8 +759,8 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                         </div>
                                     </div>
 
-                                    {schedule.validatedByChief && schedule.validatedByDirector && (
-                                        <div className="mb-8">
+                                    <div className="mb-8 space-y-4">
+                                        {schedule.validatedByChief && schedule.validatedByDirector && (
                                             <button 
                                                 onClick={() => {
                                                     const order = serviceOrders.find(o => o.id === schedule.serviceOrderId);
@@ -779,8 +779,28 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                                     <Play className="h-4 w-4 text-white" />
                                                 </div>
                                             </button>
-                                        </div>
-                                    )}
+                                        )}
+
+                                        {schedule.exitAuthorizationUrl && (
+                                            <a 
+                                                href={schedule.exitAuthorizationUrl} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="w-full flex items-center gap-4 p-5 bg-emerald-600 text-white rounded-2xl shadow-lg hover:bg-emerald-700 transition-all group transform hover:-translate-y-1"
+                                            >
+                                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
+                                                    <FileText className="h-6 w-6 text-white" />
+                                                </div>
+                                                <div className="flex-1 text-left">
+                                                    <p className="text-[10px] font-black text-emerald-200 uppercase tracking-widest leading-none mb-1">Anexo de Autorização</p>
+                                                    <p className="text-sm font-black uppercase tracking-tighter italic">Visualizar Anexo (PDF)</p>
+                                                </div>
+                                                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+                                                    <ExternalLink className="h-4 w-4 text-white" />
+                                                </div>
+                                            </a>
+                                        )}
+                                    </div>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
@@ -797,7 +817,16 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                         </div>
                                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">PPLs Designados</p>
-                                            <p className="text-sm font-black text-slate-900">{schedule.ppls?.filter(p => p.trim() !== '').length || 0} PPLs</p>
+                                            <div className="flex flex-wrap gap-1">
+                                                {schedule.ppls?.filter(p => p.trim() !== '').map((ppl, i) => (
+                                                    <span key={i} className="bg-white px-2 py-0.5 rounded-lg text-[9px] font-black text-slate-700 border border-slate-200">
+                                                        {ppl}
+                                                    </span>
+                                                ))}
+                                                {(!schedule.ppls || schedule.ppls.filter(p => p.trim() !== '').length === 0) && (
+                                                    <p className="text-sm font-black text-slate-900">Nenhum PPL</p>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 

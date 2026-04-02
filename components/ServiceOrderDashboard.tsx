@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { ClipboardList, Plus, Clock, CheckCircle2, AlertCircle, XCircle, Calendar, User, Users } from 'lucide-react';
+import { ClipboardList, Plus, Clock, CheckCircle2, AlertCircle, XCircle, Calendar, User, Users, FileText, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { ServiceOrder, MaintenanceSchedule } from '../types';
 
@@ -261,6 +261,21 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
                             </div>
                           </div>
                         </div>
+
+                        {ms.exitAuthorizationUrl && (
+                          <div className="pt-3 mt-1 border-t border-emerald-100/50">
+                            <a 
+                              href={ms.exitAuthorizationUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-center gap-2 w-full px-3 py-2.5 bg-white border border-emerald-200 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all shadow-sm group/pdf"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              <span>Visualizar Anexo (PDF)</span>
+                              <ExternalLink className="h-3 w-3 opacity-0 group-hover/pdf:opacity-100 transition-opacity ml-auto" />
+                            </a>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
