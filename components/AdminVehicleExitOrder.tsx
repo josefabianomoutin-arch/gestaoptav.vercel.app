@@ -110,6 +110,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         tires: null as boolean | null,
         lights: null as boolean | null
     });
+    const [isChecklistCompleted, setIsChecklistCompleted] = useState(false);
 
     // Confirmation Modal State
     const [confirmConfig, setConfirmConfig] = useState<{
@@ -745,65 +746,58 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 validationRole: '',
                 validatedBy: ''
             });
+        } else if (isChecklistCompleted) {
+            // Se o checklist já foi completado, salva no banco
+            const orderWithChecklist = {
+                ...finalData,
+                checklist: {
+                    water: vehicleChecklist.water || false,
+                    oil: vehicleChecklist.oil || false,
+                    tires: vehicleChecklist.tires || false,
+                    lights: vehicleChecklist.lights || false
+                }
+            };
+
+            await onRegister(orderWithChecklist);
+            setIsModalOpen(false);
+            setEditingOrder(null);
+            setIsChecklistCompleted(false); // Reseta para o próximo
+            setFormData({
+                date: new Date().toISOString().split('T')[0],
+                vehicle: '',
+                plate: '',
+                assetNumber: '',
+                responsibleServer: '',
+                serverRole: '',
+                destination: '',
+                fctNumber: '',
+                companions: [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
+                observations: '',
+                exitTime: '',
+                exitDate: '',
+                returnTime: '',
+                returnDate: '',
+                validationRole: '',
+                validatedBy: ''
+            });
         } else {
-            // Se for um novo cadastro, abre o checklist
+            // Se for um novo cadastro e não fez o checklist, abre o checklist
             setVehicleChecklist({
                 water: null,
                 oil: null,
                 tires: null,
                 lights: null
             });
+            setIsModalOpen(false); // Fecha o modal da ordem para não travar
             setIsChecklistModalOpen(true);
         }
     };
 
     const handleConfirmChecklist = async () => {
-        const finalData = { ...formData };
-        if (finalData.exitTime) {
-            if (!finalData.exitDate) finalData.exitDate = finalData.date;
-        } else {
-            finalData.exitDate = '';
-        }
-        
-        if (finalData.returnTime) {
-            if (!finalData.returnDate) finalData.returnDate = finalData.date;
-        } else {
-            finalData.returnDate = '';
-        }
-
-        // Adiciona o checklist ao objeto final
-        const orderWithChecklist = {
-            ...finalData,
-            checklist: {
-                water: vehicleChecklist.water || false,
-                oil: vehicleChecklist.oil || false,
-                tires: vehicleChecklist.tires || false,
-                lights: vehicleChecklist.lights || false
-            }
-        };
-
-        await onRegister(orderWithChecklist);
+        // Apenas marca como completado e volta para a ordem
+        setIsChecklistCompleted(true);
         setIsChecklistModalOpen(false);
-        setIsModalOpen(false);
-        setEditingOrder(null);
-        setFormData({
-            date: new Date().toISOString().split('T')[0],
-            vehicle: '',
-            plate: '',
-            assetNumber: '',
-            responsibleServer: '',
-            serverRole: '',
-            destination: '',
-            fctNumber: '',
-            companions: [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
-            observations: '',
-            exitTime: '',
-            exitDate: '',
-            returnTime: '',
-            returnDate: '',
-            validationRole: '',
-            validatedBy: ''
-        });
+        setIsModalOpen(true);
     };
 
     const handleEdit = (order: VehicleExitOrder) => {
@@ -1642,13 +1636,13 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                             <div className="flex justify-between items-center mb-4 border-b pb-3">
                                 <div>
                                     <h3 className="text-lg md:text-xl font-black text-gray-900 uppercase tracking-tighter italic">
-                                        {(securityMode || editingOrder?.validationRole) ? 'Registrar Horários' : editingOrder ? 'Editar Ordem' : 'Nova Ordem de Saída'}
+                                        {isChecklistCompleted ? 'Finalizar Cadastro' : (securityMode || editingOrder?.validationRole) ? 'Registrar Horários' : editingOrder ? 'Editar Ordem' : 'Nova Ordem de Saída'}
                                     </h3>
                                     <p className="text-gray-400 font-bold text-[8px] uppercase tracking-widest mt-0.5">
-                                        {(securityMode || editingOrder?.validationRole) ? 'Informe os horários de saída e retorno' : 'Preencha os dados do deslocamento'}
+                                        {isChecklistCompleted ? 'Checklist realizado com sucesso. Clique em salvar para finalizar.' : (securityMode || editingOrder?.validationRole) ? 'Informe os horários de saída e retorno' : 'Preencha os dados do deslocamento'}
                                     </p>
                                 </div>
-                                <button onClick={() => setIsModalOpen(false)} className="p-1.5 bg-gray-100 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-500 transition-all">
+                                <button onClick={() => { setIsModalOpen(false); setIsChecklistCompleted(false); }} className="p-1.5 bg-gray-100 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-500 transition-all">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
                             </div>
@@ -1899,16 +1893,16 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         <div className="flex gap-3 pt-1">
                             <button 
                                 type="button"
-                                onClick={() => setIsModalOpen(false)}
+                                onClick={() => { setIsModalOpen(false); setIsChecklistCompleted(false); }}
                                 className="flex-1 h-10 bg-gray-100 text-gray-500 font-black rounded-xl hover:bg-gray-200 transition-all uppercase text-[9px] tracking-widest"
                             >
                                 Cancelar
                             </button>
                             <button 
                                 type="submit"
-                                className="flex-[2] h-10 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 uppercase text-[9px] tracking-widest active:scale-95"
+                                className={`flex-[2] h-10 rounded-xl font-black transition-all shadow-xl active:scale-95 uppercase text-[9px] tracking-widest ${isChecklistCompleted ? 'bg-emerald-600 text-white shadow-emerald-100 hover:bg-emerald-700' : 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700'}`}
                             >
-                                {securityMode ? 'Salvar Horários' : editingOrder ? 'Salvar Alterações' : 'Confirmar Registro'}
+                                {isChecklistCompleted ? 'Finalizar e Salvar' : securityMode ? 'Salvar Horários' : editingOrder ? 'Salvar Alterações' : 'Continuar para Checklist'}
                             </button>
                         </div>
                     </form>
@@ -2108,10 +2102,13 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
                             <div className="flex gap-3 pt-4">
                                 <button 
-                                    onClick={() => setIsChecklistModalOpen(false)}
+                                    onClick={() => {
+                                        setIsChecklistModalOpen(false);
+                                        setIsModalOpen(true); // Retorna para a ordem de saída
+                                    }}
                                     className="flex-1 px-6 py-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all active:scale-95"
                                 >
-                                    Cancelar
+                                    Voltar
                                 </button>
                                 <button 
                                     onClick={handleConfirmChecklist}
@@ -2122,7 +2119,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                         : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
                                     }`}
                                 >
-                                    Liberar Saída
+                                    Confirmar Checklist
                                 </button>
                             </div>
                             
