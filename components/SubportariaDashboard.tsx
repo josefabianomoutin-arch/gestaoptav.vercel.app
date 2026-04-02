@@ -235,7 +235,10 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
 
     const generatePDF = (schedule: MaintenanceSchedule, order: ServiceOrder) => {
         const printWindow = window.open('', '_blank');
-        if (!printWindow) return;
+        if (!printWindow) {
+            alert("Por favor, permita pop-ups para visualizar o documento.");
+            return;
+        }
 
         const pplsList = (schedule.ppls || []).filter(p => p.trim() !== '').map(p => `<li>${p}</li>`).join('');
         const validationDate = schedule.validatedByDirectorAt ? new Date(schedule.validatedByDirectorAt) : new Date();
@@ -243,13 +246,29 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
         const dateInFull = validationDate.toLocaleDateString('pt-BR', dateOptions);
 
         const formatTimestamp = (ts?: string) => {
-            if (!ts) return '';
-            return new Date(ts).toLocaleString('pt-BR');
+            if (!ts) return 'N/A';
+            try {
+                const date = new Date(ts);
+                return isNaN(date.getTime()) ? ts : date.toLocaleString('pt-BR');
+            } catch (e) {
+                return ts;
+            }
         };
 
+        const scheduleDate = (() => {
+            try {
+                const date = new Date(schedule.date + 'T00:00:00');
+                return isNaN(date.getTime()) ? schedule.date : date.toLocaleDateString('pt-BR');
+            } catch (e) {
+                return schedule.date;
+            }
+        })();
+
         const html = `
+            <!DOCTYPE html>
             <html>
                 <head>
+                    <meta charset="UTF-8">
                     <title>Autorização de Saída - Manutenção Externa</title>
                     <style>
                         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
@@ -446,7 +465,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                             <div class="salutation">Senhores Chefes,</div>
                             
                             <div class="main-text">
-                                Ficam os PPL’s abaixo qualificados, <strong>AUTORIZADOS</strong> a trabalhar no setor de <strong>MANUTENÇÃO EXTERNA</strong> – horário das <strong>${schedule.time}</strong>, no dia <strong>${new Date(schedule.date).toLocaleDateString('pt-BR')}</strong>, devidamente acompanhado por Policial Penal.
+                                Ficam os PPL’s abaixo qualificados, <strong>AUTORIZADOS</strong> a trabalhar no setor de <strong>MANUTENÇÃO EXTERNA</strong> – horário das <strong>${schedule.time}</strong>, no dia <strong>${scheduleDate}</strong>, devidamente acompanhado por Policial Penal.
                             </div>
                             
                             <div class="date-centered">Taiúva, ${dateInFull}.</div>
@@ -483,19 +502,14 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                             </div>
                         </div>
                     </div>
-
-                    <script>
-                        window.onload = () => {
-                            window.print();
-                            setTimeout(() => window.close(), 500);
-                        };
-                    </script>
                 </body>
             </html>
         `;
 
+        printWindow.document.open();
         printWindow.document.write(html);
         printWindow.document.close();
+        printWindow.focus();
     };
 
     return (
@@ -1095,25 +1109,6 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
         </div>
     </div>
 )}
-
-{/* Canvas oculto para captura de foto */}
-<canvas ref={canvasRef} className="hidden" />
-
-<style>{`
-    @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
-    /* Remover ícone padrão do input date para mobile cleaner look */
-    input[type="date"]::-webkit-inner-spin-button,
-    input[type="date"]::-webkit-calendar-picker-indicator {
-        opacity: 0;
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        left: 0;
-        top: 0;
-        cursor: pointer;
-    }
-`}</style>
 
             {/* Canvas oculto para captura de foto */}
             <canvas ref={canvasRef} className="hidden" />
