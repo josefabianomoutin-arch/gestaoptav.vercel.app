@@ -77,21 +77,26 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
         return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
     };
 
-    const handleGenerateReport = () => {
+    const reportItems = useMemo(() => {
         const supplier = suppliers.find(s => s.cpf === reportSupplierCpf);
-        if (!supplier || !reportSelectedMonth) return;
+        if (!supplier || !reportSelectedMonth) return [];
 
-        const items = (Object.values((supplier.deliveries as any) || {}) as any[])
+        return (Object.values((supplier.deliveries as any) || {}) as any[])
             .filter((d: any) => d.date.startsWith(reportSelectedMonth) && d.invoiceNumber)
             .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        
-        if (items.length === 0) {
-            alert('Nenhum item encontrado para este mês/fornecedor.');
-            return;
-        }
+    }, [suppliers, reportSupplierCpf, reportSelectedMonth]);
 
-        const totalWeight = items.reduce((sum: number, item: any) => sum + (item.kg || 0), 0);
-        const totalValue = items.reduce((sum: number, item: any) => sum + (item.value || 0), 0);
+    const reportTotals = useMemo(() => {
+        const totalWeight = reportItems.reduce((sum: number, item: any) => sum + (item.kg || 0), 0);
+        const totalValue = reportItems.reduce((sum: number, item: any) => sum + (item.value || 0), 0);
+        return { totalWeight, totalValue };
+    }, [reportItems]);
+
+    const handleGenerateReport = () => {
+        const supplier = suppliers.find(s => s.cpf === reportSupplierCpf);
+        if (!supplier || !reportSelectedMonth || reportItems.length === 0) return;
+
+        const { totalWeight, totalValue } = reportTotals;
 
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
@@ -172,7 +177,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                     </div>
 
                 <div class="contractor-info">
-                    <strong>Agricultor:</strong> ${supplier.name.toUpperCase()}, maior, capaz e residente na ${reportSupplierAddress || '__________________________________________________________________'}, inscrito no CPF: ${supplier.cpf} doravante designado Contratado.
+                    <strong>Fornecedor:</strong> ${supplier.name.toUpperCase()}, maior, capaz e residente na ${reportSupplierAddress || '__________________________________________________________________'}, inscrito no CPF: ${supplier.cpf} doravante designado Contratado.
                 </div>
 
                 <div class="opening-text">
@@ -191,7 +196,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                         </tr>
                     </thead>
                     <tbody>
-                        ${items.map(item => `
+                        ${reportItems.map(item => `
                             <tr>
                                 <td class="text-center">${formatDate(item.date)}</td>
                                 <td>${item.item}</td>
@@ -203,8 +208,8 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                     <tfoot>
                         <tr style="background-color: #f2f2f2; font-weight: bold;">
                             <td colspan="2" class="text-right">TOTAIS</td>
-                            <td class="text-center">${totalWeight.toFixed(3)} Kg</td>
-                            <td class="text-right">${formatCurrency(totalValue)}</td>
+                            <td class="text-center">${reportTotals.totalWeight.toFixed(3)} Kg</td>
+                            <td class="text-right">${formatCurrency(reportTotals.totalValue)}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -568,7 +573,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">4. Endereço do Agricultor</label>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">4. Endereço do Fornecedor</label>
                                     <input 
                                         type="text" 
                                         value={reportSupplierAddress} 
@@ -576,6 +581,104 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                                         className="w-full p-4 border-2 border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-purple-100 font-bold text-gray-700"
                                         placeholder="Ex: Rua Antonio Nunes da Silva, 84, Bairro laranjeiras..."
                                     />
+                                </div>
+
+                                {/* Preview Section */}
+                                <div className="mt-8 border-2 border-dashed border-purple-100 rounded-[2.5rem] p-8 bg-purple-50/30">
+                                    <h3 className="text-sm font-black text-purple-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></div>
+                                        Pré-visualização do Cronograma
+                                    </h3>
+                                    
+                                    <div className="bg-white rounded-3xl shadow-sm border border-purple-100 p-8 space-y-6 text-[11px] font-serif overflow-x-auto">
+                                        <div className="text-center font-bold uppercase text-sm border-b-2 border-black pb-4 mb-6">
+                                            CRONOGRAMA DE ENTREGA
+                                        </div>
+                                        
+                                        <div className="text-justify leading-relaxed">
+                                            <strong>Fornecedor:</strong> {(suppliers.find(s => s.cpf === reportSupplierCpf)?.name || '').toUpperCase()}, maior, capaz e residente na {reportSupplierAddress || '__________________________________________________________________'}, inscrito no CPF: {reportSupplierCpf} doravante designado Contratado.
+                                        </div>
+
+                                        <div className="text-justify leading-relaxed italic">
+                                            Solicitamos as devidas providências de Vossa Senhoria, no sentido de fornecer a esta Unidade Prisional, os itens relacionados abaixo, conforme especificações constantes no Folheto Descritivo, durante o período de {getMonthName(reportSelectedMonth)}.
+                                        </div>
+
+                                        <table className="w-full border-collapse border border-black">
+                                            <thead>
+                                                <tr className="bg-gray-100 uppercase font-bold">
+                                                    <th className="border border-black p-2">Data</th>
+                                                    <th className="border border-black p-2">Item</th>
+                                                    <th className="border border-black p-2">Peso (Kg)</th>
+                                                    <th className="border border-black p-2">Valor (R$)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {reportItems.map((item, idx) => (
+                                                    <tr key={idx}>
+                                                        <td className="border border-black p-2 text-center">{formatDate(item.date)}</td>
+                                                        <td className="border border-black p-2">{item.item}</td>
+                                                        <td className="border border-black p-2 text-center">{item.kg?.toFixed(3)}</td>
+                                                        <td className="border border-black p-2 text-right">{formatCurrency(item.value || 0)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                            <tfoot className="font-bold bg-gray-50">
+                                                <tr>
+                                                    <td colSpan={2} className="border border-black p-2 text-right uppercase">Totais</td>
+                                                    <td className="border border-black p-2 text-center">{reportTotals.totalWeight.toFixed(3)} Kg</td>
+                                                    <td className="border border-black p-2 text-right">{formatCurrency(reportTotals.totalValue)}</td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+
+                                        {/* Invoices List for Conference */}
+                                        <div className="mt-8 border-t pt-6">
+                                            <h4 className="text-[10px] font-black text-purple-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                                Notas Fiscais Vinculadas (Para Conferência)
+                                            </h4>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                {(() => {
+                                                    const uniqueInvoices = Array.from(new Set(reportItems.filter(i => i.invoiceUrl).map(i => i.invoiceUrl as string)));
+                                                    if (uniqueInvoices.length === 0) return <p className="text-[10px] text-gray-400 italic">Nenhum anexo de nota fiscal encontrado.</p>;
+                                                    
+                                                    return uniqueInvoices.map((url: string, idx: number) => {
+                                                        const item = reportItems.find(i => i.invoiceUrl === url);
+                                                        return (
+                                                            <div key={idx} className="bg-white border border-purple-100 rounded-xl p-3 flex flex-col gap-3 shadow-sm hover:shadow-md transition-all">
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600 font-black text-[10px]">
+                                                                            {idx + 1}
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-[10px] font-black text-purple-900 uppercase leading-none">NF: {item?.invoiceNumber || 'S/N'}</p>
+                                                                            <p className="text-[8px] font-bold text-gray-400 uppercase mt-1">{formatDate(item?.date || '')}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <button 
+                                                                        onClick={() => window.open(url, '_blank')}
+                                                                        className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                                                                        title="Abrir em Nova Aba"
+                                                                    >
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 00-2 2v4a2 2 0 002 2h10a2 2 0 002-2v-4a2 2 0 00-2-2h-4m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                                                                    </button>
+                                                                </div>
+                                                                <div className="aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden border border-gray-100 relative">
+                                                                    {url.startsWith('data:image/') || url.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                                                                        <img src={url} alt="NF" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                                                                    ) : (
+                                                                        <iframe src={url} className="w-full h-full border-none scale-75 origin-top" title={`NF ${idx + 1}`} />
+                                                                    )}
+                                                                    <div className="absolute inset-0 bg-transparent cursor-pointer" onClick={() => window.open(url, '_blank')}></div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    });
+                                                })()}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}

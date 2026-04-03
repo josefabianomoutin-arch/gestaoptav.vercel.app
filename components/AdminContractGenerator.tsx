@@ -178,7 +178,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
 
                         <div className="space-y-4 text-justify">
                             <h2 className="font-bold underline uppercase">CLÁUSULA TERCEIRA – DO LIMITE INDIVIDUAL DE VENDA</h2>
-                            <p>A CONTRATADA compromete-se a observar o limite individual de venda de gêneros alimentícios do Agricultor Familiar de até R$ 208.000,00 (duzentos e oito mil reais) por DCONP/ano, sendo aplicável o referido teto de forma individualizada para o Programa PPAIS (R$ 104.000,00) para produtos “in natura” e (R$ 104.000,00) para o subprograma “Leite e Derivados”.</p>
+                            <p>A CONTRATADA compromete-se a observar o limite individual de venda de gêneros alimentícios do Fornecedor Familiar de até R$ 208.000,00 (duzentos e oito mil reais) por DCONP/ano, sendo aplicável o referido teto de forma individualizada para o Programa PPAIS (R$ 104.000,00) para produtos “in natura” e (R$ 104.000,00) para o subprograma “Leite e Derivados”.</p>
                         </div>
 
                         <div className="space-y-4 text-justify">

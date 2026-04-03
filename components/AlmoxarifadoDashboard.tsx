@@ -204,7 +204,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         );
 
         if (filteredDeliveries.length === 0) {
-            alert('Nenhum agendamento encontrado para os produtores selecionados.');
+            alert('Nenhum agendamento encontrado para os fornecedores selecionados.');
             return;
         }
 
@@ -263,7 +263,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         <tr>
                             <th>DATA</th>
                             <th>HORÁRIO</th>
-                            <th>PRODUTOR</th>
+                            <th>FORNECEDOR</th>
                             <th>ITEM AGENDADO</th>
                         </tr>
                     </thead>

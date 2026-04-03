@@ -502,6 +502,11 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                             </div>
                         </div>
                     </div>
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                        }
+                    </script>
                 </body>
             </html>
         `;
@@ -796,23 +801,48 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                         )}
 
                                         {schedule.exitAuthorizationUrl && (
-                                            <a 
-                                                href={schedule.exitAuthorizationUrl} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer"
-                                                className="w-full flex items-center gap-4 p-5 bg-emerald-600 text-white rounded-2xl shadow-lg hover:bg-emerald-700 transition-all group transform hover:-translate-y-1"
-                                            >
-                                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
-                                                    <FileText className="h-6 w-6 text-white" />
+                                            <div className="space-y-4">
+                                                <a 
+                                                    href={schedule.exitAuthorizationUrl} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="w-full flex items-center gap-4 p-5 bg-emerald-600 text-white rounded-2xl shadow-lg hover:bg-emerald-700 transition-all group transform hover:-translate-y-1"
+                                                >
+                                                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
+                                                        <FileText className="h-6 w-6 text-white" />
+                                                    </div>
+                                                    <div className="flex-1 text-left">
+                                                        <p className="text-[10px] font-black text-emerald-200 uppercase tracking-widest leading-none mb-1">Anexo de Autorização</p>
+                                                        <p className="text-sm font-black uppercase tracking-tighter italic">Visualizar Anexo (PDF)</p>
+                                                    </div>
+                                                    <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+                                                        <ExternalLink className="h-4 w-4 text-white" />
+                                                    </div>
+                                                </a>
+
+                                                {/* Preview for Attachment */}
+                                                <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl overflow-hidden p-2">
+                                                    <div className="bg-white rounded-2xl overflow-hidden shadow-inner aspect-[4/3] relative">
+                                                        {schedule.exitAuthorizationUrl.startsWith('data:image/') || schedule.exitAuthorizationUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                                                            <img 
+                                                                src={schedule.exitAuthorizationUrl} 
+                                                                alt="Anexo" 
+                                                                className="w-full h-full object-contain"
+                                                                referrerPolicy="no-referrer"
+                                                            />
+                                                        ) : (
+                                                            <iframe 
+                                                                src={schedule.exitAuthorizationUrl} 
+                                                                className="w-full h-full border-none"
+                                                                title="Visualização do Anexo"
+                                                            />
+                                                        )}
+                                                        <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm text-white text-[8px] font-black uppercase px-2 py-1 rounded-lg">
+                                                            Pré-visualização do Anexo
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="flex-1 text-left">
-                                                    <p className="text-[10px] font-black text-emerald-200 uppercase tracking-widest leading-none mb-1">Anexo de Autorização</p>
-                                                    <p className="text-sm font-black uppercase tracking-tighter italic">Visualizar Anexo (PDF)</p>
-                                                </div>
-                                                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
-                                                    <ExternalLink className="h-4 w-4 text-white" />
-                                                </div>
-                                            </a>
+                                            </div>
                                         )}
                                     </div>
 
