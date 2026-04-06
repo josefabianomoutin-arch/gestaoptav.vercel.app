@@ -72,6 +72,8 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
     }
   };
 
+  const [activeSubTab, setActiveSubTab] = useState<'ongoing' | 'finished'>('ongoing');
+
   const sortedOrders = useMemo(() => {
     const priorityWeight: Record<string, number> = {
       'ALTA': 0,
@@ -79,13 +81,22 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
       'BAIXA': 2,
       'PENDENTE': 3
     };
-    return [...serviceOrders].sort((a, b) => {
-      const weightA = priorityWeight[a.priority] ?? 4;
-      const weightB = priorityWeight[b.priority] ?? 4;
-      if (weightA !== weightB) return weightA - weightB;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-  }, [serviceOrders]);
+    
+    return [...serviceOrders]
+      .filter(order => {
+        if (activeSubTab === 'ongoing') {
+          return order.status !== 'concluido' && order.status !== 'cancelado';
+        } else {
+          return order.status === 'concluido';
+        }
+      })
+      .sort((a, b) => {
+        const weightA = priorityWeight[a.priority] ?? 4;
+        const weightB = priorityWeight[b.priority] ?? 4;
+        if (weightA !== weightB) return weightA - weightB;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  }, [serviceOrders, activeSubTab]);
 
   const getProjectStageText = (stage?: string) => {
     switch(stage) {
@@ -140,6 +151,32 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
       </header>
 
       <main className="max-w-7xl mx-auto p-4 md:p-10 relative z-10">
+        {/* Sub-tabs */}
+        <div className="flex bg-white/50 backdrop-blur-md p-1.5 rounded-2xl border border-gray-200 shadow-sm self-start mb-10 inline-flex">
+          <button
+            onClick={() => setActiveSubTab('ongoing')}
+            className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+              activeSubTab === 'ongoing'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
+                : 'text-gray-500 hover:bg-gray-100'
+            }`}
+          >
+            <Clock className="h-4 w-4" />
+            Em Andamento
+          </button>
+          <button
+            onClick={() => setActiveSubTab('finished')}
+            className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+              activeSubTab === 'finished'
+                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200'
+                : 'text-gray-500 hover:bg-gray-100'
+            }`}
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Finalizadas
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {sortedOrders.length > 0 ? (
             sortedOrders.map((order, idx) => (

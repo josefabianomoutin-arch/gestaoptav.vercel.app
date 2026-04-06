@@ -53,6 +53,8 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
     exitAuthorizationUrl: ''
   });
 
+  const [activeSubTab, setActiveSubTab] = useState<'ongoing' | 'finished'>('ongoing');
+
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
       order.requestingSector.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -62,7 +64,12 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
     const matchesStatus = filterStatus === 'todos' || order.status === filterStatus;
     const matchesStage = filterStage === 'todas' || order.projectStage === filterStage;
     
-    return matchesSearch && matchesStatus && matchesStage;
+    // Sub-tab filtering
+    const matchesSubTab = activeSubTab === 'ongoing' 
+      ? (order.status !== 'concluido' && order.status !== 'cancelado')
+      : (order.status === 'concluido');
+
+    return matchesSearch && matchesStatus && matchesStage && matchesSubTab;
   }).sort((a, b) => {
     const priorityWeight: Record<string, number> = {
       'ALTA': 0,
@@ -317,6 +324,207 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
     }
   };
 
+  const generateControlReport = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const ongoingCount = orders.filter(o => o.status !== 'concluido' && o.status !== 'cancelado').length;
+    const finishedCount = orders.filter(o => o.status === 'concluido').length;
+    const pendingCount = orders.filter(o => o.status === 'pendente').length;
+
+    const reportTitle = activeSubTab === 'ongoing' ? 'RELATÓRIO DE MANUTENÇÕES EM ANDAMENTO' : 'RELATÓRIO DE MANUTENÇÕES FINALIZADAS';
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${reportTitle}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+            body { 
+              font-family: 'Inter', sans-serif; 
+              padding: 40px; 
+              color: #1e293b;
+              line-height: 1.5;
+            }
+            .header { 
+              text-align: center; 
+              border-bottom: 4px solid #4f46e5; 
+              padding-bottom: 20px; 
+              margin-bottom: 30px; 
+            }
+            .header h1 { 
+              margin: 0; 
+              font-size: 28px; 
+              font-weight: 900; 
+              letter-spacing: -0.05em; 
+              text-transform: uppercase;
+              font-style: italic;
+              color: #4f46e5;
+            }
+            .header p { 
+              margin: 5px 0 0; 
+              font-size: 12px; 
+              font-weight: 700; 
+              text-transform: uppercase; 
+              letter-spacing: 0.2em;
+              color: #64748b;
+            }
+            .summary-cards {
+              display: grid;
+              grid-template-cols: repeat(4, 1fr);
+              gap: 15px;
+              margin-bottom: 30px;
+            }
+            .card {
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              padding: 15px;
+              border-radius: 12px;
+              text-align: center;
+            }
+            .card .label { font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 5px; }
+            .card .value { font-size: 20px; font-weight: 900; color: #1e293b; }
+            
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin-top: 20px; 
+              font-size: 11px;
+            }
+            th { 
+              background: #4f46e5; 
+              color: white; 
+              text-align: left; 
+              padding: 12px 10px; 
+              text-transform: uppercase; 
+              font-weight: 900;
+              letter-spacing: 0.05em;
+            }
+            td { 
+              padding: 10px; 
+              border-bottom: 1px solid #e2e8f0; 
+              font-weight: 500;
+            }
+            tr:nth-child(even) { background: #f8fafc; }
+            .badge {
+              display: inline-block;
+              padding: 4px 8px;
+              border-radius: 6px;
+              font-weight: 900;
+              font-size: 9px;
+              text-transform: uppercase;
+            }
+            .priority-ALTA { background: #fee2e2; color: #dc2626; }
+            .priority-MÉDIA { background: #fef3c7; color: #d97706; }
+            .priority-BAIXA { background: #dcfce7; color: #16a34a; }
+            .status-pendente { color: #d97706; }
+            .status-em_andamento { color: #2563eb; }
+            .status-concluido { color: #16a34a; }
+            
+            .footer { 
+              margin-top: 50px; 
+              text-align: right; 
+              font-size: 10px; 
+              color: #94a3b8; 
+              font-weight: 700;
+              border-top: 1px solid #e2e8f0;
+              padding-top: 10px;
+            }
+            @media print {
+              .no-print { display: none; }
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Seção de Infraestrutura e Logística</h1>
+            <p>${reportTitle}</p>
+          </div>
+
+          <div class="summary-cards">
+            <div class="card">
+              <div class="label">Total Geral</div>
+              <div class="value">${orders.length}</div>
+            </div>
+            <div class="card">
+              <div class="label">Pendentes</div>
+              <div class="value">${pendingCount}</div>
+            </div>
+            <div class="card">
+              <div class="label">Em Andamento</div>
+              <div class="value">${ongoingCount}</div>
+            </div>
+            <div class="card">
+              <div class="label">Finalizadas</div>
+              <div class="value">${finishedCount}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Solicitante / Setor</th>
+                <th>Descrição / Local</th>
+                <th>Tipo</th>
+                <th>Prioridade</th>
+                <th>Status</th>
+                <th>PPLs / Ferramentas</th>
+                <th>Data Agend.</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredOrders.map(o => {
+                const schedule = maintenanceSchedules.find(ms => ms.serviceOrderId === o.id);
+                const pplsCount = schedule?.ppls?.filter(p => p.trim() !== '').length || 0;
+                const toolsCount = schedule?.tools?.filter(t => t.trim() !== '').length || 0;
+                
+                return `
+                  <tr>
+                    <td>${o.id.slice(-4).toUpperCase()}</td>
+                    <td>
+                      <div style="font-weight: 900">${o.requester}</div>
+                      <div style="font-size: 9px; color: #64748b">${o.requestingSector}</div>
+                    </td>
+                    <td>
+                      <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${o.description}</div>
+                      <div style="font-size: 9px; color: #64748b">${o.location || 'N/A'}</div>
+                    </td>
+                    <td>${o.serviceType.toUpperCase()}</td>
+                    <td><span class="badge priority-${o.priority}">${o.priority}</span></td>
+                    <td class="status-${o.status}">${o.status.replace('_', ' ').toUpperCase()}</td>
+                    <td>
+                      <div style="font-size: 9px; font-weight: 700;">
+                        ${pplsCount > 0 ? `👥 ${pplsCount} PPLs` : ''}
+                        ${pplsCount > 0 && toolsCount > 0 ? ' | ' : ''}
+                        ${toolsCount > 0 ? `🛠️ ${toolsCount} Ferr.` : ''}
+                        ${pplsCount === 0 && toolsCount === 0 ? '---' : ''}
+                      </div>
+                    </td>
+                    <td>${schedule ? new Date(schedule.date).toLocaleDateString('pt-BR') : '---'}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            Gerado em ${new Date().toLocaleString('pt-BR')}
+          </div>
+
+          <script>
+            window.onload = () => {
+              window.print();
+              // window.close(); // Opcional
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   return (
     <div className="space-y-8 animate-fade-in relative">
       {/* Background Effects */}
@@ -334,6 +542,41 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
             <h2 className="text-3xl font-black text-indigo-950 uppercase tracking-tighter italic leading-none">Gestão de Infraestrutura</h2>
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Controle Total de Solicitações de Serviço</p>
           </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+          <div className="flex bg-gray-100 p-1 rounded-2xl border border-gray-200">
+            <button
+              onClick={() => setActiveSubTab('ongoing')}
+              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+                activeSubTab === 'ongoing'
+                  ? 'bg-white text-indigo-600 shadow-sm border border-gray-200'
+                  : 'text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              Em Andamento
+            </button>
+            <button
+              onClick={() => setActiveSubTab('finished')}
+              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+                activeSubTab === 'finished'
+                  ? 'bg-white text-emerald-600 shadow-sm border border-gray-200'
+                  : 'text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Finalizadas
+            </button>
+          </div>
+
+          <button
+            onClick={generateControlReport}
+            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 font-black py-3 px-6 rounded-2xl text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm active:scale-95"
+          >
+            <FileText className="h-4 w-4" />
+            Relatório de Controle
+          </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
