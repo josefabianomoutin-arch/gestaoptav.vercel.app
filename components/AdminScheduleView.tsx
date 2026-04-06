@@ -83,7 +83,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
         if (!supplier || !reportSelectedMonth) return [];
 
         return (Object.values((supplier.deliveries as any) || {}) as any[])
-            .filter((d: any) => d.date.startsWith(reportSelectedMonth) && d.invoiceNumber)
+            .filter((d: any) => d.date.startsWith(reportSelectedMonth))
             .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }, [suppliers, reportSupplierCpf, reportSelectedMonth]);
 
@@ -116,120 +116,121 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
 
         const getReportDate = () => {
             const [year, month] = reportSelectedMonth.split('-');
-            if (month === '01') {
-                return '02 de janeiro de 2025';
-            } else {
-                const date = new Date(parseInt(year), parseInt(month) - 1, 1);
-                return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
-            }
+            const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+            return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
         };
+
+        // Agrupar itens por data para layout compacto
+        const groupedByDate = new Map<string, any[]>();
+        selectedReportItems.forEach(item => {
+            const date = item.date;
+            if (!groupedByDate.has(date)) groupedByDate.set(date, []);
+            groupedByDate.get(date)!.push(item);
+        });
+
+        const sortedDates = Array.from(groupedByDate.keys()).sort();
 
         const htmlContent = `
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Cronograma de Entrega</title>
+                <title>Cronograma de Entrega - ${supplier.name}</title>
                 <style>
                     @page { 
-                        size: A4; 
-                        margin: 0; 
-                    }
-                    @media print {
-                        header, footer { display: none !important; }
+                        size: A4 landscape; 
+                        margin: 10mm; 
                     }
                     body { 
                         font-family: Arial, sans-serif; 
-                        line-height: 1.4; 
+                        line-height: 1.3; 
                         color: #000; 
-                        font-size: 11pt; 
+                        font-size: 10pt; 
                         margin: 0; 
                         padding: 0; 
-                        background: white;
                     }
-                    .page {
-                        width: 210mm;
-                        min-height: 297mm;
-                        padding: 20mm;
-                        margin: 0 auto;
-                        box-sizing: border-box;
-                        background: white;
-                    }
-                    .header { text-align: center; font-weight: bold; text-transform: uppercase; margin-bottom: 20px; font-size: 14pt; }
+                    .header { text-align: center; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; font-size: 14pt; border-bottom: 2px solid #000; padding-bottom: 10px; }
                     
-                    .contractor-info { text-align: justify; margin-bottom: 20px; }
-                    .opening-text { text-align: justify; margin-bottom: 20px; text-indent: 2cm; }
+                    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+                    .info-box { border: 1px solid #000; padding: 8px; background: #f9f9f9; }
                     
-                    .section-title { font-size: 11pt; font-weight: bold; text-transform: uppercase; margin: 1rem 0 0.5rem 0; text-align: center; background: #f2f2f2; padding: 4px; border: 1px solid #000; }
-
+                    .opening-text { text-align: justify; margin-bottom: 15px; font-size: 9pt; }
+                    
                     table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9pt; }
-                    th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+                    th, td { border: 1px solid #000; padding: 6px; text-align: left; }
                     th { background-color: #f2f2f2; text-transform: uppercase; font-weight: bold; text-align: center; }
                     .text-right { text-align: right; }
                     .text-center { text-align: center; }
+                    .item-tag { display: inline-block; background: #eee; padding: 2px 5px; border-radius: 3px; margin: 1px; border: 1px solid #ccc; font-size: 8pt; }
 
-                    .closing-text { margin-top: 20px; text-align: justify; font-size: 10pt; }
+                    .signatures { margin-top: 30px; display: flex; justify-content: space-around; }
+                    .signature-block { text-align: center; width: 300px; }
+                    .signature-line { border-top: 1px solid #000; margin-bottom: 5px; }
+                    .signature-name { font-weight: bold; text-transform: uppercase; font-size: 9pt; }
+                    .signature-title { font-size: 8pt; }
                     
-                    .signatures { margin-top: 40px; width: 100%; }
-                    .signature-block { text-align: center; margin-top: 30px; }
-                    .signature-line { border-top: 1px solid #000; width: 350px; margin: 0 auto 5px auto; }
-                    .signature-name { font-weight: bold; text-transform: uppercase; font-size: 10pt; }
-                    .signature-title { font-size: 9pt; }
-                    
-                    .location-date { margin-top: 30px; text-align: right; font-weight: normal; }
-
-                    @media print {
-                        body { margin: 0; padding: 0; }
-                        .page { margin: 0; border: none; box-shadow: none; padding: 20mm; }
-                    }
+                    .location-date { margin-top: 20px; text-align: right; font-weight: bold; }
                 </style>
             </head>
             <body>
-                <div class="page">
-                    <div class="header">
-                        CRONOGRAMA DE ENTREGA
-                    </div>
+                <div class="header">CRONOGRAMA DE ENTREGA - ${getMonthName(reportSelectedMonth)}</div>
 
-                <div class="contractor-info">
-                    <strong>Fornecedor:</strong> ${supplier.name.toUpperCase()}, maior, capaz e residente na ${reportSupplierAddress || '__________________________________________________________________'}, inscrito no CPF: ${supplier.cpf} doravante designado Contratado.
+                <div class="info-grid">
+                    <div class="info-box">
+                        <strong>FORNECEDOR:</strong> ${supplier.name.toUpperCase()}<br>
+                        <strong>CPF/CNPJ:</strong> ${supplier.cpf}<br>
+                        <strong>ENDEREÇO:</strong> ${reportSupplierAddress || 'NÃO INFORMADO'}
+                    </div>
+                    <div class="info-box">
+                        <strong>PROCESSO SEI:</strong> ${reportSeiNumber || 'NÃO INFORMADO'}<br>
+                        <strong>UNIDADE:</strong> PENITENCIÁRIA DE TAIUVA<br>
+                        <strong>PERÍODO:</strong> ${getMonthName(reportSelectedMonth)}
+                    </div>
                 </div>
 
                 <div class="opening-text">
-                    Solicitamos as devidas providências de Vossa Senhoria, no sentido de fornecer a esta Unidade Prisional, os itens relacionados abaixo, conforme especificações constantes no Folheto Descritivo, durante o período de ${getMonthName(reportSelectedMonth)}. As entregas deverão ser efetuadas no endereço infra mencionado, impreterivelmente no dia e horário (das 08:00 às 11:00 horas e das 13:00 às 16:00 horas) estipulado neste cronograma.
+                    Solicitamos as devidas providências no sentido de fornecer a esta Unidade Prisional os itens relacionados abaixo, conforme especificações contratuais. As entregas deverão ser efetuadas no endereço mencionado, das 08:00 às 11:00 horas e das 13:00 às 16:00 horas, conforme estipulado neste cronograma.
                 </div>
-
-                <div class="section-title">RELAÇÃO DE ITENS A SER ENTREGUE</div>
 
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 120px;">DATA DO AGENDAMENTO</th>
-                            <th>ITEM</th>
-                            <th class="text-center" style="width: 100px;">PESO (KG)</th>
-                            <th class="text-right" style="width: 120px;">VALOR (R$)</th>
+                            <th style="width: 100px;">DATA</th>
+                            <th>ITENS AGENDADOS (DESCRIÇÃO / QUANTIDADE / VALOR)</th>
+                            <th style="width: 100px;">PESO TOTAL (KG)</th>
+                            <th style="width: 120px;">VALOR TOTAL (R$)</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${selectedReportItems.map(item => `
-                            <tr>
-                                <td class="text-center">${formatDate(item.date)}</td>
-                                <td>${item.item}</td>
-                                <td class="text-center">${item.kg?.toFixed(3)}</td>
-                                <td class="text-right">${formatCurrency(item.value || 0)}</td>
-                            </tr>
-                        `).join('')}
+                        ${sortedDates.map(date => {
+                            const items = groupedByDate.get(date)!;
+                            const dayWeight = items.reduce((sum, i) => sum + (i.kg || 0), 0);
+                            const dayValue = items.reduce((sum, i) => sum + (i.value || 0), 0);
+                            return `
+                                <tr>
+                                    <td class="text-center font-bold">${formatDate(date)}</td>
+                                    <td>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                            ${items.map(item => `
+                                                <div class="item-tag">
+                                                    <strong>${item.item}</strong>: ${item.kg?.toFixed(2).replace('.',',')}Kg - ${formatCurrency(item.value || 0)}
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </td>
+                                    <td class="text-center font-bold">${dayWeight.toFixed(3).replace('.',',')}</td>
+                                    <td class="text-right font-bold">${formatCurrency(dayValue)}</td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                     <tfoot>
-                        <tr style="background-color: #f2f2f2; font-weight: bold;">
-                            <td colspan="2" class="text-right">TOTAIS</td>
-                            <td class="text-center">${reportTotals.totalWeight.toFixed(3)} Kg</td>
+                        <tr style="background-color: #f2f2f2; font-weight: bold; font-size: 11pt;">
+                            <td colspan="2" class="text-right">TOTAIS DO PERÍODO</td>
+                            <td class="text-center">${reportTotals.totalWeight.toFixed(3).replace('.',',')} Kg</td>
                             <td class="text-right">${formatCurrency(reportTotals.totalValue)}</td>
                         </tr>
                     </tfoot>
                 </table>
-
-                <div class="closing-text">
-                    De acordo com a Cláusula Segunda do contrato no seu item 1º. O objeto da presente contratação será entregue parceladamente, nos prazos e locais determinados pela CONTRATANTE, conforme cronograma de fornecimento Anexo I do presente contrato;
-                </div>
 
                 <div class="location-date">
                     Taiuva, ${getReportDate()}
@@ -238,13 +239,18 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                 <div class="signatures">
                     <div class="signature-block">
                         <div class="signature-line"></div>
+                        <div class="signature-name">${supplier.name.toUpperCase()}</div>
+                        <div class="signature-title">Contratado</div>
+                    </div>
+                    <div class="signature-block">
+                        <div class="signature-line"></div>
                         <div class="signature-name">JOSÉ FABIANO MOUTIN</div>
-                        <div class="signature-title">chefe de Seção de Finanças e Suprimentos</div>
+                        <div class="signature-title">Chefe de Seção de Finanças e Suprimentos</div>
                     </div>
                 </div>
 
                 <script>
-                    window.onload = function() { window.print(); }
+                    window.onload = function() { window.print(); window.close(); }
                 </script>
             </body>
             </html>

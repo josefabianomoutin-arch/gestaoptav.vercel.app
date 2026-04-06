@@ -606,14 +606,14 @@ const App: React.FC = () => {
         if (currentData) {
           const deliveries = currentData.deliveries || [];
           let updated = false;
-          deliveries.forEach(d => {
-            if (deliveryIds.includes(d.id)) {
-              d.invoiceUploaded = true;
-              d.invoiceNumber = invoiceNumber;
-              d.invoiceUrl = finalInvoiceUrl;
-              updated = true;
-            }
-          });
+              deliveries.forEach(d => {
+                if (deliveryIds.includes(d.id)) {
+                  d.invoiceUploaded = true;
+                  d.invoiceNumber = invoiceNumber;
+                  if (finalInvoiceUrl !== undefined) d.invoiceUrl = finalInvoiceUrl;
+                  updated = true;
+                }
+              });
           
           if (updated) {
             await update(supplierRef, { deliveries });
@@ -645,7 +645,7 @@ const App: React.FC = () => {
               if (deliveryIds.includes(d.id)) {
                 d.invoiceUploaded = true;
                 d.invoiceNumber = invoiceNumber;
-                d.invoiceUrl = finalInvoiceUrl;
+                if (finalInvoiceUrl !== undefined) d.invoiceUrl = finalInvoiceUrl;
               }
             });
             // Atualiza apenas o item específico na lista
@@ -746,7 +746,7 @@ const App: React.FC = () => {
 
             // Insere novos itens editados
             items.forEach((item, idx) => {
-              currentData.deliveries.push({
+              const newDelivery: any = {
                 id: `inv-edit-${Date.now()}-${idx}`,
                 date: baseDate,
                 time: baseTime,
@@ -755,20 +755,23 @@ const App: React.FC = () => {
                 value: item.value,
                 invoiceUploaded: true,
                 invoiceNumber: String(finalInvoiceNumber || '').trim(),
-                invoiceUrl: existingInvoiceUrl,
-                invoiceDate: finalInvoiceDate,
-                barcode: barcode,
-                receiptTermNumber: finalReceiptTerm,
-                nl: finalNl,
-                pd: finalPd,
                 lots: [{
                   id: `lot-edit-${Date.now()}-${idx}`,
                   lotNumber: item.lotNumber || 'EDITADO',
                   initialQuantity: item.kg,
-                  remainingQuantity: item.kg,
-                  expirationDate: item.expirationDate
+                  remainingQuantity: item.kg
                 }]
-              });
+              };
+
+              if (existingInvoiceUrl !== undefined) newDelivery.invoiceUrl = existingInvoiceUrl;
+              if (finalInvoiceDate !== undefined) newDelivery.invoiceDate = finalInvoiceDate;
+              if (barcode !== undefined) newDelivery.barcode = barcode;
+              if (finalReceiptTerm !== undefined) newDelivery.receiptTermNumber = finalReceiptTerm;
+              if (finalNl !== undefined) newDelivery.nl = finalNl;
+              if (finalPd !== undefined) newDelivery.pd = finalPd;
+              if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
+
+              currentData.deliveries.push(newDelivery);
             });
           }
           return currentData;
@@ -801,7 +804,7 @@ const App: React.FC = () => {
               s.deliveries = s.deliveries.filter((d: any) => d.invoiceNumber !== invoiceNumber);
 
               items.forEach((item, idx) => {
-                s.deliveries.push({
+                const newDelivery: any = {
                   id: `inv-edit-${Date.now()}-${idx}`,
                   date: baseDate,
                   time: baseTime,
@@ -810,20 +813,23 @@ const App: React.FC = () => {
                   value: item.value,
                   invoiceUploaded: true,
                   invoiceNumber: String(finalInvoiceNumber || '').trim(),
-                  invoiceUrl: existingInvoiceUrl,
-                  invoiceDate: finalInvoiceDate,
-                  barcode: barcode,
-                  receiptTermNumber: finalReceiptTerm,
-                  nl: finalNl,
-                  pd: finalPd,
                   lots: [{
                     id: `lot-edit-${Date.now()}-${idx}`,
                     lotNumber: item.lotNumber || 'EDITADO',
                     initialQuantity: item.kg,
-                    remainingQuantity: item.kg,
-                    expirationDate: item.expirationDate
+                    remainingQuantity: item.kg
                   }]
-                });
+                };
+
+                if (existingInvoiceUrl !== undefined) newDelivery.invoiceUrl = existingInvoiceUrl;
+                if (finalInvoiceDate !== undefined) newDelivery.invoiceDate = finalInvoiceDate;
+                if (barcode !== undefined) newDelivery.barcode = barcode;
+                if (finalReceiptTerm !== undefined) newDelivery.receiptTermNumber = finalReceiptTerm;
+                if (finalNl !== undefined) newDelivery.nl = finalNl;
+                if (finalPd !== undefined) newDelivery.pd = finalPd;
+                if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
+
+                s.deliveries.push(newDelivery);
               });
               return true;
             }
@@ -893,7 +899,9 @@ const App: React.FC = () => {
         if (currentData && currentData.deliveries) {
           const deliveries = currentData.deliveries.map(d => {
             if (d.invoiceNumber === invoiceNumber) {
-              return { ...d, invoiceUrl: finalInvoiceUrl };
+              const updated = { ...d };
+              if (finalInvoiceUrl !== undefined) updated.invoiceUrl = finalInvoiceUrl;
+              return updated;
             }
             return d;
           });
@@ -919,7 +927,9 @@ const App: React.FC = () => {
             const deliveries = list[index].deliveries || [];
             const updatedDeliveries = deliveries.map((d: any) => {
               if (d.invoiceNumber === invoiceNumber) {
-                return { ...d, invoiceUrl: finalInvoiceUrl };
+                const updated = { ...d };
+                if (finalInvoiceUrl !== undefined) updated.invoiceUrl = finalInvoiceUrl;
+                return updated;
               }
               return d;
             });
@@ -1163,7 +1173,7 @@ const App: React.FC = () => {
             const deliveries = currentData.deliveries || [];
             logEntries.forEach((le, idx) => {
               const item = items[idx];
-              deliveries.push({
+              const newDelivery: any = {
                 id: `manual-${Date.now()}-${idx}`,
                 date,
                 time: '08:00',
@@ -1172,19 +1182,22 @@ const App: React.FC = () => {
                 value: item.value,
                 invoiceUploaded: true,
                 invoiceNumber: String(invoiceNumber || '').trim(),
-                invoiceDate: invoiceDate,
-                barcode: barcode,
-                receiptTermNumber: receiptTermNumber,
-                nl: nl,
-                pd: pd,
                 lots: [{
                   id: le.lotId,
                   lotNumber: item.lotNumber || 'MANUAL',
                   initialQuantity: item.kg,
-                  remainingQuantity: item.kg,
-                  expirationDate: item.expirationDate
+                  remainingQuantity: item.kg
                 }]
-              });
+              };
+
+              if (invoiceDate !== undefined) newDelivery.invoiceDate = invoiceDate;
+              if (barcode !== undefined) newDelivery.barcode = barcode;
+              if (receiptTermNumber !== undefined) newDelivery.receiptTermNumber = receiptTermNumber;
+              if (nl !== undefined) newDelivery.nl = nl;
+              if (pd !== undefined) newDelivery.pd = pd;
+              if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
+
+              deliveries.push(newDelivery);
             });
             currentData.deliveries = deliveries;
           }
@@ -1199,7 +1212,7 @@ const App: React.FC = () => {
                 const deliveries = s.deliveries || [];
                 logEntries.forEach((le, idx) => {
                   const item = items[idx];
-                  deliveries.push({
+                  const newDelivery: any = {
                     id: `manual-${Date.now()}-${idx}`,
                     date,
                     time: '08:00',
@@ -1208,19 +1221,22 @@ const App: React.FC = () => {
                     value: item.value,
                     invoiceUploaded: true,
                     invoiceNumber: String(invoiceNumber || '').trim(),
-                    invoiceDate: invoiceDate,
-                    barcode: barcode,
-                    receiptTermNumber: receiptTermNumber,
-                    nl: nl,
-                    pd: pd,
                     lots: [{
                       id: le.lotId,
                       lotNumber: item.lotNumber || 'MANUAL',
                       initialQuantity: item.kg,
-                      remainingQuantity: item.kg,
-                      expirationDate: item.expirationDate
+                      remainingQuantity: item.kg
                     }]
-                  });
+                  };
+
+                  if (invoiceDate !== undefined) newDelivery.invoiceDate = invoiceDate;
+                  if (barcode !== undefined) newDelivery.barcode = barcode;
+                  if (receiptTermNumber !== undefined) newDelivery.receiptTermNumber = receiptTermNumber;
+                  if (nl !== undefined) newDelivery.nl = nl;
+                  if (pd !== undefined) newDelivery.pd = pd;
+                  if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
+
+                  deliveries.push(newDelivery);
                 });
                 s.deliveries = deliveries;
                 return true;

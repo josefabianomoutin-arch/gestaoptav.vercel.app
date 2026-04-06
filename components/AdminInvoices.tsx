@@ -324,54 +324,79 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
         const htmlContent = `
             <html>
             <head>
-                <title>Relatório de Notas Fiscais</title>
+                <title>Relatório Geral de Notas Fiscais</title>
                 <style>
                     body { font-family: sans-serif; padding: 20px; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
-                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                    th { background-color: #f2f2f2; }
-                    h1 { color: #333; font-size: 18px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 10px; }
+                    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+                    th { background-color: #f2f2f2; font-weight: bold; text-transform: uppercase; }
+                    h1 { color: #333; font-size: 16px; margin-bottom: 5px; }
                     .text-right { text-align: right; }
                     .text-center { text-align: center; }
                     .font-bold { font-weight: bold; }
                     .text-gray-500 { color: #6b7280; }
-                    .text-xs { font-size: 10px; }
+                    .text-xs { font-size: 9px; }
+                    .item-tag { display: inline-block; background: #f3f4f6; padding: 2px 4px; border-radius: 4px; margin: 1px; border: 1px solid #e5e7eb; }
                     @media print {
                         @page { size: A4 landscape; margin: 10mm; }
                     }
                 </style>
             </head>
             <body>
-                <h1>Relatório de Notas Fiscais</h1>
-                <p>Data de Emissão: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px;">
+                    <div>
+                        <h1>Relatório Geral de Notas Fiscais</h1>
+                        <p style="margin: 0; font-size: 12px; color: #666;">Listagem completa de todas as movimentações registradas</p>
+                    </div>
+                    <div style="text-align: right; font-size: 10px;">
+                        <p style="margin: 0;">Emissão: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+                        <p style="margin: 0;">Total de Registros: ${allInvoices.length}</p>
+                    </div>
+                </div>
+
                 <table>
                     <thead>
                         <tr>
-                            <th class="text-center" style="width: 30px;">#</th>
+                            <th class="text-center" style="width: 25px;">#</th>
                             <th>Fornecedor</th>
-                            <th>Data</th>
-                            <th>Nº Nota Fiscal</th>
-                            <th class="text-right">Valor Total</th>
-                            <th>Itens</th>
+                            <th style="width: 80px;">Data / NF</th>
+                            <th style="width: 100px;">Nº NF / Empenho</th>
+                            <th style="width: 80px;">NL / PD</th>
+                            <th class="text-right" style="width: 90px;">Valor Total</th>
+                            <th>Itens (Qtd / Valor)</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${filteredAndSortedInvoices.map((invoice, index) => `
+                        ${allInvoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((invoice, index) => `
                             <tr>
-                                <td class="text-center">${index + 1}</td>
+                                <td class="text-center text-gray-500">${index + 1}</td>
                                 <td>
-                                    <div class="font-bold">${invoice.supplierName}</div>
+                                    <div class="font-bold" style="text-transform: uppercase;">${invoice.supplierName}</div>
                                     <div class="text-xs text-gray-500">${invoice.supplierCpf}</div>
                                 </td>
-                                <td>${formatDate(invoice.date)}</td>
-                                <td>${invoice.invoiceNumber}</td>
-                                <td class="text-right font-bold">${formatCurrency(invoice.totalValue)}</td>
                                 <td>
-                                    <ul style="margin:0; padding-left: 15px;">
+                                    <div>${formatDate(invoice.date)}</div>
+                                    ${invoice.invoiceDate && invoice.invoiceDate !== invoice.date ? `<div class="text-xs" style="color: #d97706;">NF: ${formatDate(invoice.invoiceDate)}</div>` : ''}
+                                </td>
+                                <td>
+                                    <div class="font-bold">${invoice.invoiceNumber}</div>
+                                    ${invoice.receiptTermNumber ? `<div class="text-xs" style="color: #059669;">EMP: ${invoice.receiptTermNumber}</div>` : ''}
+                                </td>
+                                <td>
+                                    ${invoice.nl ? `<div>NL: ${invoice.nl}</div>` : ''}
+                                    ${invoice.pd ? `<div>PD: ${invoice.pd}</div>` : ''}
+                                    ${!invoice.nl && !invoice.pd ? '<span style="color: #ccc;">---</span>' : ''}
+                                </td>
+                                <td class="text-right font-bold" style="color: #15803d;">${formatCurrency(invoice.totalValue)}</td>
+                                <td>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 4px;">
                                         ${(invoice.items || []).map((item: any) => `
-                                            <li>${item.name} - ${item.kg.toFixed(2).replace('.',',')} Kg - ${formatCurrency(item.value)}</li>
+                                            <div class="item-tag">
+                                                <span class="font-bold">${item.name}</span>: 
+                                                ${item.kg.toFixed(2).replace('.',',')}Kg
+                                            </div>
                                         `).join('')}
-                                    </ul>
+                                    </div>
                                 </td>
                             </tr>
                         `).join('')}
@@ -1146,11 +1171,11 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                     <p className="text-[10px] font-mono text-gray-400 mt-1">{invoice.supplierCpf}</p>
                                                 </div>
                                                 {invoice.items && invoice.items.some((it: any) => (it.exitedQuantity || 0) > 0) && (
-                                                    <div className="bg-amber-50 border-2 border-amber-200 px-4 py-2 rounded-xl shadow-sm">
-                                                        <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest leading-none mb-1">Saldo Restante</p>
-                                                        <p className="text-sm font-black text-amber-700 leading-none uppercase">
+                                                    <div className="bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
+                                                        <span className="text-[8px] font-black text-amber-600 uppercase mr-2">Saldo:</span>
+                                                        <span className="text-xs font-black text-amber-700 uppercase">
                                                             {(invoice.items || []).reduce((acc: number, it: any) => acc + Math.max(0, (it.kg || 0) - (it.exitedQuantity || 0)), 0).toFixed(2).replace('.', ',')} KG
-                                                        </p>
+                                                        </span>
                                                     </div>
                                                 )}
                                             </div>
