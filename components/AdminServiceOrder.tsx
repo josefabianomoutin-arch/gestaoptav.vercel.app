@@ -67,7 +67,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
     // Sub-tab filtering
     const matchesSubTab = activeSubTab === 'ongoing' 
       ? (order.status !== 'concluido' && order.status !== 'cancelado')
-      : (order.status === 'concluido');
+      : (order.status === 'concluido' || order.status === 'cancelado');
 
     return matchesSearch && matchesStatus && matchesStage && matchesSubTab;
   }).sort((a, b) => {
@@ -329,10 +329,18 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
     if (!printWindow) return;
 
     const ongoingCount = orders.filter(o => o.status !== 'concluido' && o.status !== 'cancelado').length;
-    const finishedCount = orders.filter(o => o.status === 'concluido').length;
+    const finishedCount = orders.filter(o => o.status === 'concluido' || o.status === 'cancelado').length;
     const pendingCount = orders.filter(o => o.status === 'pendente').length;
 
-    const reportTitle = activeSubTab === 'ongoing' ? 'RELATÓRIO DE MANUTENÇÕES EM ANDAMENTO' : 'RELATÓRIO DE MANUTENÇÕES FINALIZADAS';
+    const reportTitle = 'RELATÓRIO GERAL DE MANUTENÇÕES';
+
+    const allOrdersSorted = [...orders].sort((a, b) => {
+      const statusOrder: Record<string, number> = { 'pendente': 0, 'em_andamento': 1, 'concluido': 2, 'cancelado': 3 };
+      if (statusOrder[a.status] !== statusOrder[b.status]) return (statusOrder[a.status] ?? 4) - (statusOrder[b.status] ?? 4);
+      
+      const priorityWeight: Record<string, number> = { 'ALTA': 0, 'MÉDIA': 1, 'BAIXA': 2 };
+      return (priorityWeight[a.priority] ?? 3) - (priorityWeight[b.priority] ?? 3);
+    });
 
     printWindow.document.write(`
       <html>
@@ -345,12 +353,13 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               padding: 40px; 
               color: #1e293b;
               line-height: 1.5;
+              background: #fcfcfc;
             }
             .header { 
               text-align: center; 
               border-bottom: 4px solid #4f46e5; 
               padding-bottom: 20px; 
-              margin-bottom: 30px; 
+              margin-bottom: 40px; 
             }
             .header h1 { 
               margin: 0; 
@@ -370,39 +379,55 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               color: #64748b;
             }
             .summary-cards {
-              display: grid;
-              grid-template-cols: repeat(4, 1fr);
-              gap: 15px;
-              margin-bottom: 30px;
+              display: flex;
+              flex-direction: column;
+              gap: 12px;
+              margin-bottom: 40px;
             }
             .card {
-              background: #f8fafc;
+              background: white;
               border: 1px solid #e2e8f0;
-              padding: 15px;
-              border-radius: 12px;
+              padding: 24px;
+              border-radius: 16px;
               text-align: center;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
             }
-            .card .label { font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 5px; }
-            .card .value { font-size: 20px; font-weight: 900; color: #1e293b; }
+            .card .label { 
+              font-size: 11px; 
+              font-weight: 900; 
+              color: #475569; 
+              text-transform: uppercase; 
+              letter-spacing: 0.15em; 
+              margin-bottom: 12px; 
+            }
+            .card .value { 
+              font-size: 32px; 
+              font-weight: 900; 
+              color: #0f172a; 
+            }
             
             table { 
               width: 100%; 
               border-collapse: collapse; 
               margin-top: 20px; 
               font-size: 11px;
+              background: white;
+              border-radius: 12px;
+              overflow: hidden;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
             }
             th { 
               background: #4f46e5; 
               color: white; 
               text-align: left; 
-              padding: 12px 10px; 
+              padding: 14px 12px; 
               text-transform: uppercase; 
               font-weight: 900;
               letter-spacing: 0.05em;
             }
             td { 
-              padding: 10px; 
-              border-bottom: 1px solid #e2e8f0; 
+              padding: 12px; 
+              border-bottom: 1px solid #f1f5f9; 
               font-weight: 500;
             }
             tr:nth-child(even) { background: #f8fafc; }
@@ -422,17 +447,19 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
             .status-concluido { color: #16a34a; }
             
             .footer { 
-              margin-top: 50px; 
+              margin-top: 60px; 
               text-align: right; 
               font-size: 10px; 
               color: #94a3b8; 
               font-weight: 700;
               border-top: 1px solid #e2e8f0;
-              padding-top: 10px;
+              padding-top: 15px;
             }
             @media print {
               .no-print { display: none; }
-              body { padding: 0; }
+              body { padding: 0; background: white; }
+              .card { box-shadow: none; border: 1px solid #e2e8f0; }
+              table { box-shadow: none; border: 1px solid #e2e8f0; }
             }
           </style>
         </head>
@@ -475,7 +502,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               </tr>
             </thead>
             <tbody>
-              ${filteredOrders.map(o => {
+              ${allOrdersSorted.map(o => {
                 const schedule = maintenanceSchedules.find(ms => ms.serviceOrderId === o.id);
                 const pplsCount = schedule?.ppls?.filter(p => p.trim() !== '').length || 0;
                 const toolsCount = schedule?.tools?.filter(t => t.trim() !== '').length || 0;
@@ -578,46 +605,61 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
             Relatório de Controle
           </button>
         </div>
+      </div>
 
-        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-          <div className="relative flex-grow md:flex-grow-0">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar solicitações..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-12 pr-6 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all w-full md:w-64"
-            />
+      {/* Summary Cards Section */}
+      <div className="relative z-10 grid grid-cols-1 gap-4">
+        {[
+          { label: 'Total Geral', value: orders.length, color: 'text-indigo-950' },
+          { label: 'Pendentes', value: orders.filter(o => o.status === 'pendente').length, color: 'text-amber-600' },
+          { label: 'Em Andamento', value: orders.filter(o => o.status === 'em_andamento').length, color: 'text-blue-600' },
+          { label: 'Finalizadas', value: orders.filter(o => o.status === 'concluido' || o.status === 'cancelado').length, color: 'text-emerald-600' }
+        ].map((stat, i) => (
+          <div key={i} className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-200 flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">{stat.label}</p>
+            <p className={`text-4xl font-black ${stat.color} tracking-tighter italic`}>{stat.value}</p>
           </div>
-          <div className="relative flex-grow md:flex-grow-0">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="pl-12 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all appearance-none w-full md:w-48"
-            >
-              <option value="todos">Todos Status</option>
-              <option value="pendente">Pendente</option>
-              <option value="em_andamento">Em Andamento</option>
-              <option value="concluido">Concluído</option>
-              <option value="cancelado">Cancelado</option>
-            </select>
-          </div>
-          <div className="relative flex-grow md:flex-grow-0">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <select
-              value={filterStage}
-              onChange={(e) => setFilterStage(e.target.value)}
-              className="pl-12 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all appearance-none w-full md:w-64"
-            >
-              <option value="todas">Todas as Etapas</option>
-              <option value="1_aquisicao_material">1ª Etapa: Aquisição de Material</option>
-              <option value="2_disponibilidade_mao_obra">2ª Etapa: Disponibilidade de Mão de Obra</option>
-              <option value="3_em_execucao">3ª Etapa: Em Execução</option>
-              <option value="4_finalizada">4ª Etapa: Finalizada</option>
-            </select>
-          </div>
+        ))}
+      </div>
+
+      <div className="relative z-10 flex flex-wrap items-center gap-4 bg-white p-6 rounded-[2rem] shadow-sm border border-gray-200">
+        <div className="relative flex-grow md:flex-grow-0">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar solicitações..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-12 pr-6 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all w-full md:w-64"
+          />
+        </div>
+        <div className="relative flex-grow md:flex-grow-0">
+          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="pl-12 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all appearance-none w-full md:w-48"
+          >
+            <option value="todos">Todos Status</option>
+            <option value="pendente">Pendente</option>
+            <option value="em_andamento">Em Andamento</option>
+            <option value="concluido">Concluído</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+        </div>
+        <div className="relative flex-grow md:flex-grow-0">
+          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <select
+            value={filterStage}
+            onChange={(e) => setFilterStage(e.target.value)}
+            className="pl-12 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all appearance-none w-full md:w-64"
+          >
+            <option value="todas">Todas as Etapas</option>
+            <option value="1_aquisicao_material">1ª Etapa: Aquisição de Material</option>
+            <option value="2_disponibilidade_mao_obra">2ª Etapa: Disponibilidade de Mão de Obra</option>
+            <option value="3_em_execucao">3ª Etapa: Em Execução</option>
+            <option value="4_finalizada">4ª Etapa: Finalizada</option>
+          </select>
         </div>
       </div>
 

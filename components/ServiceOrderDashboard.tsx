@@ -87,7 +87,7 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
         if (activeSubTab === 'ongoing') {
           return order.status !== 'concluido' && order.status !== 'cancelado';
         } else {
-          return order.status === 'concluido';
+          return order.status === 'concluido' || order.status === 'cancelado';
         }
       })
       .sort((a, b) => {
@@ -151,6 +151,21 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
       </header>
 
       <main className="max-w-7xl mx-auto p-4 md:p-10 relative z-10">
+        {/* Summary Cards Section */}
+        <div className="grid grid-cols-1 gap-4 mb-10">
+          {[
+            { label: 'Total Geral', value: serviceOrders.length, color: 'text-indigo-950' },
+            { label: 'Pendentes', value: serviceOrders.filter(o => o.status === 'pendente').length, color: 'text-amber-600' },
+            { label: 'Em Andamento', value: serviceOrders.filter(o => o.status === 'em_andamento').length, color: 'text-blue-600' },
+            { label: 'Finalizadas', value: serviceOrders.filter(o => o.status === 'concluido' || o.status === 'cancelado').length, color: 'text-emerald-600' }
+          ].map((stat, i) => (
+            <div key={i} className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-200 flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">{stat.label}</p>
+              <p className={`text-4xl font-black ${stat.color} tracking-tighter italic`}>{stat.value}</p>
+            </div>
+          ))}
+        </div>
+
         {/* Sub-tabs */}
         <div className="flex bg-white/50 backdrop-blur-md p-1.5 rounded-2xl border border-gray-200 shadow-sm self-start mb-10 inline-flex">
           <button
