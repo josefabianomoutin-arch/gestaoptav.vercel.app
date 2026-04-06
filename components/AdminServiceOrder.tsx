@@ -358,8 +358,8 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
             .header { 
               text-align: center; 
               border-bottom: 4px solid #4f46e5; 
-              padding-bottom: 20px; 
-              margin-bottom: 40px; 
+              padding-bottom: 15px; 
+              margin-bottom: 25px; 
             }
             .header h1 { 
               margin: 0; 
@@ -379,31 +379,30 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               color: #64748b;
             }
             .summary-cards {
-              display: grid;
-              grid-template-cols: repeat(4, 1fr);
-              gap: 12px;
-              margin-bottom: 40px;
+              display: flex;
+              gap: 10px;
+              margin-bottom: 20px;
             }
             .card {
+              flex: 1;
               background: white;
               border: 1px solid #e2e8f0;
-              padding: 24px;
-              border-radius: 16px;
+              padding: 8px 4px;
+              border-radius: 10px;
               text-align: center;
-              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
             }
             .card .label { 
-              font-size: 11px; 
+              font-size: 8px; 
               font-weight: 900; 
               color: #64748b; 
               text-transform: uppercase; 
-              letter-spacing: 0.15em; 
-              margin-bottom: 12px; 
+              letter-spacing: 0.05em; 
+              margin-bottom: 2px; 
             }
             .card .value { 
-              font-size: 32px; 
+              font-size: 20px; 
               font-weight: 900; 
-              tracking: -0.05em;
+              letter-spacing: -0.05em;
               font-style: italic;
             }
             .val-total { color: #1e1b4b; }
