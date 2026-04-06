@@ -379,8 +379,8 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               color: #64748b;
             }
             .summary-cards {
-              display: flex;
-              flex-direction: column;
+              display: grid;
+              grid-template-cols: repeat(4, 1fr);
               gap: 12px;
               margin-bottom: 40px;
             }
@@ -608,7 +608,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
       </div>
 
       {/* Summary Cards Section */}
-      <div className="relative z-10 grid grid-cols-1 gap-4">
+      <div className="relative z-10 grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Geral', value: orders.length, color: 'text-indigo-950' },
           { label: 'Pendentes', value: orders.filter(o => o.status === 'pendente').length, color: 'text-amber-600' },
