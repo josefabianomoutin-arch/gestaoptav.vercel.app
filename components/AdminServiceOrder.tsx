@@ -395,7 +395,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
             .card .label { 
               font-size: 11px; 
               font-weight: 900; 
-              color: #475569; 
+              color: #64748b; 
               text-transform: uppercase; 
               letter-spacing: 0.15em; 
               margin-bottom: 12px; 
@@ -403,14 +403,19 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
             .card .value { 
               font-size: 32px; 
               font-weight: 900; 
-              color: #0f172a; 
+              tracking: -0.05em;
+              font-style: italic;
             }
+            .val-total { color: #1e1b4b; }
+            .val-pending { color: #d97706; }
+            .val-ongoing { color: #2563eb; }
+            .val-finished { color: #059669; }
             
             table { 
               width: 100%; 
               border-collapse: collapse; 
               margin-top: 20px; 
-              font-size: 11px;
+              font-size: 10px;
               background: white;
               border-radius: 12px;
               overflow: hidden;
@@ -429,6 +434,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               padding: 12px; 
               border-bottom: 1px solid #f1f5f9; 
               font-weight: 500;
+              vertical-align: top;
             }
             tr:nth-child(even) { background: #f8fafc; }
             .badge {
@@ -436,15 +442,16 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               padding: 4px 8px;
               border-radius: 6px;
               font-weight: 900;
-              font-size: 9px;
+              font-size: 8px;
               text-transform: uppercase;
             }
             .priority-ALTA { background: #fee2e2; color: #dc2626; }
             .priority-MÉDIA { background: #fef3c7; color: #d97706; }
             .priority-BAIXA { background: #dcfce7; color: #16a34a; }
-            .status-pendente { color: #d97706; }
-            .status-em_andamento { color: #2563eb; }
-            .status-concluido { color: #16a34a; }
+            .status-pendente { color: #d97706; font-weight: 900; }
+            .status-em_andamento { color: #2563eb; font-weight: 900; }
+            .status-concluido { color: #16a34a; font-weight: 900; }
+            .status-cancelado { color: #dc2626; font-weight: 900; }
             
             .footer { 
               margin-top: 60px; 
@@ -472,19 +479,19 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
           <div class="summary-cards">
             <div class="card">
               <div class="label">Total Geral</div>
-              <div class="value">${orders.length}</div>
+              <div class="value val-total">${orders.length}</div>
             </div>
             <div class="card">
               <div class="label">Pendentes</div>
-              <div class="value">${pendingCount}</div>
+              <div class="value val-pending">${pendingCount}</div>
             </div>
             <div class="card">
               <div class="label">Em Andamento</div>
-              <div class="value">${ongoingCount}</div>
+              <div class="value val-ongoing">${ongoingCount}</div>
             </div>
             <div class="card">
               <div class="label">Finalizadas</div>
-              <div class="value">${finishedCount}</div>
+              <div class="value val-finished">${finishedCount}</div>
             </div>
           </div>
 
@@ -493,11 +500,11 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               <tr>
                 <th>ID</th>
                 <th>Solicitante / Setor</th>
-                <th>Descrição / Local</th>
-                <th>Tipo</th>
+                <th>Descrição / Local / Obs.</th>
+                <th>Tipo / Categoria</th>
                 <th>Prioridade</th>
-                <th>Status</th>
-                <th>PPLs / Ferramentas</th>
+                <th>Status / Etapa</th>
+                <th>Recursos (PPLs/Ferr.)</th>
                 <th>Data Agend.</th>
               </tr>
             </thead>
@@ -506,25 +513,33 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                 const schedule = maintenanceSchedules.find(ms => ms.serviceOrderId === o.id);
                 const pplsCount = schedule?.ppls?.filter(p => p.trim() !== '').length || 0;
                 const toolsCount = schedule?.tools?.filter(t => t.trim() !== '').length || 0;
+                const stageText = getProjectStageText(o.projectStage);
                 
                 return `
                   <tr>
                     <td>${o.id.slice(-4).toUpperCase()}</td>
                     <td>
                       <div style="font-weight: 900">${o.requester}</div>
-                      <div style="font-size: 9px; color: #64748b">${o.requestingSector}</div>
+                      <div style="font-size: 8px; color: #64748b; text-transform: uppercase;">${o.requestingSector}</div>
                     </td>
                     <td>
-                      <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${o.description}</div>
-                      <div style="font-size: 9px; color: #64748b">${o.location || 'N/A'}</div>
+                      <div style="font-weight: 700; margin-bottom: 4px;">${o.description}</div>
+                      <div style="font-size: 8px; color: #64748b; margin-bottom: 4px;">📍 ${o.location || 'N/A'}</div>
+                      ${o.inspectionObservations ? `<div style="font-size: 8px; color: #4f46e5; border-top: 1px solid #f1f5f9; padding-top: 4px;">📝 ${o.inspectionObservations}</div>` : ''}
                     </td>
-                    <td>${o.serviceType.toUpperCase()}</td>
+                    <td>
+                      <div style="font-weight: 900; color: #4f46e5;">${o.serviceType.toUpperCase()}</div>
+                      <div style="font-size: 8px; color: #64748b;">${o.category}</div>
+                    </td>
                     <td><span class="badge priority-${o.priority}">${o.priority}</span></td>
-                    <td class="status-${o.status}">${o.status.replace('_', ' ').toUpperCase()}</td>
                     <td>
-                      <div style="font-size: 9px; font-weight: 700;">
+                      <div class="status-${o.status}">${o.status.replace('_', ' ').toUpperCase()}</div>
+                      ${stageText ? `<div style="font-size: 8px; color: #64748b; margin-top: 4px;">${stageText}</div>` : ''}
+                    </td>
+                    <td>
+                      <div style="font-size: 8px; font-weight: 700;">
                         ${pplsCount > 0 ? `👥 ${pplsCount} PPLs` : ''}
-                        ${pplsCount > 0 && toolsCount > 0 ? ' | ' : ''}
+                        ${pplsCount > 0 && toolsCount > 0 ? '<br/>' : ''}
                         ${toolsCount > 0 ? `🛠️ ${toolsCount} Ferr.` : ''}
                         ${pplsCount === 0 && toolsCount === 0 ? '---' : ''}
                       </div>
