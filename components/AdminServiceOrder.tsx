@@ -462,6 +462,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               padding-top: 15px;
             }
             @media print {
+              @page { size: A4 landscape; margin: 10mm; }
               .no-print { display: none; }
               body { padding: 0; background: white; }
               .card { box-shadow: none; border: 1px solid #e2e8f0; }
