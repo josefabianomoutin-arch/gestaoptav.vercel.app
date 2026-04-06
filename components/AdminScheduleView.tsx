@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Supplier, Delivery, ThirdPartyEntryLog } from '../types';
 import WeeklyScheduleControl from './WeeklyScheduleControl';
 import ConfirmModal from './ConfirmModal';
@@ -27,6 +27,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
     const [reportSelectedMonth, setReportSelectedMonth] = useState('');
     const [reportSeiNumber, setReportSeiNumber] = useState('');
     const [reportSupplierAddress, setReportSupplierAddress] = useState('');
+    const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
 
     // Confirmation Modal State
     const [confirmConfig, setConfirmConfig] = useState<{
@@ -86,15 +87,27 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
             .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }, [suppliers, reportSupplierCpf, reportSelectedMonth]);
 
-    const reportTotals = useMemo(() => {
-        const totalWeight = reportItems.reduce((sum: number, item: any) => sum + (item.kg || 0), 0);
-        const totalValue = reportItems.reduce((sum: number, item: any) => sum + (item.value || 0), 0);
-        return { totalWeight, totalValue };
+    useEffect(() => {
+        if (reportItems.length > 0) {
+            setSelectedItemIds(reportItems.map(item => item.id));
+        } else {
+            setSelectedItemIds([]);
+        }
     }, [reportItems]);
+
+    const selectedReportItems = useMemo(() => {
+        return reportItems.filter(item => selectedItemIds.includes(item.id));
+    }, [reportItems, selectedItemIds]);
+
+    const reportTotals = useMemo(() => {
+        const totalWeight = selectedReportItems.reduce((sum: number, item: any) => sum + (item.kg || 0), 0);
+        const totalValue = selectedReportItems.reduce((sum: number, item: any) => sum + (item.value || 0), 0);
+        return { totalWeight, totalValue };
+    }, [selectedReportItems]);
 
     const handleGenerateReport = () => {
         const supplier = suppliers.find(s => s.cpf === reportSupplierCpf);
-        if (!supplier || !reportSelectedMonth || reportItems.length === 0) return;
+        if (!supplier || !reportSelectedMonth || selectedReportItems.length === 0) return;
 
         const { totalWeight, totalValue } = reportTotals;
 
@@ -196,7 +209,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                         </tr>
                     </thead>
                     <tbody>
-                        ${reportItems.map(item => `
+                        ${selectedReportItems.map(item => `
                             <tr>
                                 <td class="text-center">${formatDate(item.date)}</td>
                                 <td>${item.item}</td>
@@ -583,6 +596,61 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                                     />
                                 </div>
 
+                                {reportItems.length > 0 && (
+                                    <div className="animate-fade-in space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <label className="block text-xs font-bold text-gray-500 uppercase ml-1">5. Selecione os Itens para o Cronograma</label>
+                                            <div className="flex gap-2">
+                                                <button 
+                                                    onClick={() => setSelectedItemIds(reportItems.map(i => i.id))}
+                                                    className="text-[10px] font-black text-purple-600 uppercase hover:underline"
+                                                >
+                                                    Selecionar Todos
+                                                </button>
+                                                <span className="text-gray-300">|</span>
+                                                <button 
+                                                    onClick={() => setSelectedItemIds([])}
+                                                    className="text-[10px] font-black text-red-600 uppercase hover:underline"
+                                                >
+                                                    Desmarcar Todos
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-4 border-2 border-gray-50 rounded-2xl custom-scrollbar bg-gray-50/30">
+                                            {reportItems.map((item) => (
+                                                <label 
+                                                    key={item.id} 
+                                                    className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                                                        selectedItemIds.includes(item.id) 
+                                                            ? 'bg-purple-50 border-purple-200 text-purple-900 shadow-sm' 
+                                                            : 'bg-white border-transparent text-gray-400 hover:border-gray-100'
+                                                    }`}
+                                                >
+                                                    <input 
+                                                        type="checkbox"
+                                                        checked={selectedItemIds.includes(item.id)}
+                                                        onChange={() => {
+                                                            setSelectedItemIds(prev => 
+                                                                prev.includes(item.id) 
+                                                                    ? prev.filter(id => id !== item.id) 
+                                                                    : [...prev, item.id]
+                                                            );
+                                                        }}
+                                                        className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                                    />
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-[10px] font-black uppercase truncate">{item.item}</p>
+                                                        <div className="flex gap-2 mt-1">
+                                                            <span className="text-[8px] font-bold opacity-60 uppercase">{formatDate(item.date)}</span>
+                                                            <span className="text-[8px] font-bold opacity-60 uppercase">NF: {item.invoiceNumber}</span>
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Preview Section */}
                                 <div className="mt-8 border-2 border-dashed border-purple-100 rounded-[2.5rem] p-8 bg-purple-50/30">
                                     <h3 className="text-sm font-black text-purple-900 uppercase tracking-widest mb-6 flex items-center gap-2">
@@ -613,7 +681,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {reportItems.map((item, idx) => (
+                                                {selectedReportItems.map((item, idx) => (
                                                     <tr key={idx}>
                                                         <td className="border border-black p-2 text-center">{formatDate(item.date)}</td>
                                                         <td className="border border-black p-2">{item.item}</td>
@@ -639,11 +707,11 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                                             </h4>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                 {(() => {
-                                                    const uniqueInvoices = Array.from(new Set(reportItems.filter(i => i.invoiceUrl).map(i => i.invoiceUrl as string)));
+                                                    const uniqueInvoices = Array.from(new Set(selectedReportItems.filter(i => i.invoiceUrl).map(i => i.invoiceUrl as string)));
                                                     if (uniqueInvoices.length === 0) return <p className="text-[10px] text-gray-400 italic">Nenhum anexo de nota fiscal encontrado.</p>;
                                                     
                                                     return uniqueInvoices.map((url: string, idx: number) => {
-                                                        const item = reportItems.find(i => i.invoiceUrl === url);
+                                                        const item = selectedReportItems.find(i => i.invoiceUrl === url);
                                                         return (
                                                             <div key={idx} className="bg-white border border-purple-100 rounded-xl p-3 flex flex-col gap-3 shadow-sm hover:shadow-md transition-all">
                                                                 <div className="flex items-center justify-between">
