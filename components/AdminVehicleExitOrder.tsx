@@ -699,6 +699,17 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                             )}
                             {!readOnly && (
                                 <button 
+                                    onClick={() => handlePrint(order)}
+                                    className="p-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all shadow-sm"
+                                    title="Imprimir / Baixar PDF"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                    </svg>
+                                </button>
+                            )}
+                            {!readOnly && (
+                                <button 
                                     onClick={() => handleOpenValidation(order)} 
                                     className={`p-2 rounded-xl transition-all ${order.validationRole ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
                                     title={order.validationRole ? "Validado" : "Validar Saída"}
@@ -1019,7 +1030,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 <div className="relative z-10 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {!readOnly && !securityMode && (
                         <div className="flex justify-end gap-3">
-                            {userRole === 'julio' && (
+                            {(userRole === 'julio' || userRole === 'infraestrutura') && (
                                 <button 
                                     onClick={() => handleGenerateReportPDF()}
                                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 px-10 rounded-2xl transition-all shadow-xl shadow-emerald-100 active:scale-95 uppercase text-xs tracking-widest flex items-center gap-2 group"

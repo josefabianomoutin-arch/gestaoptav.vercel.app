@@ -139,6 +139,7 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
             hideAssets={true}
             hideEdit={false}
             showGateTab={true}
+            userRole={role}
           />
         ) : (
           <AdminServiceOrder
