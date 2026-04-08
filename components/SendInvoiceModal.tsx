@@ -200,16 +200,22 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
                             <div key={delivery.id} className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-2">
                                 <p className="text-xs font-bold text-gray-800">{delivery.item}</p>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <input type="text" placeholder="Lote" value={delivery.lots?.[0]?.lotNumber || ''} onChange={e => {
-                                        const newDeliveries = [...deliveries];
-                                        newDeliveries[index].lots = [{ ...newDeliveries[index].lots![0], lotNumber: e.target.value }];
-                                        setDeliveries(newDeliveries);
-                                    }} className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm" />
-                                    <input type="date" value={delivery.lots?.[0]?.expirationDate || ''} onChange={e => {
-                                        const newDeliveries = [...deliveries];
-                                        newDeliveries[index].lots = [{ ...newDeliveries[index].lots![0], expirationDate: e.target.value }];
-                                        setDeliveries(newDeliveries);
-                                    }} className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm" />
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-gray-400 uppercase">Lote</label>
+                                        <input type="text" placeholder="Lote" value={delivery.lots?.[0]?.lotNumber || ''} onChange={e => {
+                                            const newDeliveries = [...deliveries];
+                                            newDeliveries[index].lots = [{ ...newDeliveries[index].lots![0], lotNumber: e.target.value }];
+                                            setDeliveries(newDeliveries);
+                                        }} className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm font-bold text-gray-800" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-gray-400 uppercase">Validade</label>
+                                        <input type="date" value={delivery.lots?.[0]?.expirationDate || ''} onChange={e => {
+                                            const newDeliveries = [...deliveries];
+                                            newDeliveries[index].lots = [{ ...newDeliveries[index].lots![0], expirationDate: e.target.value }];
+                                            setDeliveries(newDeliveries);
+                                        }} className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm font-bold text-gray-800" />
+                                    </div>
                                 </div>
                             </div>
                         ))}
