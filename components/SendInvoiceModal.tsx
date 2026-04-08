@@ -1,28 +1,110 @@
-import React, { useState, useRef } from 'react';
-import type { Delivery } from '../types';
+import React, { useState, useRef, useMemo } from 'react';
+import type { Delivery, ContractItem } from '../types';
 import { speechService } from '../src/services/speechService';
-import { Volume2, Upload, FileText, Download, CheckCircle2, Loader2 } from 'lucide-react';
+import { Volume2, Upload, FileText, Download, CheckCircle2, Loader2, Plus, Trash2 } from 'lucide-react';
 
 interface SendInvoiceModalProps {
   invoiceInfo: { date: string; deliveries: Delivery[] };
+  contractItems: ContractItem[];
   onClose: () => void;
   onSave: (invoiceNumber: string, invoiceUrl: string, deliveries: Delivery[]) => Promise<void>;
 }
 
-const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClose, onSave }) => {
+const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contractItems, onClose, onSave }) => {
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [deliveries, setDeliveries] = useState<Delivery[]>(invoiceInfo.deliveries.map(d => ({
-    ...d,
-    lots: d.lots || [{ id: Math.random().toString(), lotNumber: '', initialQuantity: d.kg || 0, remainingQuantity: d.kg || 0, expirationDate: '' }]
-  })));
+  
+  // Initialize with existing deliveries or one empty if none
+  const [deliveries, setDeliveries] = useState<Delivery[]>(() => {
+    if (invoiceInfo.deliveries.length > 0 && invoiceInfo.deliveries[0].item !== 'AGENDAMENTO PENDENTE') {
+      return invoiceInfo.deliveries.map(d => ({
+        ...d,
+        lots: d.lots || [{ id: Math.random().toString(), lotNumber: '', initialQuantity: d.kg || 0, remainingQuantity: d.kg || 0, expirationDate: '' }]
+      }));
+    }
+    // If it's a pending schedule, start with one empty item row
+    return [{
+      id: `new_${Date.now()}_0`,
+      date: invoiceInfo.date,
+      time: '08:00',
+      item: '',
+      kg: 0,
+      value: 0,
+      invoiceUploaded: true,
+      lots: [{ id: Math.random().toString(), lotNumber: '', initialQuantity: 0, remainingQuantity: 0, expirationDate: '' }]
+    }];
+  });
+
   const [isSaved, setIsSaved] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const handleAddItem = () => {
+    const newId = `new_${Date.now()}_${deliveries.length}`;
+    setDeliveries([...deliveries, {
+      id: newId,
+      date: invoiceInfo.date,
+      time: '08:00',
+      item: '',
+      kg: 0,
+      value: 0,
+      invoiceUploaded: true,
+      lots: [{ id: Math.random().toString(), lotNumber: '', initialQuantity: 0, remainingQuantity: 0, expirationDate: '' }]
+    }]);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    if (deliveries.length > 1) {
+      const newDeliveries = [...deliveries];
+      newDeliveries.splice(index, 1);
+      setDeliveries(newDeliveries);
+    }
+  };
+
+  const handleUpdateItem = (index: number, field: keyof Delivery, value: any) => {
+    const newDeliveries = [...deliveries];
+    const d = { ...newDeliveries[index] };
+    
+    if (field === 'item') {
+      d.item = value;
+      const contractItem = contractItems.find(ci => ci.name === value);
+      if (contractItem) {
+        d.value = (d.kg || 0) * contractItem.valuePerKg;
+      }
+    } else if (field === 'kg') {
+      const kg = parseFloat(value) || 0;
+      d.kg = kg;
+      const contractItem = contractItems.find(ci => ci.name === d.item);
+      if (contractItem) {
+        d.value = kg * contractItem.valuePerKg;
+      }
+      if (d.lots && d.lots[0]) {
+        d.lots[0].initialQuantity = kg;
+        d.lots[0].remainingQuantity = kg;
+      }
+    }
+    
+    newDeliveries[index] = d;
+    setDeliveries(newDeliveries);
+  };
+
+  const handleUpdateLot = (index: number, field: 'lotNumber' | 'expirationDate', value: string) => {
+    const newDeliveries = [...deliveries];
+    const d = { ...newDeliveries[index] };
+    if (d.lots && d.lots[0]) {
+      d.lots[0] = { ...d.lots[0], [field]: value };
+    }
+    newDeliveries[index] = d;
+    setDeliveries(newDeliveries);
+  };
+
+  const totalInvoiceValue = useMemo(() => {
+    return deliveries.reduce((sum, d) => sum + (d.value || 0), 0);
+  }, [deliveries]);
+
   const handlePlayGuide = async () => {
-    const text = "Bem-vindo ao envio da nota fiscal. Digite o número da nota fiscal, selecione o arquivo PDF e clique em Enviar PDF.";
+    const text = "Bem-vindo ao envio da nota fiscal. Digite o número da nota fiscal, selecione o arquivo PDF, adicione os itens da nota com peso, lote e validade, e clique em Enviar PDF.";
     await speechService.speak(text);
   };
 
@@ -194,31 +276,97 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
                           required
                         />
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Itens da Nota Fiscal</label>
-                        {deliveries.map((delivery, index) => (
-                            <div key={delivery.id} className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-2">
-                                <p className="text-xs font-bold text-gray-800">{delivery.item}</p>
-                                <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center px-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase">Itens da Nota Fiscal</label>
+                            <button 
+                                type="button" 
+                                onClick={handleAddItem}
+                                className="flex items-center gap-1 text-[10px] font-black text-indigo-600 uppercase hover:text-indigo-700 transition-colors"
+                            >
+                                <Plus className="h-3 w-3" />
+                                Adicionar Item
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
+                            {deliveries.map((delivery, index) => (
+                                <div key={delivery.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3 relative group">
+                                    {deliveries.length > 1 && (
+                                        <button 
+                                            type="button" 
+                                            onClick={() => handleRemoveItem(index)}
+                                            className="absolute top-2 right-2 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    )}
+                                    
                                     <div className="space-y-1">
-                                        <label className="text-[9px] font-black text-gray-400 uppercase">Lote</label>
-                                        <input type="text" placeholder="Lote" value={delivery.lots?.[0]?.lotNumber || ''} onChange={e => {
-                                            const newDeliveries = [...deliveries];
-                                            newDeliveries[index].lots = [{ ...newDeliveries[index].lots![0], lotNumber: e.target.value }];
-                                            setDeliveries(newDeliveries);
-                                        }} className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm font-bold text-gray-800" />
+                                        <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Item</label>
+                                        <select 
+                                            value={delivery.item || ''} 
+                                            onChange={e => handleUpdateItem(index, 'item', e.target.value)}
+                                            className="w-full h-10 px-3 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 bg-white outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                        >
+                                            <option value="">-- Selecione o Item --</option>
+                                            {contractItems.map(ci => (
+                                                <option key={ci.name} value={ci.name}>{ci.name}</option>
+                                            ))}
+                                        </select>
                                     </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[9px] font-black text-gray-400 uppercase">Validade</label>
-                                        <input type="date" value={delivery.lots?.[0]?.expirationDate || ''} onChange={e => {
-                                            const newDeliveries = [...deliveries];
-                                            newDeliveries[index].lots = [{ ...newDeliveries[index].lots![0], expirationDate: e.target.value }];
-                                            setDeliveries(newDeliveries);
-                                        }} className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm font-bold text-gray-800" />
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Qtd (Kg)</label>
+                                            <input 
+                                                type="number" 
+                                                step="0.01"
+                                                placeholder="0,00" 
+                                                value={delivery.kg || ''} 
+                                                onChange={e => handleUpdateItem(index, 'kg', e.target.value)}
+                                                className="w-full h-10 px-3 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-500/20" 
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Valor Total</label>
+                                            <div className="w-full h-10 px-3 border border-gray-100 bg-gray-100/50 rounded-xl text-xs font-black text-indigo-600 flex items-center">
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(delivery.value || 0)}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Lote</label>
+                                            <input 
+                                                type="text" 
+                                                placeholder="Lote" 
+                                                value={delivery.lots?.[0]?.lotNumber || ''} 
+                                                onChange={e => handleUpdateLot(index, 'lotNumber', e.target.value)}
+                                                className="w-full h-10 px-3 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-500/20" 
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Validade</label>
+                                            <input 
+                                                type="date" 
+                                                value={delivery.lots?.[0]?.expirationDate || ''} 
+                                                onChange={e => handleUpdateLot(index, 'expirationDate', e.target.value)}
+                                                className="w-full h-10 px-3 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-500/20" 
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
+
+                        <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 flex justify-between items-center">
+                            <span className="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Valor Total da Nota</span>
+                            <span className="text-lg font-black text-indigo-600 italic">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalInvoiceValue)}
+                            </span>
+                        </div>
                     </div>
                 </div>
                 

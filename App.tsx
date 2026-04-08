@@ -604,18 +604,49 @@ const App: React.FC = () => {
         const currentData = snapshot.val() as Supplier;
         
         if (currentData) {
-          const deliveries = currentData.deliveries || [];
+          let deliveries = [...(currentData.deliveries || [])];
           let updated = false;
-              deliveries.forEach(d => {
-                if (deliveryIds.includes(d.id)) {
-                  const updatedDelivery = updatedDeliveries.find(ud => ud.id === d.id);
-                  d.invoiceUploaded = true;
-                  d.invoiceNumber = invoiceNumber;
-                  if (finalInvoiceUrl !== undefined) d.invoiceUrl = finalInvoiceUrl;
-                  if (updatedDelivery) d.lots = updatedDelivery.lots;
-                  updated = true;
-                }
-              });
+          
+          // 1. Update existing deliveries
+          deliveries.forEach(d => {
+            if (deliveryIds.includes(d.id)) {
+              const updatedDelivery = updatedDeliveries.find(ud => ud.id === d.id);
+              d.invoiceUploaded = true;
+              d.invoiceNumber = invoiceNumber;
+              if (finalInvoiceUrl !== undefined) d.invoiceUrl = finalInvoiceUrl;
+              if (updatedDelivery) {
+                d.item = updatedDelivery.item;
+                d.kg = updatedDelivery.kg;
+                d.value = updatedDelivery.value;
+                d.lots = updatedDelivery.lots;
+              }
+              updated = true;
+            }
+          });
+
+          // 2. Add new deliveries (items added manually in the modal)
+          const newItems = updatedDeliveries.filter(ud => ud.id.startsWith('new_'));
+          if (newItems.length > 0) {
+            newItems.forEach(ni => {
+              const newDelivery: Delivery = {
+                ...ni,
+                id: `del_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                invoiceNumber,
+                invoiceUrl: finalInvoiceUrl,
+                invoiceUploaded: true
+              };
+              deliveries.push(newDelivery);
+            });
+            updated = true;
+          }
+
+          // 3. Remove "AGENDAMENTO PENDENTE" if we added real items for that date
+          if (newItems.length > 0 || updatedDeliveries.some(ud => ud.item !== 'AGENDAMENTO PENDENTE')) {
+             const pendingIds = updatedDeliveries.filter(ud => ud.item === 'AGENDAMENTO PENDENTE').map(ud => ud.id);
+             if (pendingIds.length > 0) {
+                deliveries = deliveries.filter(d => !pendingIds.includes(d.id));
+             }
+          }
           
           if (updated) {
             await update(supplierRef, { deliveries });
@@ -642,18 +673,52 @@ const App: React.FC = () => {
           if (!list) return false;
           const index = list.findIndex(p => p.cpfCnpj === supplierCpf);
           if (index !== -1) {
-            const deliveries = list[index].deliveries || [];
+            let deliveries = [...(list[index].deliveries || [])];
+            let updated = false;
+            
             deliveries.forEach((d: any) => {
               if (deliveryIds.includes(d.id)) {
+                const updatedDelivery = updatedDeliveries.find(ud => ud.id === d.id);
                 d.invoiceUploaded = true;
                 d.invoiceNumber = invoiceNumber;
                 if (finalInvoiceUrl !== undefined) d.invoiceUrl = finalInvoiceUrl;
+                if (updatedDelivery) {
+                  d.item = updatedDelivery.item;
+                  d.kg = updatedDelivery.kg;
+                  d.value = updatedDelivery.value;
+                  d.lots = updatedDelivery.lots;
+                }
+                updated = true;
               }
             });
-            // Atualiza apenas o item específico na lista
-            await update(child(perCapitaConfigRef, `${listName}/${index}`), { deliveries });
-            found = true;
-            return true;
+
+            const newItems = updatedDeliveries.filter(ud => ud.id.startsWith('new_'));
+            if (newItems.length > 0) {
+              newItems.forEach(ni => {
+                const newDelivery: Delivery = {
+                  ...ni,
+                  id: `del_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                  invoiceNumber,
+                  invoiceUrl: finalInvoiceUrl,
+                  invoiceUploaded: true
+                };
+                deliveries.push(newDelivery);
+              });
+              updated = true;
+            }
+
+            if (newItems.length > 0 || updatedDeliveries.some(ud => ud.item !== 'AGENDAMENTO PENDENTE')) {
+               const pendingIds = updatedDeliveries.filter(ud => ud.item === 'AGENDAMENTO PENDENTE').map(ud => ud.id);
+               if (pendingIds.length > 0) {
+                  deliveries = deliveries.filter(d => !pendingIds.includes(d.id));
+               }
+            }
+
+            if (updated) {
+              await update(child(perCapitaConfigRef, `${listName}/${index}`), { deliveries });
+              found = true;
+              return true;
+            }
           }
           return false;
         };
