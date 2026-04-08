@@ -6,12 +6,16 @@ import { Volume2, Upload, FileText, Download, CheckCircle2, Loader2 } from 'luci
 interface SendInvoiceModalProps {
   invoiceInfo: { date: string; deliveries: Delivery[] };
   onClose: () => void;
-  onSave: (invoiceNumber: string, invoiceUrl: string) => Promise<void>;
+  onSave: (invoiceNumber: string, invoiceUrl: string, deliveries: Delivery[]) => Promise<void>;
 }
 
 const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClose, onSave }) => {
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [deliveries, setDeliveries] = useState<Delivery[]>(invoiceInfo.deliveries.map(d => ({
+    ...d,
+    lots: d.lots || [{ id: Math.random().toString(), lotNumber: '', initialQuantity: d.kg || 0, remainingQuantity: d.kg || 0, expirationDate: '' }]
+  })));
   const [isSaved, setIsSaved] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -54,7 +58,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
         try {
           console.log('Iniciando onSave no Modal...', { invoiceNumber, fileSize: base64String.length });
           // Timeout de segurança de 45 segundos para a operação completa de salvamento
-          const savePromise = onSave(invoiceNumber, base64String);
+          const savePromise = onSave(invoiceNumber, base64String, deliveries);
           const saveTimeout = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('A operação demorou demais. Verifique sua conexão.')), 45000)
           );
@@ -189,6 +193,26 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, onClos
                           disabled={isUploading}
                           required
                         />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Itens da Nota Fiscal</label>
+                        {deliveries.map((delivery, index) => (
+                            <div key={delivery.id} className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-2">
+                                <p className="text-xs font-bold text-gray-800">{delivery.item}</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <input type="text" placeholder="Lote" value={delivery.lots?.[0]?.lotNumber || ''} onChange={e => {
+                                        const newDeliveries = [...deliveries];
+                                        newDeliveries[index].lots = [{ ...newDeliveries[index].lots![0], lotNumber: e.target.value }];
+                                        setDeliveries(newDeliveries);
+                                    }} className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm" />
+                                    <input type="date" value={delivery.lots?.[0]?.expirationDate || ''} onChange={e => {
+                                        const newDeliveries = [...deliveries];
+                                        newDeliveries[index].lots = [{ ...newDeliveries[index].lots![0], expirationDate: e.target.value }];
+                                        setDeliveries(newDeliveries);
+                                    }} className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm" />
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
                 

@@ -546,10 +546,10 @@ const App: React.FC = () => {
     });
   }, [suppliers]);
 
-  const handleSaveInvoice = useCallback(async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string) => {
+  const handleSaveInvoice = useCallback(async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[]) => {
     const toastId = toast.loading('Enviando nota fiscal...');
     try {
-      console.log('Iniciando handleSaveInvoice:', { supplierCpf, deliveryIds, invoiceNumber });
+      console.log('Iniciando handleSaveInvoice:', { supplierCpf, deliveryIds, invoiceNumber, updatedDeliveries });
       let finalInvoiceUrl = invoiceUrl;
 
       // 1. Upload do Arquivo
@@ -608,9 +608,11 @@ const App: React.FC = () => {
           let updated = false;
               deliveries.forEach(d => {
                 if (deliveryIds.includes(d.id)) {
+                  const updatedDelivery = updatedDeliveries.find(ud => ud.id === d.id);
                   d.invoiceUploaded = true;
                   d.invoiceNumber = invoiceNumber;
                   if (finalInvoiceUrl !== undefined) d.invoiceUrl = finalInvoiceUrl;
+                  if (updatedDelivery) d.lots = updatedDelivery.lots;
                   updated = true;
                 }
               });
