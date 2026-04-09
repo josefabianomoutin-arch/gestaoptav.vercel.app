@@ -1,17 +1,18 @@
 import React, { useState, useRef, useMemo } from 'react';
 import type { Delivery, ContractItem } from '../types';
 import { speechService } from '../src/services/speechService';
-import { Volume2, Upload, FileText, Download, CheckCircle2, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Volume2, Upload, FileText, Download, CheckCircle2, Loader2, Plus, Trash2, Calendar } from 'lucide-react';
 
 interface SendInvoiceModalProps {
   invoiceInfo: { date: string; deliveries: Delivery[] };
   contractItems: ContractItem[];
   onClose: () => void;
-  onSave: (invoiceNumber: string, invoiceUrl: string, deliveries: Delivery[]) => Promise<void>;
+  onSave: (invoiceNumber: string, invoiceUrl: string, deliveries: Delivery[], invoiceDate: string) => Promise<void>;
 }
 
 const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contractItems, onClose, onSave }) => {
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState(invoiceInfo.date);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
   // Initialize with existing deliveries or one empty if none
@@ -140,7 +141,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
         try {
           console.log('Iniciando onSave no Modal...', { invoiceNumber, fileSize: base64String.length });
           // Timeout de segurança de 45 segundos para a operação completa de salvamento
-          const savePromise = onSave(invoiceNumber, base64String, deliveries);
+          const savePromise = onSave(invoiceNumber, base64String, deliveries, invoiceDate);
           const saveTimeout = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('A operação demorou demais. Verifique sua conexão.')), 45000)
           );
@@ -228,11 +229,16 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
                     </div>
                 </div>
 
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label htmlFor="invoice-number" className="text-[10px] font-black text-gray-400 uppercase ml-1">Nº da Nota Fiscal (NF)</label>
                         <input type="text" id="invoice-number" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} required placeholder="Ex: 001234" disabled={isUploading} className="w-full h-14 px-4 border-2 border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-800 disabled:opacity-50"/>
                     </div>
+                    <div className="space-y-1">
+                        <label htmlFor="invoice-date" className="text-[10px] font-black text-gray-400 uppercase ml-1">Data da Nota Fiscal</label>
+                        <input type="date" id="invoice-date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} required disabled={isUploading} className="w-full h-14 px-4 border-2 border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-800 disabled:opacity-50"/>
+                    </div>
+                </div>
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Arquivo da Nota (PDF) - OBRIGATÓRIO</label>
                         <div 

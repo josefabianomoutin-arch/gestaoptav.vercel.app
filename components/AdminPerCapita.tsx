@@ -1099,14 +1099,18 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                         <title>Comparativo Resumido dos Itens Adquiridos no Contrato</title>
                                         <style>
                                             @page { size: A4 portrait; margin: 10mm; }
-                                            body { font-family: Arial, sans-serif; font-size: 10px; }
-                                            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                                            th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+                                            body { font-family: Arial, sans-serif; font-size: 10px; line-height: 1.4; }
+                                            table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
+                                            th, td { border: 1px solid #ddd; padding: 6px; text-align: left; word-break: break-word; overflow-wrap: break-word; }
                                             th { background-color: #f3f4f6; text-transform: uppercase; font-size: 9px; }
                                             .text-center { text-align: center; }
                                             .text-right { text-align: right; }
                                             h2 { text-align: center; text-transform: uppercase; margin-bottom: 5px; }
                                             .header-info { text-align: center; color: #666; margin-bottom: 20px; font-size: 11px; }
+                                            .col-index { width: 30px; }
+                                            .col-item { width: auto; }
+                                            .col-data { width: 80px; }
+                                            .col-status { width: 100px; }
                                         </style>
                                     </head>
                                     <body>
@@ -1115,12 +1119,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                         <table>
                                             <thead>
                                                 <tr>
-                                                    <th class="text-center">#</th>
-                                                    <th>Item</th>
-                                                    <th class="text-center">Qtd. Contratada</th>
-                                                    <th class="text-center">Qtd. Recebida</th>
-                                                    <th class="text-center">Restam Entregar</th>
-                                                    <th class="text-center">Status</th>
+                                                    <th class="text-center col-index">#</th>
+                                                    <th class="col-item">Item</th>
+                                                    <th class="text-center col-data">Qtd. Contratada</th>
+                                                    <th class="text-center col-data">Qtd. Recebida</th>
+                                                    <th class="text-center col-data">Restam Entregar</th>
+                                                    <th class="text-center col-status">Status</th>
                                                 </tr>
                                             </thead>
                                             <tbody>

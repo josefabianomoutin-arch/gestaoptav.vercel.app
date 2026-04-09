@@ -423,7 +423,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           invoiceInfo={invoiceToSend} 
           contractItems={supplier.contractItems || []}
           onClose={handleCloseSendInvoiceModal} 
-          onSave={(invoiceNumber, invoiceUrl, deliveries) => onSaveInvoice(supplier.cpf, deliveries.map(d => d.id), invoiceNumber, invoiceUrl, deliveries)}
+          onSave={(invoiceNumber, invoiceUrl, deliveries, invoiceDate) => onSaveInvoice(supplier.cpf, deliveries.map(d => d.id), invoiceNumber, invoiceUrl, deliveries, invoiceDate)}
         />
       )}
 

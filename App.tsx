@@ -546,7 +546,7 @@ const App: React.FC = () => {
     });
   }, [suppliers]);
 
-  const handleSaveInvoice = useCallback(async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[]) => {
+  const handleSaveInvoice = useCallback(async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => {
     const toastId = toast.loading('Enviando nota fiscal...');
     try {
       console.log('Iniciando handleSaveInvoice:', { supplierCpf, deliveryIds, invoiceNumber, updatedDeliveries });
@@ -613,6 +613,7 @@ const App: React.FC = () => {
               const updatedDelivery = updatedDeliveries.find(ud => ud.id === d.id);
               d.invoiceUploaded = true;
               d.invoiceNumber = invoiceNumber;
+              if (invoiceDate) d.invoiceDate = invoiceDate;
               if (finalInvoiceUrl !== undefined) d.invoiceUrl = finalInvoiceUrl;
               if (updatedDelivery) {
                 d.item = updatedDelivery.item;
@@ -632,6 +633,7 @@ const App: React.FC = () => {
                 ...ni,
                 id: `del_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
                 invoiceNumber,
+                invoiceDate,
                 invoiceUrl: finalInvoiceUrl,
                 invoiceUploaded: true
               };
@@ -681,6 +683,7 @@ const App: React.FC = () => {
                 const updatedDelivery = updatedDeliveries.find(ud => ud.id === d.id);
                 d.invoiceUploaded = true;
                 d.invoiceNumber = invoiceNumber;
+                if (invoiceDate) d.invoiceDate = invoiceDate;
                 if (finalInvoiceUrl !== undefined) d.invoiceUrl = finalInvoiceUrl;
                 if (updatedDelivery) {
                   d.item = updatedDelivery.item;
@@ -699,6 +702,7 @@ const App: React.FC = () => {
                   ...ni,
                   id: `del_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
                   invoiceNumber,
+                  invoiceDate,
                   invoiceUrl: finalInvoiceUrl,
                   invoiceUploaded: true
                 };

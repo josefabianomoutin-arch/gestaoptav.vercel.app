@@ -130,6 +130,10 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         onConfirm: () => {},
     });
 
+    const pendingValidationCount = useMemo(() => {
+        return orders.filter(o => !o.validationRole && !o.exitTime).length;
+    }, [orders]);
+
     const inTransitPlates = useMemo(() => {
         return orders
             .filter(o => o.exitTime && !o.returnTime)
@@ -1002,6 +1006,18 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/5 rounded-full blur-[120px] animate-pulse" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-[120px] animate-pulse delay-700" />
             </div>
+
+            {pendingValidationCount > 0 && (
+                <div className="relative z-20 bg-red-50 border-2 border-red-200 p-6 rounded-[2rem] flex items-center gap-6 animate-pulse shadow-lg shadow-red-100/50 mx-2">
+                    <div className="bg-red-600 text-white p-4 rounded-2xl flex-shrink-0 shadow-lg shadow-red-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    </div>
+                    <div>
+                        <p className="text-xl font-black text-red-900 uppercase tracking-tighter italic">Atenção: Validação Pendente</p>
+                        <p className="text-sm font-bold text-red-700 uppercase tracking-tight mt-1">Existem {pendingValidationCount} ordens de saída aguardando validação superior para serem liberadas na portaria.</p>
+                    </div>
+                </div>
+            )}
 
             <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white/80 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-xl border border-white/20">
                 <div className="flex items-center gap-4">
