@@ -289,6 +289,12 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     const confirmRecognitionAction = async () => {
         if (!pendingOrder || !actionType) return;
 
+        if (actionType === 'exit' && !pendingOrder.validationRole) {
+            setRecognitionStatus('error');
+            setErrorMessage("Esta ordem de saída ainda não foi validada. A saída não pode ser registrada.");
+            return;
+        }
+
         const now = new Date();
         const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
         const currentDate = now.toISOString().split('T')[0];
@@ -343,6 +349,11 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     }, [isAutoScanEnabled, isCameraActive, recognitionStatus]);
 
     const handleQuickRegister = async (order: VehicleExitOrder, type: 'exit' | 'return') => {
+        if (type === 'exit' && !order.validationRole) {
+            alert('Esta ordem de saída ainda não foi validada por uma autoridade superior. A saída não pode ser registrada.');
+            return;
+        }
+
         const now = new Date();
         const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
         const currentDate = now.toISOString().split('T')[0];
@@ -629,8 +640,17 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     }, [orders]);
 
     const renderOrderRow = (order: VehicleExitOrder) => (
-        <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-            <td className="p-4 font-bold text-gray-600">{order.date.split('-').reverse().join('/')}</td>
+        <tr key={order.id} className={`hover:bg-gray-50 transition-colors ${!order.validationRole && !order.exitTime ? 'bg-red-50/30' : ''}`}>
+            <td className="p-4 font-bold text-gray-600">
+                {order.date.split('-').reverse().join('/')}
+                {!order.validationRole && !order.exitTime && (
+                    <div className="mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black bg-red-100 text-red-600 uppercase animate-pulse">
+                            Aguardando Validação
+                        </span>
+                    </div>
+                )}
+            </td>
             <td className="p-4">
                 <div className="font-black text-gray-800 uppercase">{order.vehicle}</div>
                 <div className="text-[10px] text-indigo-500 font-mono flex items-center gap-2">
@@ -789,6 +809,10 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         }
 
         if (editingOrder) {
+            if (finalData.exitTime && !finalData.validationRole) {
+                alert('Atenção: Não é possível registrar o horário de saída sem a validação de uma autoridade superior.');
+                return;
+            }
             await onUpdate({ ...finalData, id: editingOrder.id });
             setIsModalOpen(false);
             setEditingOrder(null);
@@ -1028,6 +1052,19 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
             {activeSubTab === 'orders' && (
                 <div className="relative z-10 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {orders.some(o => !o.validationRole && !o.exitTime) && (
+                        <div className="bg-red-50 border border-red-200 p-4 rounded-3xl flex items-center gap-4 animate-pulse">
+                            <div className="bg-red-100 p-2 rounded-full text-red-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h4 className="text-xs font-black text-red-900 uppercase">Atenção: Ordens Aguardando Validação</h4>
+                                <p className="text-[10px] text-red-600 font-bold uppercase">Existem {orders.filter(o => !o.validationRole && !o.exitTime).length} ordens de saída que precisam ser validadas antes da liberação do veículo.</p>
+                            </div>
+                        </div>
+                    )}
                     {!readOnly && !securityMode && (
                         <div className="flex justify-end gap-3">
                             {(userRole === 'julio' || userRole === 'infraestrutura') && (
@@ -1114,6 +1151,19 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             )}
             {activeSubTab === 'gate' && (
                 <div className="space-y-6">
+                    {orders.some(o => !o.validationRole && !o.exitTime) && (
+                        <div className="bg-amber-50 border border-amber-200 p-4 rounded-3xl flex items-center gap-4">
+                            <div className="bg-amber-100 p-2 rounded-full text-amber-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h4 className="text-xs font-black text-amber-900 uppercase italic tracking-tighter">Liberação Bloqueada</h4>
+                                <p className="text-[10px] text-amber-600 font-bold uppercase">Algumas ordens de saída estão aguardando validação superior. O registro de saída para estes veículos está desativado.</p>
+                            </div>
+                        </div>
+                    )}
                     <div className="flex bg-gray-100 p-1 rounded-2xl w-fit">
                         <button 
                             onClick={() => { setGateTab('manual'); stopCamera(); }}
@@ -1138,9 +1188,14 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                 </div>
                                 <div className="divide-y divide-gray-50 max-h-[500px] overflow-y-auto custom-scrollbar">
                                     {orders.filter(o => !o.exitTime).length > 0 ? orders.filter(o => !o.exitTime).map(order => (
-                                        <div key={order.id} className="p-4 hover:bg-gray-50 transition-colors flex justify-between items-center">
+                                        <div key={order.id} className={`p-4 hover:bg-gray-50 transition-colors flex justify-between items-center ${!order.validationRole ? 'bg-red-50/50' : ''}`}>
                                             <div>
-                                                <div className="font-black text-gray-800 uppercase text-xs">{order.vehicle}</div>
+                                                <div className="font-black text-gray-800 uppercase text-xs flex items-center gap-2">
+                                                    {order.vehicle}
+                                                    {!order.validationRole && (
+                                                        <span className="bg-red-100 text-red-600 text-[8px] px-1.5 py-0.5 rounded font-black uppercase animate-pulse">Pendente</span>
+                                                    )}
+                                                </div>
                                                 <div className="text-[10px] text-indigo-500 font-mono font-bold">{order.plate}</div>
                                                 <div className="text-[9px] text-gray-400 uppercase mt-1">{order.responsibleServer}</div>
                                             </div>
@@ -1167,9 +1222,10 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                 )}
                                                 <button 
                                                     onClick={() => handleQuickRegister(order, 'exit')}
-                                                    className="bg-indigo-600 text-white font-black py-2 px-4 rounded-xl text-[9px] uppercase tracking-widest shadow-lg shadow-indigo-100 active:scale-95"
+                                                    disabled={!order.validationRole}
+                                                    className={`font-black py-2 px-4 rounded-xl text-[9px] uppercase tracking-widest shadow-lg active:scale-95 transition-all ${!order.validationRole ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none' : 'bg-indigo-600 text-white shadow-indigo-100'}`}
                                                 >
-                                                    Registrar Saída
+                                                    {order.validationRole ? 'Registrar Saída' : 'Aguardando Validação'}
                                                 </button>
                                             </div>
                                         </div>
