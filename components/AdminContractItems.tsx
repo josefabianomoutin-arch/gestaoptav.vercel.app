@@ -702,6 +702,18 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
                                         <p className="font-bold text-gray-800 uppercase text-[11px] truncate w-full">{a.supplierName}</p>
                                         {(() => {
                                             const s = allSuppliers.find(x => x.cpf === a.supplierCpf);
+                                            const otherItems = (s?.contractItems || []).filter((ci: any) => ci.name !== itemName);
+                                            if (otherItems.length > 0) {
+                                                return (
+                                                    <p className="text-[8px] text-indigo-500 font-bold uppercase mt-0.5">
+                                                        Também em: {otherItems.length} {otherItems.length === 1 ? 'outro item' : 'outros itens'}
+                                                    </p>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
+                                        {(() => {
+                                            const s = allSuppliers.find(x => x.cpf === a.supplierCpf);
                                             if (s?.allowedWeeks && s.allowedWeeks.length > 0) {
                                                 return (
                                                     <div className="flex flex-wrap gap-0.5 mt-1">
@@ -781,7 +793,14 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
                                 className="flex-1 p-2.5 border-2 border-transparent bg-white rounded-lg outline-none focus:border-indigo-500 font-bold text-[11px] transition-all"
                             >
                                 <option value="">-- SELECIONE UM FORNECEDOR --</option>
-                                {availableSuppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
+                                {availableSuppliers.map(s => {
+                                    const linkedCount = (s.contractItems || []).length;
+                                    return (
+                                        <option key={s.cpf} value={s.cpf}>
+                                            {s.name} {linkedCount > 0 ? `(${linkedCount} ${linkedCount === 1 ? 'item vinculado' : 'itens vinculados'})` : ''}
+                                        </option>
+                                    );
+                                })}
                             </select>
                             <button 
                                 type="button" 
