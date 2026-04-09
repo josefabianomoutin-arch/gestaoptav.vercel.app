@@ -70,23 +70,40 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
         html2pdf().set(opt).from(containerRef.current).save();
     };
 
-    const itemsWithProposals = useMemo(() => {
-        return items.filter(item => {
-            const validAssignments = item.assignments?.filter(a => 
-                eligibleProducers.some(p => p.cpfCnpj === a.supplierCpf)
-            );
-            return validAssignments && validAssignments.length > 0;
+    const itemsWithAssignments = useMemo(() => {
+        return items.map(item => {
+            const assignments = producers.flatMap(p => {
+                const contractItems = p.contractItems || {};
+                const contractItem = contractItems[item.name] || 
+                                   Object.values(contractItems).find((ci: any) => ci.name === item.name);
+                
+                if (contractItem) {
+                    return [{
+                        supplierName: p.name,
+                        supplierCpf: p.cpfCnpj,
+                        totalKg: contractItem.totalKg,
+                        valuePerKg: contractItem.valuePerKg,
+                        unit: contractItem.unit,
+                        isEligible: !ineligibleProducerIds.includes(p.id)
+                    }];
+                }
+                return [];
+            });
+            return { ...item, assignments };
         });
-    }, [items, eligibleProducers]);
+    }, [items, producers, ineligibleProducerIds]);
+
+    const itemsWithProposals = useMemo(() => {
+        return itemsWithAssignments.filter(item => 
+            item.assignments.some(a => a.isEligible)
+        );
+    }, [itemsWithAssignments]);
 
     const itemsWithoutProposals = useMemo(() => {
-        return items.filter(item => {
-            const validAssignments = item.assignments?.filter(a => 
-                eligibleProducers.some(p => p.cpfCnpj === a.supplierCpf)
-            );
-            return !validAssignments || validAssignments.length === 0;
-        });
-    }, [items, eligibleProducers]);
+        return itemsWithAssignments.filter(item => 
+            item.assignments.length === 0 || !item.assignments.some(a => a.isEligible)
+        );
+    }, [itemsWithAssignments]);
 
     const toggleProducerIneligibility = (id: string) => {
         setIneligibleProducerIds(prev => 
@@ -367,9 +384,7 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
                             </thead>
                             <tbody>
                                 {itemsWithProposals.map((item, idx) => {
-                                    const validAssignments = item.assignments?.filter(a => 
-                                        eligibleProducers.some(p => p.cpfCnpj === a.supplierCpf)
-                                    ) || [];
+                                    const validAssignments = item.assignments.filter(a => a.isEligible);
                                     const totalQty = validAssignments.reduce((acc, a) => acc + a.totalKg, 0);
                                     const unitValue = validAssignments[0]?.valuePerKg || 0;
                                     const numProducers = validAssignments.length;
@@ -383,7 +398,7 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
                                             <td>{item.contractItemName || item.name}</td>
                                             <td className="text-center">{totalQty.toLocaleString('pt-BR')}</td>
                                             <td className="text-right">{unitValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                            <td className="text-center">{validAssignments[0]?.unit || 'kg'}</td>
+                                            <td className="text-center">{(validAssignments[0]?.unit || 'kg').split('-')[0]}</td>
                                             <td className="text-center">{numProducers}</td>
                                             <td className="text-center">{qtyPerProducer.toLocaleString('pt-BR')}</td>
                                             <td className="text-right">{individualValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
@@ -397,9 +412,7 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
                                     <td colSpan={8} className="text-right uppercase">Valor Total</td>
                                     <td className="text-right">
                                         {itemsWithProposals.reduce((acc, item) => {
-                                            const validAssignments = item.assignments?.filter(a => 
-                                                eligibleProducers.some(p => p.cpfCnpj === a.supplierCpf)
-                                            ) || [];
+                                            const validAssignments = item.assignments.filter(a => a.isEligible);
                                             const totalQty = validAssignments.reduce((a, b) => a + b.totalKg, 0);
                                             const unitValue = validAssignments[0]?.valuePerKg || 0;
                                             return acc + (totalQty * unitValue);
@@ -423,7 +436,7 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
                             <tbody>
                                 {eligibleProducers.map((p, idx) => {
                                     const producerItems = itemsWithProposals.filter(item => 
-                                        item.assignments?.some(a => a.supplierCpf === p.cpfCnpj && eligibleProducers.some(ep => ep.cpfCnpj === a.supplierCpf))
+                                        item.assignments?.some(a => a.supplierCpf === p.cpfCnpj && a.isEligible)
                                     ).map(item => item.contractItemName || item.name).join(', ');
 
                                     return (
