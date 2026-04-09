@@ -1,7 +1,8 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import type { Delivery, ContractItem } from '../types';
 import { speechService } from '../src/services/speechService';
-import { Volume2, Upload, FileText, Download, CheckCircle2, Loader2, Plus, Trash2, Calendar } from 'lucide-react';
+import { Volume2, Upload, FileText, Download, CheckCircle2, Loader2, Plus, Trash2, Calendar, Sparkles } from 'lucide-react';
+import { GoogleGenAI } from "@google/genai";
 
 interface SendInvoiceModalProps {
   invoiceInfo: { date: string; deliveries: Delivery[] };
@@ -38,8 +39,100 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
 
   const [isSaved, setIsSaved] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractedData, setExtractedData] = useState<any>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const ai = useMemo(() => {
+    const key = process.env.GEMINI_API_KEY;
+    if (key) return new GoogleGenAI({ apiKey: key });
+    return null;
+  }, []);
+
+  const extractDataFromPdf = async (file: File) => {
+    if (!ai) return;
+    
+    setIsExtracting(true);
+    try {
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+      
+      const base64Data = await base64Promise;
+      const model = ai.getGenerativeModel({ model: "gemini-2.0-flash" });
+      
+      const prompt = `Analise esta Nota Fiscal e extraia as seguintes informações em formato JSON:
+      {
+        "invoiceNumber": "string",
+        "invoiceDate": "YYYY-MM-DD",
+        "items": [
+          {
+            "name": "string (nome do produto)",
+            "quantity": number (peso/quantidade),
+            "lot": "string (número do lote se existir)",
+            "validity": "YYYY-MM-DD (data de validade se existir)"
+          }
+        ]
+      }
+      Retorne APENAS o JSON, sem markdown ou explicações.`;
+
+      const result = await model.generateContent([
+        prompt,
+        {
+          inlineData: {
+            data: base64Data.split(',')[1],
+            mimeType: "application/pdf"
+          }
+        }
+      ]);
+
+      const response = await result.response;
+      const text = response.text();
+      const jsonStr = text.replace(/```json|```/g, '').trim();
+      const extracted = JSON.parse(jsonStr);
+      setExtractedData(extracted);
+
+      if (extracted.invoiceNumber) setInvoiceNumber(extracted.invoiceNumber);
+      if (extracted.invoiceDate) setInvoiceDate(extracted.invoiceDate);
+
+      if (extracted.items && extracted.items.length > 0) {
+        const newDeliveries = extracted.items.map((ei: any, index: number) => {
+          const matchedItem = contractItems.find(ci => 
+            ei.name.toUpperCase().includes(ci.name.toUpperCase()) || 
+            ci.name.toUpperCase().includes(ei.name.toUpperCase())
+          );
+
+          return {
+            id: `new_${Date.now()}_${index}`,
+            date: invoiceInfo.date,
+            time: '08:00',
+            item: matchedItem ? matchedItem.name : '',
+            kg: ei.quantity || 0,
+            value: matchedItem ? (matchedItem.valuePerKg * (ei.quantity || 0)) : 0,
+            invoiceUploaded: true,
+            lots: [{ 
+              id: Math.random().toString(),
+              lotNumber: ei.lot || '', 
+              initialQuantity: ei.quantity || 0,
+              remainingQuantity: ei.quantity || 0,
+              expirationDate: ei.validity || '' 
+            }]
+          };
+        });
+
+        if (newDeliveries.length > 0) {
+          setDeliveries(newDeliveries);
+        }
+      }
+    } catch (error) {
+      console.error("Erro na extração Gemini:", error);
+    } finally {
+      setIsExtracting(false);
+    }
+  };
 
   const handleAddItem = () => {
     const newId = `new_${Date.now()}_${deliveries.length}`;
@@ -72,6 +165,24 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
       const contractItem = contractItems.find(ci => ci.name === value);
       if (contractItem) {
         d.value = (d.kg || 0) * contractItem.valuePerKg;
+      }
+
+      // Try to auto-fill lot and validity from extracted data if available
+      if (extractedData?.items) {
+        const extractedItem = extractedData.items.find((ei: any) => 
+          ei.name.toUpperCase().includes(value.toUpperCase()) || 
+          value.toUpperCase().includes(ei.name.toUpperCase())
+        );
+        if (extractedItem && d.lots && d.lots[0]) {
+          d.lots[0].lotNumber = extractedItem.lot || d.lots[0].lotNumber;
+          d.lots[0].expirationDate = extractedItem.validity || d.lots[0].expirationDate;
+          if (extractedItem.quantity && d.kg === 0) {
+            d.kg = extractedItem.quantity;
+            if (contractItem) {
+              d.value = extractedItem.quantity * contractItem.valuePerKg;
+            }
+          }
+        }
       }
     } else if (field === 'kg') {
       const kg = parseFloat(value) || 0;
@@ -119,6 +230,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
       }
       setUploadError(null);
       setSelectedFile(file);
+      extractDataFromPdf(file);
     }
   };
 
@@ -246,7 +358,12 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
                           className={`w-full h-14 px-4 border-2 border-dashed rounded-2xl flex items-center justify-between gap-2 transition-all ${isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${selectedFile ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-400 hover:border-indigo-300 hover:bg-indigo-50'}`}
                         >
                           <div className="flex items-center gap-2 overflow-hidden">
-                            {selectedFile ? (
+                            {isExtracting ? (
+                              <>
+                                <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-indigo-600" />
+                                <span className="text-xs font-bold text-indigo-600 animate-pulse">EXTRAINDO DADOS...</span>
+                              </>
+                            ) : selectedFile ? (
                               <>
                                 <FileText className="h-5 w-5 flex-shrink-0" />
                                 <span className="text-xs font-bold truncate">{selectedFile.name}</span>
@@ -374,7 +491,6 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
                             </span>
                         </div>
                     </div>
-                </div>
                 
                 {uploadError && (
                   <div className="p-3 bg-red-50 text-red-600 text-xs rounded-xl border border-red-100 font-medium">

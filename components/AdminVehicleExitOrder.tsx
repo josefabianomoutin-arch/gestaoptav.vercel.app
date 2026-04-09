@@ -1204,12 +1204,14 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                 </div>
                                 <div className="divide-y divide-gray-50 max-h-[500px] overflow-y-auto custom-scrollbar">
                                     {orders.filter(o => !o.exitTime).length > 0 ? orders.filter(o => !o.exitTime).map(order => (
-                                        <div key={order.id} className={`p-4 hover:bg-gray-50 transition-colors flex justify-between items-center ${!order.validationRole ? 'bg-red-50/50' : ''}`}>
+                                        <div key={order.id} className={`p-4 hover:bg-gray-50 transition-colors flex justify-between items-center ${!order.validationRole ? 'bg-red-50/80 border-l-4 border-red-500' : ''}`}>
                                             <div>
                                                 <div className="font-black text-gray-800 uppercase text-xs flex items-center gap-2">
                                                     {order.vehicle}
-                                                    {!order.validationRole && (
-                                                        <span className="bg-red-100 text-red-600 text-[8px] px-1.5 py-0.5 rounded font-black uppercase animate-pulse">Pendente</span>
+                                                    {!order.validationRole ? (
+                                                        <span className="bg-red-600 text-white text-[8px] px-2 py-0.5 rounded-full font-black uppercase shadow-sm">Bloqueado - Aguardando Validação</span>
+                                                    ) : (
+                                                        <span className="bg-green-100 text-green-600 text-[8px] px-2 py-0.5 rounded-full font-black uppercase">Validado</span>
                                                     )}
                                                 </div>
                                                 <div className="text-[10px] text-indigo-500 font-mono font-bold">{order.plate}</div>

@@ -1102,6 +1102,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                             body { font-family: Arial, sans-serif; font-size: 10px; line-height: 1.4; }
                                             table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
                                             th, td { border: 1px solid #ddd; padding: 6px; text-align: left; word-break: break-word; overflow-wrap: break-word; }
+                                            tr { page-break-inside: avoid; break-inside: avoid; }
                                             th { background-color: #f3f4f6; text-transform: uppercase; font-size: 9px; }
                                             .text-center { text-align: center; }
                                             .text-right { text-align: right; }

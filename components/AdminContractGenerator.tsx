@@ -110,6 +110,10 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             word-break: break-word !important;
                             overflow-wrap: break-word !important;
                         }
+                        tr {
+                            page-break-inside: avoid !important;
+                            break-inside: avoid !important;
+                        }
                     `}</style>
                     <div className="text-center space-y-1 mb-8 pt-10">
                         <h1 className="text-2xl font-bold uppercase">Contrato</h1>
