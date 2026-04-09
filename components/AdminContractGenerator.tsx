@@ -138,8 +138,9 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             inscrito/a no CPF/CNPJ nº <span className="font-bold">{selectedProducer.cpfCnpj}</span>, 
                             residente na <span className="font-bold">{selectedProducer.address || '____________________'}</span>, 
                             na cidade de <span className="font-bold">{selectedProducer.city || '____________________'}</span>, 
-                            neste ato representado(a) por <span className="font-bold">{selectedProducer.representativeName || '____________________'}</span>, 
-                            portador(a) do CPF nº <span className="font-bold">{selectedProducer.representativeCpf || '____________________'}</span>, 
+                            {selectedProducer.representativeName && (
+                                <>neste ato representado(a) por <span className="font-bold">{selectedProducer.representativeName}</span>, portador(a) do CPF nº <span className="font-bold">{selectedProducer.representativeCpf || '____________________'}</span>, </>
+                            )}
                             e pelos mesmos foi dito na presença das testemunhas ao final consignadas, que em face da autorização da inexigibilidade da licitação constante no Processo SEI 006.00091368/2026-57, nos termos do artigo 74, inciso IV, c.c. o artigo 79 da Lei Federal nº 14.133/2021, pelo presente instrumento avençam um contrato de aquisição de gêneros alimentícios da Agricultura Familiar para atender o Programa Paulista da Agricultura de Interesse Social – PPAIS, sujeitando-se às normas da Lei Federal nº 14.133/2021, Decreto Estadual nº 68.304/2024 e demais normas regulamentares à espécie, inclusive a Lei Estadual nº 14.591/2011, regulamentada pelo Decreto nº 57.755/2012, alterados pelo Decreto nº 60.055/2014, Decreto nº 62.282/2016, e Decreto nº 68.734/2024, e às seguintes cláusulas e condições que reciprocamente outorgam e aceitam:
                         </p>
 
@@ -335,7 +336,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             
                             <div className="mt-12 mb-8 flex justify-center">
                                 <div className="w-1/2 border-t border-zinc-800 pt-2 text-center">
-                                    <p className="font-bold uppercase">Contratada: assinatura do representante legal</p>
+                                    <p className="font-bold uppercase">Contratada: assinatura {selectedProducer.representativeName ? 'do representante legal' : ''}</p>
                                     {selectedProducer.representativeName && (
                                         <p className="text-sm">{selectedProducer.representativeName}</p>
                                     )}
