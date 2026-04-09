@@ -22,6 +22,15 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
     const [occurrences, setOccurrences] = useState('');
     const [period, setPeriod] = useState('Janeiro a Dezembro de 2026');
     const [chamadaPublica, setChamadaPublica] = useState(processDefinition.match(/9\d{4}\/\d{4}/)?.[0] || '');
+    const [ineligibleProducerIds, setIneligibleProducerIds] = useState<string[]>([]);
+
+    const eligibleProducers = useMemo(() => 
+        producers.filter(p => !ineligibleProducerIds.includes(p.id)),
+    [producers, ineligibleProducerIds]);
+
+    const ineligibleProducers = useMemo(() => 
+        producers.filter(p => ineligibleProducerIds.includes(p.id)),
+    [producers, ineligibleProducerIds]);
 
     const formattedDate = useMemo(() => {
         if (!sessionDate) return '';
@@ -62,12 +71,28 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
     };
 
     const itemsWithProposals = useMemo(() => {
-        return items.filter(item => item.assignments && item.assignments.length > 0);
-    }, [items]);
+        return items.filter(item => {
+            const validAssignments = item.assignments?.filter(a => 
+                eligibleProducers.some(p => p.cpfCnpj === a.supplierCpf)
+            );
+            return validAssignments && validAssignments.length > 0;
+        });
+    }, [items, eligibleProducers]);
 
     const itemsWithoutProposals = useMemo(() => {
-        return items.filter(item => !item.assignments || item.assignments.length === 0);
-    }, [items]);
+        return items.filter(item => {
+            const validAssignments = item.assignments?.filter(a => 
+                eligibleProducers.some(p => p.cpfCnpj === a.supplierCpf)
+            );
+            return !validAssignments || validAssignments.length === 0;
+        });
+    }, [items, eligibleProducers]);
+
+    const toggleProducerIneligibility = (id: string) => {
+        setIneligibleProducerIds(prev => 
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
 
     return (
         <div className="p-8 space-y-8">
@@ -158,6 +183,26 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
                     />
                 </div>
 
+                <div className="space-y-4">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Produtores Inabilitados</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {producers.map(p => (
+                            <label key={p.id} className="flex items-center gap-3 p-3 bg-white border-2 border-zinc-100 rounded-xl cursor-pointer hover:border-indigo-200 transition-all">
+                                <input 
+                                    type="checkbox" 
+                                    checked={ineligibleProducerIds.includes(p.id)}
+                                    onChange={() => toggleProducerIneligibility(p.id)}
+                                    className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-bold text-zinc-800">{p.name}</span>
+                                    <span className="text-[10px] text-zinc-400 font-mono">{p.cpfCnpj}</span>
+                                </div>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+
                 <div className="flex justify-end">
                     <button 
                         onClick={handlePrint}
@@ -223,11 +268,11 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
                     <p><strong>Objeto:</strong> Aquisição de Gêneros Alimentícios Hortifrutigranjeiros (Ppais), com entrega parcelada, para o período de {period}.</p>
 
                     <p className="text-justify">
-                        Aos {formattedDate}, às {openingTime}h abertura de protocolos no setor de Infraestrutura e às {meetingTime}h, reuniu-se no setor de Finanças da Penitenciária de Taiúva, sito a Rodovia Brigadeiro Faria Lima, SP 326, Km 359,6 Taiúva/SP - Cep 14.720-000, a Comissão de Avaliação e Credenciamento do Agricultor Familiar, composto por Ricardo Samuel Scaramal – Chefe de Seção de Administração, José Fabiano Moutin – Chefe de Seção de Finanças e Suprimentos e o representante do ITESP {itespRep}, os produtores {producers.map(p => p.name).join(', ')} para a Sessão da Chamada Pública em epígrafe.
+                        Aos {formattedDate}, às {openingTime}h abertura de protocolos no setor de Infraestrutura e às {meetingTime}h, reuniu-se no setor de Finanças da Penitenciária de Taiúva, sito a Rodovia Brigadeiro Faria Lima, SP 326, Km 359,6 Taiúva/SP - Cep 14.720-000, a Comissão de Avaliação e Credenciamento do Agricultor Familiar, composto por Ricardo Samuel Scaramal – Chefe de Seção de Administração, José Fabiano Moutin – Chefe de Seção de Finanças e Suprimentos e o representante do ITESP {itespRep}, os produtores {eligibleProducers.map(p => p.name).join(', ')} para a Sessão da Chamada Pública em epígrafe.
                     </p>
 
                     <p className="text-justify">
-                        Foram apresentadas {proposalsCount} ({proposalsCount}) propostas, recebidas e protocoladas, conforme o edital de Chamada Pública. Aberta a sessão, os envelopes lacrados foram encaminhados e rubricados pela Comissão de Avaliação e Credenciamento do Agricultor Familiar e pelo representante do ITESP. Em seguida, a referida Comissão analisou os documentos de habilitação e a proposta de venda apresentada pelo interessado, com o intuito de verificar a conformidade com os requisitos fixados no edital e na legislação vigente, houve proposta para os itens {itemsWithProposals.map((item, idx) => `${idx + 1 < 10 ? '0' : ''}${idx + 1} - ${item.name}`).join('; ')}. Já os itens {itemsWithoutProposals.map(item => item.name).join(', ')}, não obtiveram propostas apresentadas.
+                        Foram apresentadas {proposalsCount} ({proposalsCount}) propostas, recebidas e protocoladas, conforme o edital de Chamada Pública. Aberta a sessão, os envelopes lacrados foram encaminhados e rubricados pela Comissão de Avaliação e Credenciamento do Agricultor Familiar e pelo representante do ITESP. Em seguida, a referida Comissão analisou os documentos de habilitação e a proposta de venda apresentada pelo interessado, com o intuito de verificar a conformidade com os requisitos fixados no edital e na legislação vigente, houve proposta para os itens {itemsWithProposals.map((item, idx) => `${idx + 1 < 10 ? '0' : ''}${idx + 1} - ${item.contractItemName || item.name}`).join('; ')}. Já os itens {itemsWithoutProposals.map(item => item.contractItemName || item.name).join(', ')}, não obtiveram propostas apresentadas.
                     </p>
 
                     <p className="text-justify">
@@ -268,7 +313,7 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
                                 </tr>
                             </thead>
                             <tbody>
-                                {producers.map((p, idx) => (
+                                {eligibleProducers.map((p, idx) => (
                                     <tr key={p.id}>
                                         <td className="text-center">{(idx + 1).toString().padStart(2, '0')}</td>
                                         <td>{p.name}</td>
@@ -281,7 +326,28 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
 
                     <div className="avoid-break">
                         <h2 className="font-bold uppercase text-xs mb-2">INABILITADO</h2>
-                        <p className="text-xs italic mb-4">Não houve</p>
+                        {ineligibleProducers.length > 0 ? (
+                            <table>
+                                <thead>
+                                    <tr className="bg-zinc-100">
+                                        <th style={{ width: '10%' }}>ITEM</th>
+                                        <th style={{ width: '60%' }}>AGRICULTOR FAMILIAR</th>
+                                        <th style={{ width: '30%' }}>CPF</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {ineligibleProducers.map((p, idx) => (
+                                        <tr key={p.id}>
+                                            <td className="text-center">{(idx + 1).toString().padStart(2, '0')}</td>
+                                            <td>{p.name}</td>
+                                            <td className="text-center">{p.cpfCnpj}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        ) : (
+                            <p className="text-xs italic mb-4">Não houve</p>
+                        )}
                     </div>
 
                     <div className="avoid-break">
@@ -301,9 +367,12 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
                             </thead>
                             <tbody>
                                 {itemsWithProposals.map((item, idx) => {
-                                    const totalQty = item.assignments?.reduce((acc, a) => acc + a.totalKg, 0) || 0;
-                                    const unitValue = item.assignments?.[0]?.valuePerKg || 0;
-                                    const numProducers = item.assignments?.length || 0;
+                                    const validAssignments = item.assignments?.filter(a => 
+                                        eligibleProducers.some(p => p.cpfCnpj === a.supplierCpf)
+                                    ) || [];
+                                    const totalQty = validAssignments.reduce((acc, a) => acc + a.totalKg, 0);
+                                    const unitValue = validAssignments[0]?.valuePerKg || 0;
+                                    const numProducers = validAssignments.length;
                                     const qtyPerProducer = numProducers > 0 ? totalQty / numProducers : 0;
                                     const individualValue = qtyPerProducer * unitValue;
                                     const totalValue = totalQty * unitValue;
@@ -311,10 +380,10 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
                                     return (
                                         <tr key={idx}>
                                             <td className="text-center">{(idx + 1).toString().padStart(2, '0')}</td>
-                                            <td>{item.name}</td>
+                                            <td>{item.contractItemName || item.name}</td>
                                             <td className="text-center">{totalQty.toLocaleString('pt-BR')}</td>
                                             <td className="text-right">{unitValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                            <td className="text-center">{item.assignments?.[0]?.unit || 'kg'}</td>
+                                            <td className="text-center">{validAssignments[0]?.unit || 'kg'}</td>
                                             <td className="text-center">{numProducers}</td>
                                             <td className="text-center">{qtyPerProducer.toLocaleString('pt-BR')}</td>
                                             <td className="text-right">{individualValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
@@ -328,8 +397,11 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
                                     <td colSpan={8} className="text-right uppercase">Valor Total</td>
                                     <td className="text-right">
                                         {itemsWithProposals.reduce((acc, item) => {
-                                            const totalQty = item.assignments?.reduce((a, b) => a + b.totalKg, 0) || 0;
-                                            const unitValue = item.assignments?.[0]?.valuePerKg || 0;
+                                            const validAssignments = item.assignments?.filter(a => 
+                                                eligibleProducers.some(p => p.cpfCnpj === a.supplierCpf)
+                                            ) || [];
+                                            const totalQty = validAssignments.reduce((a, b) => a + b.totalKg, 0);
+                                            const unitValue = validAssignments[0]?.valuePerKg || 0;
                                             return acc + (totalQty * unitValue);
                                         }, 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                     </td>
@@ -349,10 +421,10 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
                                 </tr>
                             </thead>
                             <tbody>
-                                {producers.map((p, idx) => {
+                                {eligibleProducers.map((p, idx) => {
                                     const producerItems = itemsWithProposals.filter(item => 
-                                        item.assignments?.some(a => a.supplierCpf === p.cpfCnpj)
-                                    ).map(item => item.name).join(', ');
+                                        item.assignments?.some(a => a.supplierCpf === p.cpfCnpj && eligibleProducers.some(ep => ep.cpfCnpj === a.supplierCpf))
+                                    ).map(item => item.contractItemName || item.name).join(', ');
 
                                     return (
                                         <tr key={p.id}>
