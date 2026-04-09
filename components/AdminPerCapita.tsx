@@ -6,6 +6,7 @@ import AdminContractItems from './AdminContractItems';
 import AdminAcquisitionItems from './AdminAcquisitionItems';
 import AdminPerCapitaSuppliers from './AdminPerCapitaSuppliers';
 import AdminContractGenerator from './AdminContractGenerator';
+import AdminAtaGenerator from './AdminAtaGenerator';
 import type { PerCapitaSupplier } from '../types';
 
 interface AdminPerCapitaProps {
@@ -111,7 +112,7 @@ const PTRES_DESCRIPTIONS: Record<string, string> = {
 
 const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog, perCapitaConfig, onUpdatePerCapitaConfig, onUpdateContractForItem, onUpdateAcquisitionItem, onDeleteAcquisitionItem, acquisitionItems, onUpdateSupplierObservations }) => {
     const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'ADIANTAMENTOS' | 'CONTROLE'>('CALCULO');
-    const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS' | 'CONTRACT'>('ITEMS');
+    const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS' | 'CONTRACT' | 'ATA'>('ITEMS');
     const [pereciveisSubTab, setPereciveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT'>('ITEMS');
     const [staffCount, setStaffCount] = useState<number>(0);
     const [inmateCount, setInmateCount] = useState<number>(0);
@@ -1411,6 +1412,18 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                             >
                                 Contrato
                             </button>
+                            {activeSubTab === 'PPAIS' && (
+                                <button 
+                                    onClick={() => setPpaisSubTab('ATA')}
+                                    className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                        ppaisSubTab === 'ATA'
+                                        ? 'bg-white text-zinc-900 shadow-sm' 
+                                        : 'text-zinc-500 hover:text-zinc-700'
+                                    }`}
+                                >
+                                    Ata
+                                </button>
+                            )}
                         </div>
                     )}
 
@@ -1434,6 +1447,13 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                             <AdminContractGenerator 
                                 producers={activeSubTab === 'PPAIS' ? ppaisProducers : pereciveisSuppliers}
                                 type={activeSubTab === 'PPAIS' ? 'PRODUTOR' : 'FORNECEDOR'}
+                            />
+                        ) : activeSubTab === 'PPAIS' && ppaisSubTab === 'ATA' ? (
+                            <AdminAtaGenerator 
+                                producers={ppaisProducers}
+                                processNumber={seiProcessNumbers['PPAIS'] || ''}
+                                processDefinition={seiProcessDefinitions['PPAIS'] || ''}
+                                items={acquisitionItems.filter(item => item.category === 'PPAIS')}
                             />
                         ) : (
                             <AdminAcquisitionItems 
