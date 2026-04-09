@@ -336,12 +336,16 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             
                             <div className="mt-12 mb-8 flex justify-center">
                                 <div className="w-1/2 border-t border-zinc-800 pt-2 text-center">
-                                    <p className="font-bold uppercase">Contratada: assinatura {selectedProducer.representativeName ? 'do representante legal' : ''}</p>
+                                    <p className="font-bold uppercase">Contratada: {selectedProducer.name}</p>
+                                    <p className="text-sm">CPF/CNPJ: {selectedProducer.cpfCnpj}</p>
                                     {selectedProducer.representativeName && (
-                                        <p className="text-sm">{selectedProducer.representativeName}</p>
-                                    )}
-                                    {selectedProducer.representativeCpf && (
-                                        <p className="text-sm">CPF: {selectedProducer.representativeCpf}</p>
+                                        <div className="mt-4">
+                                            <p className="text-xs font-bold uppercase">Representante Legal:</p>
+                                            <p className="text-sm">{selectedProducer.representativeName}</p>
+                                            {selectedProducer.representativeCpf && (
+                                                <p className="text-sm">CPF: {selectedProducer.representativeCpf}</p>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             </div>
