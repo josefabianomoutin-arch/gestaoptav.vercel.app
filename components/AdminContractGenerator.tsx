@@ -15,21 +15,35 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
 
     const handlePrint = () => {
         if (!contractRef.current) return;
+        
+        // Ensure we are at the top of the page for capture
+        const scrollPos = window.scrollY;
+        window.scrollTo(0, 0);
+
         const opt = {
             margin: [10, 10, 10, 10] as [number, number, number, number],
             filename: `Contrato_PPAIS_${producer.name.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 1.0 },
             html2canvas: { 
-                scale: 3, 
+                scale: 2, 
                 useCORS: true, 
-                letterRendering: true,
+                letterRendering: false,
                 logging: false,
-                scrollY: 0
+                scrollY: 0,
+                windowWidth: contractRef.current.clientWidth
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
             pagebreak: { mode: ['css', 'legacy'] }
         };
-        html2pdf().set(opt).from(contractRef.current).save();
+
+        html2pdf()
+            .set(opt)
+            .from(contractRef.current)
+            .save()
+            .then(() => {
+                // Restore scroll position
+                window.scrollTo(0, scrollPos);
+            });
     };
 
     const today = new Date();
@@ -59,7 +73,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                 </button>
             </div>
 
-            <div ref={contractRef} className="bg-white text-black font-sans leading-relaxed text-[10.5pt] w-[190mm] mx-auto shadow-xl p-[10mm]">
+            <div ref={contractRef} className="bg-white text-black font-sans leading-relaxed text-[10.5pt] w-[180mm] mx-auto shadow-xl p-[10mm] contract-container">
                 {/* Header Info */}
                 <div className="text-[8pt] text-right mb-8">
                     <p>Penitenciária de Taiúva</p>
@@ -312,26 +326,26 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     @media print {
                         .page-break-before { page-break-before: always; }
                     }
-                    .signature-block, h2, .contract-section {
+                    .signature-block, h2, .contract-section, thead, tfoot {
                         page-break-inside: avoid;
                     }
-                    p {
+                    p, div {
                         page-break-inside: auto;
-                        margin-bottom: 1em;
                     }
                     table {
                         page-break-inside: auto;
                         width: 100% !important;
+                        border-collapse: collapse;
                     }
                     tr {
                         page-break-inside: avoid;
-                        page-break-after: auto;
                     }
-                    thead {
-                        display: table-header-group;
+                    td, th {
+                        page-break-inside: avoid;
                     }
                     .contract-container {
-                        width: 100% !important;
+                        width: 180mm !important;
+                        margin: 0 auto !important;
                     }
                 `}} />
             </div>

@@ -1423,14 +1423,31 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                         onClick={() => {
                                             const element = document.getElementById('delivery-schedule-print');
                                             if (!element) return;
+                                            
+                                            const scrollPos = window.scrollY;
+                                            window.scrollTo(0, 0);
+
                                             const opt = {
                                                 margin: [10, 10, 10, 10] as [number, number, number, number],
                                                 filename: `Cronograma_Entrega_${activeSubTab}.pdf`,
                                                 image: { type: 'jpeg' as const, quality: 0.98 },
-                                                html2canvas: { scale: 2, useCORS: true },
-                                                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' as const }
+                                                html2canvas: { 
+                                                    scale: 2, 
+                                                    useCORS: true,
+                                                    letterRendering: false,
+                                                    scrollY: 0,
+                                                    windowWidth: element.clientWidth
+                                                },
+                                                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' as const },
+                                                pagebreak: { mode: ['css', 'legacy'] }
                                             };
-                                            html2pdf().set(opt).from(element).save();
+                                            html2pdf()
+                                                .set(opt)
+                                                .from(element)
+                                                .save()
+                                                .then(() => {
+                                                    window.scrollTo(0, scrollPos);
+                                                });
                                         }}
                                         className="px-8 py-3 bg-indigo-600 text-white font-black rounded-xl uppercase text-xs tracking-widest hover:bg-indigo-700 shadow-lg transition-all active:scale-95 flex items-center gap-2"
                                     >

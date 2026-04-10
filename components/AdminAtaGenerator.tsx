@@ -52,6 +52,9 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
     const handlePrint = () => {
         if (!containerRef.current) return;
         
+        const scrollPos = window.scrollY;
+        window.scrollTo(0, 0);
+
         const opt: any = {
             margin:       [10, 10, 10, 10],
             filename:     `Ata_Sessao_Publica_${sessionDate}.pdf`,
@@ -61,13 +64,20 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
                 useCORS: true, 
                 logging: false,
                 letterRendering: false,
-                windowWidth: 800
+                scrollY: 0,
+                windowWidth: containerRef.current.clientWidth || 800
             },
             jsPDF:        { unit: 'mm' as const, format: 'a4', orientation: 'portrait' as const },
             pagebreak:    { mode: ['css', 'legacy'], avoid: '.avoid-break' }
         };
 
-        html2pdf().set(opt).from(containerRef.current).save();
+        html2pdf()
+            .set(opt)
+            .from(containerRef.current)
+            .save()
+            .then(() => {
+                window.scrollTo(0, scrollPos);
+            });
     };
 
     const itemsWithAssignments = useMemo(() => {
