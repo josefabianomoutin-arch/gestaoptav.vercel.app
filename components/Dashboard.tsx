@@ -10,7 +10,7 @@ import EmailConfirmationModal from './EmailConfirmationModal';
 import SendInvoiceModal from './SendInvoiceModal';
 import ConfirmModal from './ConfirmModal';
 import { speechService } from '../src/services/speechService';
-import { HelpCircle, Volume2, Loader2, Calendar as CalendarIcon, FileText, Search } from 'lucide-react';
+import { HelpCircle, Volume2, Loader2, Calendar as CalendarIcon, FileText, Search, Download } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app } from '../firebaseConfig';
 

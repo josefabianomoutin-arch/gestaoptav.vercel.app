@@ -1,6 +1,7 @@
 
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import html2pdf from 'html2pdf.js';
 import type { Supplier, Delivery, PerCapitaConfig, WarehouseMovement, AcquisitionItem } from '../types';
 import AdminContractItems from './AdminContractItems';
 import AdminAcquisitionItems from './AdminAcquisitionItems';
