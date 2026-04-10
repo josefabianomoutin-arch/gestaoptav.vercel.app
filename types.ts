@@ -54,6 +54,9 @@ export interface Supplier {
   deliveries: Delivery[];
   allowedWeeks: number[];
   observations?: string;
+  processNumber?: string;
+  address?: string;
+  city?: string;
 }
 
 export interface WarehouseMovement {

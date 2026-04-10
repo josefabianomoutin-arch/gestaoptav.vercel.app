@@ -204,6 +204,126 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
+  const handleGenerateReport = () => {
+    if (!supplier) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const now = new Date();
+    const currentMonthName = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
+    const currentMonthKey = now.toISOString().substring(0, 7);
+
+    const deliveriesArray = Object.values(supplier.deliveries || {}) as any[];
+    const monthDeliveries = deliveriesArray
+      .filter(d => d.date.startsWith(currentMonthKey))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const totalWeight = monthDeliveries.reduce((sum, d) => sum + (d.kg || 0), 0);
+    const totalValue = monthDeliveries.reduce((sum, d) => sum + (d.value || 0), 0);
+
+    const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString + 'T00:00:00');
+        return date.toLocaleDateString('pt-BR');
+    };
+
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Cronograma de Entrega - ${supplier.name}</title>
+            <style>
+                @page { size: A4 landscape; margin: 10mm; }
+                body { font-family: Arial, sans-serif; line-height: 1.3; color: #000; font-size: 10pt; margin: 0; padding: 0; }
+                .header { text-align: center; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; font-size: 14pt; border-bottom: 2px solid #000; padding-bottom: 10px; }
+                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+                .info-box { border: 1px solid #000; padding: 8px; background: #f9f9f9; }
+                .opening-text { text-align: justify; margin-bottom: 15px; font-size: 9pt; }
+                table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9pt; }
+                th, td { border: 1px solid #000; padding: 6px; text-align: left; }
+                th { background-color: #f2f2f2; text-transform: uppercase; font-weight: bold; text-align: center; }
+                .text-right { text-align: right; }
+                .text-center { text-align: center; }
+                .item-tag { display: inline-block; background: #eee; padding: 2px 5px; border-radius: 3px; margin: 1px; border: 1px solid #ccc; font-size: 8pt; }
+                .signatures { margin-top: 30px; display: flex; justify-content: space-around; }
+                .signature-block { text-align: center; width: 300px; }
+                .signature-line { border-top: 1px solid #000; margin-bottom: 5px; }
+                .signature-name { font-weight: bold; text-transform: uppercase; font-size: 9pt; }
+                .signature-title { font-size: 8pt; }
+                .location-date { margin-top: 20px; text-align: right; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <div class="header">CRONOGRAMA DE ENTREGA - ${currentMonthName}</div>
+            <div class="info-grid">
+                <div class="info-box">
+                    <strong>FORNECEDOR:</strong> ${supplier.name.toUpperCase()}<br>
+                    <strong>CPF/CNPJ:</strong> ${supplier.cpf}<br>
+                    <strong>ENDEREÇO:</strong> ${supplier.address || 'NÃO INFORMADO'}
+                </div>
+                <div class="info-box">
+                    <strong>PROCESSO SEI:</strong> ${supplier.processNumber || 'NÃO INFORMADO'}<br>
+                    <strong>UNIDADE:</strong> PENITENCIÁRIA DE TAIUVA<br>
+                    <strong>PERÍODO:</strong> ${currentMonthName}
+                </div>
+            </div>
+            <div class="opening-text">
+                Solicitamos as devidas providências no sentido de fornecer a esta Unidade Prisional os itens relacionados abaixo, conforme especificações contratuais.
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">DATA</th>
+                        <th>ITENS AGENDADOS (DESCRIÇÃO / QUANTIDADE / VALOR)</th>
+                        <th style="width: 100px;">PESO TOTAL (KG)</th>
+                        <th style="width: 120px;">VALOR TOTAL (R$)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${monthDeliveries.length > 0 ? monthDeliveries.map(d => `
+                        <tr>
+                            <td class="text-center font-bold">${formatDate(d.date)}</td>
+                            <td>
+                                <div class="item-tag">
+                                    <strong>${d.item || 'ENTREGA'}</strong>: ${d.kg?.toFixed(2).replace('.',',')}Kg - ${formatCurrency(d.value || 0)}
+                                </div>
+                            </td>
+                            <td class="text-center font-bold">${(d.kg || 0).toFixed(3).replace('.',',')}</td>
+                            <td class="text-right font-bold">${formatCurrency(d.value || 0)}</td>
+                        </tr>
+                    `).join('') : '<tr><td colspan="4" class="text-center">Nenhuma entrega agendada para este mês.</td></tr>'}
+                </tbody>
+                <tfoot>
+                    <tr style="background-color: #f2f2f2; font-weight: bold; font-size: 11pt;">
+                        <td colspan="2" class="text-right">TOTAIS DO PERÍODO</td>
+                        <td class="text-center">${totalWeight.toFixed(3).replace('.',',')} Kg</td>
+                        <td class="text-right">${formatCurrency(totalValue)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <div class="location-date">Taiuva, ${now.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+            <div class="signatures">
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <div class="signature-name">${supplier.name.toUpperCase()}</div>
+                    <div class="signature-title">Contratado</div>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <div class="signature-name">JOSÉ FABIANO MOUTIN</div>
+                    <div class="signature-title">Chefe de Seção de Finanças e Suprimentos</div>
+                </div>
+            </div>
+            <script>window.onload = function() { window.print(); window.close(); }</script>
+        </body>
+        </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   return (
     <div className={`min-h-screen text-gray-800 pb-20 transition-colors duration-500 relative overflow-hidden ${isAbrilVerde ? 'bg-[#f0fdf4]' : 'bg-gray-50'}`}>
       {isAbrilVerde && (
@@ -268,25 +388,34 @@ const Dashboard: React.FC<DashboardProps> = ({
                         <p className={`text-xs font-bold ${bannerTextColor} mt-1 uppercase tracking-widest`}>Suas janelas de entrega para 2026</p>
                     </div>
                 </div>
-                <div className="flex flex-wrap justify-center gap-2">
-                    {monthlySchedule ? (
-                        Object.entries(monthlySchedule).filter(([_, weeks]) => Object.values(weeks || {}).length > 0).map(([month, weeks]) => (
-                            <div key={month} className="flex items-center gap-1 bg-white/20 px-3 py-1.5 rounded-xl border border-white/30">
-                                <span className="text-[9px] font-black uppercase">{month.substring(0,3)}:</span>
-                                <div className="flex gap-1">
-                                    {Object.values(weeks || {}).map(w => (
-                                        <span key={w as number} className="bg-white text-gray-800 w-5 h-5 flex items-center justify-center rounded-lg text-[10px] font-black shadow-sm">{w as number}</span>
-                                    ))}
+                <div className="flex flex-col items-center gap-3">
+                    <div className="flex flex-wrap justify-center gap-2">
+                        {monthlySchedule ? (
+                            Object.entries(monthlySchedule).filter(([_, weeks]) => Object.values(weeks || {}).length > 0).map(([month, weeks]) => (
+                                <div key={month} className="flex items-center gap-1 bg-white/20 px-3 py-1.5 rounded-xl border border-white/30">
+                                    <span className="text-[9px] font-black uppercase">{month.substring(0,3)}:</span>
+                                    <div className="flex gap-1">
+                                        {Object.values(weeks || {}).map(w => (
+                                            <span key={w as number} className="bg-white text-gray-800 w-5 h-5 flex items-center justify-center rounded-lg text-[10px] font-black shadow-sm">{w as number}</span>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        ))
-                    ) : supplier.allowedWeeks && Object.values(supplier.allowedWeeks || {}).length > 0 ? (
-                        Object.values(supplier.allowedWeeks || {}).sort((a: any, b: any) => a-b).map(w => (
-                            <span key={w as number} className={`${weekBadgeColor} font-black px-4 py-2 rounded-xl text-sm shadow-md`}>Semana {w as number}</span>
-                        ))
-                    ) : (
-                        <span className="bg-green-400 text-green-950 font-black px-6 py-2 rounded-xl text-sm shadow-md uppercase">Calendário Livre</span>
-                    )}
+                            ))
+                        ) : supplier.allowedWeeks && Object.values(supplier.allowedWeeks || {}).length > 0 ? (
+                            Object.values(supplier.allowedWeeks || {}).sort((a: any, b: any) => a-b).map(w => (
+                                <span key={w as number} className={`${weekBadgeColor} font-black px-4 py-2 rounded-xl text-sm shadow-md`}>Semana {w as number}</span>
+                            ))
+                        ) : (
+                            <span className="bg-green-400 text-green-950 font-black px-6 py-2 rounded-xl text-sm shadow-md uppercase">Calendário Livre</span>
+                        )}
+                    </div>
+                    <button 
+                        onClick={handleGenerateReport}
+                        className="bg-white/10 hover:bg-white/20 text-white border border-white/30 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95"
+                    >
+                        <Download className="h-3.5 w-3.5" />
+                        Imprimir Cronograma
+                    </button>
                 </div>
             </div>
 

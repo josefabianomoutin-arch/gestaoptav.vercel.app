@@ -17,6 +17,14 @@ const formatDate = (dateString: string) => {
     return date.toLocaleDateString('pt-BR');
 };
 
+const getWeekNumber = (d: Date): number => {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return weekNo;
+};
+
 const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdPartyEntries, onCancelDeliveries, onDeleteThirdPartyEntry }) => {
     const [activeSubTab, setActiveSubTab] = useState<'daily' | 'weekly' | 'report'>('daily');
     const [searchTerm, setSearchTerm] = useState('');
@@ -48,13 +56,26 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
     const filteredSuppliers = useMemo(() => {
         return suppliers.filter(p => {
             const nameMatch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-            const dateMatch = !dateFilter || Object.values((p.deliveries as any) || {}).some((d: any) => d.date === dateFilter);
-            return nameMatch && dateMatch;
+            
+            if (!nameMatch) return false;
+            if (!dateFilter) return true;
+
+            const deliveriesArray = (Object.values((p.deliveries as any) || {}) as any[]);
+            const hasDeliveryOnDate = deliveriesArray.some((d: any) => d.date === dateFilter);
+            
+            if (hasDeliveryOnDate) return true;
+
+            // Check if supplier is available this week
+            const filterDate = new Date(dateFilter + 'T00:00:00');
+            const weekNo = getWeekNumber(filterDate);
+            const isAvailable = (p.allowedWeeks || []).includes(weekNo);
+
+            return isAvailable;
         });
     }, [suppliers, searchTerm, dateFilter]);
 
     const reportSuppliers = useMemo(() => {
-        return suppliers.filter(s => Object.values((s.deliveries as any) || {}).some((d: any) => d.invoiceNumber)).sort((a, b) => a.name.localeCompare(b.name));
+        return suppliers.sort((a, b) => a.name.localeCompare(b.name));
     }, [suppliers]);
 
     const reportAvailableMonths = useMemo(() => {
@@ -63,11 +84,21 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
         if (!supplier) return [];
         
         const months = new Set<string>();
-        Object.values((supplier.deliveries as any) || {}).filter((d: any) => d.invoiceNumber).forEach((d: any) => {
+        
+        // Add months from deliveries
+        Object.values((supplier.deliveries as any) || {}).forEach((d: any) => {
             if (d.date) {
                 months.add(d.date.substring(0, 7)); // YYYY-MM
             }
         });
+
+        // Add current and next month as options even if no deliveries
+        const now = new Date();
+        for (let i = -1; i <= 2; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+            months.add(d.toISOString().substring(0, 7));
+        }
+
         return Array.from(months).sort().reverse();
     }, [suppliers, reportSupplierCpf]);
 
@@ -442,7 +473,14 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                                 <div key={supplier.cpf} className="p-5 border rounded-2xl bg-gray-50/50 hover:bg-white transition-all border-l-8 border-l-purple-400 shadow-sm">
                                     <div className="flex justify-between items-start mb-4">
                                         <div>
-                                            <h3 className="font-black text-lg text-purple-900 uppercase">{supplier.name}</h3>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h3 className="font-black text-lg text-purple-900 uppercase">{supplier.name}</h3>
+                                                {dateFilter && !displayDeliveries.length && (
+                                                    <span className="bg-green-100 text-green-700 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border border-green-200">
+                                                        Disponível p/ Agendamento
+                                                    </span>
+                                                )}
+                                            </div>
                                             <p className="text-[10px] font-mono text-gray-400">{supplier.cpf}</p>
                                         </div>
                                         <div className="text-right flex flex-col items-end gap-2">
@@ -550,10 +588,16 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                     
                     <div className="space-y-6">
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">1. Selecione o Fornecedor (Com Notas Fiscais)</label>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">1. Selecione o Fornecedor</label>
                             <select 
                                 value={reportSupplierCpf} 
-                                onChange={e => { setReportSupplierCpf(e.target.value); setReportSelectedMonth(''); }}
+                                onChange={e => { 
+                                    const s = suppliers.find(x => x.cpf === e.target.value);
+                                    setReportSupplierCpf(e.target.value); 
+                                    setReportSelectedMonth(''); 
+                                    setReportSeiNumber(s?.processNumber || '');
+                                    setReportSupplierAddress(s?.address || '');
+                                }}
                                 className="w-full p-4 border-2 border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-purple-100 font-bold text-gray-700 bg-white"
                             >
                                 <option value="">Selecione um fornecedor...</option>
