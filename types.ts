@@ -103,7 +103,6 @@ export interface PerCapitaConfig {
   ppaisProducers?: PerCapitaSupplier[];
   pereciveisSuppliers?: PerCapitaSupplier[];
   monthlyAdvances?: Record<string, number>;
-  activeContractPeriod?: '1_QUAD' | '2_3_QUAD';
 }
 
 export interface CleaningLog {

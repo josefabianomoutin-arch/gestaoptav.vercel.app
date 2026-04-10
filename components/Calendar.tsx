@@ -9,7 +9,6 @@ interface CalendarProps {
   simulatedToday: Date;
   allowedWeeks?: number[];
   monthlySchedule?: Record<string, number[]>;
-  activeContractPeriod?: '1_QUAD' | '2_3_QUAD';
 }
 
 const getWeekNumber = (d: Date): number => {
@@ -27,7 +26,7 @@ const getWeekOfMonth = (date: Date): number => {
   return Math.floor(offsetDate / 7) + 1;
 };
 
-const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedToday, allowedWeeks, monthlySchedule, activeContractPeriod = '1_QUAD' }) => {
+const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedToday, allowedWeeks, monthlySchedule }) => {
 
   const deliveriesByDate = useMemo(() => {
     const map = new Map<string, Delivery[]>();
@@ -39,13 +38,6 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedTo
   }, [deliveries]);
 
   const isDateAllowed = (date: Date) => {
-    const currentMonth = date.getMonth();
-    const isWithinPeriod = activeContractPeriod === '1_QUAD' 
-        ? currentMonth <= 3 
-        : currentMonth >= 4;
-    
-    if (!isWithinPeriod) return false;
-
     if (monthlySchedule) {
       const monthName = MONTHS_2026[date.getMonth()].name;
       const allowedWeeksInMonth = Object.values(monthlySchedule[monthName] || {}) as number[];

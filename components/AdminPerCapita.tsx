@@ -5,10 +5,8 @@ import type { Supplier, Delivery, PerCapitaConfig, WarehouseMovement, Acquisitio
 import AdminContractItems from './AdminContractItems';
 import AdminAcquisitionItems from './AdminAcquisitionItems';
 import AdminPerCapitaSuppliers from './AdminPerCapitaSuppliers';
-import AdminContractGenerator from './AdminContractGenerator';
 import AdminAtaGenerator from './AdminAtaGenerator';
 import type { PerCapitaSupplier } from '../types';
-import html2pdf from 'html2pdf.js';
 
 interface AdminPerCapitaProps {
   suppliers: Supplier[];
@@ -127,7 +125,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
     const [ppaisProducers, setPpaisProducers] = useState<PerCapitaSupplier[]>([]);
     const [pereciveisSuppliers, setPereciveisSuppliers] = useState<PerCapitaSupplier[]>([]);
     const [monthlyAdvances, setMonthlyAdvances] = useState<Record<string, number>>({});
-    const [activeContractPeriod, setActiveContractPeriod] = useState<'1_QUAD' | '2_3_QUAD'>('1_QUAD');
     const [showComparison, setShowComparison] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -146,7 +143,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         setPpaisProducers(perCapitaConfig.ppaisProducers || []);
         setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
         setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
-        setActiveContractPeriod(perCapitaConfig.activeContractPeriod || '1_QUAD');
         setIsDirty(false);
     }, [perCapitaConfig]);
 
@@ -165,7 +161,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
             ppaisProducers,
             pereciveisSuppliers,
             monthlyAdvances,
-            activeContractPeriod,
         };
         try {
             await onUpdatePerCapitaConfig(newConfig);
@@ -241,7 +236,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
             ppaisProducers: newProducers,
             pereciveisSuppliers,
             monthlyAdvances,
-            activeContractPeriod,
         };
         try {
             await onUpdatePerCapitaConfig(newConfig);
@@ -265,7 +259,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
             ppaisProducers,
             pereciveisSuppliers: newSuppliers,
             monthlyAdvances,
-            activeContractPeriod,
         };
         try {
             await onUpdatePerCapitaConfig(newConfig);
@@ -1094,23 +1087,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                         <h3 className="text-2xl font-black text-gray-800 text-center uppercase tracking-tighter flex-1">
                             Comparativo Resumido dos Itens Adquiridos no Contrato
                         </h3>
-                        <button 
-                            onClick={() => {
-                                if (!contractSummaryRef.current) return;
-                                const opt = {
-                                    margin: [10, 10, 10, 10] as [number, number, number, number],
-                                    filename: 'Comparativo_Contrato.pdf',
-                                    image: { type: 'jpeg' as const, quality: 0.98 },
-                                    html2canvas: { scale: 2, useCORS: true },
-                                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' as const }
-                                };
-                                html2pdf().set(opt).from(contractSummaryRef.current).save();
-                            }}
-                            className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-black py-3 px-6 rounded-xl shadow-sm transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center gap-2"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                            Imprimir PDF
-                        </button>
                     </div>
                     <div className="border rounded-lg flex flex-col">
                         <div className="flex flex-wrap gap-2 p-4 bg-gray-50 border-b">
@@ -1325,27 +1301,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                 </div>
                             </div>
                         </div>
-                        
-                        {/* Seletor de Período do Contrato */}
-                        <div className="mt-8 pt-8 border-t border-zinc-100">
-                            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1 mb-3 block">Período do Contrato Ativo</label>
-                            <div className="flex gap-4">
-                                <button 
-                                    onClick={() => { setActiveContractPeriod('1_QUAD'); setIsDirty(true); }}
-                                    className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 flex flex-col items-center gap-1 ${activeContractPeriod === '1_QUAD' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-zinc-50 text-zinc-400 border-zinc-100 hover:border-zinc-200'}`}
-                                >
-                                    <span>1º Quadrimestre</span>
-                                    <span className={`text-[9px] ${activeContractPeriod === '1_QUAD' ? 'text-indigo-200' : 'text-zinc-400'}`}>Janeiro a Abril</span>
-                                </button>
-                                <button 
-                                    onClick={() => { setActiveContractPeriod('2_3_QUAD'); setIsDirty(true); }}
-                                    className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 flex flex-col items-center gap-1 ${activeContractPeriod === '2_3_QUAD' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-zinc-50 text-zinc-400 border-zinc-100 hover:border-zinc-200'}`}
-                                >
-                                    <span>2º e 3º Quadrimestre</span>
-                                    <span className={`text-[9px] ${activeContractPeriod === '2_3_QUAD' ? 'text-indigo-200' : 'text-zinc-400'}`}>Maio a Dezembro</span>
-                                </button>
-                            </div>
-                        </div>
                     </div>
 
                     {/* Navegação Interna de Alta Densidade (PPAIS / PERECÍVEIS) */}
@@ -1421,12 +1376,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                 onUpdate={handleUpdatePereciveisSuppliers}
                                 type="FORNECEDOR"
                                 colorScheme="indigo"
-                            />
-                        ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : pereciveisSubTab === 'CONTRACT') ? (
-                            <AdminContractGenerator 
-                                producers={activeSubTab === 'PPAIS' ? ppaisProducers : pereciveisSuppliers}
-                                type={activeSubTab === 'PPAIS' ? 'PRODUTOR' : 'FORNECEDOR'}
-                                activeContractPeriod={activeContractPeriod}
                             />
                         ) : activeSubTab === 'PPAIS' && ppaisSubTab === 'ATA' ? (
                             <AdminAtaGenerator 
