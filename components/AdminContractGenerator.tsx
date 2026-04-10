@@ -138,10 +138,10 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             inscrito/a no CPF/CNPJ nº <span className="font-bold">{selectedProducer.cpfCnpj}</span>, 
                             residente na <span className="font-bold">{selectedProducer.address || '____________________'}</span>, 
                             na cidade de <span className="font-bold">{selectedProducer.city || '____________________'}</span>, 
-                            {selectedProducer.representativeName && (
-                                <>neste ato representado(a) por <span className="font-bold">{selectedProducer.representativeName}</span>, portador(a) do CPF nº <span className="font-bold">{selectedProducer.representativeCpf || '____________________'}</span>, </>
+                            {selectedProducer.representativeName && selectedProducer.representativeCpf && (
+                                <>neste ato representado(a) por <span className="font-bold">{selectedProducer.representativeName}</span>, portador(a) do CPF nº <span className="font-bold">{selectedProducer.representativeCpf}</span>, </>
                             )}
-                            e pelos mesmos foi dito na presença das testemunhas ao final consignadas, que em face da autorização da inexigibilidade da licitação constante no Processo SEI 006.00091368/2026-57, nos termos do artigo 74, inciso IV, c.c. o artigo 79 da Lei Federal nº 14.133/2021, pelo presente instrumento avençam um contrato de aquisição de gêneros alimentícios da Agricultura Familiar para atender o Programa Paulista da Agricultura de Interesse Social – PPAIS, sujeitando-se às normas da Lei Federal nº 14.133/2021, Decreto Estadual nº 68.304/2024 e demais normas regulamentares à espécie, inclusive a Lei Estadual nº 14.591/2011, regulamentada pelo Decreto nº 57.755/2012, alterados pelo Decreto nº 60.055/2014, Decreto nº 62.282/2016, e Decreto nº 68.734/2024, e às seguintes cláusulas e condições que reciprocamente outorgam e aceitam:
+                            e pelos mesmos foi dito na presença das testemunhas ao final consignadas, que em face da autorização da inexigibilidade da licitação constante no Processo SEI {selectedProducer.processNumber || '____________________'}, nos termos do artigo 74, inciso IV, c.c. o artigo 79 da Lei Federal nº 14.133/2021, pelo presente instrumento avençam um contrato de aquisição de gêneros alimentícios da Agricultura Familiar para atender o Programa Paulista da Agricultura de Interesse Social – PPAIS, sujeitando-se às normas da Lei Federal nº 14.133/2021, Decreto Estadual nº 68.304/2024 e demais normas regulamentares à espécie, inclusive a Lei Estadual nº 14.591/2011, regulamentada pelo Decreto nº 57.755/2012, alterados pelo Decreto nº 60.055/2014, Decreto nº 62.282/2016, e Decreto nº 68.734/2024, e às seguintes cláusulas e condições que reciprocamente outorgam e aceitam:
                         </p>
 
                         <div className="space-y-4 text-justify avoid-break" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
@@ -336,8 +336,9 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             
                             <div className="mt-12 mb-8 flex justify-center">
                                 <div className="w-1/2 border-t border-zinc-800 pt-2 text-center">
-                                    <p className="font-bold uppercase">Contratada: {selectedProducer.name}</p>
+                                    <p className="font-bold uppercase">{selectedProducer.name}</p>
                                     <p className="text-sm">CPF/CNPJ: {selectedProducer.cpfCnpj}</p>
+                                    <p className="text-xs uppercase">Contratada</p>
                                     {selectedProducer.representativeName && (
                                         <div className="mt-4">
                                             <p className="text-xs font-bold uppercase">Representante Legal:</p>

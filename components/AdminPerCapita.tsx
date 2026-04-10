@@ -1,6 +1,6 @@
 
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { Supplier, Delivery, PerCapitaConfig, WarehouseMovement, AcquisitionItem } from '../types';
 import AdminContractItems from './AdminContractItems';
 import AdminAcquisitionItems from './AdminAcquisitionItems';
@@ -8,6 +8,7 @@ import AdminPerCapitaSuppliers from './AdminPerCapitaSuppliers';
 import AdminContractGenerator from './AdminContractGenerator';
 import AdminAtaGenerator from './AdminAtaGenerator';
 import type { PerCapitaSupplier } from '../types';
+import html2pdf from 'html2pdf.js';
 
 interface AdminPerCapitaProps {
   suppliers: Supplier[];
@@ -112,8 +113,9 @@ const PTRES_DESCRIPTIONS: Record<string, string> = {
 
 const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog, perCapitaConfig, onUpdatePerCapitaConfig, onUpdateContractForItem, onUpdateAcquisitionItem, onDeleteAcquisitionItem, acquisitionItems, onUpdateSupplierObservations }) => {
     const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'ADIANTAMENTOS' | 'CONTROLE'>('CALCULO');
-    const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS' | 'CONTRACT' | 'ATA'>('ITEMS');
-    const [pereciveisSubTab, setPereciveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT'>('ITEMS');
+    const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS' | 'CONTRACT' | 'ATA' | 'SCHEDULE'>('ITEMS');
+    const [pereciveisSubTab, setPereciveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
+    const contractSummaryRef = useRef<HTMLDivElement>(null);
     const [staffCount, setStaffCount] = useState<number>(0);
     const [inmateCount, setInmateCount] = useState<number>(0);
     const [customPerCapita, setCustomPerCapita] = useState<Record<string, string>>({});
@@ -1089,74 +1091,15 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                         </h3>
                         <button 
                             onClick={() => {
-                                const printWindow = window.open('', '_blank');
-                                if (!printWindow) {
-                                    alert('Por favor, permita popups para imprimir.');
-                                    return;
-                                }
-                                const htmlContent = `
-                                    <html>
-                                    <head>
-                                        <title>Comparativo Resumido dos Itens Adquiridos no Contrato</title>
-                                        <style>
-                                            @page { size: A4 portrait; margin: 10mm; }
-                                            body { font-family: Arial, sans-serif; font-size: 10px; line-height: 1.4; }
-                                            table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
-                                            th, td { border: 1px solid #ddd; padding: 6px; text-align: left; word-break: break-word; overflow-wrap: break-word; }
-                                            tr { page-break-inside: avoid; break-inside: avoid; }
-                                            th { background-color: #f3f4f6; text-transform: uppercase; font-size: 9px; }
-                                            .text-center { text-align: center; }
-                                            .text-right { text-align: right; }
-                                            h2 { text-align: center; text-transform: uppercase; margin-bottom: 5px; }
-                                            .header-info { text-align: center; color: #666; margin-bottom: 20px; font-size: 11px; }
-                                            .col-index { width: 30px; }
-                                            .col-item { width: auto; }
-                                            .col-data { width: 80px; }
-                                            .col-status { width: 100px; }
-                                        </style>
-                                    </head>
-                                    <body>
-                                        <h2>Comparativo Resumido dos Itens Adquiridos no Contrato</h2>
-                                        <div class="header-info">Data de emissão: ${new Date().toLocaleDateString('pt-BR')}</div>
-                                        <table>
-                                            <thead>
-                                                <tr>
-                                                    <th class="text-center col-index">#</th>
-                                                    <th class="col-item">Item</th>
-                                                    <th class="text-center col-data">Qtd. Contratada</th>
-                                                    <th class="text-center col-data">Qtd. Recebida</th>
-                                                    <th class="text-center col-data">Restam Entregar</th>
-                                                    <th class="text-center col-status">Status</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                ${filteredComparison.map((item, index) => {
-                                                    const statusText = item.status === 'SEM_ENTREGA' ? 'SEM ENTREGA' : item.status === 'ATENCAO' ? 'ATENÇÃO (< 50%)' : item.status === 'AVANCADO' ? 'AVANÇADO (≥ 70%)' : item.status === 'CONCLUIDO' ? 'CONCLUÍDO (100%)' : 'NORMAL';
-                                                    const empenhoText = item.empenhos.length > 0 ? ` <span style="font-size: 10px; color: #666; background: #eee; padding: 2px 4px; border-radius: 4px;">Empenho: ${item.empenhos.join(', ')}</span>` : '';
-                                                    const supplierText = item.suppliers.length > 0 ? `<div style="font-size: 10px; color: #888; margin-top: 2px;">${item.suppliers.join(', ')}</div>` : '';
-                                                    return `
-                                                        <tr>
-                                                            <td class="text-center">${index + 1}</td>
-                                                            <td>${item.name}${empenhoText}${supplierText}</td>
-                                                            <td class="text-center">${item.contracted.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${item.unit}</td>
-                                                            <td class="text-center">${item.received.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${item.unit}</td>
-                                                            <td class="text-center">${item.remaining.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${item.unit}</td>
-                                                            <td class="text-center">${statusText} (${item.percentage.toFixed(0)}%)</td>
-                                                        </tr>
-                                                    `;
-                                                }).join('')}
-                                            </tbody>
-                                        </table>
-                                        <script>
-                                            window.onload = () => {
-                                                window.print();
-                                            };
-                                        </script>
-                                    </body>
-                                    </html>
-                                `;
-                                printWindow.document.write(htmlContent);
-                                printWindow.document.close();
+                                if (!contractSummaryRef.current) return;
+                                const opt = {
+                                    margin: [10, 10, 10, 10] as [number, number, number, number],
+                                    filename: 'Comparativo_Contrato.pdf',
+                                    image: { type: 'jpeg' as const, quality: 0.98 },
+                                    html2canvas: { scale: 2, useCORS: true },
+                                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' as const }
+                                };
+                                html2pdf().set(opt).from(contractSummaryRef.current).save();
                             }}
                             className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-black py-3 px-6 rounded-xl shadow-sm transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center gap-2"
                         >
@@ -1424,6 +1367,16 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                     Ata
                                 </button>
                             )}
+                            <button 
+                                onClick={() => activeSubTab === 'PPAIS' ? setPpaisSubTab('SCHEDULE') : setPereciveisSubTab('SCHEDULE')}
+                                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'SCHEDULE' : pereciveisSubTab === 'SCHEDULE')
+                                    ? 'bg-white text-zinc-900 shadow-sm' 
+                                    : 'text-zinc-500 hover:text-zinc-700'
+                                }`}
+                            >
+                                Cronograma
+                            </button>
                         </div>
                     )}
 
@@ -1455,6 +1408,67 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                 processDefinition={seiProcessDefinitions['PPAIS'] || ''}
                                 items={acquisitionItems.filter(item => item.category === 'PPAIS')}
                             />
+                        ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'SCHEDULE' : pereciveisSubTab === 'SCHEDULE') ? (
+                            <div className="p-8 space-y-8">
+                                <div className="flex justify-end">
+                                    <button 
+                                        onClick={() => {
+                                            const element = document.getElementById('delivery-schedule-print');
+                                            if (!element) return;
+                                            const opt = {
+                                                margin: [10, 10, 10, 10] as [number, number, number, number],
+                                                filename: `Cronograma_Entrega_${activeSubTab}.pdf`,
+                                                image: { type: 'jpeg' as const, quality: 0.98 },
+                                                html2canvas: { scale: 2, useCORS: true },
+                                                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' as const }
+                                            };
+                                            html2pdf().set(opt).from(element).save();
+                                        }}
+                                        className="px-8 py-3 bg-indigo-600 text-white font-black rounded-xl uppercase text-xs tracking-widest hover:bg-indigo-700 shadow-lg transition-all active:scale-95 flex items-center gap-2"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                        Gerar Cronograma PDF
+                                    </button>
+                                </div>
+                                <div id="delivery-schedule-print" className="bg-white p-8 rounded-[2rem] border border-zinc-100">
+                                    <h3 className="text-xl font-black text-zinc-800 uppercase tracking-tighter mb-8 text-center">
+                                        Cronograma de Entrega - {activeSubTab}
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {months.map(month => {
+                                            const currentSuppliers = activeSubTab === 'PPAIS' ? ppaisProducers : pereciveisSuppliers;
+                                            const suppliersInMonth = currentSuppliers.filter(s => (s.monthlySchedule?.[month] || []).length > 0);
+                                            if (suppliersInMonth.length === 0) return null;
+
+                                            return (
+                                                <div key={month} className="bg-zinc-50 p-6 rounded-2xl border border-zinc-100">
+                                                    <h4 className="text-sm font-black text-indigo-600 uppercase mb-4 border-b border-indigo-100 pb-2">{month}</h4>
+                                                    <div className="space-y-4">
+                                                        {[1, 2, 3, 4, 5].map(week => {
+                                                            const suppliersInWeek = suppliersInMonth.filter(s => (s.monthlySchedule?.[month] || []).includes(week));
+                                                            if (suppliersInWeek.length === 0) return null;
+
+                                                            return (
+                                                                <div key={week} className="space-y-1">
+                                                                    <div className="text-[10px] font-black text-zinc-400 uppercase">Semana {week}</div>
+                                                                    <div className="flex flex-col gap-1">
+                                                                        {suppliersInWeek.map(s => (
+                                                                            <div key={s.id} className="bg-white px-3 py-2 rounded-lg border border-zinc-200 text-xs font-bold text-zinc-700 flex justify-between items-center">
+                                                                                <span>{s.name}</span>
+                                                                                <span className="text-[9px] text-zinc-400 font-mono">{s.cpfCnpj}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
                         ) : (
                             <AdminAcquisitionItems 
                                 category={activeSubTab} 

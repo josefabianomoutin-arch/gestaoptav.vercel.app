@@ -1,8 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import type { PerCapitaSupplier } from '../types';
 import ConfirmModal from './ConfirmModal';
+import html2pdf from 'html2pdf.js';
 
 interface AdminPerCapitaSuppliersProps {
     suppliers: PerCapitaSupplier[];
@@ -17,6 +18,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const tableRef = useRef<HTMLDivElement>(null);
 
     // Form state
     const [name, setName] = useState('');
@@ -47,6 +49,20 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
         p.cpfCnpj.includes(searchTerm) ||
         p.processNumber.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const handlePrintList = () => {
+        if (!tableRef.current) return;
+
+        const opt = {
+            margin: [10, 10, 10, 10] as [number, number, number, number],
+            filename: `Lista_${type}_${new Date().toISOString().split('T')[0]}.pdf`,
+            image: { type: 'jpeg' as const, quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' as const }
+        };
+
+        html2pdf().set(opt).from(tableRef.current).save();
+    };
 
     const resetForm = () => {
         setName('');
@@ -172,13 +188,22 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                     />
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
-                <button 
-                    onClick={() => setIsAdding(true)}
-                    className={`w-full md:w-auto ${colorClasses.bg} ${colorClasses.hover} text-white font-black py-4 px-8 rounded-2xl shadow-lg ${colorClasses.shadow} transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2`}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
-                    Novo {type}
-                </button>
+                <div className="flex gap-2 w-full md:w-auto">
+                    <button 
+                        onClick={handlePrintList}
+                        className="w-full md:w-auto bg-white border-2 border-gray-200 text-gray-600 font-black py-4 px-8 rounded-2xl shadow-lg hover:bg-gray-50 transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        PDF
+                    </button>
+                    <button 
+                        onClick={() => setIsAdding(true)}
+                        className={`w-full md:w-auto ${colorClasses.bg} ${colorClasses.hover} text-white font-black py-4 px-8 rounded-2xl shadow-lg ${colorClasses.shadow} transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2`}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+                        Novo {type}
+                    </button>
+                </div>
             </div>
 
             {isAdding && (
@@ -320,7 +345,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                 </div>
             )}
 
-            <div className="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-gray-100">
+            <div ref={tableRef} className="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-gray-100">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
