@@ -233,7 +233,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     <p className="mb-4 text-justify">- A CIÊNCIA DE QUE SERÁ OBSERVADO O LIMITE DE VENDA POR DCONP/ANO</p>
 
                     <p className="text-justify mb-8">
-                        Eu <span className="text-red-600 font-bold">({producer.name})</span>, inscrito no CNPJ Rural nº <span className="text-red-600 font-bold">___________</span>, portador do CPF <span className="text-red-600 font-bold">{producer.cpfCnpj}</span>, interessado em participar de Chamadas Públicas DURANTE O EXERCÍCIO DE 2026, DECLARO que atendo às normas relativas à saúde e segurança do trabalho, em virtude das disposições do parágrafo único do artigo 117, da Constituição do Estado de São Paulo.
+                        Eu <span className="text-red-600 font-bold">({producer.name})</span>, portador do CPF <span className="text-red-600 font-bold">{producer.cpfCnpj}</span>, interessado em participar de Chamadas Públicas DURANTE O EXERCÍCIO DE 2026, DECLARO que atendo às normas relativas à saúde e segurança do trabalho, em virtude das disposições do parágrafo único do artigo 117, da Constituição do Estado de São Paulo.
                     </p>
 
                     <p className="text-justify mb-8">
@@ -245,7 +245,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     </p>
 
                     <div className="mt-12 text-center">
-                        <p className="text-red-600">(Local e data)</p>
+                        <p className="text-red-600">Taiúva, {day} de {month} de {year}.</p>
                         <div className="mt-16 flex flex-col items-center">
                             <div className="w-2/3 border-t border-black pt-2">
                                 <p className="text-red-600">Assinatura – nome/RG</p>
