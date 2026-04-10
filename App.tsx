@@ -1995,6 +1995,7 @@ const App: React.FC = () => {
         return (
           <Dashboard 
             supplier={currentSupplier} 
+            activeContractPeriod={perCapitaConfig.activeContractPeriod}
             onLogout={handleLogout} 
             onScheduleDelivery={handleScheduleDelivery}
             onCancelDeliveries={handleCancelDeliveries}
@@ -2023,6 +2024,7 @@ const App: React.FC = () => {
             supplier={mappedSupplier} 
             type={user.role === 'producer' ? 'PRODUTOR' : 'FORNECEDOR'}
             monthlySchedule={p.monthlySchedule}
+            activeContractPeriod={perCapitaConfig.activeContractPeriod}
             onLogout={handleLogout} 
             onScheduleDelivery={handleScheduleDelivery}
             onCancelDeliveries={handleCancelDeliveries}

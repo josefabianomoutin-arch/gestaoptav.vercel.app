@@ -5,6 +5,7 @@ import { MONTHS_2026 } from '../constants';
 
 interface SummaryCardProps {
     supplier: Supplier;
+    activeContractPeriod?: '1_QUAD' | '2_3_QUAD';
 }
 
 const getContractItemDisplayInfo = (item: Supplier['contractItems'][0]): { quantity: number; unit: string } => {
@@ -36,7 +37,7 @@ const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-const SummaryCard: React.FC<SummaryCardProps> = ({ supplier }) => {
+const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPeriod = '1_QUAD' }) => {
     const deliveries = (Object.values(supplier.deliveries || {}) as any[]);
     const contractItems = (Object.values(supplier.contractItems || {}) as any[]);
 
@@ -76,11 +77,17 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier }) => {
             let accumulatedValueRemainder = 0;
 
             for (const month of MONTHS_2026) {
-                const isWithinContract = month.number <= 3; // Jan to Apr
-                let monthlyValueQuota = isWithinContract ? itemTotalValue / 4 : 0;
-                let monthlyQuantityQuota = isWithinContract ? itemTotalQuantity / 4 : 0;
+                const isWithinContract = activeContractPeriod === '1_QUAD' 
+                    ? month.number <= 3 
+                    : month.number >= 4; // Mai to Dez
+                
+                const divisor = activeContractPeriod === '1_QUAD' ? 4 : 8;
+                let monthlyValueQuota = isWithinContract ? itemTotalValue / divisor : 0;
+                let monthlyQuantityQuota = isWithinContract ? itemTotalQuantity / divisor : 0;
 
-                if (month.number === 3) {
+                const lastMonthOfPeriod = activeContractPeriod === '1_QUAD' ? 3 : 11;
+
+                if (month.number === lastMonthOfPeriod) {
                     monthlyValueQuota += accumulatedValueRemainder;
                     monthlyQuantityQuota += accumulatedQuantityRemainder;
                 }
@@ -98,7 +105,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier }) => {
                 const remainingValue = monthlyValueQuota - deliveredValue;
                 const remainingQuantity = monthlyQuantityQuota - deliveredQuantity;
 
-                if (month.number < 3) {
+                if (month.number < lastMonthOfPeriod) {
                     accumulatedValueRemainder += remainingValue;
                     accumulatedQuantityRemainder += remainingQuantity;
                 }
@@ -121,7 +128,9 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier }) => {
 
     return (
         <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg">
-            <h2 className="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Contrato 1º Quadr. 2026</h2>
+            <h2 className="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">
+                {activeContractPeriod === '1_QUAD' ? 'Contrato 1º Quadr. 2026' : 'Contrato 2º e 3º Quadr. 2026'}
+            </h2>
             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                 {contractItems.map(item => {
                     const itemMonthlyData = monthlyDataByItem.get(item.name) || [];

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import type { Supplier, Delivery, ContractItem } from '../types';
 import Calendar from './Calendar';
 import DeliveryModal from './DeliveryModal';
@@ -13,6 +13,8 @@ import { speechService } from '../src/services/speechService';
 import { HelpCircle, Volume2, Loader2, Calendar as CalendarIcon, FileText, Search, Download } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app } from '../firebaseConfig';
+import ContractView from './ContractView';
+import html2pdf from 'html2pdf.js';
 
 const SIMULATED_TODAY = new Date('2026-04-30T00:00:00');
 
@@ -20,6 +22,7 @@ interface DashboardProps {
   supplier: Supplier;
   type?: 'PRODUTOR' | 'FORNECEDOR';
   monthlySchedule?: Record<string, number[]>;
+  activeContractPeriod?: '1_QUAD' | '2_3_QUAD';
   onLogout: () => void;
   onScheduleDelivery: (supplierCpf: string, date: string, time: string) => void;
   onCancelDeliveries: (supplierCpf: string, deliveryIds: string[]) => void;
@@ -38,6 +41,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   supplier, 
   type = 'PRODUTOR',
   monthlySchedule,
+  activeContractPeriod = '1_QUAD',
   onLogout, 
   onScheduleDelivery, 
   onCancelDeliveries,
@@ -45,6 +49,52 @@ const Dashboard: React.FC<DashboardProps> = ({
   emailModalData,
   onCloseEmailModal
 }) => {
+  const [isDownloadingContract, setIsDownloadingContract] = useState(false);
+  const contractRef = useRef<HTMLDivElement>(null);
+
+  const contractDate = useMemo(() => {
+    const now = new Date();
+    const day = now.getDate();
+    const month = now.toLocaleString('pt-BR', { month: 'long' });
+    const year = now.getFullYear();
+    const capitalizedMonth = month.charAt(0).toUpperCase() + month.slice(1);
+    
+    const daysInWords = [
+        'zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez',
+        'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove', 'vinte',
+        'vinte e um', 'vinte e dois', 'vinte e três', 'vinte e quatro', 'vinte e cinco', 'vinte e seis', 'vinte e sete', 'vinte e oito', 'vinte e nove', 'trinta', 'trinta e um'
+    ];
+
+    return `Aos ${daysInWords[day]}(${day}) dias do mês de ${capitalizedMonth} do ano de ${year}`;
+  }, []);
+
+  const handleDownloadContract = async () => {
+    if (!contractRef.current) return;
+    setIsDownloadingContract(true);
+    try {
+      const opt: any = {
+        margin: [10, 10, 10, 10],
+        filename: `Contrato_${supplier.name.replace(/\s+/g, '_')}.pdf`,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true, 
+          logging: false,
+          letterRendering: false,
+          windowWidth: 800
+        },
+        jsPDF: { unit: 'mm' as const, format: 'a4', orientation: 'portrait' as const },
+        pagebreak: { mode: ['css', 'legacy'], avoid: '.avoid-break' }
+      };
+
+      await html2pdf().set(opt).from(contractRef.current).save();
+    } catch (error) {
+      console.error('Erro ao baixar contrato:', error);
+    } finally {
+      setIsDownloadingContract(false);
+    }
+  };
+
   const isAbrilVerde = new Date().getMonth() === 3;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -154,11 +204,16 @@ const Dashboard: React.FC<DashboardProps> = ({
         const deliveredThisMonth = (Object.values(supplier.deliveries || {}) as any[])
             .filter(d => d.item === item.name && new Date(d.date + 'T00:00:00').getMonth() === currentMonth)
             .reduce((sum, d) => sum + (d.kg || 0), 0);
-        const isWithinContract = currentMonth <= 3;
-        const monthlyQuota = isWithinContract ? item.totalKg / 4 : 0;
+        
+        const isWithinContract = activeContractPeriod === '1_QUAD' 
+            ? currentMonth <= 3 
+            : currentMonth >= 4;
+            
+        const divisor = activeContractPeriod === '1_QUAD' ? 4 : 8;
+        const monthlyQuota = isWithinContract ? item.totalKg / divisor : 0;
         return { name: item.name, monthlyQuota, deliveredThisMonth, remainingThisMonth: monthlyQuota - deliveredThisMonth, unit: 'Kg' };
     });
-  }, [selectedDate, supplier.contractItems, supplier.deliveries]);
+  }, [selectedDate, supplier.contractItems, supplier.deliveries, activeContractPeriod]);
 
   const handleOpenPdf = async (url: string) => {
     let finalUrl = url;
@@ -332,6 +387,17 @@ const Dashboard: React.FC<DashboardProps> = ({
           <h1 className="text-[15vw] font-black text-emerald-900 rotate-[-12deg] whitespace-nowrap mt-[-5vw]">SEGURANÇA</h1>
         </div>
       )}
+      {/* Elemento oculto para geração do PDF do contrato */}
+      <div className="hidden">
+        <div ref={contractRef}>
+          <ContractView 
+            producer={supplier as any} 
+            activeContractPeriod={activeContractPeriod}
+            contractDate={contractDate}
+          />
+        </div>
+      </div>
+
       <header className={`shadow-md p-4 flex justify-between items-center sticky top-0 z-50 transition-all duration-500 ${isAbrilVerde ? 'bg-emerald-950 text-white' : 'bg-white'}`}>
         <div className="flex items-center gap-4">
           <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg rotate-3 transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-600' : 'bg-indigo-600'}`}>
@@ -352,7 +418,17 @@ const Dashboard: React.FC<DashboardProps> = ({
             {isSpeaking ? <Volume2 className="h-5 w-5 animate-pulse" /> : <HelpCircle className="h-5 w-5" />}
           </button>
         </div>
-        <button onClick={onLogout} className={`font-black py-2.5 px-6 rounded-xl transition-all border text-[10px] uppercase tracking-widest active:scale-95 ${isAbrilVerde ? 'bg-emerald-900 text-emerald-100 border-emerald-800 hover:bg-rose-600 hover:text-white hover:border-rose-500' : 'bg-red-50 text-red-600 border-red-100 hover:bg-red-600 hover:text-white'}`}>Sair</button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleDownloadContract}
+              disabled={isDownloadingContract}
+              className={`flex items-center gap-2 font-black py-2.5 px-6 rounded-xl transition-all border text-[10px] uppercase tracking-widest active:scale-95 ${isAbrilVerde ? 'bg-emerald-900 text-emerald-100 border-emerald-800 hover:bg-emerald-800' : 'bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-600 hover:text-white'}`}
+            >
+              {isDownloadingContract ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Contrato
+            </button>
+            <button onClick={onLogout} className={`font-black py-2.5 px-6 rounded-xl transition-all border text-[10px] uppercase tracking-widest active:scale-95 ${isAbrilVerde ? 'bg-emerald-900 text-emerald-100 border-emerald-800 hover:bg-rose-600 hover:text-white hover:border-rose-500' : 'bg-red-50 text-red-600 border-red-100 hover:bg-red-600 hover:text-white'}`}>Sair</button>
+          </div>
       </header>
 
       <main className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
@@ -437,10 +513,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                     simulatedToday={SIMULATED_TODAY} 
                     allowedWeeks={supplier.allowedWeeks}
                     monthlySchedule={monthlySchedule}
+                    activeContractPeriod={activeContractPeriod}
                   />
               </div>
               <div className="space-y-6">
-                <SummaryCard supplier={supplier} />
+                <SummaryCard supplier={supplier} activeContractPeriod={activeContractPeriod} />
                 {pendingDailyInvoices.length > 0 && (
                     <InvoiceUploader 
                         pendingInvoices={pendingDailyInvoices} 

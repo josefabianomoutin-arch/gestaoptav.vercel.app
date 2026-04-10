@@ -127,6 +127,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
     const [ppaisProducers, setPpaisProducers] = useState<PerCapitaSupplier[]>([]);
     const [pereciveisSuppliers, setPereciveisSuppliers] = useState<PerCapitaSupplier[]>([]);
     const [monthlyAdvances, setMonthlyAdvances] = useState<Record<string, number>>({});
+    const [activeContractPeriod, setActiveContractPeriod] = useState<'1_QUAD' | '2_3_QUAD'>('1_QUAD');
     const [showComparison, setShowComparison] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -145,6 +146,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
         setPpaisProducers(perCapitaConfig.ppaisProducers || []);
         setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
         setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
+        setActiveContractPeriod(perCapitaConfig.activeContractPeriod || '1_QUAD');
         setIsDirty(false);
     }, [perCapitaConfig]);
 
@@ -163,6 +165,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
             ppaisProducers,
             pereciveisSuppliers,
             monthlyAdvances,
+            activeContractPeriod,
         };
         try {
             await onUpdatePerCapitaConfig(newConfig);
@@ -238,6 +241,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
             ppaisProducers: newProducers,
             pereciveisSuppliers,
             monthlyAdvances,
+            activeContractPeriod,
         };
         try {
             await onUpdatePerCapitaConfig(newConfig);
@@ -261,6 +265,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
             ppaisProducers,
             pereciveisSuppliers: newSuppliers,
             monthlyAdvances,
+            activeContractPeriod,
         };
         try {
             await onUpdatePerCapitaConfig(newConfig);
@@ -1320,6 +1325,27 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                 </div>
                             </div>
                         </div>
+                        
+                        {/* Seletor de Período do Contrato */}
+                        <div className="mt-8 pt-8 border-t border-zinc-100">
+                            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1 mb-3 block">Período do Contrato Ativo</label>
+                            <div className="flex gap-4">
+                                <button 
+                                    onClick={() => { setActiveContractPeriod('1_QUAD'); setIsDirty(true); }}
+                                    className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 flex flex-col items-center gap-1 ${activeContractPeriod === '1_QUAD' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-zinc-50 text-zinc-400 border-zinc-100 hover:border-zinc-200'}`}
+                                >
+                                    <span>1º Quadrimestre</span>
+                                    <span className={`text-[9px] ${activeContractPeriod === '1_QUAD' ? 'text-indigo-200' : 'text-zinc-400'}`}>Janeiro a Abril</span>
+                                </button>
+                                <button 
+                                    onClick={() => { setActiveContractPeriod('2_3_QUAD'); setIsDirty(true); }}
+                                    className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 flex flex-col items-center gap-1 ${activeContractPeriod === '2_3_QUAD' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-zinc-50 text-zinc-400 border-zinc-100 hover:border-zinc-200'}`}
+                                >
+                                    <span>2º e 3º Quadrimestre</span>
+                                    <span className={`text-[9px] ${activeContractPeriod === '2_3_QUAD' ? 'text-indigo-200' : 'text-zinc-400'}`}>Maio a Dezembro</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Navegação Interna de Alta Densidade (PPAIS / PERECÍVEIS) */}
@@ -1400,6 +1426,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                             <AdminContractGenerator 
                                 producers={activeSubTab === 'PPAIS' ? ppaisProducers : pereciveisSuppliers}
                                 type={activeSubTab === 'PPAIS' ? 'PRODUTOR' : 'FORNECEDOR'}
+                                activeContractPeriod={activeContractPeriod}
                             />
                         ) : activeSubTab === 'PPAIS' && ppaisSubTab === 'ATA' ? (
                             <AdminAtaGenerator 
