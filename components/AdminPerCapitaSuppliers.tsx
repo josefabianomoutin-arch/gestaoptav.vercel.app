@@ -80,7 +80,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
 
     const handleEdit = (supplier: PerCapitaSupplier) => {
         setName(supplier.name);
-        setCpfCnpj(supplier.cpfCnpj);
+        setCpfCnpj(supplier.cpfCnpj.replace(/[^\d]/g, ''));
         setProcessNumber(supplier.processNumber);
         setContractNumber(supplier.contractNumber || '');
         setAddress(supplier.address || '');
@@ -98,8 +98,11 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
             return;
         }
 
+        const existing = editingId ? suppliers.find(p => p.id === editingId) : null;
+        
         const newSupplier: PerCapitaSupplier = {
-            id: editingId || crypto.randomUUID(),
+            ...existing,
+            id: editingId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 11)),
             name: name.toUpperCase(),
             cpfCnpj,
             processNumber,
@@ -109,7 +112,6 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
             representativeName: representativeName.toUpperCase(),
             representativeCpf,
             monthlySchedule,
-            contractItems: editingId ? suppliers.find(p => p.id === editingId)?.contractItems : []
         };
 
         let updatedSuppliers: PerCapitaSupplier[];
@@ -197,7 +199,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                         PDF
                     </button>
                     <button 
-                        onClick={() => setIsAdding(true)}
+                        onClick={() => { resetForm(); setIsAdding(true); }}
                         className={`w-full md:w-auto ${colorClasses.bg} ${colorClasses.hover} text-white font-black py-4 px-8 rounded-2xl shadow-lg ${colorClasses.shadow} transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2`}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>

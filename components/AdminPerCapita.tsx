@@ -1,6 +1,7 @@
 
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import html2pdf from 'html2pdf.js';
 import type { Supplier, Delivery, PerCapitaConfig, WarehouseMovement, AcquisitionItem } from '../types';
 import AdminContractItems from './AdminContractItems';
@@ -240,46 +241,30 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const handleUpdateProducers = async (newProducers: PerCapitaSupplier[]) => {
         setPpaisProducers(newProducers);
         const newConfig: PerCapitaConfig = {
-            staffCount,
-            inmateCount,
-            customValues: customPerCapita,
-            seiProcessNumbers,
-            seiProcessDefinitions,
-            monthlyQuota,
-            monthlyResource,
-            ptresResources,
+            ...perCapitaConfig,
             ppaisProducers: newProducers,
-            pereciveisSuppliers,
-            monthlyAdvances,
         };
         try {
             await onUpdatePerCapitaConfig(newConfig);
             setIsDirty(false);
         } catch (error) {
             console.error("Failed to save producers:", error);
+            toast.error("Erro ao salvar produtores.");
         }
     };
 
     const handleUpdatePereciveisSuppliers = async (newSuppliers: PerCapitaSupplier[]) => {
         setPereciveisSuppliers(newSuppliers);
         const newConfig: PerCapitaConfig = {
-            staffCount,
-            inmateCount,
-            customValues: customPerCapita,
-            seiProcessNumbers,
-            seiProcessDefinitions,
-            monthlyQuota,
-            monthlyResource,
-            ptresResources,
-            ppaisProducers,
+            ...perCapitaConfig,
             pereciveisSuppliers: newSuppliers,
-            monthlyAdvances,
         };
         try {
             await onUpdatePerCapitaConfig(newConfig);
             setIsDirty(false);
         } catch (error) {
             console.error("Failed to save suppliers:", error);
+            toast.error("Erro ao salvar fornecedores.");
         }
     };
 
