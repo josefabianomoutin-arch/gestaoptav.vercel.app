@@ -20,6 +20,7 @@ interface AdminPerCapitaProps {
   onDeleteAcquisitionItem: (id: string) => Promise<{ success: boolean, message: string }>;
   acquisitionItems: AcquisitionItem[];
   onUpdateSupplierObservations?: (cpf: string, observations: string) => Promise<{ success: boolean; message?: string }>;
+  onSyncPPAISToAgenda?: () => Promise<void>;
 }
 
 const formatCurrency = (value: number) => {
@@ -111,7 +112,18 @@ const PTRES_DESCRIPTIONS: Record<string, string> = {
     '380328': 'Recurso para Diárias e Outras Despesas'
 };
 
-const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog, perCapitaConfig, onUpdatePerCapitaConfig, onUpdateContractForItem, onUpdateAcquisitionItem, onDeleteAcquisitionItem, acquisitionItems, onUpdateSupplierObservations }) => {
+const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ 
+    suppliers, 
+    warehouseLog, 
+    perCapitaConfig, 
+    onUpdatePerCapitaConfig, 
+    onUpdateContractForItem, 
+    onUpdateAcquisitionItem, 
+    onDeleteAcquisitionItem, 
+    acquisitionItems, 
+    onUpdateSupplierObservations,
+    onSyncPPAISToAgenda
+}) => {
     const [selectedProducer, setSelectedProducer] = useState<PerCapitaSupplier | null>(null);
     const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'ADIANTAMENTOS' | 'CONTROLE'>('CALCULO');
     const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS' | 'CONTRACT' | 'ATA' | 'SCHEDULE'>('ITEMS');
@@ -1412,7 +1424,16 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                             />
                         ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'SCHEDULE' : pereciveisSubTab === 'SCHEDULE') ? (
                             <div className="p-8 space-y-8">
-                                <div className="flex justify-end">
+                                <div className="flex justify-end gap-3">
+                                    {activeSubTab === 'PPAIS' && onSyncPPAISToAgenda && (
+                                        <button 
+                                            onClick={onSyncPPAISToAgenda}
+                                            className="px-8 py-3 bg-emerald-600 text-white font-black rounded-xl uppercase text-xs tracking-widest hover:bg-emerald-700 shadow-lg transition-all active:scale-95 flex items-center gap-2"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                            Sincronizar com Agenda
+                                        </button>
+                                    )}
                                     <button 
                                         onClick={() => {
                                             const element = document.getElementById('delivery-schedule-print');

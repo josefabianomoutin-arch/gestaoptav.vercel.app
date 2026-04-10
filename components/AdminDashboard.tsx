@@ -30,6 +30,7 @@ interface AdminDashboardProps {
   onRegister: (name: string, cpf: string, allowedWeeks: number[]) => Promise<void>;
   onPersistSuppliers: (suppliersToPersist: Supplier[]) => void;
   onUpdateSupplier: (oldCpf: string, newName: string, newCpf: string, newAllowedWeeks: number[]) => Promise<string | null>;
+  onSyncPPAISToAgenda: () => Promise<void>;
   onLogout: () => void;
   suppliers: Supplier[];
   warehouseLog: WarehouseMovement[];
@@ -248,7 +249,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     const mappedProducers = producers.map(mapToSupplier);
     const mappedPereciveis = pereciveis.map(mapToSupplier);
 
-    return [...suppliers, ...mappedProducers, ...mappedPereciveis];
+    const all = [...suppliers, ...mappedProducers, ...mappedPereciveis];
+    const uniqueMap = new Map<string, Supplier>();
+    all.forEach(s => {
+        if (s.cpf) {
+            // Se já existe, damos preferência ao que tem mais entregas ou ao que veio de suppliers (agenda real)
+            const existing = uniqueMap.get(s.cpf);
+            if (!existing || (s.deliveries && Object.keys(s.deliveries).length > (existing.deliveries ? Object.keys(existing.deliveries).length : 0))) {
+                uniqueMap.set(s.cpf, s);
+            }
+        }
+    });
+
+    return Array.from(uniqueMap.values());
   }, [suppliers, perCapitaConfig.ppaisProducers, perCapitaConfig.pereciveisSuppliers]);
 
   const filteredSuppliers = useMemo(() => {
@@ -383,7 +396,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       case 'finance': return <AdminFinancialManager records={financialRecords} onSave={props.onSaveFinancialRecord} onDelete={props.onDeleteFinancialRecord} />;
       case 'invoices': return <AdminInvoices suppliers={combinedSuppliers} warehouseLog={warehouseLog} onReopenInvoice={props.onReopenInvoice} onDeleteInvoice={props.onDeleteInvoice} onUpdateInvoiceItems={props.onUpdateInvoiceItems} onUpdateInvoiceUrl={props.onUpdateInvoiceUrl} onManualInvoiceEntry={props.onManualInvoiceEntry} onMarkInvoiceAsOpened={props.onMarkInvoiceAsOpened} />;
       case 'schedule': return <AdminScheduleView suppliers={combinedSuppliers} thirdPartyEntries={thirdPartyEntries} onCancelDeliveries={props.onCancelDeliveries} onDeleteThirdPartyEntry={props.onDeleteThirdPartyEntry} />;
-      case 'perCapita': return <AdminPerCapita suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onUpdatePerCapitaConfig={props.onUpdatePerCapitaConfig} onUpdateContractForItem={onUpdateContractForItem} onUpdateAcquisitionItem={props.onUpdateAcquisitionItem} onDeleteAcquisitionItem={props.onDeleteAcquisitionItem} acquisitionItems={acquisitionItems} onUpdateSupplierObservations={props.onUpdateSupplierObservations} />;
+      case 'perCapita': return <AdminPerCapita suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onUpdatePerCapitaConfig={props.onUpdatePerCapitaConfig} onUpdateContractForItem={onUpdateContractForItem} onUpdateAcquisitionItem={props.onUpdateAcquisitionItem} onDeleteAcquisitionItem={props.onDeleteAcquisitionItem} acquisitionItems={acquisitionItems} onUpdateSupplierObservations={props.onUpdateSupplierObservations} onSyncPPAISToAgenda={props.onSyncPPAISToAgenda} />;
       case 'cleaning': return <AdminCleaningLog logs={cleaningLogs} financialRecords={props.financialRecords} onRegister={props.onRegisterCleaningLog} onDelete={props.onDeleteCleaningLog} />;
       case 'thirdPartyEntry': return <AdminThirdPartyEntry logs={thirdPartyEntries} onRegister={props.onRegisterThirdPartyEntry} onUpdate={props.onUpdateThirdPartyEntry} onDelete={props.onDeleteThirdPartyEntry} />;
       case 'vehicleExitOrder': return <AdminVehicleExitOrder 

@@ -69,6 +69,14 @@ try {
   console.error("Erro ao inicializar Firebase:", error);
 }
 
+const getWeekNumber = (d: Date): number => {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return weekNo;
+};
+
 const App: React.FC = () => {
   const [user, setUser] = useState<{ name: string; cpf: string; role: UserRole } | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -385,6 +393,81 @@ const App: React.FC = () => {
     } catch (e) {
         console.error("Erro na restauração:", e);
         return false;
+    }
+  };
+
+  const handleSyncPPAISToAgenda = async () => {
+    const producers = perCapitaConfig.ppaisProducers || [];
+    if (producers.length === 0) {
+      toast.error('Nenhum produtor PPAIS cadastrado.');
+      return;
+    }
+
+    const year = 2026;
+    const monthNames = [
+      'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+    ];
+
+    try {
+      for (const producer of producers) {
+        // Calculate weeks for May-Dec
+        const newWeeks: number[] = [];
+        for (let m = 4; m <= 11; m++) { // May (index 4) to Dec (index 11)
+          const monthName = monthNames[m];
+          const weekOfMonthList = producer.monthlySchedule?.[monthName.charAt(0).toUpperCase() + monthName.slice(1)] || producer.monthlySchedule?.[monthName] || [];
+          
+          const daysInMonth = new Date(year, m + 1, 0).getDate();
+          for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(year, m, day);
+            const weekOfYear = getWeekNumber(date);
+            const weekOfMonth = Math.ceil(day / 7);
+            if ((weekOfMonthList as any).includes(weekOfMonth)) {
+              newWeeks.push(weekOfYear);
+            }
+          }
+        }
+        const uniqueNewWeeks = Array.from(new Set(newWeeks));
+
+        const supplierRef = child(suppliersRef, producer.cpfCnpj);
+        const snapshot = await get(supplierRef);
+        const existingSupplier = snapshot.val() as Supplier | null;
+
+        if (existingSupplier) {
+          // Update existing: keep Jan-Apr weeks, replace May-Dec
+          const janAprWeeks: number[] = [];
+          for (let m = 0; m <= 3; m++) {
+             const daysInMonth = new Date(year, m + 1, 0).getDate();
+             for (let day = 1; day <= daysInMonth; day++) {
+               janAprWeeks.push(getWeekNumber(new Date(year, m, day)));
+             }
+          }
+          const janAprWeeksSet = new Set(janAprWeeks);
+          
+          const currentJanAprWeeks = (existingSupplier.allowedWeeks || []).filter(w => janAprWeeksSet.has(w));
+          const updatedWeeks = Array.from(new Set([...currentJanAprWeeks, ...uniqueNewWeeks]));
+          
+          await update(supplierRef, { allowedWeeks: updatedWeeks });
+        } else {
+          // New producer
+          const newSupplier: Supplier = {
+            name: producer.name,
+            cpf: producer.cpfCnpj,
+            initialValue: 0,
+            contractItems: producer.contractItems || [],
+            deliveries: [],
+            allowedWeeks: uniqueNewWeeks,
+            address: producer.address || '',
+            city: producer.city || '',
+            processNumber: producer.processNumber || ''
+          };
+          await set(supplierRef, newSupplier);
+        }
+      }
+      toast.success('Agenda sincronizada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao sincronizar agenda:', error);
+      toast.error('Erro ao sincronizar agenda.');
     }
   };
 
@@ -1545,6 +1628,7 @@ const App: React.FC = () => {
           user={user}
           suppliers={suppliers} 
           onRegister={handleRegisterSupplier}
+          onSyncPPAISToAgenda={handleSyncPPAISToAgenda}
           onUpdateSupplier={handleUpdateSupplier}
           onUpdateSupplierObservations={handleUpdateSupplierObservations}
           onLogout={handleLogout}
