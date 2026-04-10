@@ -309,69 +309,69 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-[100] p-2 md:p-4">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col animate-fade-in-up border border-gray-100 overflow-hidden">
         
-        <div className="flex justify-between items-center p-4 md:p-6 border-b border-gray-50 flex-shrink-0">
-          <div className="flex items-center gap-3">
+        <div className="flex justify-between items-center p-3 md:p-4 border-b border-gray-50 flex-shrink-0">
+          <div className="flex items-center gap-2">
             <div>
-              <h2 className="text-lg font-black text-gray-900 uppercase tracking-tighter italic leading-none">Enviar NF</h2>
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">Fornecedor</p>
+              <h2 className="text-base font-black text-gray-900 uppercase tracking-tighter italic leading-none">Enviar NF</h2>
+              <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Fornecedor</p>
             </div>
             <button 
               type="button" 
               onClick={handlePlayGuide}
-              className="bg-indigo-100 text-indigo-600 p-1.5 rounded-full hover:bg-indigo-200 transition-colors"
+              className="bg-indigo-100 text-indigo-600 p-1 rounded-full hover:bg-indigo-200 transition-colors"
               title="Ouvir Guia"
             >
-              <Volume2 className="h-4 w-4" />
+              <Volume2 className="h-3.5 w-3.5" />
             </button>
           </div>
-          <button onClick={onClose} disabled={isUploading} className="text-gray-400 hover:text-gray-900 transition-colors p-1.5 bg-gray-50 rounded-full disabled:opacity-50">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          <button onClick={onClose} disabled={isUploading} className="text-gray-400 hover:text-gray-900 transition-colors p-1 bg-gray-50 rounded-full disabled:opacity-50">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
 
         <form className="flex flex-col overflow-hidden" onSubmit={handleSave}>
-            <div className="p-4 md:p-6 space-y-4">
-                <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 flex items-start gap-2">
-                    <div className="bg-orange-500 text-white p-1.5 rounded-lg flex-shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            <div className="p-3 md:p-4 space-y-3 overflow-y-auto max-h-[75vh] custom-scrollbar">
+                <div className="bg-orange-50 p-2 rounded-xl border border-orange-100 flex items-start gap-2">
+                    <div className="bg-orange-500 text-white p-1 rounded-lg flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                     </div>
                     <div>
-                        <p className="text-[9px] text-orange-800 font-black uppercase tracking-tight">Data da Entrega</p>
-                        <p className="text-sm font-bold text-orange-950">{formattedDate}</p>
+                        <p className="text-[8px] text-orange-800 font-black uppercase tracking-tight">Data da Entrega</p>
+                        <p className="text-xs font-bold text-orange-950">{formattedDate}</p>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                        <label htmlFor="invoice-number" className="text-[10px] font-black text-gray-400 uppercase ml-1">Nº da Nota Fiscal (NF)</label>
-                        <input type="text" id="invoice-number" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} required placeholder="Ex: 001234" disabled={isUploading} className="w-full h-14 px-4 border-2 border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-800 disabled:opacity-50"/>
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-0.5">
+                        <label htmlFor="invoice-number" className="text-[9px] font-black text-gray-400 uppercase ml-1">Nº da Nota Fiscal (NF)</label>
+                        <input type="text" id="invoice-number" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} required placeholder="Ex: 001234" disabled={isUploading} className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-800 text-xs disabled:opacity-50"/>
                     </div>
-                    <div className="space-y-1">
-                        <label htmlFor="invoice-date" className="text-[10px] font-black text-gray-400 uppercase ml-1">Data da Nota Fiscal</label>
-                        <input type="date" id="invoice-date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} required disabled={isUploading} className="w-full h-14 px-4 border-2 border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-800 disabled:opacity-50"/>
+                    <div className="space-y-0.5">
+                        <label htmlFor="invoice-date" className="text-[9px] font-black text-gray-400 uppercase ml-1">Data da Nota Fiscal</label>
+                        <input type="date" id="invoice-date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} required disabled={isUploading} className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-800 text-xs disabled:opacity-50"/>
                     </div>
                 </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Arquivo da Nota (PDF) - OBRIGATÓRIO</label>
+                    <div className="space-y-0.5">
+                        <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Arquivo da Nota (PDF) - OBRIGATÓRIO</label>
                         <div 
                           onClick={() => !isUploading && fileInputRef.current?.click()}
-                          className={`w-full h-14 px-4 border-2 border-dashed rounded-2xl flex items-center justify-between gap-2 transition-all ${isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${selectedFile ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-400 hover:border-indigo-300 hover:bg-indigo-50'}`}
+                          className={`w-full h-9 px-3 border-2 border-dashed rounded-xl flex items-center justify-between gap-2 transition-all ${isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${selectedFile ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-400 hover:border-indigo-300 hover:bg-indigo-50'}`}
                         >
                           <div className="flex items-center gap-2 overflow-hidden">
                             {isExtracting ? (
                               <>
-                                <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-indigo-600" />
-                                <span className="text-xs font-bold text-indigo-600 animate-pulse">EXTRAINDO DADOS...</span>
+                                <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-indigo-600" />
+                                <span className="text-[10px] font-bold text-indigo-600 animate-pulse">EXTRAINDO...</span>
                               </>
                             ) : selectedFile ? (
                               <>
-                                <FileText className="h-5 w-5 flex-shrink-0" />
-                                <span className="text-xs font-bold truncate">{selectedFile.name}</span>
+                                <FileText className="h-4 w-4 flex-shrink-0" />
+                                <span className="text-[10px] font-bold truncate">{selectedFile.name}</span>
                               </>
                             ) : (
                               <>
-                                <Upload className="h-5 w-5 flex-shrink-0" />
-                                <span className="text-xs font-bold">Selecionar PDF</span>
+                                <Upload className="h-4 w-4 flex-shrink-0" />
+                                <span className="text-[10px] font-bold">Selecionar PDF</span>
                               </>
                             )}
                           </div>
@@ -383,9 +383,9 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
                                 setSelectedFile(null);
                                 if (fileInputRef.current) fileInputRef.current.value = '';
                               }}
-                              className="p-2 hover:bg-green-100 rounded-full transition-colors text-green-600"
+                              className="p-1 hover:bg-green-100 rounded-full transition-colors text-green-600"
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                           )}
                         </div>
@@ -399,38 +399,38 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
                           required
                         />
                     </div>
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                         <div className="flex justify-between items-center px-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase">Itens da Nota Fiscal</label>
+                            <label className="text-[9px] font-black text-gray-400 uppercase">Itens da Nota Fiscal</label>
                             <button 
                                 type="button" 
                                 onClick={handleAddItem}
-                                className="flex items-center gap-1 text-[10px] font-black text-indigo-600 uppercase hover:text-indigo-700 transition-colors"
+                                className="flex items-center gap-1 text-[9px] font-black text-indigo-600 uppercase hover:text-indigo-700 transition-colors"
                             >
                                 <Plus className="h-3 w-3" />
                                 Adicionar Item
                             </button>
                         </div>
                         
-                        <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
+                        <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-1 custom-scrollbar">
                             {deliveries.map((delivery, index) => (
-                                <div key={delivery.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3 relative group">
+                                <div key={delivery.id} className="p-2.5 bg-gray-50 rounded-xl border border-gray-100 space-y-2 relative group">
                                     {deliveries.length > 1 && (
                                         <button 
                                             type="button" 
                                             onClick={() => handleRemoveItem(index)}
-                                            className="absolute top-2 right-2 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                            className="absolute top-1 right-1 p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                                         >
-                                            <Trash2 className="h-3.5 w-3.5" />
+                                            <Trash2 className="h-3 w-3" />
                                         </button>
                                     )}
                                     
-                                    <div className="space-y-1">
-                                        <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Item</label>
+                                    <div className="space-y-0.5">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Item</label>
                                         <select 
                                             value={delivery.item || ''} 
                                             onChange={e => handleUpdateItem(index, 'item', e.target.value)}
-                                            className="w-full h-10 px-3 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 bg-white outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                            className="w-full h-7 px-2 border border-gray-200 rounded-lg text-[10px] font-bold text-gray-800 bg-white outline-none focus:ring-2 focus:ring-indigo-500/20"
                                         >
                                             <option value="">-- Selecione o Item --</option>
                                             {contractItems.map(ci => (
@@ -438,93 +438,93 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
                                             ))}
                                         </select>
                                     </div>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="space-y-1">
-                                            <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Qtd (Kg)</label>
+ 
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-0.5">
+                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Qtd (Kg)</label>
                                             <input 
                                                 type="number" 
                                                 step="0.01"
                                                 placeholder="0,00" 
                                                 value={delivery.kg || ''} 
                                                 onChange={e => handleUpdateItem(index, 'kg', e.target.value)}
-                                                className="w-full h-10 px-3 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-500/20" 
+                                                className="w-full h-7 px-2 border border-gray-200 rounded-lg text-[10px] font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-500/20" 
                                             />
                                         </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Valor Total</label>
-                                            <div className="w-full h-10 px-3 border border-gray-100 bg-gray-100/50 rounded-xl text-xs font-black text-indigo-600 flex items-center">
+                                        <div className="space-y-0.5">
+                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Valor Total</label>
+                                            <div className="w-full h-7 px-2 border border-gray-100 bg-gray-100/50 rounded-lg text-[10px] font-black text-indigo-600 flex items-center">
                                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(delivery.value || 0)}
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="space-y-1">
-                                            <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Lote</label>
+ 
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-0.5">
+                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Lote</label>
                                             <input 
                                                 type="text" 
                                                 placeholder="Lote" 
                                                 value={delivery.lots?.[0]?.lotNumber || ''} 
                                                 onChange={e => handleUpdateLot(index, 'lotNumber', e.target.value)}
-                                                className="w-full h-10 px-3 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-500/20" 
+                                                className="w-full h-7 px-2 border border-gray-200 rounded-lg text-[10px] font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-500/20" 
                                             />
                                         </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Validade</label>
+                                        <div className="space-y-0.5">
+                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Validade</label>
                                             <input 
                                                 type="date" 
                                                 value={delivery.lots?.[0]?.expirationDate || ''} 
                                                 onChange={e => handleUpdateLot(index, 'expirationDate', e.target.value)}
-                                                className="w-full h-10 px-3 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-500/20" 
+                                                className="w-full h-7 px-2 border border-gray-200 rounded-lg text-[10px] font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-500/20" 
                                             />
                                         </div>
                                     </div>
                                 </div>
                             ))}
                         </div>
-
-                        <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 flex justify-between items-center">
-                            <span className="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Valor Total da Nota</span>
-                            <span className="text-lg font-black text-indigo-600 italic">
+ 
+                        <div className="p-2.5 bg-indigo-50 rounded-xl border border-indigo-100 flex justify-between items-center">
+                            <span className="text-[9px] font-black text-indigo-800 uppercase tracking-widest">Valor Total da Nota</span>
+                            <span className="text-base font-black text-indigo-600 italic">
                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalInvoiceValue)}
                             </span>
                         </div>
                     </div>
-                
-                {uploadError && (
-                  <div className="p-3 bg-red-50 text-red-600 text-xs rounded-xl border border-red-100 font-medium">
-                    {uploadError}
-                  </div>
-                )}
-                
-                {isUploading && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                      <span>Enviando...</span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                      <div className="bg-indigo-500 h-2 rounded-full transition-all duration-300 w-full animate-pulse"></div>
-                    </div>
-                  </div>
-                )}
-            </div>
 
-            <div className="p-6 md:p-8 border-t border-gray-100 bg-white flex flex-col sm:flex-row gap-3 flex-shrink-0 pb-[max(24px,env(safe-area-inset-bottom))]">
-                <button type="button" onClick={onClose} disabled={isUploading} className="flex-1 bg-gray-50 text-gray-400 font-black h-16 rounded-2xl uppercase text-[10px] tracking-widest hover:bg-gray-100 active:scale-95 transition-all disabled:opacity-50">Cancelar</button>
+                    {uploadError && (
+                      <div className="p-3 bg-red-50 text-red-600 text-xs rounded-xl border border-red-100 font-medium">
+                        {uploadError}
+                      </div>
+                    )}
+                    
+                    {isUploading && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                          <span>Enviando...</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                          <div className="bg-indigo-500 h-2 rounded-full transition-all duration-300 w-full animate-pulse"></div>
+                        </div>
+                      </div>
+                    )}
+                </div>
+
+                <div className="p-4 md:p-6 border-t border-gray-100 bg-white flex flex-col sm:flex-row gap-2 flex-shrink-0 pb-[max(16px,env(safe-area-inset-bottom))]">
+                <button type="button" onClick={onClose} disabled={isUploading} className="flex-1 bg-gray-50 text-gray-400 font-black h-12 rounded-xl uppercase text-[9px] tracking-widest hover:bg-gray-100 active:scale-95 transition-all disabled:opacity-50">Cancelar</button>
                 <button 
                     type="submit" 
                     disabled={!isFormValid || isUploading}
-                    className={`flex-[2] flex items-center justify-center gap-2 font-black h-16 rounded-2xl shadow-xl transition-all active:scale-95 uppercase tracking-widest text-xs text-white ${isFormValid && !isUploading ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-200 cursor-not-allowed text-gray-400'}`}
+                    className={`flex-[2] flex items-center justify-center gap-2 font-black h-12 rounded-xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-[10px] text-white ${isFormValid && !isUploading ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-200 cursor-not-allowed text-gray-400'}`}
                 >
                     {isUploading ? (
                       <>
-                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                         Enviando...
                       </>
                     ) : (
                       <>
-                        <Upload className="h-5 w-5" />
+                        <Upload className="h-4 w-4" />
                         Enviar PDF
                       </>
                     )}
