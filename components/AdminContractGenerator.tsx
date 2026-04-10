@@ -9,6 +9,7 @@ interface AdminContractGeneratorProps {
 
 const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ producer, type }) => {
     const contractRef = useRef<HTMLDivElement>(null);
+    const [manualContractNumber, setManualContractNumber] = React.useState('');
 
     const totalValue = producer.contractItems?.reduce((acc, item) => acc + (item.totalKg * item.valuePerKg), 0) || 0;
 
@@ -31,7 +32,17 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
 
     return (
         <div className="p-8 space-y-8">
-            <div className="flex justify-end print:hidden">
+            <div className="flex justify-between items-center print:hidden">
+                <div className="flex-1 max-w-xs">
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Número do Contrato</label>
+                    <input 
+                        type="text" 
+                        value={manualContractNumber}
+                        onChange={(e) => setManualContractNumber(e.target.value)}
+                        placeholder="Ex: 90003/2.026"
+                        className="w-full p-3 bg-white border border-zinc-200 rounded-xl font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    />
+                </div>
                 <button 
                     onClick={handlePrint}
                     className="px-8 py-3 bg-indigo-600 text-white font-black rounded-xl uppercase text-xs tracking-widest hover:bg-indigo-700 shadow-lg transition-all active:scale-95 flex items-center gap-2"
@@ -52,7 +63,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
 
                 <div className="text-center font-bold mb-8">
                     <h1 className="text-lg mb-4">CONTRATO</h1>
-                    <p className="text-red-600">CONTRATO N. {producer.contractNumber || '_____'}/{year}</p>
+                    <p className="text-red-600">CONTRATO N. {manualContractNumber || '_____'}/{year}</p>
                 </div>
 
                 <div className="flex justify-end mb-8">
