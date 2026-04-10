@@ -3,19 +3,18 @@ import html2pdf from 'html2pdf.js';
 import type { PerCapitaSupplier } from '../types';
 
 interface AdminContractGeneratorProps {
-    producers: PerCapitaSupplier[];
+    producer: PerCapitaSupplier;
     type: 'PRODUTOR' | 'FORNECEDOR';
-    activeContractPeriod: string;
 }
 
-const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ producers, type, activeContractPeriod }) => {
+const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ producer, type }) => {
     const contractRef = useRef<HTMLDivElement>(null);
 
     const handlePrint = () => {
         if (!contractRef.current) return;
         const opt = {
-            margin: [10, 10, 10, 10] as [number, number, number, number],
-            filename: `Contrato_${type}_${new Date().toISOString().split('T')[0]}.pdf`,
+            margin: [20, 20, 20, 20] as [number, number, number, number],
+            filename: `Contrato_${producer.name.replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
@@ -34,18 +33,33 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     Gerar Contrato PDF
                 </button>
             </div>
-            <div ref={contractRef} className="bg-white p-12 rounded-2xl border border-zinc-200 shadow-sm">
-                <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tighter mb-8 text-center">
-                    Minuta de Contrato - {type}
-                </h2>
-                <div className="space-y-6">
-                    {producers.map(producer => (
-                        <div key={producer.id} className="border-b border-zinc-100 pb-6">
-                            <h4 className="font-bold text-zinc-800">{producer.name}</h4>
-                            <p className="text-sm text-zinc-600">CPF/CNPJ: {producer.cpfCnpj}</p>
-                            <p className="text-sm text-zinc-600">Processo: {producer.processNumber}</p>
-                        </div>
-                    ))}
+            <div ref={contractRef} className="bg-white p-12 text-zinc-900 font-serif leading-relaxed" style={{ fontSize: '12pt' }}>
+                <div className="text-center font-bold mb-8">
+                    <h1 className="text-xl uppercase mb-2">CONTRATO</h1>
+                    <p>CONTRATO N. ________/2026</p>
+                </div>
+                
+                <p className="mb-6">
+                    Termo de Contrato que entre si celebram o Governo do Estado de São Paulo, <strong>SECRETARIA DE ADMINISTRAÇÃO PENITENCIÁRIA</strong>, POR INTERMÉDIO DA PENITENCIÁRIA DE TAIÚVA, PARA A AQUISIÇÃO DE GÊNEROS ALIMENTÍCIOS DA AGRICULTURA FAMILIAR PARA ATENDER O PROGRAMA PAULISTA DA AGRICULTURA DE INTERESSE SOCIAL – PPAIS (1º Quadrimestre).
+                </p>
+
+                <p className="mb-6">
+                    Aos {new Date().getDate()} dias do mês de {new Date().toLocaleString('pt-BR', { month: 'long' })} do ano de {new Date().getFullYear()}, nesta cidade de Taiúva, comparecem de um lado o Estado de São Paulo, Secretaria de Administração Penitenciária, por intermédio da Penitenciária de Taiúva, inscrita no CNPJ sob o n.º 96.291.141/0152-92, neste ato representada pelo Senhor DOUGLAS FERNANDO SEMENZIN GALDINO, brasileiro, Chefe de Departamento, portador da CI/RG n.º 32.518574-8-SSP/SP e inscrito no CPF/MF. n.º 290.990.228-59, doravante designado simplesmente Contratante, e, de outro lado, <strong>{producer.name}</strong>, inscrito/a no CPF/CNPJ n.º <strong>{producer.cpfCnpj}</strong>, residente na <strong>{producer.address || '________________________________'}</strong>, na cidade de <strong>{producer.city || '________________'}</strong>, e pelos mesmos foi dito na presença das testemunhas ao final consignadas, que em face da autorização da inexigibilidade da licitação constante no Processo SEI <strong>{producer.processNumber}</strong>, nos termos do artigo 74, inciso IV, c.c. o artigo 79 da Lei Federal n.º 14.133/2021, pelo presente instrumento avençam um contrato de aquisição de gêneros alimentícios da Agricultura Familiar para atender o Programa Paulista da Agricultura de Interesse Social – PPAIS, sujeitando-se às normas da Lei Federal n.º 14.133/2021, Decreto Estadual n.º 68.304/2024 e demais normas regulamentares à espécie...
+                </p>
+
+                {/* ... (Resto do conteúdo do contrato pode ser adicionado aqui conforme necessário) ... */}
+                
+                <div className="mt-12 text-center">
+                    <p>Taiúva, {new Date().getDate()} de {new Date().toLocaleString('pt-BR', { month: 'long' })} de {new Date().getFullYear()}.</p>
+                    <div className="mt-12 border-t border-zinc-900 w-2/3 mx-auto pt-2">
+                        <p className="font-bold">CONTRATANTE</p>
+                        <p>DOUGLAS FERNANDO SEMENZIN GALDINO</p>
+                    </div>
+                    <div className="mt-12 border-t border-zinc-900 w-2/3 mx-auto pt-2">
+                        <p className="font-bold">{producer.name}</p>
+                        <p>CPF/CNPJ: {producer.cpfCnpj}</p>
+                        <p>CONTRATADA</p>
+                    </div>
                 </div>
             </div>
         </div>

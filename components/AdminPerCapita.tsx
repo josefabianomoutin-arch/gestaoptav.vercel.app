@@ -111,6 +111,7 @@ const PTRES_DESCRIPTIONS: Record<string, string> = {
 };
 
 const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog, perCapitaConfig, onUpdatePerCapitaConfig, onUpdateContractForItem, onUpdateAcquisitionItem, onDeleteAcquisitionItem, acquisitionItems, onUpdateSupplierObservations }) => {
+    const [selectedProducer, setSelectedProducer] = useState<PerCapitaSupplier | null>(null);
     const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'ADIANTAMENTOS' | 'CONTROLE'>('CALCULO');
     const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS' | 'CONTRACT' | 'ATA' | 'SCHEDULE'>('ITEMS');
     const [pereciveisSubTab, setPereciveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
@@ -1379,11 +1380,28 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                 colorScheme="indigo"
                             />
                         ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : pereciveisSubTab === 'CONTRACT') ? (
-                            <AdminContractGenerator 
-                                producers={activeSubTab === 'PPAIS' ? ppaisProducers : pereciveisSuppliers}
-                                type={activeSubTab === 'PPAIS' ? 'PRODUTOR' : 'FORNECEDOR'}
-                                activeContractPeriod="1_QUAD"
-                            />
+                            <div className="p-8 space-y-4">
+                                <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter">Selecione o Fornecedor para o Contrato</h3>
+                                <select 
+                                    className="w-full p-4 bg-white border border-zinc-200 rounded-xl font-bold text-sm"
+                                    value={selectedProducer?.id || ''}
+                                    onChange={(e) => {
+                                        const selected = (activeSubTab === 'PPAIS' ? ppaisProducers : pereciveisSuppliers).find(p => p.id === e.target.value);
+                                        setSelectedProducer(selected || null);
+                                    }}
+                                >
+                                    <option value="">Selecione...</option>
+                                    {(activeSubTab === 'PPAIS' ? ppaisProducers : pereciveisSuppliers).map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                                {selectedProducer && (
+                                    <AdminContractGenerator 
+                                        producer={selectedProducer}
+                                        type={activeSubTab === 'PPAIS' ? 'PRODUTOR' : 'FORNECEDOR'}
+                                    />
+                                )}
+                            </div>
                         ) : activeSubTab === 'PPAIS' && ppaisSubTab === 'ATA' ? (
                             <AdminAtaGenerator 
                                 producers={ppaisProducers}
