@@ -6,6 +6,7 @@ import AdminContractItems from './AdminContractItems';
 import AdminAcquisitionItems from './AdminAcquisitionItems';
 import AdminPerCapitaSuppliers from './AdminPerCapitaSuppliers';
 import AdminAtaGenerator from './AdminAtaGenerator';
+import AdminContractGenerator from './AdminContractGenerator';
 import type { PerCapitaSupplier } from '../types';
 
 interface AdminPerCapitaProps {
@@ -1376,6 +1377,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ suppliers, warehouseLog
                                 onUpdate={handleUpdatePereciveisSuppliers}
                                 type="FORNECEDOR"
                                 colorScheme="indigo"
+                            />
+                        ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : pereciveisSubTab === 'CONTRACT') ? (
+                            <AdminContractGenerator 
+                                producers={activeSubTab === 'PPAIS' ? ppaisProducers : pereciveisSuppliers}
+                                type={activeSubTab === 'PPAIS' ? 'PRODUTOR' : 'FORNECEDOR'}
+                                activeContractPeriod="1_QUAD"
                             />
                         ) : activeSubTab === 'PPAIS' && ppaisSubTab === 'ATA' ? (
                             <AdminAtaGenerator 
