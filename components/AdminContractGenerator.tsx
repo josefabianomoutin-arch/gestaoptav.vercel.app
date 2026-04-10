@@ -30,10 +30,14 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                 letterRendering: false,
                 logging: false,
                 scrollY: 0,
-                windowWidth: contractRef.current.clientWidth
+                windowWidth: 1024
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
-            pagebreak: { mode: ['css', 'legacy'] }
+            pagebreak: { 
+                mode: ['css', 'legacy'],
+                before: '.page-break-before',
+                avoid: ['.signature-block', 'h2', 'thead', 'tfoot']
+            }
         };
 
         html2pdf()
@@ -73,7 +77,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                 </button>
             </div>
 
-            <div ref={contractRef} className="bg-white text-black font-sans leading-relaxed text-[10.5pt] w-[180mm] mx-auto shadow-xl p-[10mm] contract-container">
+            <div ref={contractRef} className="bg-white text-black font-sans leading-relaxed text-[10.5pt] w-[180mm] mx-auto shadow-xl contract-container">
                 {/* Header Info */}
                 <div className="text-[8pt] text-right mb-8">
                     <p>Penitenciária de Taiúva</p>
@@ -323,29 +327,59 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                 </div>
 
                 <style dangerouslySetInnerHTML={{ __html: `
+                    * {
+                        box-sizing: border-box;
+                        -webkit-print-color-adjust: exact;
+                    }
                     @media print {
-                        .page-break-before { page-break-before: always; }
+                        .page-break-before { page-break-before: always; break-before: page; }
                     }
-                    .signature-block, h2, .contract-section, thead, tfoot {
+                    .signature-block, h2, thead, tfoot {
                         page-break-inside: avoid;
+                        break-inside: avoid;
                     }
-                    p, div {
+                    .contract-section {
                         page-break-inside: auto;
+                        break-inside: auto;
+                        margin-bottom: 20px;
+                        display: block;
+                        width: 100%;
+                    }
+                    p {
+                        page-break-inside: auto;
+                        orphans: 4;
+                        widows: 4;
+                        margin-bottom: 1em;
+                        text-align: justify;
                     }
                     table {
                         page-break-inside: auto;
                         width: 100% !important;
                         border-collapse: collapse;
+                        table-layout: fixed;
+                        margin-bottom: 1rem;
                     }
                     tr {
                         page-break-inside: avoid;
+                        break-inside: avoid;
                     }
                     td, th {
                         page-break-inside: avoid;
+                        break-inside: avoid;
+                        word-wrap: break-word;
+                        padding: 4px !important;
                     }
                     .contract-container {
                         width: 180mm !important;
                         margin: 0 auto !important;
+                        background: white !important;
+                        padding: 20mm 15mm !important;
+                        min-height: 297mm;
+                        overflow-x: hidden;
+                    }
+                    h2 + p {
+                        page-break-before: avoid;
+                        break-before: avoid;
                     }
                 `}} />
             </div>
