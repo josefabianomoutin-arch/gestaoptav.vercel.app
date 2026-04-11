@@ -34,9 +34,9 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
             pagebreak: { 
-                mode: ['css', 'legacy'],
+                mode: 'css',
                 before: '.page-break-before',
-                avoid: ['.signature-block', 'h2', 'thead', 'tfoot']
+                avoid: ['.signature-block', 'h2', 'thead', 'tr', 'p']
             }
         };
 
