@@ -341,6 +341,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     }
                     @media print {
                         .page-break-before { page-break-before: always; break-before: page; }
+                        .text-red-600 { color: black !important; font-weight: bold !important; }
                     }
                     .signature-block, h2, thead, tfoot {
                         page-break-inside: avoid;
