@@ -34,9 +34,9 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
             pagebreak: { 
-                mode: 'css',
+                mode: ['css', 'legacy'],
                 before: '.page-break-before',
-                avoid: ['.signature-block', 'h2', 'thead', 'tr', 'p']
+                avoid: ['.signature-block', 'h2', 'thead']
             }
         };
 
@@ -78,8 +78,16 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
             </div>
 
             <div ref={contractRef} className="bg-white text-black font-sans leading-relaxed text-[10.5pt] w-[180mm] mx-auto shadow-xl contract-container">
-                {/* Header Info */}
-                <div className="text-[8pt] text-right mb-8">
+                {/* Footer Info - Visible on all pages in print */}
+                <div className="fixed bottom-0 right-0 p-4 text-[6pt] text-right leading-tight hidden print:block">
+                    <p>Penitenciária de Taiúva</p>
+                    <p>Secretaria da Administração Penitenciária</p>
+                    <p>Polícia Penal - Penitenciária de Taiúva</p>
+                    <p>Rodovia Brigadeiro Faria Lima, SP 326, KM 359,6 Taiúva/SP – CEP: 14.720-000</p>
+                </div>
+                
+                {/* Header Info - Visible on screen only */}
+                <div className="text-[8pt] text-right mb-8 print:hidden">
                     <p>Penitenciária de Taiúva</p>
                     <p>Secretaria da Administração Penitenciária</p>
                     <p>Polícia Penal - Penitenciária de Taiúva</p>
