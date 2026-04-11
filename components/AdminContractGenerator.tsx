@@ -351,12 +351,12 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         widows: 4;
                         margin-bottom: 1em;
                         text-align: justify;
+                        word-wrap: break-word;
                     }
                     table {
                         page-break-inside: auto;
                         width: 100% !important;
                         border-collapse: collapse;
-                        table-layout: fixed;
                         margin-bottom: 1rem;
                     }
                     tr {
@@ -367,7 +367,8 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         page-break-inside: avoid;
                         break-inside: avoid;
                         word-wrap: break-word;
-                        padding: 4px !important;
+                        padding: 6px !important;
+                        border: 1px solid black;
                     }
                     .contract-container {
                         width: 180mm !important;
