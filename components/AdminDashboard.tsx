@@ -148,7 +148,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     onDeleteMaintenanceSchedule,
     validationRoles = []
   } = props;
-  const [activeTab, setActiveTab] = useState<AdminTab>('register');
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => {
+    const currentMonth = new Date().getMonth();
+    return currentMonth >= 4 ? 'perCapita' : 'register';
+  });
   const [supplierSubTab, setSupplierSubTab] = useState<'list' | 'new'>('list'); 
   const [supplierSearch, setSupplierSearch] = useState('');
   const [regName, setRegName] = useState('');
@@ -206,7 +209,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     { id: 'almoxarifado', name: 'Almoxarifado', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8a1 1 0 011-1h1V6a1 1 0 012 0v1h2V6a1 1 0 112 0v1h1a1 1 0 110 2H6a1 1 0 01-1-1zm1 4a1 1 0 100 2h8a1 1 0 100-2H6z" /></svg> },
   ];
 
-  const visibleTabs = useMemo(() => tabs, [tabs]);
+  const visibleTabs = useMemo(() => {
+    const currentMonth = new Date().getMonth();
+    if (currentMonth >= 4) { // Maio ou posterior
+      return tabs.filter(t => t.id !== 'register' && t.id !== 'contracts');
+    }
+    return tabs;
+  }, [tabs]);
 
   const combinedSuppliers = useMemo(() => {
     const producers = perCapitaConfig.ppaisProducers || [];

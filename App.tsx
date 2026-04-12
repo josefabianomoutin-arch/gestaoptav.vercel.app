@@ -2094,13 +2094,37 @@ const App: React.FC = () => {
       const list = user.role === 'producer' ? perCapitaConfig.ppaisProducers : perCapitaConfig.pereciveisSuppliers;
       const p = list?.find(s => s.cpfCnpj === user.cpf);
       if (p) {
+        const weeks: number[] = [];
+        const year = 2026;
+        const monthNames = [
+            'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+            'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+        ];
+
+        Object.entries(p.monthlySchedule || {}).forEach(([monthName, weekOfMonthList]) => {
+            const monthIndex = monthNames.indexOf(monthName.toLowerCase());
+            if (monthIndex === -1) return;
+
+            const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+            const monthWeeks = new Set<number>();
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, monthIndex, day);
+                const weekOfYear = getWeekNumber(date);
+                const weekOfMonth = Math.ceil(day / 7);
+                if ((weekOfMonthList as number[]).includes(weekOfMonth)) {
+                    monthWeeks.add(weekOfYear);
+                }
+            }
+            weeks.push(...Array.from(monthWeeks));
+        });
+
         const mappedSupplier: Supplier = {
           name: p.name,
           cpf: p.cpfCnpj,
-          initialValue: 0,
+          initialValue: (p.contractItems || []).reduce((acc: number, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0),
           contractItems: p.contractItems || [],
           deliveries: p.deliveries || [],
-          allowedWeeks: []
+          allowedWeeks: Array.from(new Set(weeks))
         };
         return (
           <Dashboard 

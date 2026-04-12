@@ -45,8 +45,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   emailModalData,
   onCloseEmailModal
 }) => {
-  const isAbrilVerde = new Date().getMonth() === 3;
-  const activeContractPeriod = '1_QUAD';
+  const currentMonth = new Date().getMonth();
+  const isAbrilVerde = currentMonth === 3;
+  const activeContractPeriod = currentMonth >= 4 ? '2_3_QUAD' : '1_QUAD';
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isSendInvoiceModalOpen, setIsSendInvoiceModalOpen] = useState(false);
