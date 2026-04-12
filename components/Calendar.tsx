@@ -9,6 +9,7 @@ interface CalendarProps {
   simulatedToday: Date;
   allowedWeeks?: number[];
   monthlySchedule?: Record<string, number[]>;
+  activeContractPeriod?: '1_QUAD' | '2_3_QUAD';
 }
 
 const getWeekNumber = (d: Date): number => {
@@ -26,7 +27,7 @@ const getWeekOfMonth = (date: Date): number => {
   return Math.floor(offsetDate / 7) + 1;
 };
 
-const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedToday, allowedWeeks, monthlySchedule }) => {
+const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedToday, allowedWeeks, monthlySchedule, activeContractPeriod }) => {
 
   const deliveriesByDate = useMemo(() => {
     const map = new Map<string, Delivery[]>();
@@ -38,17 +39,29 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedTo
   }, [deliveries]);
 
   const isDateAllowed = (date: Date) => {
+    const monthIndex = date.getMonth();
+    
+    // Se estivermos no 2º/3º quadrimestre, meses de Jan-Abr podem ser visualizados mas não agendados (regra de "não alterar")
+    if (activeContractPeriod === '2_3_QUAD' && monthIndex <= 3) {
+      return false;
+    }
+
     if (monthlySchedule) {
-      const monthName = MONTHS_2026[date.getMonth()].name;
+      const monthName = MONTHS_2026[monthIndex].name;
       const allowedWeeksInMonth = Object.values(monthlySchedule[monthName] || {}) as number[];
-      if (allowedWeeksInMonth.length === 0) return true; // Se não definiu nada, libera tudo? Ou bloqueia tudo? 
-      // Geralmente se não definiu nada no per capita, libera tudo.
-      const weekOfMonth = getWeekOfMonth(date);
-      return allowedWeeksInMonth.includes(weekOfMonth);
+      
+      // Se o produtor tem um cronograma definido para este mês, respeita estritamente
+      if (allowedWeeksInMonth.length > 0) {
+        const weekOfMonth = getWeekOfMonth(date);
+        return allowedWeeksInMonth.includes(weekOfMonth);
+      }
+      
+      // Se não tem nada definido para o mês, mas estamos no período ativo, bloqueia por padrão (exige liberação)
+      return false;
     }
     
     const allowedWeeksArray = Object.values(allowedWeeks || {}) as number[];
-    if (allowedWeeksArray.length === 0) return true;
+    if (allowedWeeksArray.length === 0) return false; // Bloqueia se não houver semanas liberadas
     const weekNumber = getWeekNumber(date);
     return allowedWeeksArray.includes(weekNumber);
   };
