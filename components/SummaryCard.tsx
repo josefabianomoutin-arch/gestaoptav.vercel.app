@@ -76,15 +76,13 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
             let accumulatedValueRemainder = 0;
 
             for (const month of MONTHS_2026) {
-                const isWithinContract = activeContractPeriod === '1_QUAD' 
-                    ? month.number <= 3 
-                    : month.number >= 4; // Mai to Dez
+                const isQ1 = month.number <= 3;
+                const divisor = isQ1 ? 4 : 8;
                 
-                const divisor = activeContractPeriod === '1_QUAD' ? 4 : 8;
-                let monthlyValueQuota = isWithinContract ? itemTotalValue / divisor : 0;
-                let monthlyQuantityQuota = isWithinContract ? itemTotalQuantity / divisor : 0;
+                let monthlyValueQuota = itemTotalValue / divisor;
+                let monthlyQuantityQuota = itemTotalQuantity / divisor;
 
-                const lastMonthOfPeriod = activeContractPeriod === '1_QUAD' ? 3 : 11;
+                const lastMonthOfPeriod = isQ1 ? 3 : 11;
 
                 if (month.number === lastMonthOfPeriod) {
                     monthlyValueQuota += accumulatedValueRemainder;

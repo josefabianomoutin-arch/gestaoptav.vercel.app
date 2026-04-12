@@ -2074,6 +2074,30 @@ const App: React.FC = () => {
     }
 
     if (user.role === 'supplier') {
+      const currentMonth = new Date().getMonth();
+      const isMayOrLater = currentMonth >= 4; // 0-indexed, 4 is May
+      
+      if (isMayOrLater) {
+        // Check if they are in the new lists
+        const inPpais = perCapitaConfig.ppaisProducers?.some(p => p.cpfCnpj === user.cpf);
+        const inPereciveis = perCapitaConfig.pereciveisSuppliers?.some(p => p.cpfCnpj === user.cpf);
+        
+        if (!inPpais && !inPereciveis) {
+          return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+              <div className="bg-white p-8 rounded-3xl shadow-xl border border-red-100 text-center max-w-md">
+                <div className="bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                </div>
+                <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Contrato Finalizado</h2>
+                <p className="text-gray-500 text-sm font-medium">Seu contrato foi finalizado em Abril de 2026. Esta aba foi desativada conforme o novo planejamento.</p>
+                <button onClick={handleLogout} className="mt-6 bg-red-600 text-white font-black py-3 px-8 rounded-xl text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all">Sair do Sistema</button>
+              </div>
+            </div>
+          );
+        }
+      }
+
       const currentSupplier = suppliers.find(s => s.cpf === user.cpf);
       if (currentSupplier) {
         return (
@@ -2142,7 +2166,27 @@ const App: React.FC = () => {
       }
     }
 
-    return <div className="p-10 text-center">Usuário não encontrado ou sem permissões.</div>;
+    const currentMonth = new Date().getMonth();
+    const isMayOrLater = currentMonth >= 4;
+
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="bg-white p-8 rounded-3xl shadow-xl border border-zinc-200 text-center max-w-md">
+          <div className="bg-zinc-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+          </div>
+          <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">
+            {isMayOrLater ? 'Acesso Encerrado' : 'Usuário não encontrado'}
+          </h2>
+          <p className="text-gray-500 text-sm font-medium">
+            {isMayOrLater 
+              ? 'Seu contrato foi finalizado em Abril de 2026 ou você não está na lista de cadastro vigente para o novo período.' 
+              : 'Não foi possível localizar seu cadastro ou você não possui permissões para acessar esta área.'}
+          </p>
+          <button onClick={handleLogout} className="mt-6 bg-zinc-900 text-white font-black py-3 px-8 rounded-xl text-[10px] uppercase tracking-widest hover:bg-black transition-all">Voltar ao Início</button>
+        </div>
+      </div>
+    );
   };
 
   return (

@@ -511,20 +511,17 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 const quantity = item.acquiredQuantity || 0;
                 return sum + ((item.unitValue || 0) * quantity);
             }, 0);
-            // Média mensal: 4 meses para PERECÍVEIS e ESTOCÁVEIS, 8 meses para os demais (PPAIS)
-            const divisor = (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') ? 4 : 8;
+            // Média mensal: 4 meses para Jan-Abr, 8 meses para Mai-Dez
+            const currentMonth = new Date().getMonth();
+            const divisor = currentMonth <= 3 ? 4 : 8;
             averages[cat] = total / divisor;
         });
         return averages;
     }, [activeCategories, acquisitionItems]);
 
     const getIsActiveMonth = (month: string, category: string) => {
-        const fullPeriod = ['Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-        const shortPeriod = ['Maio', 'Junho', 'Julho', 'Agosto'];
-        if (category === 'PERECÍVEIS' || category === 'ESTOCÁVEIS') {
-            return shortPeriod.includes(month);
-        }
-        return fullPeriod.includes(month);
+        // Sempre ativo para permitir visualização do histórico e planejamento
+        return true;
     };
 
     const totalContractValue = useMemo(() => {
@@ -691,7 +688,13 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     { id: 'PRODUTOS DE LIMPEZA', label: 'Limpeza' },
                     { id: 'ADIANTAMENTOS', label: 'Adiantamentos' },
                     { id: 'CONTROLE', label: 'Controle' }
-                ].map((tab) => (
+                ].filter(tab => {
+                    const currentMonth = new Date().getMonth();
+                    if (currentMonth >= 4) {
+                        return tab.id !== 'ESTOCÁVEIS' && tab.id !== 'PERECÍVEIS';
+                    }
+                    return true;
+                }).map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveSubTab(tab.id as any)}
