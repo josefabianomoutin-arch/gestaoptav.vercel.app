@@ -398,8 +398,11 @@ const App: React.FC = () => {
 
   const handleSyncPPAISToAgenda = async () => {
     const producers = perCapitaConfig.ppaisProducers || [];
-    if (producers.length === 0) {
-      toast.error('Nenhum produtor PPAIS cadastrado.');
+    const pereciveis = perCapitaConfig.pereciveisSuppliers || [];
+    const allPerCapita = [...producers, ...pereciveis];
+
+    if (allPerCapita.length === 0) {
+      toast.error('Nenhum cadastro Per Capita encontrado.');
       return;
     }
 
@@ -410,12 +413,12 @@ const App: React.FC = () => {
     ];
 
     try {
-      for (const producer of producers) {
+      for (const entry of allPerCapita) {
         // Calculate weeks for May-Dec
         const newWeeks: number[] = [];
         for (let m = 4; m <= 11; m++) { // May (index 4) to Dec (index 11)
           const monthName = monthNames[m];
-          const weekOfMonthList = producer.monthlySchedule?.[monthName.charAt(0).toUpperCase() + monthName.slice(1)] || producer.monthlySchedule?.[monthName] || [];
+          const weekOfMonthList = entry.monthlySchedule?.[monthName.charAt(0).toUpperCase() + monthName.slice(1)] || entry.monthlySchedule?.[monthName] || [];
           
           const daysInMonth = new Date(year, m + 1, 0).getDate();
           for (let day = 1; day <= daysInMonth; day++) {
@@ -429,37 +432,28 @@ const App: React.FC = () => {
         }
         const uniqueNewWeeks = Array.from(new Set(newWeeks));
 
-        const supplierRef = child(suppliersRef, producer.cpfCnpj);
+        const supplierRef = child(suppliersRef, entry.cpfCnpj);
         const snapshot = await get(supplierRef);
         const existingSupplier = snapshot.val() as Supplier | null;
 
         if (existingSupplier) {
           // Update existing: keep Jan-Apr weeks, replace May-Dec
-          const janAprWeeks: number[] = [];
-          for (let m = 0; m <= 3; m++) {
-             const daysInMonth = new Date(year, m + 1, 0).getDate();
-             for (let day = 1; day <= daysInMonth; day++) {
-               janAprWeeks.push(getWeekNumber(new Date(year, m, day)));
-             }
-          }
-          const janAprWeeksSet = new Set(janAprWeeks);
-          
-          const currentJanAprWeeks = (existingSupplier.allowedWeeks || []).filter(w => janAprWeeksSet.has(w));
-          const updatedWeeks = Array.from(new Set([...currentJanAprWeeks, ...uniqueNewWeeks]));
+          const q1Weeks = (existingSupplier.allowedWeeks || []).filter(w => w <= 18);
+          const updatedWeeks = Array.from(new Set([...q1Weeks, ...uniqueNewWeeks])).sort((a, b) => a - b);
           
           await update(supplierRef, { allowedWeeks: updatedWeeks });
         } else {
-          // New producer
+          // New entry
           const newSupplier: Supplier = {
-            name: producer.name,
-            cpf: producer.cpfCnpj,
+            name: entry.name,
+            cpf: entry.cpfCnpj,
             initialValue: 0,
-            contractItems: producer.contractItems || [],
+            contractItems: (entry as any).contractItems || [],
             deliveries: [],
             allowedWeeks: uniqueNewWeeks,
-            address: producer.address || '',
-            city: producer.city || '',
-            processNumber: producer.processNumber || ''
+            address: entry.address || '',
+            city: entry.city || '',
+            processNumber: entry.processNumber || ''
           };
           await set(supplierRef, newSupplier);
         }
@@ -2077,47 +2071,65 @@ const App: React.FC = () => {
       const currentMonth = new Date().getMonth();
       const isMayOrLater = currentMonth >= 4; // 0-indexed, 4 is May
       
-      if (isMayOrLater) {
-        // Check if they are in the new lists
-        const inPpais = perCapitaConfig.ppaisProducers?.some(p => p.cpfCnpj === user.cpf);
-        const inPereciveis = perCapitaConfig.pereciveisSuppliers?.some(p => p.cpfCnpj === user.cpf);
-        
-        if (!inPpais && !inPereciveis) {
-          return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-              <div className="bg-white p-8 rounded-3xl shadow-xl border border-red-100 text-center max-w-md">
-                <div className="bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                </div>
-                <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Contrato Finalizado</h2>
-                <p className="text-gray-500 text-sm font-medium">Seu contrato foi finalizado em Abril de 2026. Esta aba foi desativada conforme o novo planejamento.</p>
-                <button onClick={handleLogout} className="mt-6 bg-red-600 text-white font-black py-3 px-8 rounded-xl text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all">Sair do Sistema</button>
+      const ppaisEntry = perCapitaConfig.ppaisProducers?.find(p => p.cpfCnpj === user.cpf);
+      const pereciveisEntry = perCapitaConfig.pereciveisSuppliers?.find(p => p.cpfCnpj === user.cpf);
+      const perCapitaEntry = ppaisEntry || pereciveisEntry;
+      const isRegisteredForNextPeriod = !!perCapitaEntry;
+
+      if (isMayOrLater && !isRegisteredForNextPeriod) {
+        return (
+          <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+            <div className="bg-white p-8 rounded-3xl shadow-xl border border-red-100 text-center max-w-md">
+              <div className="bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
               </div>
+              <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Contrato Finalizado</h2>
+              <p className="text-gray-500 text-sm font-medium">Seu contrato foi finalizado em Abril de 2026. Esta aba foi desativada conforme o novo planejamento.</p>
+              <button onClick={handleLogout} className="mt-6 bg-red-600 text-white font-black py-3 px-8 rounded-xl text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all">Sair do Sistema</button>
             </div>
-          );
-        }
+          </div>
+        );
       }
 
       const currentSupplier = suppliers.find(s => s.cpf === user.cpf);
       if (currentSupplier) {
-        const inPpais = perCapitaConfig.ppaisProducers?.some(p => p.cpfCnpj === user.cpf);
-        const inPereciveis = perCapitaConfig.pereciveisSuppliers?.some(p => p.cpfCnpj === user.cpf);
-        const isRegisteredForNextPeriod = !!(inPpais || inPereciveis);
+        // Calculate weeks from Per Capita if registered
+        let finalWeeks = (currentSupplier.allowedWeeks || []).filter(w => w <= 18);
+        
+        if (isRegisteredForNextPeriod && perCapitaEntry.monthlySchedule) {
+            const year = 2026;
+            const monthNames = [
+                'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+                'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+            ];
+            const extraWeeks = new Set<number>();
+            Object.entries(perCapitaEntry.monthlySchedule).forEach(([monthName, weekOfMonthList]) => {
+                const monthIndex = monthNames.indexOf(monthName.toLowerCase());
+                if (monthIndex === -1) return;
+                
+                const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = new Date(year, monthIndex, day);
+                    const weekOfYear = getWeekNumber(date);
+                    const weekOfMonth = Math.ceil(day / 7);
+                    if ((weekOfMonthList as number[]).includes(weekOfMonth)) {
+                        extraWeeks.add(weekOfYear);
+                    }
+                }
+            });
+            finalWeeks = Array.from(new Set([...finalWeeks, ...Array.from(extraWeeks)])).sort((a, b) => a - b);
+        }
 
-        // Filter weeks to only show Jan-Apr if not registered for next period
-        const filteredWeeks = isRegisteredForNextPeriod 
-          ? currentSupplier.allowedWeeks 
-          : (currentSupplier.allowedWeeks || []).filter(w => w <= 18);
-
-        const supplierWithFilteredWeeks = {
+        const supplierWithUpdatedData = {
           ...currentSupplier,
-          allowedWeeks: filteredWeeks
+          allowedWeeks: finalWeeks
         };
 
         return (
           <Dashboard 
-            supplier={supplierWithFilteredWeeks} 
+            supplier={supplierWithUpdatedData} 
             isRegisteredForNextPeriod={isRegisteredForNextPeriod}
+            monthlySchedule={perCapitaEntry?.monthlySchedule}
             onLogout={handleLogout} 
             onScheduleDelivery={handleScheduleDelivery}
             onCancelDeliveries={handleCancelDeliveries}
@@ -2133,7 +2145,10 @@ const App: React.FC = () => {
       const list = user.role === 'producer' ? perCapitaConfig.ppaisProducers : perCapitaConfig.pereciveisSuppliers;
       const p = list?.find(s => s.cpfCnpj === user.cpf);
       if (p) {
-        const weeks: number[] = [];
+        const existingSupplier = suppliers.find(s => s.cpf === p.cpfCnpj);
+        const q1Weeks = (existingSupplier?.allowedWeeks || []).filter(w => w <= 18);
+        
+        const weeks: number[] = [...q1Weeks];
         const year = 2026;
         const monthNames = [
             'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
@@ -2145,17 +2160,17 @@ const App: React.FC = () => {
             if (monthIndex === -1) return;
 
             const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-            const monthWeeks = new Set<number>();
             for (let day = 1; day <= daysInMonth; day++) {
                 const date = new Date(year, monthIndex, day);
                 const weekOfYear = getWeekNumber(date);
                 const weekOfMonth = Math.ceil(day / 7);
                 if ((weekOfMonthList as number[]).includes(weekOfMonth)) {
-                    monthWeeks.add(weekOfYear);
+                    weeks.push(weekOfYear);
                 }
             }
-            weeks.push(...Array.from(monthWeeks));
         });
+
+        const finalWeeks = Array.from(new Set(weeks)).sort((a, b) => a - b);
 
         const mappedSupplier: Supplier = {
           name: p.name,
@@ -2163,7 +2178,10 @@ const App: React.FC = () => {
           initialValue: (p.contractItems || []).reduce((acc: number, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0),
           contractItems: p.contractItems || [],
           deliveries: p.deliveries || [],
-          allowedWeeks: Array.from(new Set(weeks))
+          allowedWeeks: finalWeeks,
+          address: p.address || '',
+          city: p.city || '',
+          processNumber: p.processNumber || ''
         };
         return (
           <Dashboard 
