@@ -15,6 +15,7 @@ interface AlmoxarifadoDashboardProps {
     onReopenInvoice: (supplierCpf: string, invoiceNumber: string) => void;
     onDeleteInvoice: (supplierCpf: string, invoiceNumber: string) => void;
     onUpdateInvoiceItems: (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => Promise<{ success: boolean; message?: string }>;
+    onUpdateInvoiceUrl: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => Promise<{ success: boolean; message?: string }>;
     onMarkInvoiceAsOpened: (supplierCpf: string, invoiceNumber: string) => Promise<{ success: boolean }>;
     onManualInvoiceEntry: (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => Promise<{ success: boolean; message?: string }>;
     thirdPartyEntries: ThirdPartyEntryLog[];
@@ -65,6 +66,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     onReopenInvoice,
     onDeleteInvoice,
     onUpdateInvoiceItems,
+    onUpdateInvoiceUrl,
     onManualInvoiceEntry,
     onMarkInvoiceAsOpened,
     thirdPartyEntries,
@@ -572,6 +574,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         onReopenInvoice={onReopenInvoice} 
                         onDeleteInvoice={onDeleteInvoice} 
                         onUpdateInvoiceItems={onUpdateInvoiceItems} 
+                        onUpdateInvoiceUrl={onUpdateInvoiceUrl}
                         onManualInvoiceEntry={onManualInvoiceEntry}
                         onMarkInvoiceAsOpened={onMarkInvoiceAsOpened}
                         mode="warehouse_entry"
@@ -583,6 +586,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         onReopenInvoice={onReopenInvoice} 
                         onDeleteInvoice={onDeleteInvoice} 
                         onUpdateInvoiceItems={onUpdateInvoiceItems} 
+                        onUpdateInvoiceUrl={onUpdateInvoiceUrl}
                         onManualInvoiceEntry={onManualInvoiceEntry}
                         onMarkInvoiceAsOpened={onMarkInvoiceAsOpened}
                         mode="warehouse_exit"

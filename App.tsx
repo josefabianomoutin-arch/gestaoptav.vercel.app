@@ -1825,6 +1825,7 @@ const App: React.FC = () => {
                onReopenInvoice={handleReopenInvoice}
                onDeleteInvoice={handleDeleteInvoice}
                onUpdateInvoiceItems={handleUpdateInvoiceItems}
+               onUpdateInvoiceUrl={handleUpdateInvoiceUrl}
                onManualInvoiceEntry={handleManualInvoiceEntry}
                onMarkInvoiceAsOpened={handleMarkInvoiceAsOpened}
                thirdPartyEntries={thirdPartyEntries}
