@@ -413,6 +413,11 @@ const App: React.FC = () => {
     ];
 
     try {
+      // Get all current suppliers to handle the "not registered" ones
+      const suppliersSnapshot = await get(suppliersRef);
+      const allSuppliers = suppliersSnapshot.val() || {};
+      const registeredCpfs = new Set(allPerCapita.map(p => p.cpfCnpj));
+
       for (const entry of allPerCapita) {
         // Calculate weeks for May-Dec
         const newWeeks: number[] = [];
@@ -430,43 +435,27 @@ const App: React.FC = () => {
             }
           }
         }
-        const uniqueNewWeeks = Array.from(new Set(newWeeks));
+        const uniqueNewWeeks = Array.from(new Set(newWeeks)).sort((a, b) => a - b);
 
         const supplierRef = child(suppliersRef, entry.cpfCnpj);
-        const snapshot = await get(supplierRef);
-        const existingSupplier = snapshot.val() as Supplier | null;
+        const existingSupplier = allSuppliers[entry.cpfCnpj] as Supplier | null;
 
         if (existingSupplier) {
-          // Update existing: keep Jan-Apr weeks, replace May-Dec
-          const q1Weeks = (existingSupplier.allowedWeeks || []).filter(w => w <= 18);
-          const updatedWeeks = Array.from(new Set([...q1Weeks, ...uniqueNewWeeks])).sort((a, b) => a - b);
+          // User wants to REMOVE Q1 agenda and items
+          // "retire a agenda do primeiro quadrimestre, deixando apenas a agenda de maio a dezembro"
+          const updatedWeeks = uniqueNewWeeks; // Only May-Dec
           
-          // Update contract items: keep Q1 items, replace/add Q2/Q3 items
-          const currentItems = existingSupplier.contractItems || [];
-          // Convert legacy items (no period) to Q1 items to preserve their "divide by 4" logic
-          const q1Items = currentItems
-            .filter(item => item.period === '1_QUAD' || !item.period)
-            .map(item => ({
-              ...item,
-              period: (item.period || '1_QUAD') as '1_QUAD' | '2_3_QUAD'
-            }));
-          
-          // Tag new items as Q2/Q3
+          // Only keep Q2/Q3 items
           const newQ23Items = ((entry as any).contractItems || []).map((item: any) => ({
             ...item,
             period: '2_3_QUAD' as const
           }));
 
-          // Merge: keep all Q1 items, and add/update Q2/Q3 items
-          // If an item with the same name exists in Q1, we now have TWO entries for it (one for each period)
-          // This is intentional so SummaryCard can calculate quotas correctly.
-          const updatedItems = [...q1Items, ...newQ23Items];
-          
           await update(supplierRef, { 
             allowedWeeks: updatedWeeks,
-            contractItems: updatedItems,
+            contractItems: newQ23Items,
             // Update initialValue to reflect the sum of all items
-            initialValue: updatedItems.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0)
+            initialValue: newQ23Items.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0)
           });
         } else {
           // New entry
@@ -488,6 +477,36 @@ const App: React.FC = () => {
           await set(supplierRef, newSupplier);
         }
       }
+
+      // Handle non-registered suppliers
+      // "para os demais fornecedores que não possuem cadastro, deixar os campos de maio a dezembro com 0 no peso e 0 no valor."
+      for (const cpf in allSuppliers) {
+        if (!registeredCpfs.has(cpf)) {
+          const supplier = allSuppliers[cpf] as Supplier;
+          const supplierRef = child(suppliersRef, cpf);
+          
+          // Remove weeks > 18 (May-Dec)
+          const updatedWeeks = (supplier.allowedWeeks || []).filter(w => w <= 18);
+          
+          // Remove Q2/Q3 items and tag legacy items as Q1 only to ensure they don't show in Q2/Q3
+          const updatedItems = (supplier.contractItems || [])
+            .filter(item => item.period !== '2_3_QUAD')
+            .map(item => ({
+              ...item,
+              period: (item.period || '1_QUAD') as '1_QUAD' | '2_3_QUAD'
+            }));
+          
+          // Update if changed
+          if (updatedWeeks.length !== (supplier.allowedWeeks || []).length || updatedItems.length !== (supplier.contractItems || []).length) {
+             await update(supplierRef, {
+               allowedWeeks: updatedWeeks,
+               contractItems: updatedItems,
+               initialValue: updatedItems.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0)
+             });
+          }
+        }
+      }
+
       toast.success('Agenda sincronizada com sucesso!');
     } catch (error) {
       console.error('Erro ao sincronizar agenda:', error);
