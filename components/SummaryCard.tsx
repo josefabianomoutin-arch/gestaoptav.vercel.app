@@ -5,6 +5,8 @@ import { MONTHS_2026 } from '../constants';
 
 interface SummaryCardProps {
     supplier: Supplier;
+    activeContractPeriod?: '1_QUAD' | '2_3_QUAD';
+    isRegisteredForNextPeriod?: boolean;
 }
 
 const getContractItemDisplayInfo = (item: Supplier['contractItems'][0]): { quantity: number; unit: string } => {
@@ -36,9 +38,16 @@ const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPeriod = '1_QUAD' }) => {
+const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPeriod = '1_QUAD', isRegisteredForNextPeriod = false }) => {
     const deliveries = (Object.values(supplier.deliveries || {}) as any[]);
     const contractItems = (Object.values(supplier.contractItems || {}) as any[]);
+
+    const visibleMonths = useMemo(() => {
+        if (activeContractPeriod === '1_QUAD') {
+            return MONTHS_2026.filter(m => m.number <= 3 || isRegisteredForNextPeriod);
+        }
+        return MONTHS_2026.filter(m => m.number >= 4);
+    }, [activeContractPeriod, isRegisteredForNextPeriod]);
 
     const totalDeliveredValue = deliveries.reduce((sum: number, delivery: any) => sum + (delivery.value || 0), 0);
     const valueProgress = supplier.initialValue > 0 ? (totalDeliveredValue / supplier.initialValue) * 100 : 0;
@@ -75,7 +84,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
             let accumulatedQuantityRemainder = 0;
             let accumulatedValueRemainder = 0;
 
-            for (const month of MONTHS_2026) {
+            for (const month of visibleMonths) {
                 const isQ1 = month.number <= 3;
                 const divisor = isQ1 ? 4 : 8;
                 
@@ -126,7 +135,9 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
     return (
         <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg">
             <h2 className="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">
-                {activeContractPeriod === '1_QUAD' ? 'Contrato 1º Quadr. 2026' : 'Contrato 2º e 3º Quadr. 2026'}
+                {activeContractPeriod === '1_QUAD' 
+                    ? (isRegisteredForNextPeriod ? 'Contrato Anual 2026' : 'Contrato 1º Quadr. 2026') 
+                    : 'Contrato 2º e 3º Quadr. 2026'}
             </h2>
             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                 {contractItems.map(item => {

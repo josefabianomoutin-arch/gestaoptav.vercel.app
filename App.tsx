@@ -2100,9 +2100,24 @@ const App: React.FC = () => {
 
       const currentSupplier = suppliers.find(s => s.cpf === user.cpf);
       if (currentSupplier) {
+        const inPpais = perCapitaConfig.ppaisProducers?.some(p => p.cpfCnpj === user.cpf);
+        const inPereciveis = perCapitaConfig.pereciveisSuppliers?.some(p => p.cpfCnpj === user.cpf);
+        const isRegisteredForNextPeriod = !!(inPpais || inPereciveis);
+
+        // Filter weeks to only show Jan-Apr if not registered for next period
+        const filteredWeeks = isRegisteredForNextPeriod 
+          ? currentSupplier.allowedWeeks 
+          : (currentSupplier.allowedWeeks || []).filter(w => w <= 18);
+
+        const supplierWithFilteredWeeks = {
+          ...currentSupplier,
+          allowedWeeks: filteredWeeks
+        };
+
         return (
           <Dashboard 
-            supplier={currentSupplier} 
+            supplier={supplierWithFilteredWeeks} 
+            isRegisteredForNextPeriod={isRegisteredForNextPeriod}
             onLogout={handleLogout} 
             onScheduleDelivery={handleScheduleDelivery}
             onCancelDeliveries={handleCancelDeliveries}
@@ -2155,6 +2170,7 @@ const App: React.FC = () => {
             supplier={mappedSupplier} 
             type={user.role === 'producer' ? 'PRODUTOR' : 'FORNECEDOR'}
             monthlySchedule={p.monthlySchedule}
+            isRegisteredForNextPeriod={true}
             onLogout={handleLogout} 
             onScheduleDelivery={handleScheduleDelivery}
             onCancelDeliveries={handleCancelDeliveries}

@@ -20,6 +20,7 @@ interface DashboardProps {
   supplier: Supplier;
   type?: 'PRODUTOR' | 'FORNECEDOR';
   monthlySchedule?: Record<string, number[]>;
+  isRegisteredForNextPeriod?: boolean;
   onLogout: () => void;
   onScheduleDelivery: (supplierCpf: string, date: string, time: string) => void;
   onCancelDeliveries: (supplierCpf: string, deliveryIds: string[]) => void;
@@ -38,6 +39,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   supplier, 
   type = 'PRODUTOR',
   monthlySchedule,
+  isRegisteredForNextPeriod = false,
   onLogout, 
   onScheduleDelivery, 
   onCancelDeliveries,
@@ -445,7 +447,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                   />
               </div>
               <div className="space-y-6">
-                <SummaryCard supplier={supplier} activeContractPeriod={activeContractPeriod} />
+                <SummaryCard 
+                  supplier={supplier} 
+                  activeContractPeriod={activeContractPeriod} 
+                  isRegisteredForNextPeriod={isRegisteredForNextPeriod}
+                />
                 {pendingDailyInvoices.length > 0 && (
                     <InvoiceUploader 
                         pendingInvoices={pendingDailyInvoices} 
