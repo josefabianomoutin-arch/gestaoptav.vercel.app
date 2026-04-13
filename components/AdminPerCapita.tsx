@@ -300,7 +300,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     unit: assignment.unit,
                     category: assignment.category,
                     comprasCode: assignment.comprasCode,
-                    becCode: assignment.becCode
+                    becCode: assignment.becCode,
+                    period: '2_3_QUAD'
                 });
             }
             return { ...producer, contractItems: newContractItems };
@@ -321,7 +322,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     unit: assignment.unit,
                     category: assignment.category,
                     comprasCode: assignment.comprasCode,
-                    becCode: assignment.becCode
+                    becCode: assignment.becCode,
+                    period: '2_3_QUAD'
                 });
             }
             return { ...supplier, contractItems: newContractItems };

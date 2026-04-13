@@ -76,20 +76,52 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
 
     const monthlyDataByItem = useMemo(() => {
         const data = new Map<string, any[]>();
+        
+        // Group items by name to handle different periods for the same item
+        const groupedItems = new Map<string, any[]>();
         contractItems.forEach(item => {
+            const list = groupedItems.get(item.name) || [];
+            list.push(item);
+            groupedItems.set(item.name, list);
+        });
+
+        groupedItems.forEach((items, itemName) => {
             const itemMonthlyData = [];
-            const { quantity: itemTotalQuantity, unit: itemUnit } = getContractItemDisplayInfo(item as any);
-            const itemTotalValue = (item.totalKg || 0) * (item.valuePerKg || 0);
-            
             let accumulatedQuantityRemainder = 0;
             let accumulatedValueRemainder = 0;
+
+            // Use the first item to get unit info (assuming same name means same unit)
+            const { unit: itemUnit } = getContractItemDisplayInfo(items[0] as any);
 
             for (const month of visibleMonths) {
                 const isQ1 = month.number <= 3;
                 const divisor = isQ1 ? 4 : 8;
+                const currentPeriod = isQ1 ? '1_QUAD' : '2_3_QUAD';
+
+                // Find the item that applies to this period
+                // If an item has no period, we treat it as Q1 if we are in Q1, 
+                // but we must be careful not to double count if there's a Q2/Q3 item.
+                let activeItem = items.find(it => it.period === currentPeriod);
                 
-                let monthlyValueQuota = itemTotalValue / divisor;
-                let monthlyQuantityQuota = itemTotalQuantity / divisor;
+                // Fallback for legacy data or main suppliers
+                if (!activeItem) {
+                    activeItem = items.find(it => !it.period);
+                }
+
+                let monthlyValueQuota = 0;
+                let monthlyQuantityQuota = 0;
+
+                if (activeItem) {
+                    const { quantity: itemTotalQuantity } = getContractItemDisplayInfo(activeItem as any);
+                    const itemTotalValue = (activeItem.totalKg || 0) * (activeItem.valuePerKg || 0);
+                    
+                    // If the item has a specific period, use the period's divisor (4 or 8)
+                    // If it's a yearly item (no period), use 12 to distribute across the whole year
+                    const itemDivisor = activeItem.period ? divisor : 12;
+                    
+                    monthlyValueQuota = itemTotalValue / itemDivisor;
+                    monthlyQuantityQuota = itemTotalQuantity / itemDivisor;
+                }
 
                 const lastMonthOfPeriod = isQ1 ? 3 : 11;
 
@@ -99,7 +131,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                 }
 
                 const deliveredInMonth = deliveries.filter(d => {
-                    if (d.item !== item.name) return false;
+                    if (d.item !== itemName) return false;
                     const parts = d.date.split('-');
                     if (parts.length < 2) return false;
                     const monthNumber = parseInt(parts[1], 10);
@@ -127,10 +159,14 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                     unit: itemUnit,
                 });
             }
-            data.set(item.name, itemMonthlyData);
+            data.set(itemName, itemMonthlyData);
         });
         return data;
-    }, [supplier.contractItems, supplier.deliveries]);
+    }, [supplier.contractItems, supplier.deliveries, visibleMonths]);
+
+    const uniqueItemNames = useMemo(() => {
+        return Array.from(new Set(contractItems.map(item => item.name)));
+    }, [contractItems]);
 
     return (
         <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg">
@@ -140,11 +176,11 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                     : 'Contrato 2º e 3º Quadr. 2026'}
             </h2>
             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                {contractItems.map(item => {
-                    const itemMonthlyData = monthlyDataByItem.get(item.name) || [];
+                {uniqueItemNames.map(itemName => {
+                    const itemMonthlyData = monthlyDataByItem.get(itemName) || [];
                     return (
-                        <div key={item.name} className="p-3 bg-gray-50 rounded-lg text-sm border">
-                            <p className="font-bold text-gray-800 mb-2 uppercase">{item.name}</p>
+                        <div key={itemName} className="p-3 bg-gray-50 rounded-lg text-sm border">
+                            <p className="font-bold text-gray-800 mb-2 uppercase">{itemName}</p>
                             <table className="w-full text-[10px]">
                                 <thead>
                                     <tr className="bg-gray-100 text-gray-500 font-black uppercase">

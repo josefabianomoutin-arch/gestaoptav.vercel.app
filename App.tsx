@@ -441,20 +441,50 @@ const App: React.FC = () => {
           const q1Weeks = (existingSupplier.allowedWeeks || []).filter(w => w <= 18);
           const updatedWeeks = Array.from(new Set([...q1Weeks, ...uniqueNewWeeks])).sort((a, b) => a - b);
           
-          await update(supplierRef, { allowedWeeks: updatedWeeks });
+          // Update contract items: keep Q1 items, replace/add Q2/Q3 items
+          const currentItems = existingSupplier.contractItems || [];
+          // Convert legacy items (no period) to Q1 items to preserve their "divide by 4" logic
+          const q1Items = currentItems
+            .filter(item => item.period === '1_QUAD' || !item.period)
+            .map(item => ({
+              ...item,
+              period: (item.period || '1_QUAD') as '1_QUAD' | '2_3_QUAD'
+            }));
+          
+          // Tag new items as Q2/Q3
+          const newQ23Items = ((entry as any).contractItems || []).map((item: any) => ({
+            ...item,
+            period: '2_3_QUAD' as const
+          }));
+
+          // Merge: keep all Q1 items, and add/update Q2/Q3 items
+          // If an item with the same name exists in Q1, we now have TWO entries for it (one for each period)
+          // This is intentional so SummaryCard can calculate quotas correctly.
+          const updatedItems = [...q1Items, ...newQ23Items];
+          
+          await update(supplierRef, { 
+            allowedWeeks: updatedWeeks,
+            contractItems: updatedItems,
+            // Update initialValue to reflect the sum of all items
+            initialValue: updatedItems.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0)
+          });
         } else {
           // New entry
           const newSupplier: Supplier = {
             name: entry.name,
             cpf: entry.cpfCnpj,
             initialValue: 0,
-            contractItems: (entry as any).contractItems || [],
+            contractItems: ((entry as any).contractItems || []).map((item: any) => ({
+              ...item,
+              period: '2_3_QUAD' as const
+            })),
             deliveries: [],
             allowedWeeks: uniqueNewWeeks,
             address: entry.address || '',
             city: entry.city || '',
             processNumber: entry.processNumber || ''
           };
+          newSupplier.initialValue = newSupplier.contractItems.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0);
           await set(supplierRef, newSupplier);
         }
       }

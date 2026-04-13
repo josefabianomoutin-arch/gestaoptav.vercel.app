@@ -44,6 +44,7 @@ export interface ContractItem {
   category?: 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'OUTROS';
   commitmentNumber?: string;
   commitmentValue?: number;
+  period?: '1_QUAD' | '2_3_QUAD';
 }
 
 export interface Supplier {
