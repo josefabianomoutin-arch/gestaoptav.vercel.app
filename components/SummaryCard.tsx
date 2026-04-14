@@ -94,7 +94,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
             let p1TotalDeliveredVal = 0;
 
             // Determine if this is a PPAIS item/supplier
-            // We are more lenient here: if it's explicitly PPAIS or has no period (defaulting to current contract)
+            // We consider it PPAIS if explicitly marked or if it belongs to the 2nd period group
             const isThisItemPPAIS = items.some(it => it.period === '2_3_QUAD' || it.category === 'PPAIS' || !it.period);
 
             for (const month of visibleMonths) {
@@ -105,24 +105,22 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
 
                 if (!isPeriod1) {
                     // Period 2 (Maio a Dezembro) - 8 months
-                    if (isThisItemPPAIS) {
-                        // Sum up all items for the 2nd period to avoid picking the wrong one if duplicates exist
-                        const period2Items = items.filter(it => it.period === '2_3_QUAD' || (it.category === 'PPAIS' && it.period !== '1_QUAD'));
+                    // We sum up items that are NOT for the 1st period
+                    const period2Items = items.filter(it => it.period !== '1_QUAD');
+                    
+                    if (period2Items.length > 0) {
+                        let totalQty = 0;
+                        let totalVal = 0;
                         
-                        if (period2Items.length > 0) {
-                            let totalQty = 0;
-                            let totalVal = 0;
-                            
-                            period2Items.forEach(it => {
-                                const { quantity } = getContractItemDisplayInfo(it as any);
-                                totalQty += quantity;
-                                totalVal += (it.totalKg || 0) * (it.valuePerKg || 0);
-                            });
-                            
-                            // Strictly divide by 8 as requested for PPAIS (Maio a Dezembro)
-                            monthlyValueQuota = totalVal / 8;
-                            monthlyQuantityQuota = totalQty / 8;
-                        }
+                        period2Items.forEach(it => {
+                            const { quantity } = getContractItemDisplayInfo(it as any);
+                            totalQty += quantity;
+                            totalVal += (it.totalKg || 0) * (it.valuePerKg || 0);
+                        });
+                        
+                        // Strictly divide by 8 as requested for PPAIS (Maio a Dezembro)
+                        monthlyValueQuota = totalVal / 8;
+                        monthlyQuantityQuota = totalQty / 8;
                     }
                 } else {
                     // Period 1 (Janeiro a Abril) - Meta is 0, only show delivered values
