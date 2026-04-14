@@ -106,18 +106,18 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
 
                 if (!isPeriod1) {
                     // Strictly follow user request: only show meta for PPAIS items (period 2_3_QUAD)
-                    // divided by 8 months. If no PPAIS item, meta is 0.
+                    // divided by 8 months (Maio a Dezembro).
                     const activeItem = items.find(it => it.period === '2_3_QUAD');
                     
                     if (activeItem) {
                         const { quantity: itemTotalQuantity } = getContractItemDisplayInfo(activeItem as any);
                         const itemTotalValue = (activeItem.totalKg || 0) * (activeItem.valuePerKg || 0);
                         
+                        // Division by exactly 8 months for the second period (Maio-Dezembro)
                         monthlyValueQuota = itemTotalValue / 8;
                         monthlyQuantityQuota = itemTotalQuantity / 8;
                     } else if (!hasAnyPPAISItem) {
                         // Fallback for regular suppliers who don't have PPAIS items at all
-                        // This prevents breaking the view for non-PPAIS suppliers
                         const yearlyItem = items.find(it => !it.period);
                         if (yearlyItem) {
                             const { quantity: itemTotalQuantity } = getContractItemDisplayInfo(yearlyItem as any);
@@ -126,13 +126,6 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                             monthlyQuantityQuota = itemTotalQuantity / 12;
                         }
                     }
-                }
-
-                const lastMonthOfPeriod = isPeriod1 ? 3 : 11;
-
-                if (month.number === lastMonthOfPeriod && !isPeriod1) {
-                    monthlyValueQuota += accumulatedValueRemainder;
-                    monthlyQuantityQuota += accumulatedQuantityRemainder;
                 }
 
                 const deliveredInMonth = deliveries.filter(d => {
@@ -153,11 +146,6 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                 const remainingValue = monthlyValueQuota - deliveredValue;
                 const remainingQuantity = monthlyQuantityQuota - deliveredQuantity;
 
-                if (!isPeriod1 && month.number < lastMonthOfPeriod) {
-                    accumulatedValueRemainder += remainingValue;
-                    accumulatedQuantityRemainder += remainingQuantity;
-                }
-
                 itemMonthlyData.push({
                     monthNumber: month.number,
                     monthName: month.name,
@@ -165,8 +153,8 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                     contractedQuantity: monthlyQuantityQuota,
                     deliveredValue,
                     deliveredQuantity,
-                    remainingValue: remainingValue,
-                    remainingQuantity: remainingQuantity,
+                    remainingValue: Math.max(0, remainingQuantity > 0 ? remainingValue : 0),
+                    remainingQuantity: Math.max(0, remainingQuantity),
                     unit: itemUnit,
                     isPeriod1
                 });
