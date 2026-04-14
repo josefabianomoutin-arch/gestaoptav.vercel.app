@@ -495,7 +495,8 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         ).length || 1;
                                         const totalQuantity = item.acquiredQuantity + (item.contractAddendum || 0);
                                         const weightPerSupplier = totalQuantity / supplierCount;
-                                        const valuePerSupplier = (item.unitValue || 0) * weightPerSupplier;
+                                        const unitVal = typeof item.unitValue === 'string' ? parseFloat(item.unitValue.replace(',', '.')) : (item.unitValue || 0);
+                                        const valuePerSupplier = unitVal * weightPerSupplier;
                                         return (
                                             <>
                                                 <td className="p-6 text-right border-r border-zinc-50">
@@ -529,7 +530,10 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                             <div className="flex flex-col items-end">
                                                 <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Total Item</span>
                                                 <span className="font-mono text-sm font-black text-zinc-900 whitespace-nowrap">
-                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((item.unitValue || 0) * (item.acquiredQuantity + (item.contractAddendum || 0)))}
+                                                    {(() => {
+                                                        const unitVal = typeof item.unitValue === 'string' ? parseFloat(item.unitValue.replace(',', '.')) : (item.unitValue || 0);
+                                                        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(unitVal * (item.acquiredQuantity + (item.contractAddendum || 0)));
+                                                    })()}
                                                 </span>
                                             </div>
                                         </div>

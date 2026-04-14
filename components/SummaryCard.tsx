@@ -12,8 +12,12 @@ interface SummaryCardProps {
 const getContractItemDisplayInfo = (item: Supplier['contractItems'][0]): { quantity: number; unit: string } => {
     if (!item) return { quantity: 0, unit: 'N/A' };
     const [unitType, unitWeightStr] = (item.unit || 'kg-1').split('-');
-    const contractQuantity = item.totalKg || 0;
-    const unitWeight = parseFloat(unitWeightStr) || 1;
+    
+    // Ensure we parse the quantity correctly, handling potential string values with commas
+    const rawQuantity = item.totalKg?.toString() || '0';
+    const contractQuantity = parseFloat(rawQuantity.replace(',', '.')) || 0;
+    
+    const unitWeight = parseFloat(unitWeightStr?.toString().replace(',', '.') || '1') || 1;
     let displayQuantity = contractQuantity;
     let displayUnit = 'Un';
     switch (unitType) {
@@ -27,15 +31,17 @@ const getContractItemDisplayInfo = (item: Supplier['contractItems'][0]): { quant
 };
 
 const formatQuantity = (quantity: number, unit: string): string => {
+    const val = isNaN(quantity) ? 0 : quantity;
     const options: Intl.NumberFormatOptions = {
         minimumFractionDigits: (unit === 'Dz' || unit === 'Un') ? 0 : 2,
         maximumFractionDigits: (unit === 'Dz' || unit === 'Un') ? 0 : 2,
     };
-    return `${quantity.toLocaleString('pt-BR', options)} ${unit}`;
+    return `${val.toLocaleString('pt-BR', options)} ${unit}`;
 };
 
 const formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    const val = isNaN(value) ? 0 : value;
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 };
 
 const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPeriod = '1_QUAD', isRegisteredForNextPeriod = false }) => {
@@ -115,7 +121,13 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                         period2Items.forEach(it => {
                             const { quantity } = getContractItemDisplayInfo(it as any);
                             totalQty += quantity;
-                            totalVal += (it.totalKg || 0) * (it.valuePerKg || 0);
+                            
+                            const rawKg = it.totalKg?.toString() || '0';
+                            const rawVal = it.valuePerKg?.toString() || '0';
+                            const kg = parseFloat(rawKg.replace(',', '.')) || 0;
+                            const val = parseFloat(rawVal.replace(',', '.')) || 0;
+                            
+                            totalVal += kg * val;
                         });
                         
                         // Strictly divide by 8 as requested for PPAIS (Maio a Dezembro)
