@@ -34,9 +34,9 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
             pagebreak: { 
-                mode: 'smart',
+                mode: ['css', 'legacy'],
                 before: '.page-break-before',
-                avoid: ['.signature-block', 'h2', 'thead', 'tr', 'p', '.contract-section-header']
+                avoid: ['.signature-block', 'h2', 'thead', 'tr', 'p', '.contract-section-header', 'table']
             }
         };
 
@@ -77,8 +77,9 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                 </button>
             </div>
 
-            <div ref={contractRef} className="bg-white text-black font-sans leading-relaxed text-[10.5pt] w-[180mm] mx-auto shadow-xl contract-container relative">
-                {/* Footer Info - Visible at the end of the document */}
+            <div className="shadow-2xl mx-auto w-fit rounded-xl overflow-hidden print:shadow-none">
+                <div ref={contractRef} className="bg-white text-black font-sans leading-relaxed text-[10.5pt] w-[180mm] contract-container relative">
+                    {/* Footer Info - Visible at the end of the document */}
                 <div className="mt-8 text-[6pt] text-right leading-tight hidden print:block">
                     <p>Penitenciária de Taiúva</p>
                     <p>Secretaria da Administração Penitenciária</p>
@@ -114,29 +115,29 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     <p className="mb-4">Constitui objeto do presente contrato a aquisição de:</p>
                 </div>
 
-                <table className="w-full border-collapse border border-black mb-4 text-[9pt]">
+                <table className="w-full mb-4 text-[8pt] table-fixed contract-table">
                     <thead>
                         <tr className="bg-zinc-50">
-                            <th className="border border-black p-1 text-left text-red-600">NOME DO AGRICULTOR</th>
-                            <th className="border border-black p-1 text-left text-red-600">CPF</th>
-                            <th className="border border-black p-1 text-left text-red-600">ITEM</th>
-                            <th className="border border-black p-1 text-right text-red-600">QUILOGRAMA</th>
-                            <th className="border border-black p-1 text-right text-red-600">VALOR</th>
+                            <th className="p-1 text-left text-red-600 w-[22%]">NOME DO AGRICULTOR</th>
+                            <th className="p-1 text-left text-red-600 w-[15%]">CPF</th>
+                            <th className="p-1 text-left text-red-600 w-[38%]">ITEM</th>
+                            <th className="p-1 text-right text-red-600 w-[12%]">QUILOGRAMA</th>
+                            <th className="p-1 text-right text-red-600 w-[13%]">VALOR</th>
                         </tr>
                     </thead>
                     <tbody>
                         {producer.contractItems?.map((item, idx) => (
                             <tr key={idx}>
-                                <td className="border border-black p-1">{producer.name}</td>
-                                <td className="border border-black p-1">{producer.cpfCnpj}</td>
-                                <td className="border border-black p-1">{item.name}</td>
-                                <td className="border border-black p-1 text-right">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
-                                <td className="border border-black p-1 text-right">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalKg * item.valuePerKg)}</td>
+                                <td className="p-1">{producer.name}</td>
+                                <td className="p-1">{producer.cpfCnpj}</td>
+                                <td className="p-1">{item.name}</td>
+                                <td className="p-1 text-right">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
+                                <td className="p-1 text-right">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalKg * item.valuePerKg)}</td>
                             </tr>
                         ))}
                         <tr className="font-bold">
-                            <td colSpan={4} className="border border-black p-1 text-right">TOTAL</td>
-                            <td className="border border-black p-1 text-right">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}</td>
+                            <td colSpan={4} className="p-1 text-right">TOTAL</td>
+                            <td className="p-1 text-right">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -343,7 +344,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         .page-break-before { page-break-before: always; break-before: page; }
                         .text-red-600 { color: black !important; font-weight: bold !important; }
                     }
-                    .signature-block, h2, thead, tfoot, tr, p {
+                    .signature-block, h2, thead, tfoot, tr, p, .contract-section-header {
                         page-break-inside: avoid !important;
                         break-inside: avoid !important;
                     }
@@ -366,22 +367,29 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         text-align: justify;
                         word-wrap: break-word;
                     }
-                    table {
+                    table.contract-table {
                         page-break-inside: auto;
                         width: 100% !important;
-                        border-collapse: collapse;
+                        border-collapse: separate !important;
+                        border-spacing: 0 !important;
                         margin-bottom: 1rem;
+                        table-layout: fixed !important;
+                        border-top: 1px solid black !important;
+                        border-left: 1px solid black !important;
                     }
-                    tr {
+                    .contract-table tr {
                         page-break-inside: avoid !important;
                         break-inside: avoid !important;
                     }
-                    td, th {
+                    .contract-table td, .contract-table th {
                         page-break-inside: avoid !important;
                         break-inside: avoid !important;
                         word-wrap: break-word;
-                        padding: 6px !important;
-                        border: 1px solid black;
+                        overflow-wrap: break-word;
+                        padding: 4px !important;
+                        border-right: 1px solid black !important;
+                        border-bottom: 1px solid black !important;
+                        vertical-align: top;
                     }
                     .contract-container {
                         width: 180mm !important;
@@ -389,13 +397,15 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         background: white !important;
                         padding: 10mm 15mm !important;
                         min-height: auto;
-                        overflow-x: hidden;
+                        overflow: visible !important;
+                        box-shadow: none !important;
                     }
                     h2 + p {
                         page-break-before: avoid !important;
                         break-before: avoid !important;
                     }
                 `}} />
+                </div>
             </div>
         </div>
     );
