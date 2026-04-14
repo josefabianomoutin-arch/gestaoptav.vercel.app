@@ -779,7 +779,8 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                     acquiredQuantity={manageItem.acquiredQuantity + (manageItem.contractAddendum || 0)}
                     onClose={() => setManageItem(null)} 
                     onSave={async (assignments) => {
-                        const res = await onUpdateContractForItem(manageItem.name, assignments);
+                        const displayName = manageItem.contractItemName || manageItem.name;
+                        const res = await onUpdateContractForItem(displayName, assignments);
                         if (res.success) setManageItem(null);
                         else alert(res.message);
                     }}

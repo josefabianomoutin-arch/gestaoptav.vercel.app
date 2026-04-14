@@ -459,6 +459,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   supplier={supplier} 
                   activeContractPeriod={activeContractPeriod} 
                   isRegisteredForNextPeriod={isRegisteredForNextPeriod}
+                  isPpaisProducer={type === 'PRODUTOR'}
                 />
                 {pendingDailyInvoices.length > 0 && (
                     <InvoiceUploader 

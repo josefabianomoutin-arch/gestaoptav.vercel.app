@@ -7,6 +7,7 @@ interface SummaryCardProps {
     supplier: Supplier;
     activeContractPeriod?: '1_QUAD' | '2_3_QUAD';
     isRegisteredForNextPeriod?: boolean;
+    isPpaisProducer?: boolean;
 }
 
 const getContractItemDisplayInfo = (item: Supplier['contractItems'][0]): { quantity: number; unit: string } => {
@@ -44,7 +45,7 @@ const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 };
 
-const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPeriod = '1_QUAD', isRegisteredForNextPeriod = false }) => {
+const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPeriod = '1_QUAD', isRegisteredForNextPeriod = false, isPpaisProducer = false }) => {
     const deliveries = (Object.values(supplier.deliveries || {}) as any[]);
     const contractItems = (Object.values(supplier.contractItems || {}) as any[]);
 
@@ -100,8 +101,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
             let p1TotalDeliveredVal = 0;
 
             // Determine if this is a PPAIS item/supplier
-            // We consider it PPAIS if explicitly marked or if it belongs to the 2nd period group
-            const isThisItemPPAIS = items.some(it => it.period === '2_3_QUAD' || it.category === 'PPAIS' || !it.period);
+            const isThisItemPPAIS = isPpaisProducer || items.some(it => it.period === '2_3_QUAD' || it.category === 'PPAIS');
 
             for (const month of visibleMonths) {
                 const isPeriod1 = month.number <= 3; // Jan, Fev, Mar, Abr
@@ -131,13 +131,35 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                         });
                         
                         // Strictly divide by 8 as requested for PPAIS (Maio a Dezembro)
-                        monthlyValueQuota = totalVal / 8;
-                        monthlyQuantityQuota = totalQty / 8;
+                        // If it's a PPAIS producer or explicitly marked as PPAIS, use 8 months
+                        // Otherwise (general items), divide by 12 for the whole year
+                        const divisor = isThisItemPPAIS ? 8 : 12;
+                        monthlyValueQuota = totalVal / divisor;
+                        monthlyQuantityQuota = totalQty / divisor;
                     }
                 } else {
-                    // Period 1 (Janeiro a Abril) - Meta is 0, only show delivered values
-                    monthlyValueQuota = 0;
-                    monthlyQuantityQuota = 0;
+                    // Period 1 (Janeiro a Abril)
+                    // If it's PPAIS, meta is 0 (starts in May)
+                    // If it's general, it should have a meta (Total / 12)
+                    if (isThisItemPPAIS) {
+                        monthlyValueQuota = 0;
+                        monthlyQuantityQuota = 0;
+                    } else {
+                        const allItems = items;
+                        let totalQty = 0;
+                        let totalVal = 0;
+                        allItems.forEach(it => {
+                            const { quantity } = getContractItemDisplayInfo(it as any);
+                            totalQty += quantity;
+                            const rawKg = it.totalKg?.toString() || '0';
+                            const rawVal = it.valuePerKg?.toString() || '0';
+                            const kg = parseFloat(rawKg.replace(',', '.')) || 0;
+                            const val = parseFloat(rawVal.replace(',', '.')) || 0;
+                            totalVal += kg * val;
+                        });
+                        monthlyValueQuota = totalVal / 12;
+                        monthlyQuantityQuota = totalQty / 12;
+                    }
                 }
 
                 const deliveredInMonth = deliveries.filter(d => {

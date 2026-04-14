@@ -289,9 +289,14 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [pereciveisSuppliers]);
 
     const handleUpdateContractForPpais = async (itemName: string, assignments: any[]) => {
+        const normalizedNew = normalizeItemName(itemName);
         const updatedProducers = ppaisProducers.map(producer => {
             const assignment = assignments.find(a => a.supplierCpf === producer.cpfCnpj);
-            const newContractItems = Object.values(producer.contractItems || {}).filter((ci: any) => ci.name !== itemName);
+            const newContractItems = Object.values(producer.contractItems || {}).filter((ci: any) => {
+                const normalizedCi = normalizeItemName(ci.name);
+                // Remove if it's the same name or if the new name is a more detailed version of the old one
+                return normalizedCi !== normalizedNew && !normalizedNew.startsWith(normalizedCi);
+            });
             if (assignment) {
                 newContractItems.push({
                     name: itemName,
@@ -311,9 +316,14 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     };
 
     const handleUpdateContractForPereciveis = async (itemName: string, assignments: any[]) => {
+        const normalizedNew = normalizeItemName(itemName);
         const updatedSuppliers = pereciveisSuppliers.map(supplier => {
             const assignment = assignments.find(a => a.supplierCpf === supplier.cpfCnpj);
-            const newContractItems = Object.values(supplier.contractItems || {}).filter((ci: any) => ci.name !== itemName);
+            const newContractItems = Object.values(supplier.contractItems || {}).filter((ci: any) => {
+                const normalizedCi = normalizeItemName(ci.name);
+                // Remove if it's the same name or if the new name is a more detailed version of the old one
+                return normalizedCi !== normalizedNew && !normalizedNew.startsWith(normalizedCi);
+            });
             if (assignment) {
                 newContractItems.push({
                     name: itemName,
