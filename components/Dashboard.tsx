@@ -155,17 +155,21 @@ const Dashboard: React.FC<DashboardProps> = ({
   const monthlyQuotas = useMemo(() => {
     if (!selectedDate || !supplier.contractItems) return [];
     const currentMonth = selectedDate.getMonth();
-    return (Object.values(supplier.contractItems || {}) as any[]).map(item => {
-        const deliveredThisMonth = (Object.values(supplier.deliveries || {}) as any[])
-            .filter(d => d.item === item.name && new Date(d.date + 'T00:00:00').getMonth() === currentMonth)
-            .reduce((sum, d) => sum + (d.kg || 0), 0);
-        
-        const isQ1 = currentMonth <= 3;
-        const divisor = isQ1 ? 4 : 8;
-        const monthlyQuota = item.totalKg / divisor;
-        return { name: item.name, monthlyQuota, deliveredThisMonth, remainingThisMonth: monthlyQuota - deliveredThisMonth, unit: 'Kg' };
-    });
-  }, [selectedDate, supplier.contractItems, supplier.deliveries, activeContractPeriod]);
+    const isQ1 = currentMonth <= 3;
+    const currentPeriod = isQ1 ? '1_QUAD' : '2_3_QUAD';
+
+    return (Object.values(supplier.contractItems || {}) as any[])
+        .filter(item => (item.period || '1_QUAD') === currentPeriod)
+        .map(item => {
+            const deliveredThisMonth = (Object.values(supplier.deliveries || {}) as any[])
+                .filter(d => d.item === item.name && new Date(d.date + 'T00:00:00').getMonth() === currentMonth)
+                .reduce((sum, d) => sum + (d.kg || 0), 0);
+            
+            const divisor = isQ1 ? 4 : 8;
+            const monthlyQuota = item.totalKg / divisor;
+            return { name: item.name, monthlyQuota, deliveredThisMonth, remainingThisMonth: monthlyQuota - deliveredThisMonth, unit: 'Kg' };
+        });
+  }, [selectedDate, supplier.contractItems, supplier.deliveries]);
 
   const handleOpenPdf = async (url: string) => {
     let finalUrl = url;

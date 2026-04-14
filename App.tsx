@@ -419,9 +419,9 @@ const App: React.FC = () => {
       const registeredCpfs = new Set(allPerCapita.map(p => p.cpfCnpj));
 
       for (const entry of allPerCapita) {
-        // Calculate weeks for May-Dec
+        // Calculate weeks for the entire year (Jan-Dec) to keep both contracts independent
         const newWeeks: number[] = [];
-        for (let m = 4; m <= 11; m++) { // May (index 4) to Dec (index 11)
+        for (let m = 0; m <= 11; m++) { // January (index 0) to December (index 11)
           const monthName = monthNames[m];
           const weekOfMonthList = entry.monthlySchedule?.[monthName.charAt(0).toUpperCase() + monthName.slice(1)] || entry.monthlySchedule?.[monthName] || [];
           
@@ -441,21 +441,22 @@ const App: React.FC = () => {
         const existingSupplier = allSuppliers[entry.cpfCnpj] as Supplier | null;
 
         if (existingSupplier) {
-          // User wants to REMOVE Q1 agenda and items
-          // "retire a agenda do primeiro quadrimestre, deixando apenas a agenda de maio a dezembro"
-          const updatedWeeks = uniqueNewWeeks; // Only May-Dec
+          // Merge Q1 and Q2/Q3 data to keep them independent but accessible
+          const q1Weeks = (existingSupplier.allowedWeeks || []).filter(w => w <= 18);
+          const updatedWeeks = Array.from(new Set([...q1Weeks, ...uniqueNewWeeks])).sort((a, b) => a - b);
           
-          // Only keep Q2/Q3 items
+          const q1Items = (existingSupplier.contractItems || []).filter(item => item.period !== '2_3_QUAD');
           const newQ23Items = ((entry as any).contractItems || []).map((item: any) => ({
             ...item,
             period: '2_3_QUAD' as const
           }));
+          const updatedItems = [...q1Items, ...newQ23Items];
 
           await update(supplierRef, { 
             allowedWeeks: updatedWeeks,
-            contractItems: newQ23Items,
+            contractItems: updatedItems,
             // Update initialValue to reflect the sum of all items
-            initialValue: newQ23Items.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0)
+            initialValue: updatedItems.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0)
           });
         } else {
           // New entry
@@ -465,7 +466,7 @@ const App: React.FC = () => {
             initialValue: 0,
             contractItems: ((entry as any).contractItems || []).map((item: any) => ({
               ...item,
-              period: '2_3_QUAD' as const
+              period: item.period || '1_QUAD'
             })),
             deliveries: [],
             allowedWeeks: uniqueNewWeeks,

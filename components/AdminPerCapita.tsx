@@ -126,6 +126,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     onSyncPPAISToAgenda
 }) => {
     const [selectedProducer, setSelectedProducer] = useState<PerCapitaSupplier | null>(null);
+    const [activePeriod, setActivePeriod] = useState<'1_QUAD' | '2_3_QUAD'>('2_3_QUAD');
     const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'ADIANTAMENTOS' | 'CONTROLE'>('CALCULO');
     const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS' | 'CONTRACT' | 'ATA' | 'SCHEDULE'>('ITEMS');
     const [pereciveisSubTab, setPereciveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
@@ -269,24 +270,36 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     };
 
     const ppaisAsSuppliers = useMemo(() => {
-        return ppaisProducers.map(p => ({
-            ...p,
-            cpf: p.cpfCnpj,
-            deliveries: p.deliveries || [],
-            allowedWeeks: [],
-            initialValue: Object.values(p.contractItems || {}).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
-        } as Supplier));
-    }, [ppaisProducers]);
+        return ppaisProducers.map(p => {
+            const filteredItems = (p.contractItems || []).filter(item => 
+                activePeriod === '1_QUAD' ? (item.period === '1_QUAD' || !item.period) : (item.period === '2_3_QUAD')
+            );
+            return {
+                ...p,
+                cpf: p.cpfCnpj,
+                deliveries: p.deliveries || [],
+                allowedWeeks: [],
+                contractItems: filteredItems,
+                initialValue: filteredItems.reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
+            } as Supplier;
+        });
+    }, [ppaisProducers, activePeriod]);
 
     const pereciveisAsSuppliers = useMemo(() => {
-        return pereciveisSuppliers.map(p => ({
-            ...p,
-            cpf: p.cpfCnpj,
-            deliveries: p.deliveries || [],
-            allowedWeeks: [],
-            initialValue: Object.values(p.contractItems || {}).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
-        } as Supplier));
-    }, [pereciveisSuppliers]);
+        return pereciveisSuppliers.map(p => {
+            const filteredItems = (p.contractItems || []).filter(item => 
+                activePeriod === '1_QUAD' ? (item.period === '1_QUAD' || !item.period) : (item.period === '2_3_QUAD')
+            );
+            return {
+                ...p,
+                cpf: p.cpfCnpj,
+                deliveries: p.deliveries || [],
+                allowedWeeks: [],
+                contractItems: filteredItems,
+                initialValue: filteredItems.reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
+            } as Supplier;
+        });
+    }, [pereciveisSuppliers, activePeriod]);
 
     const handleUpdateContractForPpais = async (itemName: string, assignments: any[]) => {
         const normalizedNew = normalizeItemName(itemName);
@@ -294,8 +307,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             const assignment = assignments.find(a => a.supplierCpf === producer.cpfCnpj);
             const newContractItems = Object.values(producer.contractItems || {}).filter((ci: any) => {
                 const normalizedCi = normalizeItemName(ci.name);
-                // Remove if it's the same name or if the new name is a more detailed version of the old one
-                return normalizedCi !== normalizedNew && !normalizedNew.startsWith(normalizedCi);
+                const sameName = normalizedCi === normalizedNew || normalizedNew.startsWith(normalizedCi);
+                const samePeriod = ci.period === activePeriod || (!ci.period && activePeriod === '1_QUAD');
+                return !(sameName && samePeriod);
             });
             if (assignment) {
                 newContractItems.push({
@@ -306,7 +320,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     category: assignment.category,
                     comprasCode: assignment.comprasCode,
                     becCode: assignment.becCode,
-                    period: '2_3_QUAD'
+                    period: activePeriod
                 });
             }
             return { ...producer, contractItems: newContractItems };
@@ -321,8 +335,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             const assignment = assignments.find(a => a.supplierCpf === supplier.cpfCnpj);
             const newContractItems = Object.values(supplier.contractItems || {}).filter((ci: any) => {
                 const normalizedCi = normalizeItemName(ci.name);
-                // Remove if it's the same name or if the new name is a more detailed version of the old one
-                return normalizedCi !== normalizedNew && !normalizedNew.startsWith(normalizedCi);
+                const sameName = normalizedCi === normalizedNew || normalizedNew.startsWith(normalizedCi);
+                const samePeriod = ci.period === activePeriod || (!ci.period && activePeriod === '1_QUAD');
+                return !(sameName && samePeriod);
             });
             if (assignment) {
                 newContractItems.push({
@@ -333,7 +348,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     category: assignment.category,
                     comprasCode: assignment.comprasCode,
                     becCode: assignment.becCode,
-                    period: '2_3_QUAD'
+                    period: activePeriod
                 });
             }
             return { ...supplier, contractItems: newContractItems };
@@ -669,6 +684,20 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 </div>
                 
                 <div className="flex items-center gap-3">
+                    <div className="flex bg-zinc-100 p-1 rounded-2xl border border-zinc-200 mr-4">
+                        <button 
+                            onClick={() => setActivePeriod('1_QUAD')}
+                            className={`px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activePeriod === '1_QUAD' ? 'bg-white text-indigo-600 shadow-sm' : 'text-zinc-400 hover:text-zinc-600'}`}
+                        >
+                            1º Contrato (Jan-Abr)
+                        </button>
+                        <button 
+                            onClick={() => setActivePeriod('2_3_QUAD')}
+                            className={`px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activePeriod === '2_3_QUAD' ? 'bg-white text-indigo-600 shadow-sm' : 'text-zinc-400 hover:text-zinc-600'}`}
+                        >
+                            2º Contrato (Mai-Dez)
+                        </button>
+                    </div>
                     <button 
                         onClick={handleSave}
                         disabled={!isDirty || isSaving}
@@ -1475,7 +1504,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                         Cronograma de Entrega - {activeSubTab}
                                     </h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {months.map(month => {
+                                        {months.filter(m => activePeriod === '1_QUAD' ? months.indexOf(m) <= 3 : months.indexOf(m) > 3).map(month => {
                                             const currentSuppliers = activeSubTab === 'PPAIS' ? ppaisProducers : pereciveisSuppliers;
                                             const suppliersInMonth = currentSuppliers.filter(s => (s.monthlySchedule?.[month] || []).length > 0);
                                             if (suppliersInMonth.length === 0) return null;
