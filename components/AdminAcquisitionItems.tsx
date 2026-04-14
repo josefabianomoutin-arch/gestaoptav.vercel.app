@@ -128,7 +128,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                             <th class="text-center">Unid.</th>
                             <th class="text-right">Qtd. Adquirida</th>
                             <th class="text-right">Aditivo</th>
-                            ${category !== 'PPAIS' && category !== 'PERECÍVEIS' ? '<th class="text-right">Saldo Estoque</th>' : '<th class="text-right">Peso por Fornecedor</th><th class="text-right">Valor por Fornecedor</th>'}
+                            ${category !== 'PPAIS' && category !== 'PERECÍVEIS' ? '<th class="text-right">Saldo Estoque</th>' : '<th class="text-right">Peso por Fornecedor</th><th class="text-right">Peso/Mês</th><th class="text-right">Valor por Fornecedor</th><th class="text-right">Vlr/Mês</th>'}
                             <th class="text-right">Valor da Mediana</th>
                             <th class="text-right">Valor Total</th>
                         </tr>
@@ -148,7 +148,9 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                 const valuePerSupplier = totalValue / numSuppliers;
                                 extraCols = `
                                     <td class="text-right">${weightPerSupplier.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                    <td class="text-right">${(weightPerSupplier / 8).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                                     <td class="text-right">${formatCurrency(valuePerSupplier)}</td>
+                                    <td class="text-right">${formatCurrency(valuePerSupplier / 8)}</td>
                                 `;
                             }
 
@@ -393,7 +395,9 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                 ) : (
                                     <>
                                         <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Peso/Forn.</th>
+                                        <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case text-indigo-500">Peso/Mês</th>
                                         <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Vlr/Forn.</th>
+                                        <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case text-indigo-500">Vlr/Mês</th>
                                     </>
                                 )}
                                 <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Financeiro</th>
@@ -507,11 +511,27 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                                         </span>
                                                     </div>
                                                 </td>
+                                                <td className="p-6 text-right border-r border-zinc-50 bg-indigo-50/10">
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Peso/Mês</span>
+                                                        <span className="font-mono text-sm font-black text-indigo-600">
+                                                            {(weightPerSupplier / 8).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                        </span>
+                                                    </div>
+                                                </td>
                                                 <td className="p-6 text-right border-r border-zinc-50">
                                                     <div className="flex flex-col items-end">
                                                         <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1">Vlr/Forn.</span>
                                                         <span className="font-mono text-sm font-bold text-zinc-900">
                                                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valuePerSupplier)}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-6 text-right border-r border-zinc-50 bg-indigo-50/10">
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Vlr/Mês</span>
+                                                        <span className="font-mono text-sm font-black text-indigo-600">
+                                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valuePerSupplier / 8)}
                                                         </span>
                                                     </div>
                                                 </td>
