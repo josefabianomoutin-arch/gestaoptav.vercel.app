@@ -43,11 +43,9 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
     const contractItems = (Object.values(supplier.contractItems || {}) as any[]);
 
     const visibleMonths = useMemo(() => {
-        if (activeContractPeriod === '1_QUAD') {
-            return MONTHS_2026.filter(m => m.number <= 3 || isRegisteredForNextPeriod);
-        }
-        return MONTHS_2026.filter(m => m.number >= 4);
-    }, [activeContractPeriod, isRegisteredForNextPeriod]);
+        // Always show full year for the annual view to avoid confusion as requested
+        return MONTHS_2026;
+    }, []);
 
     const totalDeliveredValue = deliveries.reduce((sum: number, delivery: any) => sum + (delivery.value || 0), 0);
     const valueProgress = supplier.initialValue > 0 ? (totalDeliveredValue / supplier.initialValue) * 100 : 0;
@@ -57,7 +55,10 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
         const delivered = new Map<string, number>();
         contractItems.forEach(item => {
             const { quantity, unit } = getContractItemDisplayInfo(item as any);
-            contracted.set(unit, (contracted.get(unit) || 0) + quantity);
+            // Only count items for the current active period or yearly items
+            if (!item.period || item.period === activeContractPeriod) {
+                contracted.set(unit, (contracted.get(unit) || 0) + quantity);
+            }
         });
         deliveries.forEach(delivery => {
             if (!delivery.item || (delivery.kg || 0) === 0) return;
@@ -68,7 +69,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
             }
         });
         return { contracted, delivered };
-    }, [contractItems, deliveries]);
+    }, [contractItems, deliveries, activeContractPeriod]);
 
     const totalContractedKgForProgress = aggregatedTotals.contracted.get('Kg') || 0;
     const totalDeliveredKgForProgress = aggregatedTotals.delivered.get('Kg') || 0;
@@ -77,7 +78,6 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
     const monthlyDataByItem = useMemo(() => {
         const data = new Map<string, any[]>();
         
-        // Group items by name to handle different periods for the same item
         const groupedItems = new Map<string, any[]>();
         contractItems.forEach(item => {
             const list = groupedItems.get(item.name) || [];
@@ -90,42 +90,47 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
             let accumulatedQuantityRemainder = 0;
             let accumulatedValueRemainder = 0;
 
-            // Use the first item to get unit info (assuming same name means same unit)
             const { unit: itemUnit } = getContractItemDisplayInfo(items[0] as any);
 
+            // Period 1 Totals for the summary row
+            let p1TotalDeliveredQty = 0;
+            let p1TotalDeliveredVal = 0;
+
+            const hasAnyPPAISItem = contractItems.some(it => it.period === '2_3_QUAD');
+
             for (const month of visibleMonths) {
-                const isQ1 = month.number <= 3;
-                const divisor = isQ1 ? 4 : 8;
-                const currentPeriod = isQ1 ? '1_QUAD' : '2_3_QUAD';
-
-                // Find the item that applies to this period
-                // If an item has no period, we treat it as Q1 if we are in Q1, 
-                // but we must be careful not to double count if there's a Q2/Q3 item.
-                let activeItem = items.find(it => it.period === currentPeriod);
+                const isPeriod1 = month.number <= 3;
                 
-                // Fallback for legacy data or main suppliers
-                if (!activeItem) {
-                    activeItem = items.find(it => !it.period);
-                }
-
                 let monthlyValueQuota = 0;
                 let monthlyQuantityQuota = 0;
 
-                if (activeItem) {
-                    const { quantity: itemTotalQuantity } = getContractItemDisplayInfo(activeItem as any);
-                    const itemTotalValue = (activeItem.totalKg || 0) * (activeItem.valuePerKg || 0);
+                if (!isPeriod1) {
+                    // Strictly follow user request: only show meta for PPAIS items (period 2_3_QUAD)
+                    // divided by 8 months. If no PPAIS item, meta is 0.
+                    const activeItem = items.find(it => it.period === '2_3_QUAD');
                     
-                    // If the item has a specific period, use the period's divisor (4 or 8)
-                    // If it's a yearly item (no period), use 12 to distribute across the whole year
-                    const itemDivisor = activeItem.period ? divisor : 12;
-                    
-                    monthlyValueQuota = itemTotalValue / itemDivisor;
-                    monthlyQuantityQuota = itemTotalQuantity / itemDivisor;
+                    if (activeItem) {
+                        const { quantity: itemTotalQuantity } = getContractItemDisplayInfo(activeItem as any);
+                        const itemTotalValue = (activeItem.totalKg || 0) * (activeItem.valuePerKg || 0);
+                        
+                        monthlyValueQuota = itemTotalValue / 8;
+                        monthlyQuantityQuota = itemTotalQuantity / 8;
+                    } else if (!hasAnyPPAISItem) {
+                        // Fallback for regular suppliers who don't have PPAIS items at all
+                        // This prevents breaking the view for non-PPAIS suppliers
+                        const yearlyItem = items.find(it => !it.period);
+                        if (yearlyItem) {
+                            const { quantity: itemTotalQuantity } = getContractItemDisplayInfo(yearlyItem as any);
+                            const itemTotalValue = (yearlyItem.totalKg || 0) * (yearlyItem.valuePerKg || 0);
+                            monthlyValueQuota = itemTotalValue / 12;
+                            monthlyQuantityQuota = itemTotalQuantity / 12;
+                        }
+                    }
                 }
 
-                const lastMonthOfPeriod = isQ1 ? 3 : 11;
+                const lastMonthOfPeriod = isPeriod1 ? 3 : 11;
 
-                if (month.number === lastMonthOfPeriod) {
+                if (month.number === lastMonthOfPeriod && !isPeriod1) {
                     monthlyValueQuota += accumulatedValueRemainder;
                     monthlyQuantityQuota += accumulatedQuantityRemainder;
                 }
@@ -140,15 +145,21 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                 const deliveredValue = deliveredInMonth.reduce((sum: number, d: any) => sum + (d.value || 0), 0);
                 const deliveredQuantity = deliveredInMonth.reduce((sum: number, d: any) => sum + (d.kg || 0), 0);
                 
+                if (isPeriod1) {
+                    p1TotalDeliveredQty += deliveredQuantity;
+                    p1TotalDeliveredVal += deliveredValue;
+                }
+
                 const remainingValue = monthlyValueQuota - deliveredValue;
                 const remainingQuantity = monthlyQuantityQuota - deliveredQuantity;
 
-                if (month.number < lastMonthOfPeriod) {
+                if (!isPeriod1 && month.number < lastMonthOfPeriod) {
                     accumulatedValueRemainder += remainingValue;
                     accumulatedQuantityRemainder += remainingQuantity;
                 }
 
                 itemMonthlyData.push({
+                    monthNumber: month.number,
                     monthName: month.name,
                     contractedValue: monthlyValueQuota,
                     contractedQuantity: monthlyQuantityQuota,
@@ -157,12 +168,24 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                     remainingValue: remainingValue,
                     remainingQuantity: remainingQuantity,
                     unit: itemUnit,
+                    isPeriod1
                 });
+
+                // Add summary row after April
+                if (month.number === 3) {
+                    itemMonthlyData.push({
+                        isSummary: true,
+                        label: 'SALDO 1º CONTRATO',
+                        deliveredQuantity: p1TotalDeliveredQty,
+                        deliveredValue: p1TotalDeliveredVal,
+                        unit: itemUnit
+                    });
+                }
             }
             data.set(itemName, itemMonthlyData);
         });
         return data;
-    }, [supplier.contractItems, supplier.deliveries, visibleMonths]);
+    }, [contractItems, deliveries, visibleMonths]);
 
     const uniqueItemNames = useMemo(() => {
         return Array.from(new Set(contractItems.map(item => item.name)));
@@ -191,23 +214,62 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {itemMonthlyData.map(data => (
-                                        <tr key={data.monthName} className="border-t">
-                                            <td className="p-1 font-bold align-top">{data.monthName}</td>
-                                            <td className="p-1 text-right align-top">
-                                                <div>{formatQuantity(data.contractedQuantity, data.unit)}</div>
-                                                <div className="text-[9px] text-gray-400 font-normal">{formatCurrency(data.contractedValue)}</div>
-                                            </td>
-                                            <td className="p-1 text-right text-green-600 font-bold align-top">
-                                                <div>{formatQuantity(data.deliveredQuantity, data.unit)}</div>
-                                                <div className="text-[9px] text-green-400 font-normal">{formatCurrency(data.deliveredValue)}</div>
-                                            </td>
-                                            <td className="p-1 text-right text-blue-600 font-bold align-top">
-                                                <div>{formatQuantity(data.remainingQuantity, data.unit)}</div>
-                                                <div className="text-[9px] text-blue-400 font-normal">{formatCurrency(data.remainingValue)}</div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {itemMonthlyData.map((data, idx) => {
+                                        if (data.isSummary) {
+                                            return (
+                                                <tr key={`summary-${idx}`} className="bg-blue-100 border-y-2 border-blue-300">
+                                                    <td className="p-2 font-black text-blue-900 uppercase text-[10px] italic">{data.label}</td>
+                                                    <td colSpan={2} className="p-2 text-right text-blue-900 font-black">
+                                                        <div className="text-xs">{formatQuantity(data.deliveredQuantity, data.unit)}</div>
+                                                        <div className="text-[10px] opacity-80">{formatCurrency(data.deliveredValue)}</div>
+                                                    </td>
+                                                    <td className="p-2 text-right text-blue-900 font-black">
+                                                        <div className="bg-blue-600 text-white text-[8px] px-2 py-0.5 rounded-full inline-block uppercase tracking-tighter">Encerrado</div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        }
+
+                                        const isHeader = data.monthNumber === 4;
+                                        return (
+                                            <React.Fragment key={data.monthName}>
+                                                {isHeader && (
+                                                    <tr className="bg-indigo-50">
+                                                        <td colSpan={4} className="p-1 text-center font-black text-indigo-800 text-[9px] uppercase tracking-widest">
+                                                            Início do 2º Contrato (Maio-Dez)
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                                <tr className="border-t">
+                                                    <td className="p-1 font-bold align-top">{data.monthName}</td>
+                                                    <td className="p-1 text-right align-top">
+                                                        {data.contractedQuantity > 0 ? (
+                                                            <>
+                                                                <div>{formatQuantity(data.contractedQuantity, data.unit)}</div>
+                                                                <div className="text-[9px] text-gray-400 font-normal">{formatCurrency(data.contractedValue)}</div>
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-gray-300">-</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-1 text-right text-green-600 font-bold align-top">
+                                                        <div>{formatQuantity(data.deliveredQuantity, data.unit)}</div>
+                                                        <div className="text-[9px] text-green-400 font-normal">{formatCurrency(data.deliveredValue)}</div>
+                                                    </td>
+                                                    <td className="p-1 text-right text-blue-600 font-bold align-top">
+                                                        {data.contractedQuantity > 0 ? (
+                                                            <>
+                                                                <div>{formatQuantity(data.remainingQuantity, data.unit)}</div>
+                                                                <div className="text-[9px] text-blue-400 font-normal">{formatCurrency(data.remainingValue)}</div>
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-gray-300">-</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            </React.Fragment>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
