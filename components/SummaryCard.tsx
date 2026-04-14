@@ -106,17 +106,22 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                 if (!isPeriod1) {
                     // Period 2 (Maio a Dezembro) - 8 months
                     if (isThisItemPPAIS) {
-                        // Strictly divide by 8 as requested for PPAIS
-                        // Find the item that belongs to the 2nd period or has no period
-                        const activeItem = items.find(it => it.period === '2_3_QUAD' || it.category === 'PPAIS') || items.find(it => !it.period);
+                        // Sum up all items for the 2nd period to avoid picking the wrong one if duplicates exist
+                        const period2Items = items.filter(it => it.period === '2_3_QUAD' || (it.category === 'PPAIS' && it.period !== '1_QUAD'));
                         
-                        if (activeItem) {
-                            const { quantity: itemTotalQuantity } = getContractItemDisplayInfo(activeItem as any);
-                            const itemTotalValue = (activeItem.totalKg || 0) * (activeItem.valuePerKg || 0);
+                        if (period2Items.length > 0) {
+                            let totalQty = 0;
+                            let totalVal = 0;
                             
-                            // Use simple division to ensure 93.75 for 750/8
-                            monthlyValueQuota = itemTotalValue / 8;
-                            monthlyQuantityQuota = itemTotalQuantity / 8;
+                            period2Items.forEach(it => {
+                                const { quantity } = getContractItemDisplayInfo(it as any);
+                                totalQty += quantity;
+                                totalVal += (it.totalKg || 0) * (it.valuePerKg || 0);
+                            });
+                            
+                            // Strictly divide by 8 as requested for PPAIS (Maio a Dezembro)
+                            monthlyValueQuota = totalVal / 8;
+                            monthlyQuantityQuota = totalQty / 8;
                         }
                     }
                 } else {
