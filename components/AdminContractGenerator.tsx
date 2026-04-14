@@ -97,17 +97,17 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
 
                 <div className="text-center font-bold mb-8">
                     <h1 className="text-lg mb-4">CONTRATO</h1>
-                    <p className="text-red-600">CONTRATO N. {manualContractNumber || '_____'}/{year}</p>
+                    <p className="text-black font-bold">CONTRATO N. {manualContractNumber || '_____'}/{year}</p>
                 </div>
 
                 <div className="flex justify-end mb-8">
                     <div className="w-1/2 text-justify font-bold">
-                        Termo de Contrato que entre si celebram o Governo do Estado de São Paulo, <span className="text-red-600">SECRETARIA DE ADMINISTRAÇÃO PENITENCIÁRIA, POR INTERMÉDIO DA PENITENCIÁRIA DE TAIÚVA</span>, PARA A AQUISIÇÃO DE GÊNEROS ALIMENTÍCIOS DA AGRICULTURA FAMILIAR PARA ATENDER O PROGRAMA PAULISTA DA AGRICULTURA DE INTERESSE SOCIAL – PPAIS.
+                        Termo de Contrato que entre si celebram o Governo do Estado de São Paulo, <span className="text-black font-bold">SECRETARIA DE ADMINISTRAÇÃO PENITENCIÁRIA, POR INTERMÉDIO DA PENITENCIÁRIA DE TAIÚVA</span>, PARA A AQUISIÇÃO DE GÊNEROS ALIMENTÍCIOS DA AGRICULTURA FAMILIAR PARA ATENDER O PROGRAMA PAULISTA DA AGRICULTURA DE INTERESSE SOCIAL – PPAIS.
                     </div>
                 </div>
 
                 <p className="text-justify mb-4">
-                    Aos <span className="text-red-600 font-bold">{day === 8 ? 'oito(8)' : `${day}(${day})`}</span> dias do mês de <span className="text-red-600 font-bold">{month.charAt(0).toUpperCase() + month.slice(1)}</span> do ano de <span className="text-red-600 font-bold">{year}</span>, nesta cidade de Taiúva, comparecem de um lado o Estado de São Paulo, Secretaria de Administração Penitenciária, por intermédio da Penitenciária de Taiúva, inscrita no CNPJ sob o n.º 96.291.141/0152-92, neste ato representada pelo Senhor <strong>DOUGLAS FERNANDO SEMENZIN GALDINO</strong>, brasileiro, Chefe de Departamento, portador da CI/RG nº 32.518574-8-SSP/SP e inscrito no CPF/MF. nº 290.990.228-59, doravante designado simplesmente Contratante, e, de outro lado, <span className="text-red-600 font-bold">{producer.name}</span> (Agricultor Familiar), com sede na <span className="text-red-600 font-bold">{producer.city || 'CIDADE'}</span>, inscrito/a no CNPJ/MF ou CPF nº <span className="text-red-600 font-bold">{producer.cpfCnpj}</span>, e pelos mesmos foi dito na presença das testemunhas ao final consignadas, que em face da autorização da inexigibilidade da licitação constante no Processo SEI <span className="text-red-600 font-bold">{producer.processNumber || '006.00091368/2026-57'}</span>, nos termos do artigo 74, inciso IV, c.c. o artigo 79 da Lei Federal nº 14.133/2021, pelo presente instrumento avençam um contrato de aquisição de gêneros alimentícios da Agricultura Familiar para atender o Programa Paulista da Agricultura de Interesse Social – PPAIS, sujeitando-se às normas da Lei Federal nº 14.133/2021, Decreto Estadual nº 68.304/2024 e demais normas regulamentares à espécie, inclusive a Lei Estadual nº 14.591/2011, regulamentada pelo Decreto nº 57.755/2012, alterados pelo Decreto nº 60.055/2014, Decreto nº 62.282/2016, e Decreto nº 68.734/2024, e às seguintes cláusulas e condições que reciprocamente outorgam e aceitam:
+                    Aos <span className="text-black font-bold">{day === 8 ? 'oito(8)' : `${day}(${day})`}</span> dias do mês de <span className="text-black font-bold">{month.charAt(0).toUpperCase() + month.slice(1)}</span> do ano de <span className="text-black font-bold">{year}</span>, nesta cidade de Taiúva, comparecem de um lado o Estado de São Paulo, Secretaria de Administração Penitenciária, por intermédio da Penitenciária de Taiúva, inscrita no CNPJ sob o n.º 96.291.141/0152-92, neste ato representada pelo Senhor <strong>DOUGLAS FERNANDO SEMENZIN GALDINO</strong>, brasileiro, Chefe de Departamento, portador da CI/RG nº 32.518574-8-SSP/SP e inscrito no CPF/MF. nº 290.990.228-59, doravante designado simplesmente Contratante, e, de outro lado, <span className="text-black font-bold">{producer.name}</span> (Agricultor Familiar), com sede na <span className="text-black font-bold">{producer.city || 'CIDADE'}</span>, inscrito/a no CNPJ/MF ou CPF nº <span className="text-black font-bold">{producer.cpfCnpj}</span>, e pelos mesmos foi dito na presença das testemunhas ao final consignadas, que em face da autorização da inexigibilidade da licitação constante no Processo SEI <span className="text-black font-bold">{producer.processNumber || '006.00091368/2026-57'}</span>, nos termos do artigo 74, inciso IV, c.c. o artigo 79 da Lei Federal nº 14.133/2021, pelo presente instrumento avençam um contrato de aquisição de gêneros alimentícios da Agricultura Familiar para atender o Programa Paulista da Agricultura de Interesse Social – PPAIS, sujeitando-se às normas da Lei Federal nº 14.133/2021, Decreto Estadual nº 68.304/2024 e demais normas regulamentares à espécie, inclusive a Lei Estadual nº 14.591/2011, regulamentada pelo Decreto nº 57.755/2012, alterados pelo Decreto nº 60.055/2014, Decreto nº 62.282/2016, e Decreto nº 68.734/2024, e às seguintes cláusulas e condições que reciprocamente outorgam e aceitam:
                 </p>
 
                 <div className="contract-section">
@@ -115,29 +115,29 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     <p className="mb-4">Constitui objeto do presente contrato a aquisição de:</p>
                 </div>
 
-                <table className="w-full mb-4 text-[8pt] table-fixed contract-table">
+                <table className="w-full mb-4 text-[8pt] table-fixed contract-table border-collapse border border-black">
                     <thead>
                         <tr className="bg-zinc-50">
-                            <th className="p-1 text-left text-red-600 w-[20%]">NOME DO AGRICULTOR</th>
-                            <th className="p-1 text-left text-red-600 w-[15%]">CPF</th>
-                            <th className="p-1 text-left text-red-600 w-[38%]">ITEM</th>
-                            <th className="p-1 text-right text-red-600 w-[12%]">QUILOGRAMA</th>
-                            <th className="p-1 text-right text-red-600 w-[15%]">VALOR</th>
+                            <th className="p-1 text-left font-bold border border-black w-[20%]">NOME DO AGRICULTOR</th>
+                            <th className="p-1 text-left font-bold border border-black w-[15%]">CPF</th>
+                            <th className="p-1 text-left font-bold border border-black w-[38%]">ITEM</th>
+                            <th className="p-1 text-right font-bold border border-black w-[12%]">QUILOGRAMA</th>
+                            <th className="p-1 text-right font-bold border border-black w-[15%]">VALOR</th>
                         </tr>
                     </thead>
                     <tbody>
                         {producer.contractItems?.map((item, idx) => (
                             <tr key={idx}>
-                                <td className="p-1">{producer.name}</td>
-                                <td className="p-1">{producer.cpfCnpj}</td>
-                                <td className="p-1">{item.name}</td>
-                                <td className="p-1 text-right whitespace-nowrap">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
-                                <td className="p-1 text-right whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalKg * item.valuePerKg)}</td>
+                                <td className="p-1 border border-black">{producer.name}</td>
+                                <td className="p-1 border border-black">{producer.cpfCnpj}</td>
+                                <td className="p-1 border border-black">{item.name}</td>
+                                <td className="p-1 text-right border border-black whitespace-nowrap">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
+                                <td className="p-1 text-right border border-black whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalKg * item.valuePerKg)}</td>
                             </tr>
                         ))}
                         <tr className="font-bold">
-                            <td colSpan={4} className="p-1 text-right">TOTAL</td>
-                            <td className="p-1 text-right whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}</td>
+                            <td colSpan={4} className="p-1 text-right border border-black">TOTAL</td>
+                            <td className="p-1 text-right border border-black whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -182,7 +182,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
 
                 <div className="contract-section">
                     <h2 className="font-bold underline mb-4 contract-section-header">CLÁUSULA SEXTA – DO VALOR DO CONTRATO</h2>
-                    <p className="mb-4">Pelo fornecimento dos gêneros alimentícios, constantes do Anexo I, a CONTRATADA receberá o <span className="text-red-600">valor total de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}</span>.</p>
+                    <p className="mb-4">Pelo fornecimento dos gêneros alimentícios, constantes do Anexo I, a CONTRATADA receberá o <span className="text-black font-bold">valor total de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}</span>.</p>
                     <p className="mb-4">Parágrafo único - No valor contratado estão incluídas as despesas com frete, recursos humanos e materiais, assim como com os encargos fiscais, sociais, comerciais, trabalhistas e previdenciários e quaisquer outras despesas necessárias ao cumprimento das obrigações decorrentes do presente contrato.</p>
                 </div>
 
@@ -242,7 +242,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
 
                 <div className="contract-section">
                     <h2 className="font-bold underline mb-4 contract-section-header">CLÁUSULA DÉCIMA QUINTA – DA VIGÊNCIA</h2>
-                    <p className="mb-4">O presente contrato vigorará pelo período de <span className="text-red-600 font-bold">01/05/2026 a 31/12/2026</span>.</p>
+                    <p className="mb-4">O presente contrato vigorará pelo período de <span className="text-black font-bold">01/05/2026 a 31/12/2026</span>.</p>
                 </div>
 
                 <div className="contract-section">
@@ -264,7 +264,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                 </div>
 
                 <div className="mt-12 text-center">
-                    <p className="text-red-600">Taiúva, {day} de {month} de {year}.</p>
+                    <p className="text-black font-bold">Taiúva, {day} de {month} de {year}.</p>
                     
                     <div className="mt-16 flex flex-col items-center signature-block">
                         <div className="w-2/3 border-t border-black pt-2">
@@ -278,9 +278,9 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
 
                     <div className="mt-16 flex flex-col items-center signature-block">
                         <div className="w-2/3 border-t border-black pt-2">
-                            <p className="font-bold uppercase text-red-600">{producer.name}</p>
+                            <p className="font-bold uppercase text-black">{producer.name}</p>
                             <p>CPF/CNPJ: {producer.cpfCnpj}</p>
-                            <p className="text-red-600">Contratada: assinatura do representante legal</p>
+                            <p className="text-black font-bold">Contratada: assinatura do representante legal</p>
                         </div>
                     </div>
                 </div>
@@ -312,11 +312,11 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     <p className="mb-4 text-justify">- A CIÊNCIA DE QUE SERÁ OBSERVADO O LIMITE DE VENDA POR DCONP/ANO</p>
 
                     <p className="text-justify mb-8">
-                        Eu <span className="text-red-600 font-bold">({producer.name})</span>, portador do CPF <span className="text-red-600 font-bold">{producer.cpfCnpj}</span>, interessado em participar de Chamadas Públicas DURANTE O EXERCÍCIO DE 2026, DECLARO que atendo às normas relativas à saúde e segurança do trabalho, em virtude das disposições do parágrafo único do artigo 117, da Constituição do Estado de São Paulo.
+                        Eu <span className="text-black font-bold">({producer.name})</span>, portador do CPF <span className="text-black font-bold">{producer.cpfCnpj}</span>, interessado em participar de Chamadas Públicas DURANTE O EXERCÍCIO DE 2026, DECLARO que atendo às normas relativas à saúde e segurança do trabalho, em virtude das disposições do parágrafo único do artigo 117, da Constituição do Estado de São Paulo.
                     </p>
 
                     <p className="text-justify mb-8">
-                        Ademais, declaro para fins do disposto no inciso VI do artigo 68 da Lei Federal nº 14.133/2021, o qual faz referência ao inciso XXXIII do artigo 7º da CF/88, que não emprego menor de 18 (dezoito) anos em trabalho noturno, perigoso ou insalubre, e qualquer trabalho a menores de 16 (dezesseis) anos.
+                        Ademais, declaro para fins do disposto no inciso VI do artigo 68 da Lei Federal nº 14.133/2021, o qual faz referência ao inciso XXXIII do artigo 7º da CF/88, que não emprego menor de 18 (dezoito) anos em trabalho node turno, perigoso ou insalubre, e qualquer trabalho a menores de 16 (dezesseis) anos.
                     </p>
 
                     <p className="text-justify mb-8">
@@ -324,12 +324,12 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     </p>
 
                     <div className="mt-12 text-center">
-                        <p className="text-red-600">Taiúva, {day} de {month} de {year}.</p>
+                        <p className="text-black font-bold">Taiúva, {day} de {month} de {year}.</p>
                         <div className="mt-16 flex flex-col items-center signature-block">
                             <div className="w-2/3 border-t border-black pt-2">
-                                <p className="text-red-600">Assinatura – nome/RG</p>
-                                <p className="text-red-600 uppercase font-bold">{producer.name}</p>
-                                <p className="text-red-600">NOME/RG/ASSINATURA</p>
+                                <p className="text-black font-bold">Assinatura – nome/RG</p>
+                                <p className="text-black uppercase font-bold">{producer.name}</p>
+                                <p className="text-black font-bold">NOME/RG/ASSINATURA</p>
                             </div>
                         </div>
                     </div>
@@ -344,7 +344,8 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         .page-break-before { page-break-before: always; break-before: page; }
                     }
                     /* Ensure red text is black and bold in PDF */
-                    .contract-container .text-red-600 {
+                    .contract-container .text-red-600,
+                    .contract-container .text-black.font-bold {
                         color: black !important;
                         font-weight: bold !important;
                     }
@@ -374,12 +375,9 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     table.contract-table {
                         page-break-inside: auto;
                         width: 100% !important;
-                        border-collapse: separate !important;
-                        border-spacing: 0 !important;
+                        border-collapse: collapse !important;
                         margin-bottom: 1rem;
                         table-layout: fixed !important;
-                        border-top: 1px solid black !important;
-                        border-left: 1px solid black !important;
                     }
                     .contract-table tr {
                         page-break-inside: avoid !important;
@@ -390,10 +388,9 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         break-inside: avoid !important;
                         word-wrap: break-word;
                         overflow-wrap: break-word;
-                        padding: 4px !important;
-                        border-right: 1px solid black !important;
-                        border-bottom: 1px solid black !important;
-                        vertical-align: top;
+                        padding: 6px !important;
+                        border: 1px solid black !important;
+                        vertical-align: middle;
                     }
                     .contract-container {
                         width: 180mm !important;

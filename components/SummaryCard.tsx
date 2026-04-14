@@ -87,45 +87,43 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
 
         groupedItems.forEach((items, itemName) => {
             const itemMonthlyData = [];
-            let accumulatedQuantityRemainder = 0;
-            let accumulatedValueRemainder = 0;
-
             const { unit: itemUnit } = getContractItemDisplayInfo(items[0] as any);
 
             // Period 1 Totals for the summary row
             let p1TotalDeliveredQty = 0;
             let p1TotalDeliveredVal = 0;
 
-            const hasAnyPPAISItem = contractItems.some(it => it.period === '2_3_QUAD');
+            // Determine if this is a PPAIS item/supplier
+            const hasAnyPPAISItem = contractItems.some(it => it.period === '2_3_QUAD' || it.category === 'PPAIS');
+            const isThisItemPPAIS = items.some(it => it.period === '2_3_QUAD' || it.category === 'PPAIS');
 
             for (const month of visibleMonths) {
-                const isPeriod1 = month.number <= 3;
+                const isPeriod1 = month.number <= 3; // Jan, Fev, Mar, Abr
                 
                 let monthlyValueQuota = 0;
                 let monthlyQuantityQuota = 0;
 
                 if (!isPeriod1) {
-                    // Strictly follow user request: only show meta for PPAIS items (period 2_3_QUAD)
-                    // divided by 8 months (Maio a Dezembro).
-                    const activeItem = items.find(it => it.period === '2_3_QUAD');
-                    
-                    if (activeItem) {
-                        const { quantity: itemTotalQuantity } = getContractItemDisplayInfo(activeItem as any);
-                        const itemTotalValue = (activeItem.totalKg || 0) * (activeItem.valuePerKg || 0);
-                        
-                        // Division by exactly 8 months for the second period (Maio-Dezembro)
-                        monthlyValueQuota = itemTotalValue / 8;
-                        monthlyQuantityQuota = itemTotalQuantity / 8;
-                    } else if (!hasAnyPPAISItem) {
-                        // Fallback for regular suppliers who don't have PPAIS items at all
-                        const yearlyItem = items.find(it => !it.period);
-                        if (yearlyItem) {
-                            const { quantity: itemTotalQuantity } = getContractItemDisplayInfo(yearlyItem as any);
-                            const itemTotalValue = (yearlyItem.totalKg || 0) * (yearlyItem.valuePerKg || 0);
-                            monthlyValueQuota = itemTotalValue / 12;
-                            monthlyQuantityQuota = itemTotalQuantity / 12;
+                    // Period 2 (Maio a Dezembro) - 8 months
+                    if (isThisItemPPAIS) {
+                        // Strictly divide by 8 as requested for PPAIS
+                        const activeItem = items.find(it => it.period === '2_3_QUAD' || it.category === 'PPAIS');
+                        if (activeItem) {
+                            const { quantity: itemTotalQuantity } = getContractItemDisplayInfo(activeItem as any);
+                            const itemTotalValue = (activeItem.totalKg || 0) * (activeItem.valuePerKg || 0);
+                            
+                            monthlyValueQuota = itemTotalValue / 8;
+                            monthlyQuantityQuota = itemTotalQuantity / 8;
                         }
+                    } else {
+                        // Non-PPAIS items/suppliers get 0 meta for May-Dec as requested
+                        monthlyValueQuota = 0;
+                        monthlyQuantityQuota = 0;
                     }
+                } else {
+                    // Period 1 (Janeiro a Abril) - Meta is 0, only show delivered values
+                    monthlyValueQuota = 0;
+                    monthlyQuantityQuota = 0;
                 }
 
                 const deliveredInMonth = deliveries.filter(d => {
@@ -145,6 +143,14 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
 
                 const remainingValue = monthlyValueQuota - deliveredValue;
                 const remainingQuantity = monthlyQuantityQuota - deliveredQuantity;
+
+                // Add header before May
+                if (month.number === 4) {
+                    itemMonthlyData.push({
+                        isHeader: true,
+                        label: 'Início do 2º Contrato (Maio-Dez)'
+                    });
+                }
 
                 itemMonthlyData.push({
                     monthNumber: month.number,
@@ -203,6 +209,15 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                                 </thead>
                                 <tbody>
                                     {itemMonthlyData.map((data, idx) => {
+                                        if (data.isHeader) {
+                                            return (
+                                                <tr key={`header-${idx}`} className="bg-indigo-50">
+                                                    <td colSpan={4} className="p-1 text-center font-black text-indigo-800 text-[9px] uppercase tracking-widest">
+                                                        {data.label}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        }
                                         if (data.isSummary) {
                                             return (
                                                 <tr key={`summary-${idx}`} className="bg-blue-100 border-y-2 border-blue-300">
@@ -218,44 +233,27 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                                             );
                                         }
 
-                                        const isHeader = data.monthNumber === 4;
                                         return (
-                                            <React.Fragment key={data.monthName}>
-                                                {isHeader && (
-                                                    <tr className="bg-indigo-50">
-                                                        <td colSpan={4} className="p-1 text-center font-black text-indigo-800 text-[9px] uppercase tracking-widest">
-                                                            Início do 2º Contrato (Maio-Dez)
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                                <tr className="border-t">
-                                                    <td className="p-1 font-bold align-top">{data.monthName}</td>
-                                                    <td className="p-1 text-right align-top">
-                                                        {data.contractedQuantity > 0 ? (
-                                                            <>
-                                                                <div>{formatQuantity(data.contractedQuantity, data.unit)}</div>
-                                                                <div className="text-[9px] text-gray-400 font-normal">{formatCurrency(data.contractedValue)}</div>
-                                                            </>
-                                                        ) : (
-                                                            <span className="text-gray-300">-</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="p-1 text-right text-green-600 font-bold align-top">
-                                                        <div>{formatQuantity(data.deliveredQuantity, data.unit)}</div>
-                                                        <div className="text-[9px] text-green-400 font-normal">{formatCurrency(data.deliveredValue)}</div>
-                                                    </td>
-                                                    <td className="p-1 text-right text-blue-600 font-bold align-top">
-                                                        {data.contractedQuantity > 0 ? (
-                                                            <>
-                                                                <div>{formatQuantity(data.remainingQuantity, data.unit)}</div>
-                                                                <div className="text-[9px] text-blue-400 font-normal">{formatCurrency(data.remainingValue)}</div>
-                                                            </>
-                                                        ) : (
-                                                            <span className="text-gray-300">-</span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            </React.Fragment>
+                                            <tr key={data.monthNumber} className={`border-t ${data.isPeriod1 ? 'bg-white/50' : 'bg-white'}`}>
+                                                <td className="p-1 font-bold align-top">{data.monthName}</td>
+                                                <td className="p-1 text-right align-top">
+                                                    {data.contractedQuantity > 0 ? (
+                                                        <>
+                                                            <div className="font-black">{formatQuantity(data.contractedQuantity, data.unit)}</div>
+                                                            <div className="text-[9px] text-gray-400 font-normal">{formatCurrency(data.contractedValue)}</div>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-gray-300">-</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-1 text-right text-green-600 font-bold align-top">
+                                                    <div>{formatQuantity(data.deliveredQuantity, data.unit)}</div>
+                                                    <div className="text-[9px] text-green-400 font-normal">{formatCurrency(data.deliveredValue)}</div>
+                                                </td>
+                                                <td className={`p-1 text-right font-bold align-top ${data.remainingQuantity > 0 ? 'text-orange-600' : 'text-gray-300'}`}>
+                                                    {data.remainingQuantity > 0 ? formatQuantity(data.remainingQuantity, data.unit) : 'OK'}
+                                                </td>
+                                            </tr>
                                         );
                                     })}
                                 </tbody>
