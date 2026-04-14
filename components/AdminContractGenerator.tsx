@@ -118,11 +118,11 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                 <table className="w-full mb-4 text-[8pt] table-fixed contract-table">
                     <thead>
                         <tr className="bg-zinc-50">
-                            <th className="p-1 text-left text-red-600 w-[22%]">NOME DO AGRICULTOR</th>
+                            <th className="p-1 text-left text-red-600 w-[20%]">NOME DO AGRICULTOR</th>
                             <th className="p-1 text-left text-red-600 w-[15%]">CPF</th>
                             <th className="p-1 text-left text-red-600 w-[38%]">ITEM</th>
                             <th className="p-1 text-right text-red-600 w-[12%]">QUILOGRAMA</th>
-                            <th className="p-1 text-right text-red-600 w-[13%]">VALOR</th>
+                            <th className="p-1 text-right text-red-600 w-[15%]">VALOR</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -131,13 +131,13 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                                 <td className="p-1">{producer.name}</td>
                                 <td className="p-1">{producer.cpfCnpj}</td>
                                 <td className="p-1">{item.name}</td>
-                                <td className="p-1 text-right">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
-                                <td className="p-1 text-right">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalKg * item.valuePerKg)}</td>
+                                <td className="p-1 text-right whitespace-nowrap">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
+                                <td className="p-1 text-right whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalKg * item.valuePerKg)}</td>
                             </tr>
                         ))}
                         <tr className="font-bold">
                             <td colSpan={4} className="p-1 text-right">TOTAL</td>
-                            <td className="p-1 text-right">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}</td>
+                            <td className="p-1 text-right whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -342,7 +342,11 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     }
                     @media print {
                         .page-break-before { page-break-before: always; break-before: page; }
-                        .text-red-600 { color: black !important; font-weight: bold !important; }
+                    }
+                    /* Ensure red text is black and bold in PDF */
+                    .contract-container .text-red-600 {
+                        color: black !important;
+                        font-weight: bold !important;
                     }
                     .signature-block, h2, thead, tfoot, tr, p, .contract-section-header {
                         page-break-inside: avoid !important;
@@ -399,10 +403,14 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         min-height: auto;
                         overflow: visible !important;
                         box-shadow: none !important;
+                        position: relative !important;
                     }
                     h2 + p {
                         page-break-before: avoid !important;
                         break-before: avoid !important;
+                    }
+                    .whitespace-nowrap {
+                        white-space: nowrap !important;
                     }
                 `}} />
                 </div>
