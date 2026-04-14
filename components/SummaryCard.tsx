@@ -94,8 +94,8 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
             let p1TotalDeliveredVal = 0;
 
             // Determine if this is a PPAIS item/supplier
-            const hasAnyPPAISItem = contractItems.some(it => it.period === '2_3_QUAD' || it.category === 'PPAIS');
-            const isThisItemPPAIS = items.some(it => it.period === '2_3_QUAD' || it.category === 'PPAIS');
+            // We are more lenient here: if it's explicitly PPAIS or has no period (defaulting to current contract)
+            const isThisItemPPAIS = items.some(it => it.period === '2_3_QUAD' || it.category === 'PPAIS' || !it.period);
 
             for (const month of visibleMonths) {
                 const isPeriod1 = month.number <= 3; // Jan, Fev, Mar, Abr
@@ -107,18 +107,17 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                     // Period 2 (Maio a Dezembro) - 8 months
                     if (isThisItemPPAIS) {
                         // Strictly divide by 8 as requested for PPAIS
-                        const activeItem = items.find(it => it.period === '2_3_QUAD' || it.category === 'PPAIS');
+                        // Find the item that belongs to the 2nd period or has no period
+                        const activeItem = items.find(it => it.period === '2_3_QUAD' || it.category === 'PPAIS') || items.find(it => !it.period);
+                        
                         if (activeItem) {
                             const { quantity: itemTotalQuantity } = getContractItemDisplayInfo(activeItem as any);
                             const itemTotalValue = (activeItem.totalKg || 0) * (activeItem.valuePerKg || 0);
                             
+                            // Use simple division to ensure 93.75 for 750/8
                             monthlyValueQuota = itemTotalValue / 8;
                             monthlyQuantityQuota = itemTotalQuantity / 8;
                         }
-                    } else {
-                        // Non-PPAIS items/suppliers get 0 meta for May-Dec as requested
-                        monthlyValueQuota = 0;
-                        monthlyQuantityQuota = 0;
                     }
                 } else {
                     // Period 1 (Janeiro a Abril) - Meta is 0, only show delivered values
