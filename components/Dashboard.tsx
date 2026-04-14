@@ -13,6 +13,7 @@ import { speechService } from '../src/services/speechService';
 import { HelpCircle, Volume2, Loader2, Calendar as CalendarIcon, FileText, Search, Download } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app } from '../firebaseConfig';
+import { MONTHS_2026 } from '../constants';
 
 const SIMULATED_TODAY = new Date('2026-04-30T00:00:00');
 
@@ -397,16 +398,23 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="flex flex-col items-center gap-3">
                     <div className="flex flex-wrap justify-center gap-2">
                         {monthlySchedule ? (
-                            Object.entries(monthlySchedule).filter(([_, weeks]) => Object.values(weeks || {}).length > 0).map(([month, weeks]) => (
-                                <div key={month} className="flex items-center gap-1 bg-white/20 px-3 py-1.5 rounded-xl border border-white/30">
-                                    <span className="text-[9px] font-black uppercase">{month.substring(0,3)}:</span>
-                                    <div className="flex gap-1">
-                                        {Object.values(weeks || {}).map(w => (
-                                            <span key={w as number} className="bg-white text-gray-800 w-5 h-5 flex items-center justify-center rounded-lg text-[10px] font-black shadow-sm">{w as number}</span>
-                                        ))}
+                            Object.entries(monthlySchedule)
+                                .filter(([_, weeks]) => Object.values(weeks || {}).length > 0)
+                                .sort(([monthA], [monthB]) => {
+                                    const indexA = MONTHS_2026.findIndex(m => m.name === monthA);
+                                    const indexB = MONTHS_2026.findIndex(m => m.name === monthB);
+                                    return indexA - indexB;
+                                })
+                                .map(([month, weeks]) => (
+                                    <div key={month} className="flex items-center gap-1 bg-white/20 px-3 py-1.5 rounded-xl border border-white/30">
+                                        <span className="text-[9px] font-black uppercase">{month.substring(0,3)}:</span>
+                                        <div className="flex gap-1">
+                                            {Object.values(weeks || {}).map(w => (
+                                                <span key={w as number} className="bg-white text-gray-800 w-5 h-5 flex items-center justify-center rounded-lg text-[10px] font-black shadow-sm">{w as number}</span>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            ))
+                                ))
                         ) : supplier.allowedWeeks && Object.values(supplier.allowedWeeks || {}).length > 0 ? (
                             Object.values(supplier.allowedWeeks || {}).sort((a: any, b: any) => a-b).map(w => (
                                 <span key={w as number} className={`${weekBadgeColor} font-black px-4 py-2 rounded-xl text-sm shadow-md`}>Semana {w as number}</span>
