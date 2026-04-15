@@ -407,14 +407,29 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         const categoriesToCalculate = ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS', 'KIT PPL', 'PRODUTOS DE LIMPEZA', 'AUTOMAÇÃO'];
         
         categoriesToCalculate.forEach(cat => {
-            const catItems = itemData.filter(item => item.category === cat);
-            if (catItems.length === 0) return;
-
-            const catWeight = catItems.reduce((sum, item) => {
-                const [unitType] = (item.unit || 'kg-1').split('-');
+            // Tentar obter dados do planejamento (acquisitionItems) e do contrato (itemData)
+            const acqItems = acquisitionItems.filter(ai => ai.category === cat);
+            
+            const catWeight = acqItems.reduce((sum, ai) => {
+                const contracted = itemData.find(id => normalizeItemName(id.name) === normalizeItemName(ai.name));
+                const weight = (contracted && contracted.totalQuantity > 0) ? contracted.totalQuantity : (ai.acquiredQuantity || 0);
+                
+                const [unitType] = (ai.unit || 'kg-1').split('-');
                 if (['litro', 'embalagem', 'caixa', 'dz'].some(u => unitType.includes(u))) return sum;
-                return sum + (item.totalQuantity || 0); // Simplificando para usar a quantidade total se não for unidade especial
+                return sum + weight;
             }, 0);
+
+            // Adicionar itens que estão no contrato mas não no planejamento
+            const onlyContractWeight = itemData
+                .filter(id => id.category === cat && !acqItems.some(ai => normalizeItemName(ai.name) === normalizeItemName(id.name)))
+                .reduce((sum, id) => {
+                    const [unitType] = (id.unit || 'kg-1').split('-');
+                    if (['litro', 'embalagem', 'caixa', 'dz'].some(u => unitType.includes(u))) return sum;
+                    return sum + (id.totalQuantity || 0);
+                }, 0);
+
+            const finalCatWeight = catWeight + onlyContractWeight;
+            if (finalCatWeight === 0) return;
 
             // Divisor padrão de 12 meses para uma estimativa anual diluída, 
             // ou ajuste conforme a natureza do contrato (ex: PPAIS costuma ser semestral/anual)
@@ -424,12 +439,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             } else if (cat === 'PPAIS') {
                 divisor = 8;
             }
-            totalMonthlyWeight += catWeight / divisor;
+            totalMonthlyWeight += finalCatWeight / divisor;
         });
 
         // Média mensal dividida por 30 para obter a média diária
         return (totalMonthlyWeight / perCapitaDenominator) / 30;
-    }, [itemData, perCapitaDenominator]);
+    }, [itemData, perCapitaDenominator, acquisitionItems]);
     
     const totalPerCapitaValue = useMemo(() => {
         if (perCapitaDenominator === 0) return 0;
@@ -439,22 +454,34 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         const categoriesToCalculate = ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS', 'KIT PPL', 'PRODUTOS DE LIMPEZA', 'AUTOMAÇÃO'];
 
         categoriesToCalculate.forEach(cat => {
-            const catItems = itemData.filter(item => item.category === cat);
-            if (catItems.length === 0) return;
+            // Tentar obter dados do planejamento (acquisitionItems) e do contrato (itemData)
+            const acqItems = acquisitionItems.filter(ai => ai.category === cat);
+            const totalFromAcq = acqItems.reduce((sum, ai) => {
+                const contracted = itemData.find(id => normalizeItemName(id.name) === normalizeItemName(ai.name));
+                if (contracted && contracted.totalValue > 0) return sum + contracted.totalValue;
+                return sum + ((ai.unitValue || 0) * (ai.acquiredQuantity || 0));
+            }, 0);
 
-            const catValue = catItems.reduce((sum, item) => sum + (item.totalValue || 0), 0);
+            // Adicionar itens que estão no contrato mas não no planejamento
+            const totalOnlyInContract = itemData
+                .filter(id => id.category === cat && !acqItems.some(ai => normalizeItemName(ai.name) === normalizeItemName(id.name)))
+                .reduce((sum, id) => sum + (id.totalValue || 0), 0);
+
+            const finalCatValue = totalFromAcq + totalOnlyInContract;
+            if (finalCatValue === 0) return;
+
             let divisor = 12;
             if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') {
                 divisor = 4;
             } else if (cat === 'PPAIS') {
                 divisor = 8;
             }
-            totalMonthlyValue += catValue / divisor;
+            totalMonthlyValue += finalCatValue / divisor;
         });
 
         // Média mensal dividida por 30 para obter o custo diário
         return (totalMonthlyValue / perCapitaDenominator) / 30;
-    }, [itemData, perCapitaDenominator]);
+    }, [itemData, perCapitaDenominator, acquisitionItems]);
 
     const activeCategories = useMemo(() => {
         return ['PPAIS', 'KIT PPL', 'PERECÍVEIS', 'ESTOCÁVEIS', 'AUTOMAÇÃO', 'PRODUTOS DE LIMPEZA'].filter(cat => {
@@ -528,9 +555,20 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const categoryMonthlyAverages = useMemo(() => {
         const averages: Record<string, number> = {};
         activeCategories.forEach(cat => {
-            // Usar itemData (que consolida contratos reais) em vez de acquisitionItems (planejamento)
-            const items = itemData.filter(item => item.category === cat);
-            const total = items.reduce((sum, item) => sum + (item.totalValue || 0), 0);
+            // Tentar obter dados do planejamento (acquisitionItems) e do contrato (itemData)
+            const acqItems = acquisitionItems.filter(ai => ai.category === cat);
+            const totalFromAcq = acqItems.reduce((sum, ai) => {
+                const contracted = itemData.find(id => normalizeItemName(id.name) === normalizeItemName(ai.name));
+                if (contracted && contracted.totalValue > 0) return sum + contracted.totalValue;
+                return sum + ((ai.unitValue || 0) * (ai.acquiredQuantity || 0));
+            }, 0);
+
+            // Adicionar itens que estão no contrato mas não no planejamento
+            const totalOnlyInContract = itemData
+                .filter(id => id.category === cat && !acqItems.some(ai => normalizeItemName(ai.name) === normalizeItemName(id.name)))
+                .reduce((sum, id) => sum + (id.totalValue || 0), 0);
+
+            const total = totalFromAcq + totalOnlyInContract;
             
             let divisor = 12;
             if (cat === 'PERECÍVEIS') {
@@ -545,7 +583,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             averages[cat] = total / divisor;
         });
         return averages;
-    }, [activeCategories, itemData]);
+    }, [activeCategories, itemData, acquisitionItems]);
 
     const getIsActiveMonth = (month: string, category: string) => {
         if (category === 'PERECÍVEIS') {
