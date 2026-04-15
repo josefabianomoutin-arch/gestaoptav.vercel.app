@@ -41,29 +41,14 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedTo
   const isDateAllowed = (date: Date) => {
     const monthIndex = date.getMonth();
     
-    // Se estivermos no 2º/3º quadrimestre, meses de Jan-Abr podem ser visualizados mas não agendados (regra de "não alterar")
+    // Se estivermos no 2º/3º quadrimestre, meses de Jan-Abr podem ser visualizados mas não agendados
     if (activeContractPeriod === '2_3_QUAD' && monthIndex <= 3) {
       return false;
     }
 
-    if (monthlySchedule) {
-      const monthName = MONTHS_2026[monthIndex].name;
-      const allowedWeeksInMonth = Object.values(monthlySchedule[monthName] || {}) as number[];
-      
-      // Se o produtor tem um cronograma definido para este mês, respeita estritamente
-      if (allowedWeeksInMonth.length > 0) {
-        const weekOfMonth = getWeekOfMonth(date);
-        return allowedWeeksInMonth.includes(weekOfMonth);
-      }
-      
-      // Se não tem nada definido para o mês, mas estamos no período ativo, bloqueia por padrão (exige liberação)
-      return false;
-    }
-    
-    const allowedWeeksArray = Object.values(allowedWeeks || {}) as number[];
-    if (allowedWeeksArray.length === 0) return false; // Bloqueia se não houver semanas liberadas
-    const weekNumber = getWeekNumber(date);
-    return allowedWeeksArray.includes(weekNumber);
+    // Liberado para todos os produtores nas datas disponíveis (dias úteis)
+    // O Calendar já filtra finais de semana e feriados no cálculo do isClickable
+    return true;
   };
 
   const generateMonthGrid = (month: number, year: number) => {

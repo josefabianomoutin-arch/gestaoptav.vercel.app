@@ -384,44 +384,20 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         {activeTab === 'calendar' ? (
           <>
-            {/* Banner de Semanas Liberadas */}
+            {/* Banner de Calendário Livre */}
             <div className={`${bannerColor} text-white p-5 rounded-3xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-4 border-b-8 animate-fade-in`}>
                 <div className="flex items-center gap-4">
                     <div className="bg-white/20 p-3 rounded-2xl">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     </div>
                     <div>
-                        <h2 className="text-lg font-black uppercase tracking-tight leading-none">Semanas Liberadas</h2>
-                        <p className={`text-xs font-bold ${bannerTextColor} mt-1 uppercase tracking-widest`}>Suas janelas de entrega para 2026</p>
+                        <h2 className="text-lg font-black uppercase tracking-tight leading-none">Calendário Liberado</h2>
+                        <p className={`text-xs font-bold ${bannerTextColor} mt-1 uppercase tracking-widest`}>Agendamento disponível para todos os dias úteis</p>
                     </div>
                 </div>
                 <div className="flex flex-col items-center gap-3">
                     <div className="flex flex-wrap justify-center gap-2">
-                        {monthlySchedule ? (
-                            Object.entries(monthlySchedule)
-                                .filter(([_, weeks]) => Object.values(weeks || {}).length > 0)
-                                .sort(([monthA], [monthB]) => {
-                                    const indexA = MONTHS_2026.findIndex(m => m.name === monthA);
-                                    const indexB = MONTHS_2026.findIndex(m => m.name === monthB);
-                                    return indexA - indexB;
-                                })
-                                .map(([month, weeks]) => (
-                                    <div key={month} className="flex items-center gap-1 bg-white/20 px-3 py-1.5 rounded-xl border border-white/30">
-                                        <span className="text-[9px] font-black uppercase">{month.substring(0,3)}:</span>
-                                        <div className="flex gap-1">
-                                            {Object.values(weeks || {}).map(w => (
-                                                <span key={w as number} className="bg-white text-gray-800 w-5 h-5 flex items-center justify-center rounded-lg text-[10px] font-black shadow-sm">{w as number}</span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))
-                        ) : supplier.allowedWeeks && Object.values(supplier.allowedWeeks || {}).length > 0 ? (
-                            Object.values(supplier.allowedWeeks || {}).sort((a: any, b: any) => a-b).map(w => (
-                                <span key={w as number} className={`${weekBadgeColor} font-black px-4 py-2 rounded-xl text-sm shadow-md`}>Semana {w as number}</span>
-                            ))
-                        ) : (
-                            <span className="bg-green-400 text-green-950 font-black px-6 py-2 rounded-xl text-sm shadow-md uppercase">Calendário Livre</span>
-                        )}
+                        <span className="bg-green-400 text-green-950 font-black px-6 py-2 rounded-xl text-sm shadow-md uppercase tracking-widest">Aberto para Agendamento</span>
                     </div>
                     <button 
                         onClick={handleGenerateReport}
@@ -435,8 +411,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
             {/* Legenda do Calendário Otimizada */}
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap justify-center gap-6 text-[10px] font-black uppercase tracking-widest text-gray-500">
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-green-50 rounded-full border border-green-200"></div> Semana Liberada</div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-white rounded-full border border-gray-200 shadow-sm"></div> Dia Agendável</div>
+                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-white rounded-full border border-gray-200 shadow-sm"></div> Dia Disponível</div>
                 <div className="flex items-center gap-2"><div className="w-3 h-3 bg-green-100 rounded-full border-2 border-green-400"></div> Agendado</div>
                 <div className="flex items-center gap-2"><div className="w-3 h-3 bg-green-600 rounded-full"></div> Faturado</div>
                 <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div> Pendente NF</div>
