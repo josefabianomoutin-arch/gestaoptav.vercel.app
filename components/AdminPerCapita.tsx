@@ -523,16 +523,27 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 const quantity = item.acquiredQuantity || 0;
                 return sum + ((item.unitValue || 0) * quantity);
             }, 0);
-            // Média mensal: 4 meses para Jan-Abr, 8 meses para Mai-Dez
-            const currentMonth = new Date().getMonth();
-            const divisor = currentMonth <= 3 ? 4 : 8;
+            
+            let divisor = 12;
+            if (cat === 'PERECÍVEIS') {
+                divisor = 4; // Apenas Maio, Junho, Julho, Agosto
+            } else {
+                // Média mensal: 4 meses para Jan-Abr, 8 meses para Mai-Dez
+                const currentMonth = new Date().getMonth();
+                divisor = currentMonth <= 3 ? 4 : 8;
+            }
             averages[cat] = total / divisor;
         });
         return averages;
     }, [activeCategories, acquisitionItems]);
 
     const getIsActiveMonth = (month: string, category: string) => {
-        // Sempre ativo para permitir visualização do histórico e planejamento
+        if (category === 'PERECÍVEIS') {
+            return ['Maio', 'Junho', 'Julho', 'Agosto'].includes(month);
+        }
+        // Para outras categorias, manter o comportamento de quadrimesters se aplicável
+        // ou retornar true se for anual. 
+        // Baseado no código original, retornava true para tudo.
         return true;
     };
 
@@ -545,7 +556,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 const execVal = monthlyExecution[month]?.[cat] || 0;
                 const isActiveMonth = getIsActiveMonth(month, cat);
                 const futureVal = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
-                total += execVal > 0 ? execVal : futureVal;
+                if (isActiveMonth) {
+                    total += execVal > 0 ? execVal : futureVal;
+                }
             });
         });
         
@@ -778,7 +791,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                         const value = exec[cat] || 0;
                                         const isActiveMonth = getIsActiveMonth(month, cat);
                                         const futureValue = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
-                                        return sum + (value > 0 ? value : futureValue);
+                                        const displayValue = isActiveMonth ? (value > 0 ? value : futureValue) : 0;
+                                        return sum + displayValue;
                                     }, 0) + advance;
                                     
                                     const balance = quota - totalSpent;
@@ -791,8 +805,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                                 const value = exec[cat] || 0;
                                                 const isActiveMonth = getIsActiveMonth(month, cat);
                                                 const futureValue = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
-                                                const displayValue = value > 0 ? value : futureValue;
-                                                const isFuture = value === 0 && futureValue > 0;
+                                                const displayValue = isActiveMonth ? (value > 0 ? value : futureValue) : 0;
+                                                const isFuture = isActiveMonth && value === 0 && futureValue > 0;
                                                 
                                                 return (
                                                     <td key={`exec-${cat}`} className={`p-4 text-right font-mono ${isFuture ? 'text-blue-600 font-bold bg-blue-50/30' : 'text-indigo-600'}`}>
@@ -822,7 +836,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                             const execVal = monthlyExecution[month]?.[cat] || 0;
                                             const isActiveMonth = getIsActiveMonth(month, cat);
                                             const futureVal = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
-                                            catTotal += execVal > 0 ? execVal : futureVal;
+                                            if (isActiveMonth) {
+                                                catTotal += execVal > 0 ? execVal : futureVal;
+                                            }
                                         });
                                         return (
                                             <th key={`exec-${cat}`} className="p-4 text-right font-mono">
@@ -840,9 +856,11 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                                 let catTotal = 0;
                                                 months.forEach(month => {
                                                     const execVal = monthlyExecution[month]?.[cat] || 0;
-                                                    const isActiveMonth = ['Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].includes(month);
+                                                    const isActiveMonth = getIsActiveMonth(month, cat);
                                                     const futureVal = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
-                                                    catTotal += execVal > 0 ? execVal : futureVal;
+                                                    if (isActiveMonth) {
+                                                        catTotal += execVal > 0 ? execVal : futureVal;
+                                                    }
                                                 });
                                                 return sum + catTotal;
                                             }, 0) + (Object.values(monthlyAdvances) as number[]).reduce((a: number, b: number) => a + (b || 0), 0))
@@ -875,13 +893,15 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                                 let catTotal = 0;
                                                 months.forEach(month => {
                                                     const execVal = monthlyExecution[month]?.[cat] || 0;
-                                                    const isActiveMonth = ['Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].includes(month);
+                                                    const isActiveMonth = getIsActiveMonth(month, cat);
                                                     const futureVal = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
-                                                    catTotal += execVal > 0 ? execVal : futureVal;
+                                                    if (isActiveMonth) {
+                                                        catTotal += execVal > 0 ? execVal : futureVal;
+                                                    }
                                                 });
                                                 return sum + catTotal;
-                                            }, 0) + (Object.values(monthlyAdvances) as number[]).reduce((a: number, b: number) => a + (b || 0), 0)
-                                        )}
+                                            }, 0) + (Object.values(monthlyAdvances) as number[]).reduce((a: number, b: number) => a + (b || 0), 0))
+                                        }
                                     </span>
                                 </div>
                             </div>
