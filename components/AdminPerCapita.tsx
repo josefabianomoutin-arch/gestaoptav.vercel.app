@@ -418,7 +418,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
             // Divisor padrão de 12 meses para uma estimativa anual diluída, 
             // ou ajuste conforme a natureza do contrato (ex: PPAIS costuma ser semestral/anual)
-            const divisor = (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') ? 4 : 12;
+            let divisor = 12;
+            if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') {
+                divisor = 4;
+            } else if (cat === 'PPAIS') {
+                divisor = 8;
+            }
             totalMonthlyWeight += catWeight / divisor;
         });
 
@@ -438,7 +443,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             if (catItems.length === 0) return;
 
             const catValue = catItems.reduce((sum, item) => sum + (item.totalValue || 0), 0);
-            const divisor = (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') ? 4 : 12;
+            let divisor = 12;
+            if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') {
+                divisor = 4;
+            } else if (cat === 'PPAIS') {
+                divisor = 8;
+            }
             totalMonthlyValue += catValue / divisor;
         });
 
@@ -518,15 +528,15 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const categoryMonthlyAverages = useMemo(() => {
         const averages: Record<string, number> = {};
         activeCategories.forEach(cat => {
-            const items = acquisitionItems.filter(item => item.category === cat);
-            const total = items.reduce((sum, item) => {
-                const quantity = item.acquiredQuantity || 0;
-                return sum + ((item.unitValue || 0) * quantity);
-            }, 0);
+            // Usar itemData (que consolida contratos reais) em vez de acquisitionItems (planejamento)
+            const items = itemData.filter(item => item.category === cat);
+            const total = items.reduce((sum, item) => sum + (item.totalValue || 0), 0);
             
             let divisor = 12;
             if (cat === 'PERECÍVEIS') {
                 divisor = 4; // Apenas Maio, Junho, Julho, Agosto
+            } else if (cat === 'PPAIS') {
+                divisor = 8; // Maio a Dezembro
             } else {
                 // Média mensal: 4 meses para Jan-Abr, 8 meses para Mai-Dez
                 const currentMonth = new Date().getMonth();
@@ -535,11 +545,14 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             averages[cat] = total / divisor;
         });
         return averages;
-    }, [activeCategories, acquisitionItems]);
+    }, [activeCategories, itemData]);
 
     const getIsActiveMonth = (month: string, category: string) => {
         if (category === 'PERECÍVEIS') {
             return ['Maio', 'Junho', 'Julho', 'Agosto'].includes(month);
+        }
+        if (category === 'PPAIS') {
+            return ['Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].includes(month);
         }
         // Para outras categorias, manter o comportamento de quadrimesters se aplicável
         // ou retornar true se for anual. 
