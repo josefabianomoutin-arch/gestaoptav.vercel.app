@@ -234,43 +234,21 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                     return (
                         <div key={itemName} className="p-3 bg-gray-50 rounded-lg text-sm border">
                             <p className="font-bold text-gray-800 mb-2 uppercase">{itemName}</p>
-                            <table className="w-full text-[10px]">
-                                <thead>
-                                    <tr className="bg-gray-100 text-gray-500 font-black uppercase">
-                                        <th className="p-1 text-left">Mês</th>
-                                        <th className="p-1 text-right">Meta</th>
-                                        <th className="p-1 text-right text-green-600">Real</th>
-                                        <th className="p-1 text-right text-blue-600">Resto</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {itemMonthlyData.map((data, idx) => {
-                                        if (data.isHeader) {
-                                            return (
-                                                <tr key={`header-${idx}`} className="bg-indigo-50">
-                                                    <td colSpan={4} className="p-1 text-center font-black text-indigo-800 text-[9px] uppercase tracking-widest">
-                                                        {data.label}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        }
-                                        if (data.isSummary) {
-                                            return (
-                                                <tr key={`summary-${idx}`} className="bg-blue-100 border-y-2 border-blue-300">
-                                                    <td className="p-2 font-black text-blue-900 uppercase text-[10px] italic">{data.label}</td>
-                                                    <td colSpan={2} className="p-2 text-right text-blue-900 font-black">
-                                                        <div className="text-xs">{formatQuantity(data.deliveredQuantity, data.unit)}</div>
-                                                        <div className="text-[10px] opacity-80">{formatCurrency(data.deliveredValue)}</div>
-                                                    </td>
-                                                    <td className="p-2 text-right text-blue-900 font-black">
-                                                        <div className="bg-blue-600 text-white text-[8px] px-2 py-0.5 rounded-full inline-block uppercase tracking-tighter">Encerrado</div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        }
-
-                                        return (
-                                            <tr key={data.monthNumber} className={`border-t ${data.isPeriod1 ? 'bg-white/50' : 'bg-white'}`}>
+                            
+                            {/* 1º Contrato Table */}
+                            <div className="mb-4">
+                                <table className="w-full text-[10px]">
+                                    <thead>
+                                        <tr className="bg-gray-100 text-gray-500 font-black uppercase">
+                                            <th className="p-1 text-left">Mês</th>
+                                            <th className="p-1 text-right">Meta</th>
+                                            <th className="p-1 text-right text-green-600">Real</th>
+                                            <th className="p-1 text-right text-blue-600">Resto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {itemMonthlyData.filter(d => d.isPeriod1).map((data, idx) => (
+                                            <tr key={data.monthNumber} className="border-t bg-white/50">
                                                 <td className="p-1 font-bold align-top">{data.monthName}</td>
                                                 <td className="p-1 text-right align-top">
                                                     {data.contractedQuantity > 0 ? (
@@ -290,10 +268,63 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                                                     {data.remainingQuantity > 0 ? formatQuantity(data.remainingQuantity, data.unit) : 'OK'}
                                                 </td>
                                             </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                                        ))}
+                                        {itemMonthlyData.filter(d => d.isSummary).map((data, idx) => (
+                                            <tr key={`summary-${idx}`} className="bg-blue-50 border-y-2 border-blue-200">
+                                                <td className="p-2 font-black text-blue-900 uppercase text-[10px] italic">{data.label}</td>
+                                                <td colSpan={2} className="p-2 text-right text-blue-900 font-black">
+                                                    <div className="text-xs">{formatQuantity(data.deliveredQuantity, data.unit)}</div>
+                                                    <div className="text-[10px] opacity-80">{formatCurrency(data.deliveredValue)}</div>
+                                                </td>
+                                                <td className="p-2 text-right text-blue-900 font-black">
+                                                    <div className="bg-blue-600 text-white text-[8px] px-2 py-0.5 rounded-full inline-block uppercase tracking-tighter shadow-sm">Encerrado</div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* 2º Contrato Table */}
+                            <div>
+                                <div className="bg-indigo-50 p-1 text-center font-black text-indigo-800 text-[9px] uppercase tracking-widest mb-1 rounded-md border border-indigo-100">
+                                    Início do 2º Contrato (Maio-Dez)
+                                </div>
+                                <table className="w-full text-[10px]">
+                                    <thead>
+                                        <tr className="bg-gray-100 text-gray-500 font-black uppercase">
+                                            <th className="p-1 text-left">Mês</th>
+                                            <th className="p-1 text-right">Meta</th>
+                                            <th className="p-1 text-right text-green-600">Real</th>
+                                            <th className="p-1 text-right text-blue-600">Resto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {itemMonthlyData.filter(d => !d.isPeriod1 && !d.isHeader && !d.isSummary).map((data, idx) => (
+                                            <tr key={data.monthNumber} className="border-t bg-white">
+                                                <td className="p-1 font-bold align-top">{data.monthName}</td>
+                                                <td className="p-1 text-right align-top">
+                                                    {data.contractedQuantity > 0 ? (
+                                                        <>
+                                                            <div className="font-black">{formatQuantity(data.contractedQuantity, data.unit)}</div>
+                                                            <div className="text-[9px] text-gray-400 font-normal">{formatCurrency(data.contractedValue)}</div>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-gray-300">-</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-1 text-right text-green-600 font-bold align-top">
+                                                    <div>{formatQuantity(data.deliveredQuantity, data.unit)}</div>
+                                                    <div className="text-[9px] text-green-400 font-normal">{formatCurrency(data.deliveredValue)}</div>
+                                                </td>
+                                                <td className={`p-1 text-right font-bold align-top ${data.remainingQuantity > 0 ? 'text-orange-600' : 'text-gray-300'}`}>
+                                                    {data.remainingQuantity > 0 ? formatQuantity(data.remainingQuantity, data.unit) : 'OK'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     );
                 })}
