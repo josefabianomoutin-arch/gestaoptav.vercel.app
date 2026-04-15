@@ -32,7 +32,7 @@ interface AdminInvoicesProps {
     onUpdateInvoiceItems: (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => Promise<{ success: boolean; message?: string }>;
     onUpdateInvoiceUrl: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => Promise<{ success: boolean; message?: string }>;
     onMarkInvoiceAsOpened: (supplierCpf: string, invoiceNumber: string) => Promise<{ success: boolean }>;
-    onManualInvoiceEntry: (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => Promise<{ success: boolean; message?: string }>;
+    onManualInvoiceEntry: (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string, invoiceUrl?: string) => Promise<{ success: boolean; message?: string }>;
     mode?: 'admin' | 'warehouse_entry' | 'warehouse_exit';
     onRegisterExit?: (payload: any) => Promise<{ success: boolean; message: string }>;
 }
@@ -648,9 +648,9 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
         else alert(res.message || 'Erro ao salvar alterações.');
     };
 
-    const handleManualEntrySave = async (cpf: string, date: string, nf: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => {
+    const handleManualEntrySave = async (cpf: string, date: string, nf: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string, invoiceUrl?: string) => {
         setIsSavingEdit(true);
-        const res = await onManualInvoiceEntry(cpf, date, nf, items, barcode, receiptTermNumber, invoiceDate, nl, pd);
+        const res = await onManualInvoiceEntry(cpf, date, nf, items, barcode, receiptTermNumber, invoiceDate, nl, pd, invoiceUrl);
         setIsSavingEdit(false);
         if (res.success) setIsManualModalOpen(false);
         else alert(res.message || 'Erro ao salvar lançamento manual.');
@@ -741,7 +741,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
 
     const getRowColor = (invoice: InvoiceInfo) => {
         if (!invoice.invoiceUrl) return 'hover:bg-gray-50';
-        if (!invoice.opened) return 'bg-red-600 text-white hover:bg-red-700';
+        if (!invoice.opened) return 'bg-red-600 text-white hover:bg-red-700 shadow-inner';
         if (!invoice.nl || !invoice.pd) return 'bg-yellow-50 hover:bg-yellow-100';
         return 'hover:bg-gray-50';
     };
@@ -1203,11 +1203,12 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                     <tr className={`border-b transition-colors ${getRowColor(invoice)}`}>
                                         <td className="p-3 text-center font-mono text-gray-500">{index + 1}</td>
                                         <td className="p-3">
+                                            <div className="flex items-center gap-4">
                                                 <div>
                                                     <div className="flex items-center gap-2">
                                                         <p className={`font-bold uppercase leading-none ${!invoice.opened ? 'text-white' : 'text-gray-800'}`}>{invoice.supplierName}</p>
                                                         {!invoice.opened && (
-                                                            <span className="bg-white text-red-600 text-[10px] font-black px-2 py-0.5 rounded animate-pulse">
+                                                            <span className="bg-white text-red-600 text-[10px] font-black px-2 py-1 rounded shadow-lg animate-pulse border-2 border-red-100">
                                                                 ATENÇÃO NOVO CADASTRO
                                                             </span>
                                                         )}
@@ -1332,8 +1333,6 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                 )}
                                             </div>
                                         </td>
-           </div>
-                                        </td>
                                     </tr>
                                     {isExpanded && (
                                         <tr className="bg-gray-100">
@@ -1405,6 +1404,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                     onSave={handleExitSave} 
                     isSaving={isSavingEdit} 
                     onConfirmRequest={(config) => setConfirmConfig({ ...config, isOpen: true, onConfirm: () => { config.onConfirm(); setConfirmConfig(prev => ({ ...prev, isOpen: false })); } })}
+                    allInvoices={allInvoices}
                 />
             )}
 
@@ -1428,20 +1428,41 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
 interface ManualInvoiceModalProps {
     suppliers: Supplier[];
     onClose: () => void;
-    onSave: (cpf: string, date: string, nf: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => void;
+    onSave: (cpf: string, date: string, nf: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string, invoiceUrl?: string) => void;
     isSaving: boolean;
 }
 
 const ManualInvoiceModal: React.FC<ManualInvoiceModalProps> = ({ suppliers, onClose, onSave, isSaving }) => {
     const [selectedCpf, setSelectedCpf] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]); // NOVO
+    const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
     const [nf, setNf] = useState('');
     const [barcode, setBarcode] = useState('');
     const [receiptTermNumber, setReceiptTermNumber] = useState('');
-    const [nl, setNl] = useState(''); // NOVO
-    const [pd, setPd] = useState(''); // NOVO
+    const [nl, setNl] = useState('');
+    const [pd, setPd] = useState('');
+    const [invoiceUrl, setInvoiceUrl] = useState('');
+    const [isUploading, setIsUploading] = useState(false);
     const [items, setItems] = useState<{ id: string; name: string; kg: string; lot: string; exp: string }[]>([{ id: 'init-1', name: '', kg: '', lot: '', exp: '' }]);
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        setIsUploading(true);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const base64 = event.target?.result as string;
+            setInvoiceUrl(base64);
+            setIsUploading(false);
+            toast.success('PDF anexado com sucesso!');
+        };
+        reader.onerror = () => {
+            setIsUploading(false);
+            toast.error('Erro ao ler arquivo.');
+        };
+        reader.readAsDataURL(file);
+    };
 
     React.useEffect(() => {
         const cleanBarcode = barcode.replace(/\D/g, '');
@@ -1474,7 +1495,7 @@ const ManualInvoiceModal: React.FC<ManualInvoiceModalProps> = ({ suppliers, onCl
             return { name: it.name, kg, value: kg * contract.valuePerKg, lotNumber: it.lot, expirationDate: it.exp };
         }).filter(Boolean) as { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[];
         if (finalItems.length === 0) return alert('Adicione pelo menos um item válido.');
-        onSave(selectedCpf, date, nf, finalItems, barcode, receiptTermNumber, invoiceDate, nl, pd);
+        onSave(selectedCpf, date, nf, finalItems, barcode, receiptTermNumber, invoiceDate, nl, pd, invoiceUrl);
     };
 
     const totalValue = useMemo(() => {
@@ -1526,6 +1547,29 @@ const ManualInvoiceModal: React.FC<ManualInvoiceModalProps> = ({ suppliers, onCl
                             <div className="flex gap-1">
                                 <input type="text" value={nl} onChange={e => setNl(e.target.value)} placeholder="NL" className="w-1/2 h-7 px-2 border rounded-lg text-[10px] outline-none focus:ring-2 focus:ring-teal-400" />
                                 <input type="text" value={pd} onChange={e => setPd(e.target.value)} placeholder="PD" className="w-1/2 h-7 px-2 border rounded-lg text-[10px] outline-none focus:ring-2 focus:ring-teal-400" />
+                            </div>
+                        </div>
+                        <div className="space-y-0.5 md:col-span-2">
+                            <label className="text-[7px] font-black text-gray-400 uppercase ml-1">Anexar PDF da Nota</label>
+                            <div className="flex gap-2 items-center">
+                                <input 
+                                    type="file" 
+                                    accept="application/pdf" 
+                                    onChange={handleFileUpload}
+                                    className="hidden" 
+                                    id="manual-pdf-upload"
+                                />
+                                <label 
+                                    htmlFor="manual-pdf-upload"
+                                    className={`flex-1 flex items-center justify-center gap-2 h-7 px-3 border-2 border-dashed rounded-lg text-[9px] font-black uppercase cursor-pointer transition-all ${invoiceUrl ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-200 text-gray-500 hover:border-teal-300 hover:text-teal-600'}`}
+                                >
+                                    {isUploading ? 'Enviando...' : invoiceUrl ? '✓ PDF Anexado' : '+ Selecionar PDF'}
+                                </label>
+                                {invoiceUrl && (
+                                    <button type="button" onClick={() => setInvoiceUrl('')} className="text-red-500 hover:text-red-700 p-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -1819,9 +1863,10 @@ interface ExitInvoiceModalProps {
     onSave: (outboundNf: string, exitDate: string, itemsToExit: { name: string; kg: number; lotNumber?: string; expirationDate?: string }[]) => void;
     isSaving: boolean;
     onConfirmRequest: (config: { title: string; message: string; onConfirm: () => void; variant?: 'danger' | 'warning' | 'info' }) => void;
+    allInvoices: InvoiceInfo[];
 }
 
-const ExitInvoiceModal: React.FC<ExitInvoiceModalProps> = ({ invoice, supplier, onClose, onSave, isSaving, onConfirmRequest }) => {
+const ExitInvoiceModal: React.FC<ExitInvoiceModalProps> = ({ invoice, supplier, onClose, onSave, isSaving, onConfirmRequest, allInvoices }) => {
     const [items, setItems] = useState((invoice.items || []).filter(it => (it.kg - (it.exitedQuantity || 0)) > 0.001).map((it, idx) => ({ 
         id: `exit-${idx}`, 
         name: it.name, 
@@ -1833,6 +1878,21 @@ const ExitInvoiceModal: React.FC<ExitInvoiceModalProps> = ({ invoice, supplier, 
     const [outboundNf, setOutboundNf] = useState('');
     const [exitDate, setExitDate] = useState(new Date().toISOString().split('T')[0]);
     const [itemSearch, setItemSearch] = useState('');
+
+    const olderInvoicesWithSameItems = useMemo(() => {
+        if (!allInvoices || !invoice) return [];
+        const currentItems = items.map(it => it.name);
+        return allInvoices.filter(inv => {
+            if (inv.id === invoice.id) return false;
+            // Compare by registration timestamp to find older invoices
+            if (inv.registrationTimestamp >= invoice.registrationTimestamp) return false;
+            // Check if it has any of the same items with balance
+            return inv.items.some(it => 
+                currentItems.includes(it.name) && 
+                (it.kg - (it.exitedQuantity || 0)) > 0.001
+            );
+        });
+    }, [allInvoices, invoice, items]);
 
     const filteredItems = useMemo(() => {
         return items.filter(it => it.name.toLowerCase().includes(itemSearch.toLowerCase()));
@@ -1894,6 +1954,17 @@ const ExitInvoiceModal: React.FC<ExitInvoiceModalProps> = ({ invoice, supplier, 
                 </div>
 
                 <form onSubmit={handleFormSubmit} className="flex-1 flex flex-col overflow-hidden">
+                    {olderInvoicesWithSameItems.length > 0 && (
+                        <div className="mb-3 bg-amber-50 border-2 border-amber-200 p-3 rounded-2xl flex items-center gap-3 animate-pulse">
+                            <div className="bg-amber-100 p-2 rounded-xl text-amber-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                            </div>
+                            <div>
+                                <p className="text-[11px] font-black text-amber-800 uppercase tracking-tight">Atenção: Conferência FIFO</p>
+                                <p className="text-[10px] text-amber-700 font-medium">Existem {olderInvoicesWithSameItems.length} nota(s) mais antiga(s) com saldo destes itens. Priorize a saída das notas mais antigas.</p>
+                            </div>
+                        </div>
+                    )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3 shrink-0">
                         <div className="bg-red-50 p-2 rounded-xl border-2 border-red-100 space-y-0.5 shadow-sm">
                             <label className="text-[8px] font-black text-red-600 uppercase tracking-widest ml-1">REQUISIÇÃO DO SISTEMA SAM</label>

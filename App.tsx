@@ -1323,7 +1323,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleManualInvoiceEntry = async (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => {
+  const handleManualInvoiceEntry = async (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string, invoiceUrl?: string) => {
     let supplierName = '';
     const mainSupplier = suppliers.find(s => s.cpf === supplierCpf);
     if (mainSupplier) {
@@ -1433,6 +1433,7 @@ const App: React.FC = () => {
                   if (nl !== undefined) newDelivery.nl = nl;
                   if (pd !== undefined) newDelivery.pd = pd;
                   if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
+                  if (invoiceUrl !== undefined) newDelivery.invoiceUrl = invoiceUrl;
 
                   deliveries.push(newDelivery);
                 });
