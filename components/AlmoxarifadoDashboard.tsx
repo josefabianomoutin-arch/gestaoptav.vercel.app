@@ -670,7 +670,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
                         {receiptData ? (
                             <div className="border-2 border-dashed border-gray-200 rounded-3xl p-8 bg-white shadow-inner max-h-[500px] overflow-y-auto custom-scrollbar">
-                                <div className="max-w-3xl mx-auto space-y-8 text-gray-800 font-serif">
+                                <div className="max-w-3xl mx-auto space-y-8 text-black font-serif">
                                     <div className="text-center font-bold uppercase border-b-2 border-black pb-4">
                                         ATESTAMOS O RECEBIMENTO DOS MATERIAIS/SERVIÇOS RELACIONADOS, ENTREGA PELA EMPRESA:
                                     </div>

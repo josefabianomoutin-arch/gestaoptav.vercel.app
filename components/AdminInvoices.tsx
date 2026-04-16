@@ -741,7 +741,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
 
     const getRowColor = (invoice: InvoiceInfo) => {
         if (!invoice.invoiceUrl) return 'hover:bg-gray-50';
-        if (!invoice.opened) return 'bg-red-600 text-white hover:bg-red-700 shadow-inner';
+        if (!invoice.opened) return 'bg-red-50 text-black hover:bg-red-100 shadow-inner border-l-4 border-red-600';
         if (!invoice.nl || !invoice.pd) return 'bg-yellow-50 hover:bg-yellow-100';
         return 'hover:bg-gray-50';
     };
@@ -829,7 +829,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                 </div>
                 <div ref={bottomScrollRef} className="overflow-x-auto custom-scrollbar">
                     <table ref={tableRef} className="w-full text-sm">
-                        <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                        <thead className="bg-gray-50 text-xs uppercase text-black">
                         <tr>
                             {activeSubTab === 'all' ? (
                                 <>
@@ -871,40 +871,40 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                             <div className="flex items-center gap-4">
                                                                 <div>
                                                                     <div className="flex items-center gap-2">
-                                                                        <p className={`font-bold uppercase leading-none ${!invoice.opened ? 'text-white' : 'text-gray-800'}`}>{invoice.supplierName}</p>
+                                                                        <p className={`font-bold uppercase leading-none ${!invoice.opened ? 'text-black' : 'text-black'}`}>{invoice.supplierName}</p>
                                                                         {!invoice.opened && (
-                                                                            <span className="bg-white text-red-600 text-[10px] font-black px-2 py-0.5 rounded animate-pulse">
+                                                                            <span className="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded animate-pulse">
                                                                                 ATENÇÃO NOVO CADASTRO
                                                                             </span>
                                                                         )}
                                                                     </div>
-                                                                    <p className={`text-[10px] font-mono mt-1 ${!invoice.opened ? 'text-red-100' : 'text-gray-400'}`}>{invoice.supplierCpf}</p>
+                                                                    <p className={`text-[10px] font-mono mt-1 ${!invoice.opened ? 'text-black' : 'text-black'}`}>{invoice.supplierCpf}</p>
                                                                 </div>
                                                                 {invoice.items && invoice.items.some((it: any) => (it.exitedQuantity || 0) > 0) && (
-                                                                    <div className={`${!invoice.opened ? 'bg-white/20 border-white/30' : 'bg-amber-50 border-amber-200'} border-2 px-4 py-2 rounded-xl shadow-sm`}>
-                                                                        <p className={`text-[9px] font-black uppercase tracking-widest leading-none mb-1 ${!invoice.opened ? 'text-white' : 'text-amber-600'}`}>Saldo Restante</p>
-                                                                        <p className={`text-sm font-black leading-none uppercase ${!invoice.opened ? 'text-white' : 'text-amber-700'}`}>
+                                                                    <div className={`${!invoice.opened ? 'bg-red-100 border-red-200' : 'bg-amber-50 border-amber-200'} border-2 px-4 py-2 rounded-xl shadow-sm`}>
+                                                                        <p className={`text-[9px] font-black uppercase tracking-widest leading-none mb-1 ${!invoice.opened ? 'text-black' : 'text-amber-600'}`}>Saldo Restante</p>
+                                                                        <p className={`text-sm font-black leading-none uppercase ${!invoice.opened ? 'text-black' : 'text-amber-700'}`}>
                                                                             {(invoice.items || []).reduce((acc: number, it: any) => acc + Math.max(0, (it.kg || 0) - (it.exitedQuantity || 0)), 0).toFixed(2).replace('.', ',')} KG
                                                                         </p>
                                                                     </div>
                                                                 )}
                                                             </div>
                                                         </td>
-                                                        <td className={`p-3 font-mono ${!invoice.opened ? 'text-white' : ''}`}>
+                                                        <td className={`p-3 font-mono ${!invoice.opened ? 'text-black' : 'text-black'}`}>
                                                             <div>{formatDate(invoice.date)}</div>
                                                             {invoice.invoiceDate && invoice.invoiceDate !== invoice.date && (
-                                                                <div className={`text-[9px] font-bold uppercase mt-1 ${!invoice.opened ? 'text-red-100' : 'text-amber-600'}`}>
+                                                                <div className={`text-[9px] font-bold uppercase mt-1 ${!invoice.opened ? 'text-black' : 'text-amber-600'}`}>
                                                                     NF: {formatDate(invoice.invoiceDate)}
                                                                 </div>
                                                             )}
                                                         </td>
-                                                        <td className={`p-3 font-mono ${!invoice.opened ? 'text-white' : ''}`}>
+                                                        <td className={`p-3 font-mono ${!invoice.opened ? 'text-black' : 'text-black'}`}>
                                                             <div className="flex items-center gap-2">
                                                                 {invoice.invoiceNumber}
                                                                 {invoice.invoiceUrl && (
                                                                     <button 
                                                                         onClick={() => handleOpenPdf(invoice.invoiceUrl!, invoice)}
-                                                                        className={`text-[10px] px-2 py-1 rounded-md font-bold transition-colors flex items-center gap-1 ${!invoice.opened ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                                                                        className={`text-[10px] px-2 py-1 rounded-md font-bold transition-colors flex items-center gap-1 ${!invoice.opened ? 'bg-red-200 text-black hover:bg-red-300' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
                                                                         title="Ver PDF"
                                                                     >
                                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
@@ -913,42 +913,42 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                                 )}
                                                             </div>
                                                             {invoice.receiptTermNumber && (
-                                                                <div className={`text-[9px] mt-1 font-bold uppercase ${!invoice.opened ? 'text-red-100' : 'text-teal-600'}`}>
+                                                                <div className={`text-[9px] mt-1 font-bold uppercase ${!invoice.opened ? 'text-black' : 'text-teal-600'}`}>
                                                                     NOTA DE EMPENHO: {invoice.receiptTermNumber}
                                                                 </div>
                                                             )}
                                                             {invoice.nl && (
-                                                                <div className={`text-[9px] mt-1 font-bold uppercase ${!invoice.opened ? 'text-red-100' : 'text-blue-600'}`}>
+                                                                <div className={`text-[9px] mt-1 font-bold uppercase ${!invoice.opened ? 'text-black' : 'text-blue-600'}`}>
                                                                     NL: {invoice.nl}
                                                                 </div>
                                                             )}
                                                             {invoice.pd && (
-                                                                <div className={`text-[9px] mt-1 font-bold uppercase ${!invoice.opened ? 'text-red-100' : 'text-purple-600'}`}>
+                                                                <div className={`text-[9px] mt-1 font-bold uppercase ${!invoice.opened ? 'text-black' : 'text-purple-600'}`}>
                                                                     PD: {invoice.pd}
                                                                 </div>
                                                             )}
                                                             {invoice.barcode && (
-                                                                <div className={`text-[9px] mt-1 font-mono truncate max-w-[150px] ${!invoice.opened ? 'text-red-200' : 'text-gray-400'}`} title={invoice.barcode}>
+                                                                <div className={`text-[9px] mt-1 font-mono truncate max-w-[150px] ${!invoice.opened ? 'text-black' : 'text-gray-400'}`} title={invoice.barcode}>
                                                                     CHAVE: {invoice.barcode}
                                                                 </div>
                                                             )}
                                                         </td>
-                                                        <td className={`p-3 text-right font-mono font-bold ${!invoice.opened ? 'text-white' : 'text-green-700'}`}>{formatCurrency(invoice.totalValue)}</td>
+                                                        <td className={`p-3 text-right font-mono font-bold ${!invoice.opened ? 'text-black' : 'text-green-700'}`}>{formatCurrency(invoice.totalValue)}</td>
                                                         <td className="p-3 text-center">
-                                                            <button onClick={() => setExpandedInvoiceId(isExpanded ? null : invoice.id)} className={`p-2 rounded-full transition-colors ${!invoice.opened ? 'hover:bg-white/20' : 'hover:bg-gray-200'}`} title="Ver itens">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''} ${!invoice.opened ? 'text-white' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                            <button onClick={() => setExpandedInvoiceId(isExpanded ? null : invoice.id)} className={`p-2 rounded-full transition-colors ${!invoice.opened ? 'hover:bg-red-200' : 'hover:bg-gray-200'}`} title="Ver itens">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''} ${!invoice.opened ? 'text-black' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                                             </button>
                                                         </td>
                                                         <td className="p-3 text-center">
                                                             <div className="flex items-center justify-center gap-2">
                                                                 {(invoice.items || []).every((item: any) => item.exitedQuantity >= item.kg) ? (
-                                                                    <span className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm ${!invoice.opened ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                                                    <span className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm ${!invoice.opened ? 'bg-red-200 text-black' : 'bg-gray-100 text-gray-500'}`}>
                                                                         Saída Concluída
                                                                     </span>
                                                                 ) : (
                                                                     <button 
                                                                         onClick={() => handleRegisterExitClick(invoice)}
-                                                                        className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors shadow-md ${!invoice.opened ? 'bg-white text-red-600 hover:bg-red-50' : 'bg-red-600 text-white hover:bg-red-700'}`}
+                                                                        className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors shadow-md ${!invoice.opened ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-600 text-white hover:bg-red-700'}`}
                                                                         title="Registrar Saída"
                                                                     >
                                                                         Registrar Saída
@@ -968,7 +968,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                                             variant: 'danger'
                                                                         });
                                                                     }} 
-                                                                    className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors ${!invoice.opened ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-red-100 text-red-700 hover:bg-red-200'}`} 
+                                                                    className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors ${!invoice.opened ? 'bg-red-200 text-black hover:bg-red-300' : 'bg-red-100 text-red-700 hover:bg-red-200'}`} 
                                                                     title="Excluir"
                                                                 >
                                                                     Excluir
@@ -980,15 +980,15 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                         <tr className="bg-gray-100">
                                                             <td colSpan={7} className="p-4">
                                                                 <div className="bg-white p-4 rounded-lg shadow-inner">
-                                                                    <h4 className="text-xs font-bold uppercase text-gray-600 mb-2">Detalhamento da NF {invoice.invoiceNumber}</h4>
+                                                                    <h4 className="text-xs font-bold uppercase text-black mb-2">Detalhamento da NF {invoice.invoiceNumber}</h4>
                                                                     <ul className="space-y-1 text-xs">
                                                                         {(invoice.items || []).length > 0 ? (invoice.items || []).map((item: any, index) => {
                                                                             const remaining = Math.max(0, item.kg - (item.exitedQuantity || 0));
                                                                             return (
                                                                                 <li key={index} className="flex justify-between items-center p-2 border-b last:border-b-0">
-                                                                                    <span className="font-semibold text-gray-700 uppercase flex items-center gap-3">
+                                                                                    <span className="font-semibold text-black uppercase flex items-center gap-3">
                                                                                         {item.name} 
-                                                                                        <span className="text-gray-400 font-normal">({(item.kg || 0).toFixed(2).replace('.',',')} Kg)</span>
+                                                                                        <span className="text-black font-normal">({(item.kg || 0).toFixed(2).replace('.',',')} Kg)</span>
                                                                                         {item.exitedQuantity > 0 && (
                                                                                             <div className="flex items-center gap-2">
                                                                                                 <span className="text-[9px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
@@ -1027,74 +1027,74 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                             <div className="flex items-center gap-4">
                                                                 <div>
                                                                     <div className="flex items-center gap-2">
-                                                                        <p className={`font-bold uppercase leading-none ${!invoice.opened ? 'text-white' : 'text-gray-800'}`}>{invoice.supplierName}</p>
+                                                                        <p className={`font-bold uppercase leading-none ${!invoice.opened ? 'text-black' : 'text-black'}`}>{invoice.supplierName}</p>
                                                                         {!invoice.opened && (
-                                                                            <span className="bg-white text-red-600 text-[10px] font-black px-2 py-0.5 rounded animate-pulse">
+                                                                            <span className="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded animate-pulse">
                                                                                 ATENÇÃO NOVO CADASTRO
                                                                             </span>
                                                                         )}
                                                                     </div>
-                                                                    <p className={`text-[10px] font-mono mt-1 ${!invoice.opened ? 'text-red-100' : 'text-gray-400'}`}>{invoice.supplierCpf}</p>
+                                                                    <p className={`text-[10px] font-mono mt-1 ${!invoice.opened ? 'text-black' : 'text-black'}`}>{invoice.supplierCpf}</p>
                                                                 </div>
                                                                 {invoice.items && invoice.items.some((it: any) => (it.exitedQuantity || 0) > 0) && (
-                                                                    <div className={`${!invoice.opened ? 'bg-white/20 border-white/30' : 'bg-amber-50 border-amber-200'} border-2 px-4 py-2 rounded-xl shadow-sm`}>
-                                                                        <p className={`text-[9px] font-black uppercase tracking-widest leading-none mb-1 ${!invoice.opened ? 'text-white' : 'text-amber-600'}`}>Saldo Restante</p>
-                                                                        <p className={`text-sm font-black leading-none uppercase ${!invoice.opened ? 'text-white' : 'text-amber-700'}`}>
+                                                                    <div className={`${!invoice.opened ? 'bg-red-100 border-red-200' : 'bg-amber-50 border-amber-200'} border-2 px-4 py-2 rounded-xl shadow-sm`}>
+                                                                        <p className={`text-[9px] font-black uppercase tracking-widest leading-none mb-1 ${!invoice.opened ? 'text-black' : 'text-amber-600'}`}>Saldo Restante</p>
+                                                                        <p className={`text-sm font-black leading-none uppercase ${!invoice.opened ? 'text-black' : 'text-amber-700'}`}>
                                                                             {(invoice.items || []).reduce((acc: number, it: any) => acc + Math.max(0, (it.kg || 0) - (it.exitedQuantity || 0)), 0).toFixed(2).replace('.', ',')} KG
                                                                         </p>
                                                                     </div>
                                                                 )}
                                                             </div>
                                                         </td>
-                                                        <td className={`p-3 font-mono ${!invoice.opened ? 'text-white' : ''}`}>
+                                                        <td className={`p-3 font-mono ${!invoice.opened ? 'text-black' : 'text-black'}`}>
                                                             <div>{formatDate(invoice.date)}</div>
                                                             {invoice.invoiceDate && invoice.invoiceDate !== invoice.date && (
-                                                                <div className={`text-[9px] font-bold uppercase mt-1 ${!invoice.opened ? 'text-red-100' : 'text-amber-600'}`}>
+                                                                <div className={`text-[9px] font-bold uppercase mt-1 ${!invoice.opened ? 'text-black' : 'text-amber-600'}`}>
                                                                     NF: {formatDate(invoice.invoiceDate)}
                                                                 </div>
                                                             )}
                                                         </td>
-                                                        <td className={`p-3 font-mono ${!invoice.opened ? 'text-white' : ''}`}>
+                                                        <td className={`p-3 font-mono ${!invoice.opened ? 'text-black' : 'text-black'}`}>
                                                             <div className="flex items-center gap-2">
                                                                 {invoice.invoiceNumber}
                                                             </div>
                                                             {invoice.receiptTermNumber && (
-                                                                <div className={`text-[9px] mt-1 font-bold uppercase ${!invoice.opened ? 'text-red-100' : 'text-teal-600'}`}>
+                                                                <div className={`text-[9px] mt-1 font-bold uppercase ${!invoice.opened ? 'text-black' : 'text-teal-600'}`}>
                                                                     NOTA DE EMPENHO: {invoice.receiptTermNumber}
                                                                 </div>
                                                             )}
                                                             {invoice.nl && (
-                                                                <div className={`text-[9px] mt-1 font-bold uppercase ${!invoice.opened ? 'text-red-100' : 'text-blue-600'}`}>
+                                                                <div className={`text-[9px] mt-1 font-bold uppercase ${!invoice.opened ? 'text-black' : 'text-blue-600'}`}>
                                                                     NL: {invoice.nl}
                                                                 </div>
                                                             )}
                                                             {invoice.pd && (
-                                                                <div className={`text-[9px] mt-1 font-bold uppercase ${!invoice.opened ? 'text-red-100' : 'text-purple-600'}`}>
+                                                                <div className={`text-[9px] mt-1 font-bold uppercase ${!invoice.opened ? 'text-black' : 'text-purple-600'}`}>
                                                                     PD: {invoice.pd}
                                                                 </div>
                                                             )}
                                                             {invoice.barcode && (
-                                                                <div className={`text-[9px] mt-1 font-mono truncate max-w-[150px] ${!invoice.opened ? 'text-red-200' : 'text-gray-400'}`} title={invoice.barcode}>
+                                                                <div className={`text-[9px] mt-1 font-mono truncate max-w-[150px] ${!invoice.opened ? 'text-black' : 'text-gray-400'}`} title={invoice.barcode}>
                                                                     CHAVE: {invoice.barcode}
                                                                 </div>
                                                             )}
                                                         </td>
-                                                        <td className={`p-3 text-right font-mono font-bold ${!invoice.opened ? 'text-white' : 'text-green-700'}`}>{formatCurrency(invoice.totalValue)}</td>
+                                                        <td className={`p-3 text-right font-mono font-bold ${!invoice.opened ? 'text-black' : 'text-green-700'}`}>{formatCurrency(invoice.totalValue)}</td>
                                                         <td className="p-3 text-center">
-                                                            <button onClick={() => setExpandedInvoiceId(isExpanded ? null : invoice.id)} className={`p-2 rounded-full transition-colors ${!invoice.opened ? 'hover:bg-white/20' : 'hover:bg-gray-200'}`} title="Ver itens">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''} ${!invoice.opened ? 'text-white' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                            <button onClick={() => setExpandedInvoiceId(isExpanded ? null : invoice.id)} className={`p-2 rounded-full transition-colors ${!invoice.opened ? 'hover:bg-red-200' : 'hover:bg-gray-200'}`} title="Ver itens">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''} ${!invoice.opened ? 'text-black' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                                             </button>
                                                         </td>
                                                         <td className="p-3 text-center">
                                                             <div className="flex items-center justify-center gap-2">
                                                                 {(invoice.items || []).every((item: any) => item.exitedQuantity >= item.kg) ? (
-                                                                    <span className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm ${!invoice.opened ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                                                    <span className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm ${!invoice.opened ? 'bg-red-200 text-black' : 'bg-gray-100 text-gray-500'}`}>
                                                                         Saída Concluída
                                                                     </span>
                                                                 ) : (
                                                                     <button 
                                                                         onClick={() => handleRegisterExitClick(invoice)}
-                                                                        className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors shadow-md ${!invoice.opened ? 'bg-white text-red-600 hover:bg-red-50' : 'bg-red-600 text-white hover:bg-red-700'}`}
+                                                                        className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors shadow-md ${!invoice.opened ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-600 text-white hover:bg-red-700'}`}
                                                                         title="Registrar Saída"
                                                                     >
                                                                         Registrar Saída
@@ -1114,7 +1114,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                                             variant: 'danger'
                                                                         });
                                                                     }} 
-                                                                    className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors ${!invoice.opened ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-red-100 text-red-700 hover:bg-red-200'}`} 
+                                                                    className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors ${!invoice.opened ? 'bg-red-200 text-black hover:bg-red-300' : 'bg-red-100 text-red-700 hover:bg-red-200'}`} 
                                                                     title="Excluir"
                                                                 >
                                                                     Excluir
@@ -1126,15 +1126,15 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                         <tr className="bg-gray-100">
                                                             <td colSpan={7} className="p-4">
                                                                 <div className="bg-white p-4 rounded-lg shadow-inner">
-                                                                    <h4 className="text-xs font-bold uppercase text-gray-600 mb-2">Detalhamento da NF {invoice.invoiceNumber}</h4>
+                                                                    <h4 className="text-xs font-bold uppercase text-black mb-2">Detalhamento da NF {invoice.invoiceNumber}</h4>
                                                                     <ul className="space-y-1 text-xs">
                                                                         {(invoice.items || []).length > 0 ? (invoice.items || []).map((item: any, index) => {
                                                                             const remaining = Math.max(0, item.kg - (item.exitedQuantity || 0));
                                                                             return (
                                                                                 <li key={index} className="flex justify-between items-center p-2 border-b last:border-b-0">
-                                                                                    <span className="font-semibold text-gray-700 uppercase flex items-center gap-3">
+                                                                                    <span className="font-semibold text-black uppercase flex items-center gap-3">
                                                                                         {item.name} 
-                                                                                        <span className="text-gray-400 font-normal">({(item.kg || 0).toFixed(2).replace('.',',')} Kg)</span>
+                                                                                        <span className="text-black font-normal">({(item.kg || 0).toFixed(2).replace('.',',')} Kg)</span>
                                                                                         {item.exitedQuantity > 0 && (
                                                                                             <div className="flex items-center gap-2">
                                                                                                 <span className="text-[9px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
@@ -1206,40 +1206,40 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                             <div className="flex items-center gap-4">
                                                 <div>
                                                     <div className="flex items-center gap-2">
-                                                        <p className={`font-bold uppercase leading-none ${!invoice.opened ? 'text-white' : 'text-gray-800'}`}>{invoice.supplierName}</p>
+                                                        <p className={`font-bold uppercase leading-none ${!invoice.opened ? 'text-black' : 'text-black'}`}>{invoice.supplierName}</p>
                                                         {!invoice.opened && (
-                                                            <span className="bg-white text-red-600 text-[10px] font-black px-2 py-1 rounded shadow-lg animate-pulse border-2 border-red-100">
+                                                            <span className="bg-red-600 text-white text-[10px] font-black px-2 py-1 rounded shadow-lg animate-pulse border-2 border-red-100">
                                                                 ATENÇÃO NOVO CADASTRO
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <p className={`text-[10px] font-mono mt-1 ${!invoice.opened ? 'text-red-100' : 'text-gray-400'}`}>{invoice.supplierCpf}</p>
+                                                    <p className={`text-[10px] font-mono mt-1 ${!invoice.opened ? 'text-black' : 'text-black'}`}>{invoice.supplierCpf}</p>
                                                 </div>
                                                 {invoice.items && invoice.items.some((it: any) => (it.exitedQuantity || 0) > 0) && (
-                                                    <div className={`${!invoice.opened ? 'bg-white/20 border-white/30' : 'bg-amber-50 border-amber-200'} border px-2 py-1 rounded-lg`}>
-                                                        <span className={`text-[8px] font-black uppercase mr-2 ${!invoice.opened ? 'text-white' : 'text-amber-600'}`}>Saldo:</span>
-                                                        <span className={`text-xs font-black uppercase ${!invoice.opened ? 'text-white' : 'text-amber-700'}`}>
+                                                    <div className={`${!invoice.opened ? 'bg-red-100 border-red-200' : 'bg-amber-50 border-amber-200'} border px-2 py-1 rounded-lg`}>
+                                                        <span className={`text-[8px] font-black uppercase mr-2 ${!invoice.opened ? 'text-black' : 'text-amber-600'}`}>Saldo:</span>
+                                                        <span className={`text-xs font-black uppercase ${!invoice.opened ? 'text-black' : 'text-amber-700'}`}>
                                                             {(invoice.items || []).reduce((acc: number, it: any) => acc + Math.max(0, (it.kg || 0) - (it.exitedQuantity || 0)), 0).toFixed(2).replace('.', ',')} KG
                                                         </span>
                                                     </div>
                                                 )}
                                             </div>
                                         </td>
-                                        <td className={`p-3 font-mono ${!invoice.opened ? 'text-white' : ''}`}>
+                                        <td className={`p-3 font-mono ${!invoice.opened ? 'text-black' : 'text-black'}`}>
                                             <div>{formatDate(invoice.date)}</div>
                                             {invoice.invoiceDate && invoice.invoiceDate !== invoice.date && (
-                                                <div className={`text-[9px] font-bold uppercase mt-1 ${!invoice.opened ? 'text-red-100' : 'text-amber-600'}`}>
+                                                <div className={`text-[9px] font-bold uppercase mt-1 ${!invoice.opened ? 'text-black' : 'text-amber-600'}`}>
                                                     NF: {formatDate(invoice.invoiceDate)}
                                                 </div>
                                             )}
                                         </td>
-                                        <td className={`p-3 font-mono ${!invoice.opened ? 'text-white' : ''}`}>
+                                        <td className={`p-3 font-mono ${!invoice.opened ? 'text-black' : 'text-black'}`}>
                                             <div className="flex items-center gap-2">
                                                 {invoice.invoiceNumber}
                                                 {invoice.invoiceUrl && (
                                                     <button 
                                                         onClick={() => handleOpenPdf(invoice.invoiceUrl!, invoice)}
-                                                        className={`text-[10px] px-2 py-1 rounded-md font-bold transition-colors flex items-center gap-1 ${!invoice.opened ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                                                        className={`text-[10px] px-2 py-1 rounded-md font-bold transition-colors flex items-center gap-1 ${!invoice.opened ? 'bg-red-200 text-black hover:bg-red-300' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
                                                         title="Ver PDF"
                                                     >
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
@@ -1248,33 +1248,33 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                 )}
                                             </div>
                                             {invoice.receiptTermNumber && (
-                                                <div className={`text-[9px] mt-1 font-bold uppercase ${!invoice.opened ? 'text-red-100' : 'text-teal-600'}`}>
+                                                <div className={`text-[9px] mt-1 font-bold uppercase ${!invoice.opened ? 'text-black' : 'text-teal-600'}`}>
                                                     NOTA DE EMPENHO: {invoice.receiptTermNumber}
                                                 </div>
                                             )}
                                             {invoice.barcode && (
-                                                <div className={`text-[9px] mt-1 font-mono truncate max-w-[150px] ${!invoice.opened ? 'text-red-200' : 'text-gray-400'}`} title={invoice.barcode}>
+                                                <div className={`text-[9px] mt-1 font-mono truncate max-w-[150px] ${!invoice.opened ? 'text-black' : 'text-gray-400'}`} title={invoice.barcode}>
                                                     CHAVE: {invoice.barcode}
                                                 </div>
                                             )}
                                         </td>
-                                        <td className={`p-3 text-right font-mono font-bold ${!invoice.opened ? 'text-white' : 'text-green-700'}`}>{formatCurrency(invoice.totalValue)}</td>
+                                        <td className={`p-3 text-right font-mono font-bold ${!invoice.opened ? 'text-black' : 'text-green-700'}`}>{formatCurrency(invoice.totalValue)}</td>
                                         <td className="p-3 text-center">
-                                            <button onClick={() => setExpandedInvoiceId(isExpanded ? null : invoice.id)} className={`p-2 rounded-full transition-colors ${!invoice.opened ? 'hover:bg-white/20' : 'hover:bg-gray-200'}`} title="Ver itens">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''} ${!invoice.opened ? 'text-white' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                            <button onClick={() => setExpandedInvoiceId(isExpanded ? null : invoice.id)} className={`p-2 rounded-full transition-colors ${!invoice.opened ? 'hover:bg-red-200' : 'hover:bg-gray-200'}`} title="Ver itens">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''} ${!invoice.opened ? 'text-black' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                             </button>
                                         </td>
                                         <td className="p-3 text-center">
                                             <div className="flex items-center justify-center gap-2">
                                                 {mode === 'warehouse_exit' ? (
                                                     (invoice.items || []).every((item: any) => item.exitedQuantity >= item.kg) ? (
-                                                        <span className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm ${!invoice.opened ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                                        <span className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm ${!invoice.opened ? 'bg-red-200 text-black' : 'bg-gray-100 text-gray-500'}`}>
                                                             Saída Concluída
                                                         </span>
                                                     ) : (
                                                         <button 
                                                             onClick={() => handleRegisterExitClick(invoice)}
-                                                            className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors shadow-md ${!invoice.opened ? 'bg-white text-red-600 hover:bg-red-50' : 'bg-red-600 text-white hover:bg-red-700'}`}
+                                                            className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors shadow-md ${!invoice.opened ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-600 text-white hover:bg-red-700'}`}
                                                             title="Registrar Saída"
                                                         >
                                                             Registrar Saída
@@ -1284,14 +1284,14 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                     <>
                                                         <button 
                                                             onClick={() => handlePrintLabels([invoice])}
-                                                            className={`p-2 rounded-lg transition-colors ${!invoice.opened ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}
+                                                            className={`p-2 rounded-lg transition-colors ${!invoice.opened ? 'bg-red-200 text-black hover:bg-red-300' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}
                                                             title="Imprimir Etiquetas desta Nota"
                                                         >
                                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                                                             </svg>
                                                         </button>
-                                                        <button onClick={() => setEditingInvoice(invoice)} className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors ${!invoice.opened ? 'bg-white text-yellow-700 hover:bg-yellow-50' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`} title="Editar">Editar</button>
+                                                        <button onClick={() => setEditingInvoice(invoice)} className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors ${!invoice.opened ? 'bg-red-200 text-black hover:bg-red-300' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`} title="Editar">Editar</button>
                                                         <button 
                                                             onClick={() => { 
                                                                 setConfirmConfig({
@@ -1305,7 +1305,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                                     variant: 'warning'
                                                                 });
                                                             }} 
-                                                            className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors ${!invoice.opened ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-orange-100 text-orange-700 hover:bg-orange-200'}`}
+                                                            className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors ${!invoice.opened ? 'bg-red-200 text-black hover:bg-red-300' : 'bg-orange-100 text-orange-700 hover:bg-orange-200'}`}
                                                             title="Reabrir"
                                                         >
                                                             Reabrir
@@ -1324,7 +1324,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                                     variant: 'danger'
                                                                 });
                                                             }} 
-                                                            className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors ${!invoice.opened ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
+                                                            className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-colors ${!invoice.opened ? 'bg-red-200 text-black hover:bg-red-300' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
                                                             title="Excluir"
                                                         >
                                                             Excluir
@@ -1344,9 +1344,9 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({ suppliers, warehouseLog, 
                                                             const remaining = Math.max(0, item.kg - (item.exitedQuantity || 0));
                                                             return (
                                                                 <li key={index} className="flex justify-between items-center p-2 border-b last:border-b-0">
-                                                                    <span className="font-semibold text-gray-700 uppercase flex items-center gap-3">
+                                                                    <span className="font-semibold text-black uppercase flex items-center gap-3">
                                                                         {item.name} 
-                                                                        <span className="text-gray-400 font-normal">({(item.kg || 0).toFixed(2).replace('.',',')} Kg)</span>
+                                                                        <span className="text-black font-normal">({(item.kg || 0).toFixed(2).replace('.',',')} Kg)</span>
                                                                         {item.exitedQuantity > 0 && (
                                                                             <div className="flex items-center gap-2">
                                                                                 <span className="text-[9px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
