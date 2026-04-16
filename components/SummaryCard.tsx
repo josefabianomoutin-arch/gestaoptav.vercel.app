@@ -104,7 +104,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
     const kgProgress = totalContractedKgForProgress > 0 ? (totalDeliveredKgForProgress / totalContractedKgForProgress) * 100 : 0;
 
     const monthlyDataByItem = useMemo(() => {
-        const data = new Map<string, any[]>();
+        const data = new Map<string, { monthly: any[], totals: any }>();
         
         const groupedItems = new Map<string, any[]>();
         contractItems.forEach(item => {
@@ -120,36 +120,44 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
             // Determine if this is a PPAIS item/supplier
             const isThisItemPPAIS = isPpaisProducer || items.some(it => it.period === '2_3_QUAD' || it.category === 'PPAIS');
 
-            for (const month of visibleMonths) {
+            // Calculate total contracted for the period
+            const period2Items = items.filter(it => it.period !== '1_QUAD');
+            let totalQty = 0;
+            let totalVal = 0;
+            
+            if (period2Items.length > 0) {
+                period2Items.forEach(it => {
+                    const { quantity } = getContractItemDisplayInfo(it as any);
+                    totalQty += quantity;
+                    
+                    const rawKg = it.totalKg?.toString() || '0';
+                    const rawVal = it.valuePerKg?.toString() || '0';
+                    const kg = parseFloat(rawKg.replace(',', '.')) || 0;
+                    const val = parseFloat(rawVal.replace(',', '.')) || 0;
+                    
+                    totalVal += kg * val;
+                });
+            }
+
+            const divisor = isThisItemPPAIS ? 8 : 12;
+            const qtyIntegerPart = Math.floor(totalQty / divisor);
+            const valIntegerPart = Math.floor(totalVal / divisor);
+
+            visibleMonths.forEach((month, index) => {
                 let monthlyValueQuota = 0;
                 let monthlyQuantityQuota = 0;
 
-                // Period 2 (Maio a Dezembro) - 8 months
-                // We sum up items that are NOT for the 1st period
-                const period2Items = items.filter(it => it.period !== '1_QUAD');
-                
-                if (period2Items.length > 0) {
-                    let totalQty = 0;
-                    let totalVal = 0;
-                    
-                    period2Items.forEach(it => {
-                        const { quantity } = getContractItemDisplayInfo(it as any);
-                        totalQty += quantity;
-                        
-                        const rawKg = it.totalKg?.toString() || '0';
-                        const rawVal = it.valuePerKg?.toString() || '0';
-                        const kg = parseFloat(rawKg.replace(',', '.')) || 0;
-                        const val = parseFloat(rawVal.replace(',', '.')) || 0;
-                        
-                        totalVal += kg * val;
-                    });
-                    
-                    // Strictly divide by 8 as requested for PPAIS (Maio a Dezembro)
-                    // If it's a PPAIS producer or explicitly marked as PPAIS, use 8 months
-                    // Otherwise (general items), divide by 12 for the whole year
-                    const divisor = isThisItemPPAIS ? 8 : 12;
-                    monthlyValueQuota = totalVal / divisor;
-                    monthlyQuantityQuota = totalQty / divisor;
+                if (totalQty > 0) {
+                    // User wants integer part in all months and decimals in the last one (December)
+                    // December is always the last month in visibleMonths (index 7)
+                    if (month.number < 11) {
+                        monthlyQuantityQuota = qtyIntegerPart;
+                        monthlyValueQuota = valIntegerPart;
+                    } else {
+                        // December gets the remainder of the whole year's distribution
+                        monthlyQuantityQuota = totalQty - (qtyIntegerPart * (divisor - 1));
+                        monthlyValueQuota = totalVal - (valIntegerPart * (divisor - 1));
+                    }
                 }
 
                 const deliveredInMonth = deliveries.filter(d => {
@@ -162,8 +170,8 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                 const deliveredValue = deliveredInMonth.reduce((sum: number, d: any) => sum + (d.value || 0), 0);
                 const deliveredQuantity = deliveredInMonth.reduce((sum: number, d: any) => sum + (d.kg || 0), 0);
                 
-                const remainingValue = monthlyValueQuota - deliveredValue;
-                const remainingQuantity = monthlyQuantityQuota - deliveredQuantity;
+                const remainingQuantity = Math.max(0, monthlyQuantityQuota - deliveredQuantity);
+                const remainingValue = Math.max(0, monthlyValueQuota - deliveredValue);
 
                 itemMonthlyData.push({
                     monthNumber: month.number,
@@ -172,12 +180,22 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                     contractedQuantity: monthlyQuantityQuota,
                     deliveredValue,
                     deliveredQuantity,
-                    remainingValue: Math.max(0, remainingQuantity > 0 ? remainingValue : 0),
-                    remainingQuantity: Math.max(0, remainingQuantity),
+                    remainingValue,
+                    remainingQuantity,
                     unit: itemUnit
                 });
-            }
-            data.set(itemName, itemMonthlyData);
+            });
+
+            const totalMetaQty = itemMonthlyData.reduce((sum, d) => sum + d.contractedQuantity, 0);
+            const totalMetaVal = itemMonthlyData.reduce((sum, d) => sum + d.contractedValue, 0);
+            const totalRealQty = itemMonthlyData.reduce((sum, d) => sum + d.deliveredQuantity, 0);
+            const totalRealVal = itemMonthlyData.reduce((sum, d) => sum + d.deliveredValue, 0);
+            const totalRestoQty = Math.max(0, totalMetaQty - totalRealQty);
+
+            data.set(itemName, { 
+                monthly: itemMonthlyData, 
+                totals: { totalMetaQty, totalMetaVal, totalRealQty, totalRealVal, totalRestoQty, unit: itemUnit } 
+            });
         });
         return data;
     }, [contractItems, deliveries, visibleMonths, isPpaisProducer]);
@@ -193,7 +211,10 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
             </h2>
             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                 {uniqueItemNames.map(itemName => {
-                    const itemMonthlyData = monthlyDataByItem.get(itemName) || [];
+                    const itemData = monthlyDataByItem.get(itemName);
+                    if (!itemData) return null;
+                    const { monthly: itemMonthlyData, totals } = itemData;
+
                     return (
                         <div key={itemName} className="p-3 bg-gray-50 rounded-lg text-sm border">
                             <p className="font-bold text-gray-800 mb-2 uppercase">{itemName}</p>
@@ -231,6 +252,22 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                                         </tr>
                                     ))}
                                 </tbody>
+                                <tfoot className="border-t-2 border-gray-200 bg-gray-50 font-black">
+                                    <tr>
+                                        <td className="p-1 uppercase">Total</td>
+                                        <td className="p-1 text-right">
+                                            <div>{formatQuantity(totals.totalMetaQty, totals.unit)}</div>
+                                            <div className="text-[9px] text-gray-400 font-normal">{formatCurrency(totals.totalMetaVal)}</div>
+                                        </td>
+                                        <td className="p-1 text-right text-green-600">
+                                            <div>{formatQuantity(totals.totalRealQty, totals.unit)}</div>
+                                            <div className="text-[9px] text-green-400 font-normal">{formatCurrency(totals.totalRealVal)}</div>
+                                        </td>
+                                        <td className="p-1 text-right text-blue-600">
+                                            {formatQuantity(totals.totalRestoQty, totals.unit)}
+                                        </td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     );

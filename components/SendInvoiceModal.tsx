@@ -72,6 +72,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
           {
             "name": "string (nome do produto)",
             "quantity": number (peso/quantidade),
+            "totalValue": number (valor total do item),
             "lot": "string (número do lote se existir)",
             "validity": "YYYY-MM-DD (data de validade se existir)"
           }
@@ -111,7 +112,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
             time: '08:00',
             item: matchedItem ? matchedItem.name : '',
             kg: ei.quantity || 0,
-            value: matchedItem ? (matchedItem.valuePerKg * (ei.quantity || 0)) : 0,
+            value: ei.totalValue || (matchedItem ? (matchedItem.valuePerKg * (ei.quantity || 0)) : 0),
             invoiceUploaded: true,
             lots: [{ 
               id: Math.random().toString(),
@@ -162,11 +163,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
     
     if (field === 'item') {
       d.item = value;
-      const contractItem = contractItems.find(ci => ci.name === value);
-      if (contractItem) {
-        d.value = (d.kg || 0) * contractItem.valuePerKg;
-      }
-
+      
       // Try to auto-fill lot and validity from extracted data if available
       if (extractedData?.items) {
         const extractedItem = extractedData.items.find((ei: any) => 
@@ -178,23 +175,21 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
           d.lots[0].expirationDate = extractedItem.validity || d.lots[0].expirationDate;
           if (extractedItem.quantity && d.kg === 0) {
             d.kg = extractedItem.quantity;
-            if (contractItem) {
-              d.value = extractedItem.quantity * contractItem.valuePerKg;
-            }
+          }
+          if (extractedItem.totalValue && d.value === 0) {
+            d.value = extractedItem.totalValue;
           }
         }
       }
     } else if (field === 'kg') {
       const kg = parseFloat(value) || 0;
       d.kg = kg;
-      const contractItem = contractItems.find(ci => ci.name === d.item);
-      if (contractItem) {
-        d.value = kg * contractItem.valuePerKg;
-      }
       if (d.lots && d.lots[0]) {
         d.lots[0].initialQuantity = kg;
         d.lots[0].remainingQuantity = kg;
       }
+    } else if (field === 'value') {
+      d.value = parseFloat(value) || 0;
     }
     
     newDeliveries[index] = d;
@@ -453,9 +448,14 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
                                         </div>
                                         <div className="space-y-0.5">
                                             <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Valor Total</label>
-                                            <div className="w-full h-7 px-2 border border-gray-100 bg-gray-100/50 rounded-lg text-[10px] font-black text-indigo-600 flex items-center">
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(delivery.value || 0)}
-                                            </div>
+                                            <input 
+                                                type="number" 
+                                                step="0.01"
+                                                placeholder="0,00" 
+                                                value={delivery.value || ''} 
+                                                onChange={e => handleUpdateItem(index, 'value', e.target.value)}
+                                                className="w-full h-7 px-2 border border-gray-200 rounded-lg text-[10px] font-bold text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-500/20" 
+                                            />
                                         </div>
                                     </div>
  
