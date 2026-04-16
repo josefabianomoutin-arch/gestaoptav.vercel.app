@@ -623,6 +623,96 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         };
     }, [activeCategories, monthlyExecution, categoryMonthlyAverages, monthlyAdvances, monthlyQuota]);
 
+    const auditInconsistencies = useMemo(() => {
+        const issues: { type: string, description: string, supplierName?: string, itemName?: string, category?: string, fix: () => Promise<void> }[] = [];
+        
+        const acqItemNames = new Set(acquisitionItems.map(ai => normalizeItemName(ai.name)));
+        
+        // 1. Check for items in supplier contracts that don't exist in acquisition items
+        suppliers.forEach(s => {
+            (Object.values(s.contractItems || {}) as any[]).forEach(ci => {
+                const normalizedCi = normalizeItemName(ci.name);
+                if (!acqItemNames.has(normalizedCi)) {
+                    issues.push({
+                        type: 'Item Fantasma',
+                        description: `O item "${ci.name}" está no contrato de ${s.name} mas não existe no Planejamento Per Capita.`,
+                        supplierName: s.name,
+                        itemName: ci.name,
+                        fix: async () => {
+                            await onUpdateContractForItem(ci.name, []); 
+                            toast.success(`Item "${ci.name}" removido de ${s.name}`);
+                        }
+                    });
+                }
+            });
+        });
+
+        // 2. Check for producers/pereciveis in perCapitaConfig with ghost items
+        ppaisProducers.forEach(p => {
+            (Object.values(p.contractItems || {}) as any[]).forEach(ci => {
+                const normalizedCi = normalizeItemName(ci.name);
+                if (!acqItemNames.has(normalizedCi)) {
+                    issues.push({
+                        type: 'Item Fantasma (PPAIS)',
+                        description: `O item "${ci.name}" está no contrato PPAIS de ${p.name} mas não existe no Planejamento Per Capita.`,
+                        supplierName: p.name,
+                        itemName: ci.name,
+                        fix: async () => {
+                            const updatedProducers = ppaisProducers.map(prod => {
+                                if (prod.cpfCnpj === p.cpfCnpj) {
+                                    return { ...prod, contractItems: (prod.contractItems || []).filter(item => normalizeItemName(item.name) !== normalizedCi) };
+                                }
+                                return prod;
+                            });
+                            await handleUpdateProducers(updatedProducers);
+                            toast.success(`Item "${ci.name}" removido de ${p.name}`);
+                        }
+                    });
+                }
+            });
+        });
+
+        pereciveisSuppliers.forEach(p => {
+            (Object.values(p.contractItems || {}) as any[]).forEach(ci => {
+                const normalizedCi = normalizeItemName(ci.name);
+                if (!acqItemNames.has(normalizedCi)) {
+                    issues.push({
+                        type: 'Item Fantasma (Perecíveis)',
+                        description: `O item "${ci.name}" está no contrato de Perecíveis de ${p.name} mas não existe no Planejamento Per Capita.`,
+                        supplierName: p.name,
+                        itemName: ci.name,
+                        fix: async () => {
+                            const updatedSuppliers = pereciveisSuppliers.map(prod => {
+                                if (prod.cpfCnpj === p.cpfCnpj) {
+                                    return { ...prod, contractItems: (prod.contractItems || []).filter(item => normalizeItemName(item.name) !== normalizedCi) };
+                                }
+                                return prod;
+                            });
+                            await handleUpdatePereciveisSuppliers(updatedSuppliers);
+                            toast.success(`Item "${ci.name}" removido de ${p.name}`);
+                        }
+                    });
+                }
+            });
+        });
+
+        return issues;
+    }, [suppliers, ppaisProducers, pereciveisSuppliers, acquisitionItems, onUpdateContractForItem]);
+
+    const handleFixAllInconsistencies = async () => {
+        setIsSaving(true);
+        try {
+            for (const issue of auditInconsistencies) {
+                await issue.fix();
+            }
+            toast.success('Todas as inconsistências foram corrigidas!');
+        } catch (error) {
+            toast.error('Erro ao corrigir inconsistências.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const totalContractValue = useMemo(() => {
         const targetCategories = ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS'];
         let total = 0;
@@ -788,7 +878,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     { id: 'AUTOMAÇÃO', label: 'Automação' },
                     { id: 'PRODUTOS DE LIMPEZA', label: 'Limpeza' },
                     { id: 'ADIANTAMENTOS', label: 'Adiantamentos' },
-                    { id: 'CONTROLE', label: 'Controle' }
+                    { id: 'CONTROLE', label: 'Controle' },
+                    { id: 'AUDIT', label: 'Auditoria' }
                 ].filter(tab => {
                     const currentMonth = new Date().getMonth();
                     if (currentMonth >= 4) {
@@ -995,6 +1086,71 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 </p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            ) : activeSubTab === 'AUDIT' ? (
+                <div className="animate-fade-in space-y-8">
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-8 rounded-[2.5rem] shadow-xl border-l-8 border-red-600">
+                        <div>
+                            <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tighter italic">Auditoria de Integridade</h2>
+                            <p className="text-zinc-500 font-medium">Verificação de itens agendados que não constam no planejamento Per Capita.</p>
+                        </div>
+                        {auditInconsistencies.length > 0 && (
+                            <button 
+                                onClick={handleFixAllInconsistencies}
+                                disabled={isSaving}
+                                className="bg-red-600 hover:bg-red-700 text-white font-black py-4 px-8 rounded-2xl shadow-lg transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center gap-2"
+                            >
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                Corrigir Tudo ({auditInconsistencies.length})
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="bg-white rounded-[2rem] shadow-xl border border-zinc-200 overflow-hidden">
+                        <table className="w-full text-sm">
+                            <thead className="bg-zinc-900 text-white text-[10px] uppercase font-black tracking-widest">
+                                <tr>
+                                    <th className="p-4 text-left">Tipo de Erro</th>
+                                    <th className="p-4 text-left">Descrição da Inconsistência</th>
+                                    <th className="p-4 text-right">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-100">
+                                {auditInconsistencies.map((issue, idx) => (
+                                    <tr key={idx} className="hover:bg-red-50/30 transition-colors">
+                                        <td className="p-4">
+                                            <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-red-200">
+                                                {issue.type}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 font-medium text-zinc-700">
+                                            {issue.description}
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            <button 
+                                                onClick={issue.fix}
+                                                className="text-indigo-600 hover:text-indigo-800 font-black uppercase text-[10px] tracking-widest"
+                                            >
+                                                Corrigir
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {auditInconsistencies.length === 0 && (
+                                    <tr>
+                                        <td colSpan={3} className="p-20 text-center">
+                                            <div className="flex flex-col items-center gap-4">
+                                                <div className="bg-emerald-100 p-4 rounded-full">
+                                                    <svg className="h-12 w-12 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                </div>
+                                                <p className="text-zinc-400 font-black uppercase text-xs tracking-widest">Nenhuma inconsistência detectada. Sistema íntegro!</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             ) : (

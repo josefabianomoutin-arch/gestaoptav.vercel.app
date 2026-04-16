@@ -1510,6 +1510,53 @@ const App: React.FC = () => {
           
           return data;
         });
+
+        // --- NOVO: Sincronizar com perCapitaConfig se for produtor ou perecível ---
+        const ppaisIndex = (perCapitaConfig.ppaisProducers || []).findIndex(p => p.cpfCnpj === supplier.cpf);
+        const pereciveisIndex = (perCapitaConfig.pereciveisSuppliers || []).findIndex(p => p.cpfCnpj === supplier.cpf);
+
+        if (ppaisIndex !== -1 || pereciveisIndex !== -1) {
+          const updatedPpais = [...(perCapitaConfig.ppaisProducers || [])];
+          const updatedPereciveis = [...(perCapitaConfig.pereciveisSuppliers || [])];
+
+          if (ppaisIndex !== -1) {
+            const p = updatedPpais[ppaisIndex];
+            const otherItems = (p.contractItems || []).filter(ci => ci.name !== itemName);
+            if (assignment) {
+              otherItems.push({
+                name: itemName,
+                totalKg: assignment.totalKg,
+                valuePerKg: assignment.valuePerKg,
+                unit: assignment.unit || 'kg-1',
+                category: assignment.category || 'PPAIS',
+                comprasCode: assignment.comprasCode || '',
+                becCode: assignment.becCode || '',
+                period: '2_3_QUAD'
+              });
+            }
+            updatedPpais[ppaisIndex] = { ...p, contractItems: otherItems };
+          }
+
+          if (pereciveisIndex !== -1) {
+            const p = updatedPereciveis[pereciveisIndex];
+            const otherItems = (p.contractItems || []).filter(ci => ci.name !== itemName);
+            if (assignment) {
+              otherItems.push({
+                name: itemName,
+                totalKg: assignment.totalKg,
+                valuePerKg: assignment.valuePerKg,
+                unit: assignment.unit || 'kg-1',
+                category: assignment.category || 'PERECÍVEIS',
+                comprasCode: assignment.comprasCode || '',
+                becCode: assignment.becCode || '',
+                period: '2_3_QUAD'
+              });
+            }
+            updatedPereciveis[pereciveisIndex] = { ...p, contractItems: otherItems };
+          }
+
+          await set(perCapitaConfigRef, { ...perCapitaConfig, ppaisProducers: updatedPpais, pereciveisSuppliers: updatedPereciveis });
+        }
       }
       
       console.log('Contratos atualizados com sucesso!');
@@ -1522,11 +1569,73 @@ const App: React.FC = () => {
 
   const handleUpdateAcquisitionItem = async (item: AcquisitionItem) => {
     const itemRef = child(acquisitionItemsRef, item.id);
+    const oldItemSnapshot = await get(itemRef);
+    const oldItem = oldItemSnapshot.val() as AcquisitionItem | null;
+
     await set(itemRef, item);
+
+    // Se o nome mudou, precisamos atualizar em todos os fornecedores
+    if (oldItem && oldItem.name !== item.name) {
+      const suppliersSnapshot = await get(suppliersRef);
+      const allSuppliers = suppliersSnapshot.val() || {};
+      
+      for (const cpf in allSuppliers) {
+        const supplier = allSuppliers[cpf] as Supplier;
+        if (supplier.contractItems) {
+          const updatedItems = supplier.contractItems.map(ci => 
+            ci.name === oldItem.name ? { ...ci, name: item.name } : ci
+          );
+          if (JSON.stringify(updatedItems) !== JSON.stringify(supplier.contractItems)) {
+            await update(child(suppliersRef, cpf), { contractItems: updatedItems });
+          }
+        }
+      }
+
+      // Também atualizar no perCapitaConfig
+      const updatedPpais = (perCapitaConfig.ppaisProducers || []).map(p => ({
+        ...p,
+        contractItems: (p.contractItems || []).map(ci => ci.name === oldItem.name ? { ...ci, name: item.name } : ci)
+      }));
+      const updatedPereciveis = (perCapitaConfig.pereciveisSuppliers || []).map(p => ({
+        ...p,
+        contractItems: (p.contractItems || []).map(ci => ci.name === oldItem.name ? { ...ci, name: item.name } : ci)
+      }));
+      await set(perCapitaConfigRef, { ...perCapitaConfig, ppaisProducers: updatedPpais, pereciveisSuppliers: updatedPereciveis });
+    }
   };
 
   const handleDeleteAcquisitionItem = async (id: string) => {
     const itemRef = child(acquisitionItemsRef, id);
+    const itemSnapshot = await get(itemRef);
+    const item = itemSnapshot.val() as AcquisitionItem | null;
+
+    if (item) {
+      // Remover de todos os fornecedores
+      const suppliersSnapshot = await get(suppliersRef);
+      const allSuppliers = suppliersSnapshot.val() || {};
+      
+      for (const cpf in allSuppliers) {
+        const supplier = allSuppliers[cpf] as Supplier;
+        if (supplier.contractItems) {
+          const updatedItems = supplier.contractItems.filter(ci => ci.name !== item.name);
+          if (updatedItems.length !== supplier.contractItems.length) {
+            await update(child(suppliersRef, cpf), { contractItems: updatedItems });
+          }
+        }
+      }
+
+      // Também remover do perCapitaConfig
+      const updatedPpais = (perCapitaConfig.ppaisProducers || []).map(p => ({
+        ...p,
+        contractItems: (p.contractItems || []).map(ci => ci.name === item.name ? null : ci).filter(Boolean)
+      }));
+      const updatedPereciveis = (perCapitaConfig.pereciveisSuppliers || []).map(p => ({
+        ...p,
+        contractItems: (p.contractItems || []).map(ci => ci.name === item.name ? null : ci).filter(Boolean)
+      }));
+      await set(perCapitaConfigRef, { ...perCapitaConfig, ppaisProducers: updatedPpais, pereciveisSuppliers: updatedPereciveis });
+    }
+
     await remove(itemRef);
   };
 
