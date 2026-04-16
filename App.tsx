@@ -425,14 +425,14 @@ const App: React.FC = () => {
           const monthName = monthNames[m];
           const weekOfMonthList = entry.monthlySchedule?.[monthName.charAt(0).toUpperCase() + monthName.slice(1)] || entry.monthlySchedule?.[monthName] || [];
           
-          const daysInMonth = new Date(year, m + 1, 0).getDate();
-          for (let day = 1; day <= daysInMonth; day++) {
-            const date = new Date(year, m, day);
-            const weekOfYear = getWeekNumber(date);
-            const weekOfMonth = Math.ceil(day / 7);
-            if ((weekOfMonthList as any).includes(weekOfMonth)) {
-              newWeeks.push(weekOfYear);
-            }
+          if (weekOfMonthList.length > 0) {
+            const firstDayOfMonth = new Date(year, m, 1);
+            const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
+            
+            (weekOfMonthList as any).forEach((weekIdx: number) => {
+              // weekIdx is 1, 2, 3, 4
+              newWeeks.push(firstWeekOfYear + (weekIdx - 1));
+            });
           }
         }
         const uniqueNewWeeks = Array.from(new Set(newWeeks)).sort((a, b) => a - b);
@@ -2266,14 +2266,13 @@ const App: React.FC = () => {
                 const monthIndex = monthNames.indexOf(monthName.toLowerCase());
                 if (monthIndex === -1) return;
                 
-                const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const date = new Date(year, monthIndex, day);
-                    const weekOfYear = getWeekNumber(date);
-                    const weekOfMonth = Math.ceil(day / 7);
-                    if ((weekOfMonthList as number[]).includes(weekOfMonth)) {
-                        extraWeeks.add(weekOfYear);
-                    }
+                if ((weekOfMonthList as number[]).length > 0) {
+                    const firstDayOfMonth = new Date(year, monthIndex, 1);
+                    const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
+                    
+                    (weekOfMonthList as number[]).forEach(weekIdx => {
+                        extraWeeks.add(firstWeekOfYear + (weekIdx - 1));
+                    });
                 }
             });
             finalWeeks = Array.from(new Set([...finalWeeks, ...Array.from(extraWeeks)])).sort((a, b) => a - b);
@@ -2318,14 +2317,13 @@ const App: React.FC = () => {
             const monthIndex = monthNames.indexOf(monthName.toLowerCase());
             if (monthIndex === -1) return;
 
-            const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(year, monthIndex, day);
-                const weekOfYear = getWeekNumber(date);
-                const weekOfMonth = Math.ceil(day / 7);
-                if ((weekOfMonthList as number[]).includes(weekOfMonth)) {
-                    weeks.push(weekOfYear);
-                }
+            if ((weekOfMonthList as number[]).length > 0) {
+                const firstDayOfMonth = new Date(year, monthIndex, 1);
+                const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
+                
+                (weekOfMonthList as number[]).forEach(weekIdx => {
+                    weeks.push(firstWeekOfYear + (weekIdx - 1));
+                });
             }
         });
 

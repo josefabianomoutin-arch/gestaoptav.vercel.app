@@ -233,17 +233,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
             const monthIndex = monthNames.indexOf(monthName.toLowerCase());
             if (monthIndex === -1) return;
 
-            const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-            const monthWeeks = new Set<number>();
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(year, monthIndex, day);
-                const weekOfYear = getWeekNumber(date);
-                const weekOfMonth = Math.ceil(day / 7);
-                if ((weekOfMonthList as number[]).includes(weekOfMonth)) {
-                    monthWeeks.add(weekOfYear);
-                }
+            if ((weekOfMonthList as number[]).length > 0) {
+                const firstDayOfMonth = new Date(year, monthIndex, 1);
+                const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
+                
+                (weekOfMonthList as number[]).forEach(weekIdx => {
+                    weeks.push(firstWeekOfYear + (weekIdx - 1));
+                });
             }
-            weeks.push(...Array.from(monthWeeks));
         });
 
         return {
