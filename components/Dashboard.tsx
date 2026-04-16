@@ -15,6 +15,8 @@ import { getDatabase, ref, get } from 'firebase/database';
 import { app } from '../firebaseConfig';
 import { MONTHS_2026 } from '../constants';
 
+import { toast } from 'sonner';
+
 const SIMULATED_TODAY = new Date('2026-04-30T00:00:00');
 
 interface DashboardProps {
@@ -35,6 +37,14 @@ interface DashboardProps {
   } | null;
   onCloseEmailModal: () => void;
 }
+
+const getWeekNumber = (d: Date): number => {
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return weekNo;
+};
 
 const Dashboard: React.FC<DashboardProps> = ({ 
   supplier, 
@@ -82,6 +92,16 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleDayClick = (date: Date) => {
     const dateString = date.toISOString().split('T')[0];
     const deliveriesOnDate = (Object.values(supplier.deliveries || {}) as any[]).filter(d => d.date === dateString);
+    
+    // Check if week is allowed
+    if (supplier.allowedWeeks && supplier.allowedWeeks.length > 0) {
+        const weekNum = getWeekNumber(date);
+        if (!supplier.allowedWeeks.includes(weekNum) && deliveriesOnDate.length === 0) {
+            toast.error(`Agendamento bloqueado: A semana ${weekNum} não está liberada para o seu contrato.`);
+            return;
+        }
+    }
+
     setSelectedDate(date);
     if (deliveriesOnDate.length > 0) {
       setDeliveriesToShow(deliveriesOnDate);

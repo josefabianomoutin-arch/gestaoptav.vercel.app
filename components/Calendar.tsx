@@ -46,6 +46,14 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedTo
       return false;
     }
 
+    // Se houver semanas permitidas definidas, verifica se a semana da data está nelas
+    if (allowedWeeks && allowedWeeks.length > 0) {
+      const weekNum = getWeekNumber(date);
+      if (!allowedWeeks.includes(weekNum)) {
+        return false;
+      }
+    }
+
     // Liberado para todos os produtores nas datas disponíveis (dias úteis)
     // O Calendar já filtra finais de semana e feriados no cálculo do isClickable
     return true;

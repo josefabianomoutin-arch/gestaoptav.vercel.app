@@ -9,6 +9,7 @@ import AdminAcquisitionItems from './AdminAcquisitionItems';
 import AdminPerCapitaSuppliers from './AdminPerCapitaSuppliers';
 import AdminAtaGenerator from './AdminAtaGenerator';
 import AdminContractGenerator from './AdminContractGenerator';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import type { PerCapitaSupplier } from '../types';
 
 interface AdminPerCapitaProps {
@@ -637,6 +638,27 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         };
     }, [activeCategories, monthlyExecution, categoryMonthlyAverages, monthlyAdvances, monthlyQuota]);
 
+    const deliveryStats = useMemo(() => {
+        const stats: Record<string, { name: string, total: number, value: number }> = {};
+        const allSources = [...(suppliers || []), ...ppaisAsSuppliers, ...pereciveisAsSuppliers];
+        
+        allSources.forEach(s => {
+            const deliveries = (Object.values(s.deliveries || {}) as any[]);
+            deliveries.forEach(d => {
+                if (d.kg > 0) {
+                    const itemName = d.item || 'Outros';
+                    if (!stats[itemName]) {
+                        stats[itemName] = { name: itemName, total: 0, value: 0 };
+                    }
+                    stats[itemName].total += d.kg;
+                    stats[itemName].value += (d.value || 0);
+                }
+            });
+        });
+        
+        return Object.values(stats).sort((a, b) => b.total - a.total).slice(0, 10); // Top 10 items
+    }, [suppliers, ppaisAsSuppliers, pereciveisAsSuppliers]);
+
     const auditInconsistencies = useMemo(() => {
         const issues: { type: string, description: string, supplierName?: string, itemName?: string, category?: string, fix: () => Promise<void> }[] = [];
         
@@ -1189,6 +1211,122 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 )}
                             </tbody>
                         </table>
+                    </div>
+
+                    {/* Gráfico de Entregas */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-zinc-100">
+                            <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6 flex items-center gap-2">
+                                <svg className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                                Top 10 Itens Entregues (KG)
+                            </h3>
+                            <div className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={deliveryStats} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f0f0f0" />
+                                        <XAxis type="number" hide />
+                                        <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#666' }} axisLine={false} tickLine={false} />
+                                        <Tooltip 
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '12px', fontWeight: 'bold' }}
+                                            formatter={(value: number) => [`${value.toLocaleString('pt-BR')} Kg`, 'Total']}
+                                        />
+                                        <Bar dataKey="total" radius={[0, 4, 4, 0]} barSize={20}>
+                                            {deliveryStats.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#4f46e5' : '#10b981'} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-zinc-100">
+                            <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter mb-6 flex items-center gap-2">
+                                <svg className="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                Valor Acumulado por Item
+                            </h3>
+                            <div className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={deliveryStats.sort((a,b) => b.value - a.value)} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f0f0f0" />
+                                        <XAxis type="number" hide />
+                                        <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#666' }} axisLine={false} tickLine={false} />
+                                        <Tooltip 
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '12px', fontWeight: 'bold' }}
+                                            formatter={(value: number) => [formatCurrency(value), 'Valor']}
+                                        />
+                                        <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
+                                            {deliveryStats.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#059669' : '#0891b2'} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Lista de Fornecedores e Itens */}
+                    <div className="bg-white rounded-[2rem] shadow-xl border border-zinc-200 overflow-hidden">
+                        <div className="p-8 border-b border-zinc-100 bg-zinc-50/50">
+                            <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tighter italic">Relação Fornecedor x Itens Contratados</h3>
+                            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mt-1">Visualização rápida de todos os itens registrados por contrato</p>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-zinc-900 text-white text-[10px] uppercase font-black tracking-widest">
+                                    <tr>
+                                        <th className="p-4 text-left">Fornecedor</th>
+                                        <th className="p-4 text-left">Categoria</th>
+                                        <th className="p-4 text-left">Itens em Contrato</th>
+                                        <th className="p-4 text-right">Valor Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-zinc-100">
+                                    {[...(suppliers || []), ...ppaisAsSuppliers, ...pereciveisAsSuppliers]
+                                        .sort((a, b) => a.name.localeCompare(b.name))
+                                        .map((s, idx) => {
+                                            const items = Object.values(s.contractItems || {}) as any[];
+                                            const category = ppaisProducers.some(p => p.cpfCnpj === s.cpf) ? 'PPAIS' : 
+                                                             pereciveisSuppliers.some(p => p.cpfCnpj === s.cpf) ? 'PERECÍVEIS' : 'ESTOCÁVEIS';
+                                            
+                                            return (
+                                                <tr key={idx} className="hover:bg-zinc-50 transition-colors">
+                                                    <td className="p-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-black text-zinc-900 uppercase text-xs">{s.name}</span>
+                                                            <span className="text-[9px] font-mono text-zinc-400">{s.cpf}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                                                            category === 'PPAIS' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                            category === 'PERECÍVEIS' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                                            'bg-zinc-100 text-zinc-700 border-zinc-200'
+                                                        }`}>
+                                                            {category}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {items.length > 0 ? items.map((it, i) => (
+                                                                <span key={i} className="bg-white border border-zinc-200 text-zinc-600 text-[9px] font-bold px-2 py-0.5 rounded uppercase">
+                                                                    {it.name}
+                                                                </span>
+                                                            )) : (
+                                                                <span className="text-red-500 text-[9px] font-black uppercase italic">Nenhum item vinculado</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 text-right font-mono font-bold text-zinc-600">
+                                                        {formatCurrency(s.initialValue || 0)}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             ) : (
