@@ -598,6 +598,31 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         return true;
     };
 
+    const financialSummary = useMemo(() => {
+        const totalGeralGasto = activeCategories.reduce((sum, cat) => {
+            let catTotal = 0;
+            months.forEach(month => {
+                const execVal = monthlyExecution[month]?.[cat] || 0;
+                const isActiveMonth = getIsActiveMonth(month, cat);
+                const futureVal = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
+                if (isActiveMonth) {
+                    catTotal += execVal > 0 ? execVal : futureVal;
+                }
+            });
+            return sum + catTotal;
+        }, 0) + (Object.values(monthlyAdvances) as number[]).reduce((a: number, b: number) => a + (b || 0), 0);
+
+        const totalGeralCotas = (Object.values(monthlyQuota) as number[]).reduce((a: number, b: number) => a + (b || 0), 0);
+        
+        const diff = totalGeralGasto - totalGeralCotas;
+        
+        return {
+            totalGeralGasto,
+            totalGeralCotas,
+            diff
+        };
+    }, [activeCategories, monthlyExecution, categoryMonthlyAverages, monthlyAdvances, monthlyQuota]);
+
     const totalContractValue = useMemo(() => {
         const targetCategories = ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS'];
         let total = 0;
@@ -939,20 +964,21 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 <div className="flex justify-between items-center pt-4 border-t-2 border-indigo-100">
                                     <span className="text-sm font-black text-indigo-900 uppercase">Total Geral Gasto</span>
                                     <span className="font-mono font-black text-xl text-indigo-700">
-                                        {formatCurrency(
-                                            activeCategories.reduce((sum, cat) => {
-                                                let catTotal = 0;
-                                                months.forEach(month => {
-                                                    const execVal = monthlyExecution[month]?.[cat] || 0;
-                                                    const isActiveMonth = getIsActiveMonth(month, cat);
-                                                    const futureVal = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
-                                                    if (isActiveMonth) {
-                                                        catTotal += execVal > 0 ? execVal : futureVal;
-                                                    }
-                                                });
-                                                return sum + catTotal;
-                                            }, 0) + (Object.values(monthlyAdvances) as number[]).reduce((a: number, b: number) => a + (b || 0), 0))
-                                        }
+                                        {formatCurrency(financialSummary.totalGeralGasto)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center pt-2">
+                                    <span className="text-sm font-black text-indigo-900 uppercase">Total Geral de Cotas</span>
+                                    <span className="font-mono font-black text-xl text-indigo-700">
+                                        {formatCurrency(financialSummary.totalGeralCotas)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center pt-2 border-t border-dashed border-indigo-200">
+                                    <span className={`text-sm font-black uppercase ${financialSummary.diff > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                        {financialSummary.diff > 0 ? 'Cotas Faltantes' : 'Cotas a serem utilizadas'}
+                                    </span>
+                                    <span className={`font-mono font-black text-xl ${financialSummary.diff > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                        {formatCurrency(Math.abs(financialSummary.diff))}
                                     </span>
                                 </div>
                             </div>
@@ -1024,29 +1050,56 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
                     {/* Configuração de População e Processos */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-1 bg-white p-8 rounded-3xl border border-zinc-200 shadow-sm">
-                            <h4 className="text-xs font-black text-zinc-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                <svg className="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                                Efetivo Populacional
-                            </h4>
-                            <div className="space-y-6">
-                                <div className="group">
-                                    <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 group-focus-within:text-indigo-600 transition-colors">Servidores</label>
-                                    <input 
-                                        type="number" 
-                                        value={staffCount} 
-                                        onChange={handleStaffCountChange}
-                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-5 py-4 font-mono text-xl font-black focus:border-indigo-500 focus:bg-white outline-none transition-all"
-                                    />
+                        <div className="lg:col-span-1 space-y-8">
+                            <div className="bg-white p-8 rounded-3xl border border-zinc-200 shadow-sm">
+                                <h4 className="text-xs font-black text-zinc-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <svg className="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                    Efetivo Populacional
+                                </h4>
+                                <div className="space-y-6">
+                                    <div className="group">
+                                        <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 group-focus-within:text-indigo-600 transition-colors">Servidores</label>
+                                        <input 
+                                            type="number" 
+                                            value={staffCount} 
+                                            onChange={handleStaffCountChange}
+                                            className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-5 py-4 font-mono text-xl font-black focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div className="group">
+                                        <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 group-focus-within:text-indigo-600 transition-colors">Custodiados</label>
+                                        <input 
+                                            type="number" 
+                                            value={inmateCount} 
+                                            onChange={handleInmateCountChange}
+                                            className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-5 py-4 font-mono text-xl font-black focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="group">
-                                    <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 group-focus-within:text-indigo-600 transition-colors">Custodiados</label>
-                                    <input 
-                                        type="number" 
-                                        value={inmateCount} 
-                                        onChange={handleInmateCountChange}
-                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-5 py-4 font-mono text-xl font-black focus:border-indigo-500 focus:bg-white outline-none transition-all"
-                                    />
+                            </div>
+
+                            <div className="bg-white p-8 rounded-3xl border border-zinc-200 shadow-sm">
+                                <h4 className="text-xs font-black text-zinc-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <svg className="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    Resumo Financeiro Anual
+                                </h4>
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Total Geral Gasto</span>
+                                        <span className="font-mono font-bold text-zinc-900">{formatCurrency(financialSummary.totalGeralGasto)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Total Geral de Cotas</span>
+                                        <span className="font-mono font-bold text-zinc-900">{formatCurrency(financialSummary.totalGeralCotas)}</span>
+                                    </div>
+                                    <div className="pt-4 border-t border-zinc-100 flex justify-between items-center">
+                                        <span className={`text-[10px] font-black uppercase tracking-widest ${financialSummary.diff > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                            {financialSummary.diff > 0 ? 'Cotas Faltantes' : 'Cotas a serem utilizadas'}
+                                        </span>
+                                        <span className={`font-mono font-black text-lg ${financialSummary.diff > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                            {formatCurrency(Math.abs(financialSummary.diff))}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
