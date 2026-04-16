@@ -299,12 +299,6 @@ const App: React.FC = () => {
       setUser({ name: 'SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA', cpf: '431385464', role: 'julio' });
       return true;
     }
-    const supplier = suppliers.find(s => s.cpf.replace(/\D/g, '') === numericPass);
-    if (supplier) {
-      setUser({ name: supplier.name, cpf: supplier.cpf, role: 'supplier' });
-      return true;
-    }
-
     const ppaisProducer = perCapitaConfig.ppaisProducers?.find(p => p.cpfCnpj.replace(/\D/g, '') === numericPass);
     if (ppaisProducer) {
       setUser({ name: ppaisProducer.name, cpf: ppaisProducer.cpfCnpj, role: 'producer' });
@@ -314,6 +308,12 @@ const App: React.FC = () => {
     const pereciveisSupplier = perCapitaConfig.pereciveisSuppliers?.find(p => p.cpfCnpj.replace(/\D/g, '') === numericPass);
     if (pereciveisSupplier) {
       setUser({ name: pereciveisSupplier.name, cpf: pereciveisSupplier.cpfCnpj, role: 'pereciveis_supplier' });
+      return true;
+    }
+
+    const supplier = suppliers.find(s => s.cpf.replace(/\D/g, '') === numericPass);
+    if (supplier) {
+      setUser({ name: supplier.name, cpf: supplier.cpf, role: 'supplier' });
       return true;
     }
     
@@ -445,36 +445,29 @@ const App: React.FC = () => {
           const q1Weeks = (existingSupplier.allowedWeeks || []).filter(w => w <= 18);
           const updatedWeeks = Array.from(new Set([...q1Weeks, ...uniqueNewWeeks])).sort((a, b) => a - b);
           
+          // REMOVE contractItems sync to decouple PPAIS from main agenda
+          // We only keep the Q1 items in the main list
           const q1Items = (existingSupplier.contractItems || []).filter(item => item.period !== '2_3_QUAD');
-          const newQ23Items = ((entry as any).contractItems || []).map((item: any) => ({
-            ...item,
-            period: '2_3_QUAD' as const
-          }));
-          const updatedItems = [...q1Items, ...newQ23Items];
 
           await update(supplierRef, { 
             allowedWeeks: updatedWeeks,
-            contractItems: updatedItems,
-            // Update initialValue to reflect the sum of all items
-            initialValue: updatedItems.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0)
+            contractItems: q1Items,
+            // Update initialValue to reflect only Q1 items in the main list
+            initialValue: q1Items.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0)
           });
         } else {
-          // New entry
+          // New entry - only sync weeks, no items in the main list
           const newSupplier: Supplier = {
             name: entry.name,
             cpf: entry.cpfCnpj,
             initialValue: 0,
-            contractItems: ((entry as any).contractItems || []).map((item: any) => ({
-              ...item,
-              period: item.period || '1_QUAD'
-            })),
+            contractItems: [], // Keep empty in main list
             deliveries: [],
             allowedWeeks: uniqueNewWeeks,
             address: entry.address || '',
             city: entry.city || '',
             processNumber: entry.processNumber || ''
           };
-          newSupplier.initialValue = newSupplier.contractItems.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0);
           await set(supplierRef, newSupplier);
         }
       }
@@ -580,7 +573,42 @@ const App: React.FC = () => {
 
   const handleScheduleDelivery = async (supplierCpf: string, date: string, time: string) => {
     try {
-      // Check main suppliers
+      // Check Per Capita suppliers FIRST to prioritize Per Capita scheduling
+      const timeoutPromisePC = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao agendar entrega Per Capita')), 10000));
+      
+      let pcFound = false;
+      await Promise.race([
+        runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+          if (currentData) {
+            const findAndAdd = (list: any[] | undefined) => {
+              const s = list?.find(p => p.cpfCnpj === supplierCpf);
+              if (s) {
+                const deliveries = s.deliveries || [];
+                deliveries.push({
+                  id: `del-${Date.now()}`,
+                  date,
+                  time,
+                  item: 'AGENDAMENTO PENDENTE',
+                  invoiceUploaded: false
+                });
+                s.deliveries = deliveries;
+                pcFound = true;
+                return true;
+              }
+              return false;
+            };
+            if (!findAndAdd(currentData.ppaisProducers)) {
+              findAndAdd(currentData.pereciveisSuppliers);
+            }
+          }
+          return currentData;
+        }),
+        timeoutPromisePC
+      ]);
+
+      if (pcFound) return;
+
+      // Check main suppliers only if not found in Per Capita
       const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
       if (isMainSupplier) {
         const supplierRef = child(suppliersRef, supplierCpf);
@@ -605,36 +633,6 @@ const App: React.FC = () => {
         ]);
         return;
       }
-
-      // Check Per Capita suppliers
-      const timeoutPromisePC = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao agendar entrega Per Capita')), 10000));
-      await Promise.race([
-        runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
-          if (currentData) {
-            const findAndAdd = (list: any[] | undefined) => {
-              const s = list?.find(p => p.cpfCnpj === supplierCpf);
-              if (s) {
-                const deliveries = s.deliveries || [];
-                deliveries.push({
-                  id: `del-${Date.now()}`,
-                  date,
-                  time,
-                  item: 'AGENDAMENTO PENDENTE',
-                  invoiceUploaded: false
-                });
-                s.deliveries = deliveries;
-                return true;
-              }
-              return false;
-            };
-            if (!findAndAdd(currentData.ppaisProducers)) {
-              findAndAdd(currentData.pereciveisSuppliers);
-            }
-          }
-          return currentData;
-        }),
-        timeoutPromisePC
-      ]);
     } catch (error) {
       console.error('Erro ao agendar entrega:', error);
       // alert is not allowed, but this function doesn't return anything to the UI easily
@@ -2338,7 +2336,7 @@ const App: React.FC = () => {
           cpf: p.cpfCnpj,
           initialValue: (p.contractItems || []).reduce((acc: number, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0),
           contractItems: p.contractItems || [],
-          deliveries: p.deliveries || [],
+          deliveries: Array.from(new Map([...(p.deliveries || []), ...(existingSupplier?.deliveries || [])].map(d => [d.id, d])).values()),
           allowedWeeks: finalWeeks,
           address: p.address || '',
           city: p.city || '',

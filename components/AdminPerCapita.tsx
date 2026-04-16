@@ -342,18 +342,32 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         return { success: true, message: 'Contratos de fornecedores atualizados' };
     };
 
-    const allContractItemNames = useMemo(() => {
-        const names = new Set<string>();
-        suppliers.forEach(s => {
-            Object.values(s.contractItems || {}).forEach((ci: any) => names.add(ci.name));
-        });
+    const contractItemNamesByCategory = useMemo(() => {
+        const result: Record<string, string[]> = {
+            'PPAIS': [],
+            'PERECÍVEIS': [],
+            'OTHERS': []
+        };
+
+        const ppaisNames = new Set<string>();
         ppaisProducers.forEach(s => {
-            Object.values(s.contractItems || {}).forEach((ci: any) => names.add(ci.name));
+            Object.values(s.contractItems || {}).forEach((ci: any) => ppaisNames.add(ci.name));
         });
+        result['PPAIS'] = Array.from(ppaisNames).sort();
+
+        const pereciveisNames = new Set<string>();
         pereciveisSuppliers.forEach(s => {
-            Object.values(s.contractItems || {}).forEach((ci: any) => names.add(ci.name));
+            Object.values(s.contractItems || {}).forEach((ci: any) => pereciveisNames.add(ci.name));
         });
-        return Array.from(names).sort();
+        result['PERECÍVEIS'] = Array.from(pereciveisNames).sort();
+
+        const otherNames = new Set<string>();
+        suppliers.forEach(s => {
+            Object.values(s.contractItems || {}).forEach((ci: any) => otherNames.add(ci.name));
+        });
+        result['OTHERS'] = Array.from(otherNames).sort();
+
+        return result;
     }, [suppliers, ppaisProducers, pereciveisSuppliers]);
 
     const handleCustomPerCapitaChange = (itemName: string, value: string) => {
@@ -696,8 +710,32 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             });
         });
 
+        // 3. Check for items in deliveries that are missing from the contract
+        const allSources = [...(suppliers || []), ...ppaisAsSuppliers, ...pereciveisAsSuppliers];
+        allSources.forEach(s => {
+            const contractItemNames = new Set((Object.values(s.contractItems || {}) as any[]).map(ci => normalizeItemName(ci.name)));
+            const deliveries = (Object.values(s.deliveries || {}) as any[]);
+            
+            deliveries.forEach(d => {
+                if (d.item && d.item !== 'AGENDAMENTO PENDENTE') {
+                    const normalizedItem = normalizeItemName(d.item);
+                    if (!contractItemNames.has(normalizedItem)) {
+                        issues.push({
+                            type: 'Item não Contratado',
+                            description: `O item "${d.item}" consta em entregas/agendamentos de ${s.name} mas não está em seu contrato.`,
+                            supplierName: s.name,
+                            itemName: d.item,
+                            fix: async () => {
+                                toast.info(`O item "${d.item}" precisa ser vinculado ao contrato de ${s.name} manualmente através do planejamento de itens.`);
+                            }
+                        });
+                    }
+                }
+            });
+        });
+
         return issues;
-    }, [suppliers, ppaisProducers, pereciveisSuppliers, acquisitionItems, onUpdateContractForItem]);
+    }, [suppliers, ppaisProducers, pereciveisSuppliers, acquisitionItems, onUpdateContractForItem, ppaisAsSuppliers, pereciveisAsSuppliers]);
 
     const handleFixAllInconsistencies = async () => {
         setIsSaving(true);
@@ -1795,7 +1833,11 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 items={acquisitionItems} 
                                 onUpdate={onUpdateAcquisitionItem} 
                                 onDelete={onDeleteAcquisitionItem} 
-                                contractItems={allContractItemNames}
+                                contractItems={
+                                    activeSubTab === 'PPAIS' ? contractItemNamesByCategory['PPAIS'] :
+                                    activeSubTab === 'PERECÍVEIS' ? contractItemNamesByCategory['PERECÍVEIS'] :
+                                    contractItemNamesByCategory['OTHERS']
+                                }
                                 suppliers={
                                     activeSubTab === 'PPAIS' ? ppaisAsSuppliers : 
                                     activeSubTab === 'PERECÍVEIS' ? pereciveisAsSuppliers : 

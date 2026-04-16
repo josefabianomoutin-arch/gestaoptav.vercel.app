@@ -262,10 +262,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     const uniqueMap = new Map<string, Supplier>();
     all.forEach(s => {
         if (s.cpf) {
-            // Se já existe, damos preferência ao que tem mais entregas ou ao que veio de suppliers (agenda real)
             const existing = uniqueMap.get(s.cpf);
-            if (!existing || (s.deliveries && Object.keys(s.deliveries).length > (existing.deliveries ? Object.keys(existing.deliveries).length : 0))) {
-                uniqueMap.set(s.cpf, s);
+            if (!existing) {
+                uniqueMap.set(s.cpf, { ...s });
+            } else {
+                // Merge deliveries
+                const mergedDeliveries = [...(existing.deliveries || []), ...(s.deliveries || [])];
+                const uniqueDeliveries = Array.from(new Map(mergedDeliveries.map(d => [d.id, d])).values());
+                
+                // Merge weeks
+                const mergedWeeks = Array.from(new Set([...(existing.allowedWeeks || []), ...(s.allowedWeeks || [])])).sort((a, b) => a - b);
+                
+                // Merge contract items
+                const mergedItems = [...(existing.contractItems || []), ...(s.contractItems || [])];
+                const uniqueItems = Array.from(new Map(mergedItems.map(item => [item.name + (item.period || ''), item])).values());
+
+                uniqueMap.set(s.cpf, {
+                    ...existing,
+                    deliveries: uniqueDeliveries,
+                    allowedWeeks: mergedWeeks,
+                    contractItems: uniqueItems,
+                    initialValue: uniqueItems.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0)
+                });
             }
         }
     });

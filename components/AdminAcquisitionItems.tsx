@@ -385,7 +385,9 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                             <tr className="bg-zinc-50/80 backdrop-blur-sm text-zinc-500 text-[10px] uppercase tracking-[0.15em] border-b border-zinc-200">
                                 <th className="p-6 text-center w-16 border-r border-zinc-100 font-serif italic normal-case opacity-60">#</th>
                                 <th className="p-6 text-left min-w-[320px] border-r border-zinc-100 font-serif italic normal-case">Identificação do Produto</th>
-                                <th className="p-6 text-left min-w-[200px] border-r border-zinc-100 font-serif italic normal-case">Vínculo Contratual</th>
+                                <th className="p-6 text-left min-w-[200px] border-r border-zinc-100 font-serif italic normal-case">
+                                    {category === 'PPAIS' || category === 'PERECÍVEIS' ? 'Status de Vínculo' : 'Vínculo Contratual'}
+                                </th>
                                 <th className="p-6 text-center whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Classificação</th>
                                 <th className="p-6 text-center border-r border-zinc-100 font-serif italic normal-case">Unid.</th>
                                 <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Logística</th>
@@ -437,12 +439,18 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                     <td className="p-6 border-r border-zinc-50">
                                         <div className="flex flex-col gap-1.5">
                                             <div className="text-[10px] font-bold text-zinc-500 uppercase italic leading-tight">
-                                                {item.contractItemName || <span className="text-red-500 not-italic font-black bg-red-50 px-2 py-0.5 rounded border border-red-100">Pendente de Vínculo</span>}
+                                                {category === 'PPAIS' || category === 'PERECÍVEIS' ? (
+                                                    <span className="text-indigo-600 font-black bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">Item Per Capita</span>
+                                                ) : (
+                                                    item.contractItemName || <span className="text-red-500 not-italic font-black bg-red-50 px-2 py-0.5 rounded border border-red-100">Pendente de Vínculo</span>
+                                                )}
                                             </div>
-                                            {item.contractItemName && (
+                                            {(item.contractItemName || category === 'PPAIS' || category === 'PERECÍVEIS') && (
                                                 <div className="flex items-center gap-1 opacity-40">
                                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                                                    <span className="text-[8px] font-black uppercase tracking-widest">Linked to Contract</span>
+                                                    <span className="text-[8px] font-black uppercase tracking-widest">
+                                                        {category === 'PPAIS' || category === 'PERECÍVEIS' ? 'Direct Per Capita Link' : 'Linked to Contract'}
+                                                    </span>
                                                 </div>
                                             )}
                                         </div>
@@ -562,9 +570,9 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         <div className="flex flex-col gap-2">
                                             <button 
                                                 onClick={() => setManageItem(item)}
-                                                className="w-full bg-zinc-900 text-white hover:bg-indigo-600 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95"
+                                                className={`w-full ${category === 'PPAIS' || category === 'PERECÍVEIS' ? 'bg-indigo-600' : 'bg-zinc-900'} text-white hover:opacity-90 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95`}
                                             >
-                                                Vincular
+                                                {category === 'PPAIS' || category === 'PERECÍVEIS' ? 'Distribuir Peso' : 'Vincular'}
                                             </button>
                                             <div className="flex gap-2">
                                                 <button 
@@ -799,7 +807,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                     acquiredQuantity={manageItem.acquiredQuantity + (manageItem.contractAddendum || 0)}
                     onClose={() => setManageItem(null)} 
                     onSave={async (assignments) => {
-                        const displayName = manageItem.contractItemName || manageItem.name;
+                        const displayName = (category === 'PPAIS' || category === 'PERECÍVEIS') ? manageItem.name : (manageItem.contractItemName || manageItem.name);
                         const res = await onUpdateContractForItem(displayName, assignments);
                         if (res.success) setManageItem(null);
                         else alert(res.message);
