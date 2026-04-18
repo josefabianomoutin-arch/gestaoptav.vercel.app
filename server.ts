@@ -25,7 +25,7 @@ async function startServer() {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       
       const result = await ai.models.generateContent({
-        model: "gemini-1.5-flash", // Using a stable model
+        model: "gemini-1.5-flash", 
         contents: [{
           role: "user",
           parts: [
@@ -38,6 +38,31 @@ async function startServer() {
     } catch (error) {
       console.error("Gemini API error:", error);
       res.status(500).json({ error: "Failed to process image" });
+    }
+  });
+  
+  app.post("/api/gemini-extract", async (req, res) => {
+    try {
+      const { image, mimeType, prompt } = req.body;
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      
+      const result = await ai.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: [{
+          role: "user",
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType, data: image } }
+          ]
+        }]
+      });
+      
+      const text = result.text || '{}';
+      res.json(JSON.parse(text.replace(/```json/g, '').replace(/```/g, '')));
+    } catch (error) {
+      console.error("Gemini Extraction error:", error);
+      res.status(500).json({ error: "Failed to process invoice" });
     }
   });
 

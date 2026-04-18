@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { X, Send, Plus, Trash2, FileText, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI, Type } from "@google/genai";
 import { Delivery, ContractItem } from '../types';
 
 interface SendInvoiceModalProps {
@@ -10,8 +9,6 @@ interface SendInvoiceModalProps {
   onClose: () => void;
   onSave: (invoiceNumber: string, invoiceUrl: string, deliveries: Delivery[], invoiceDate?: string) => void;
 }
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contractItems, onClose, onSave }) => {
   const [loading, setLoading] = useState(false);
@@ -52,47 +49,19 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
         reader.readAsDataURL(file);
       });
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [
-          {
-            parts: [
-              { text: "Extract invoice data: number, date, supplier, and items (name, quantity, totalValue). Return JSON." },
-              {
-                inlineData: {
-                  mimeType: file.type,
-                  data: base64
-                }
-              }
-            ]
-          }
-        ],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              number: { type: Type.STRING },
-              date: { type: Type.STRING },
-              supplier: { type: Type.STRING },
-              items: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    name: { type: Type.STRING },
-                    quantity: { type: Type.NUMBER },
-                    totalValue: { type: Type.NUMBER }
-                  }
-                }
-              }
-            }
-          }
-        }
+      const response = await fetch('/api/gemini-extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image: base64,
+          mimeType: file.type,
+          prompt: "Extract invoice data: number, date, supplier, and items (name, quantity, totalValue). Return JSON."
+        })
       });
 
-      const text = response.text || '{}';
-      const data = JSON.parse(text);
+      if (!response.ok) throw new Error("Falha na chamada da API");
+      const data = await response.json();
+      
       if (data.number) setInvoiceNumber(data.number);
       if (data.date) setInvoiceDate(data.date);
       if (data.supplier) setSupplierName(data.supplier);
