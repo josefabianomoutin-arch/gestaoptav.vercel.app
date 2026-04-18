@@ -97,6 +97,12 @@ const App: React.FC = () => {
   const [validationRoles, setValidationRoles] = useState<ValidationRole[]>([]);
   const [systemPasswords, setSystemPasswords] = useState<Record<string, string>>({});
   const [maintenanceSchedules, setMaintenanceSchedules] = useState<MaintenanceSchedule[]>([]);
+  const [dailyAllowances, setDailyAllowances] = useState<any[]>([]);
+  const [staff, setStaff] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _unusedDaily = dailyAllowances;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _unusedStaff = staff;
   const [publicInfo, setPublicInfo] = useState<PublicInfo[]>([]);
 
   useEffect(() => {
