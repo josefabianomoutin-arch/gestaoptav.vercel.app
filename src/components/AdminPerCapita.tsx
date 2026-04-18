@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import html2pdf from 'html2pdf.js';
-import type { Supplier, PerCapitaConfig, WarehouseMovement, AcquisitionItem } from '../types';
+import type { Supplier, PerCapitaConfig, WarehouseMovement, AcquisitionItem, Delivery } from '../types';
 import AdminAcquisitionItems from './AdminAcquisitionItems';
 import AdminPerCapitaSuppliers from './AdminPerCapitaSuppliers';
 import AdminAtaGenerator from './AdminAtaGenerator';

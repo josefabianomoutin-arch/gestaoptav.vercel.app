@@ -74,9 +74,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     thirdPartyEntries
 }) => {
     const [activeTab, setActiveTab] = useState<'entry' | 'exit' | 'receipt' | 'agenda'>('entry');
+    const [selectedAgendaDate, setSelectedAgendaDate] = useState(new Date().toISOString().split('T')[0]);
     const [receiptSupplierCpf, setReceiptSupplierCpf] = useState('');
     const [receiptInvoice, setReceiptInvoice] = useState('');
     const [receiptProcessoSei, setReceiptProcessoSei] = useState('');
+    const [selectedScheduleSuppliers, setSelectedScheduleSuppliers] = useState<string[]>([]);
+    const [scheduleReportSeiNumber, setScheduleReportSeiNumber] = useState('');
 
     const weeklyDeliveries = useMemo(() => {
         const list: { date: string; supplierName: string; time: string; status: 'AGENDADO' | 'CONCLUÍDO' | 'TERCEIRO' | 'CANCELADO'; id: string; type: 'FORNECEDOR' | 'TERCEIRO'; itemName?: string }[] = [];
