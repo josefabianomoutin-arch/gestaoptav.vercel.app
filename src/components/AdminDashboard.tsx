@@ -18,7 +18,7 @@ import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 import AdminServiceOrder from './AdminServiceOrder';
 import AdminPublicInfo from './AdminPublicInfo';
 import ConfirmModal from './ConfirmModal';
-
+import WeekSelector from './WeekSelector';
 import WarehouseMovementForm from './WarehouseMovementForm';
 
 type AdminTab = 'info' | 'register' | 'contracts' | 'finance' | 'analytics' | 'graphs' | 'schedule' | 'invoices' | 'perCapita' | 'cleaning' | 'vehicleExitOrder' | 'thirdPartyEntry' | 'directorPerCapita' | 'menu' | 'almoxarifado' | 'serviceOrder' | 'publicInfo';
@@ -160,10 +160,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     onDeleteVehicleAsset,
     onRegisterDriverAsset,
     onUpdateDriverAsset,
-    onDeleteDriverAsset,
-    onRegisterVehicleInspection,
-    onUpdateVehicleInspection,
-    onDeleteVehicleInspection,
     onCancelDeliveries,
     onManualInvoiceEntry,
     onUpdatePerCapitaConfig,
