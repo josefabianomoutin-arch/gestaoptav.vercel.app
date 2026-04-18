@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, VehicleInspection } from '../types';
-import { GoogleGenAI } from "@google/genai";
 import ConfirmModal from './ConfirmModal';
 import VehicleInspectionTab from './VehicleInspectionTab';
 import { jsPDF } from 'jspdf';
@@ -226,21 +225,18 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
             const base64Image = canvasRef.current.toDataURL('image/jpeg').split(',')[1];
             
-            // Cache bust: 2026-03-12T09:02:10
-            const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-            
-            const result = await ai.models.generateContent({
-                model: "gemini-3-flash-preview",
-                contents: [{
-                    role: "user",
-                    parts: [
-                        { text: "Extraia apenas a placa do veículo desta imagem. Responda apenas com a placa no formato AAA-0000 ou AAA0A00 (Mercosul). Se não encontrar, responda 'NÃO ENCONTRADA'." },
-                        { inlineData: { mimeType: "image/jpeg", data: base64Image } }
-                    ]
-                }]
+            const response = await fetch('/api/gemini', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    image: base64Image,
+                    prompt: "Extraia apenas a placa do veículo desta imagem. Responda apenas com a placa no formato AAA-0000 ou AAA0A00 (Mercosul). Se não encontrar, responda 'NÃO ENCONTRADA'."
+                })
             });
 
-            const plate = (result.text || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (!response.ok) throw new Error("Falha na chamada da API");
+            const data = await response.json();
+            const plate = (data.text || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
             console.log("Plate recognized:", plate);
 
             if (plate === 'NAOENCONTRADA' || plate.length < 7) {
