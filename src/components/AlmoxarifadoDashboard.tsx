@@ -64,85 +64,19 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     suppliers, 
     warehouseLog, 
     onLogout, 
-    onRegisterEntry, 
     onRegisterWithdrawal, 
-    onResetExits,
     onReopenInvoice,
     onDeleteInvoice,
     onUpdateInvoiceItems,
     onUpdateInvoiceUrl,
     onManualInvoiceEntry,
     onMarkInvoiceAsOpened,
-    thirdPartyEntries,
-    vehicleAssets,
-    onRegisterVehicleAsset,
-    onUpdateVehicleAsset,
-    onDeleteVehicleAsset,
-    driverAssets,
-    onRegisterDriverAsset,
-    onUpdateDriverAsset,
-    onDeleteDriverAsset,
-    onRegisterVehicleExitOrder,
-    onUpdateVehicleExitOrder,
-    onDeleteVehicleExitOrder,
-    validationRoles,
-    vehicleExitOrders
+    thirdPartyEntries
 }) => {
     const [activeTab, setActiveTab] = useState<'entry' | 'exit' | 'receipt' | 'agenda'>('entry');
-    const [selectedAgendaDate, setSelectedAgendaDate] = useState(new Date().toISOString().split('T')[0]);
     const [receiptSupplierCpf, setReceiptSupplierCpf] = useState('');
     const [receiptInvoice, setReceiptInvoice] = useState('');
     const [receiptProcessoSei, setReceiptProcessoSei] = useState('');
-
-    const [isScheduleReportOpen, setIsScheduleReportOpen] = useState(false);
-    const [scheduleReportSeiNumber, setScheduleReportSeiNumber] = useState('');
-    const [selectedScheduleSuppliers, setSelectedScheduleSuppliers] = useState<string[]>([]);
-
-    const dailyDeliveries = useMemo(() => {
-        const list: { supplierName: string; supplierCpf: string; time: string; arrivalTime?: string; status: 'AGENDADO' | 'CONCLUÍDO' | 'TERCEIRO' | 'CANCELADO'; id: string; type: 'FORNECEDOR' | 'TERCEIRO' }[] = [];
-        
-        suppliers.forEach(s => {
-            Object.values((s.deliveries as any) || {}).forEach((d: any) => {
-                if (d.date === selectedAgendaDate) {
-                    const isFaturado = d.item !== 'AGENDAMENTO PENDENTE';
-                    const status = isFaturado ? 'CONCLUÍDO' : 'AGENDADO';
-                    const existing = list.find(l => l.supplierName === s.name && l.time === d.time && l.status === status);
-                    if (!existing) {
-                        list.push({
-                            id: d.id,
-                            supplierName: s.name,
-                            supplierCpf: s.cpf,
-                            time: d.time,
-                            arrivalTime: d.arrivalTime,
-                            status: status,
-                            type: 'FORNECEDOR'
-                        });
-                    }
-                }
-            });
-        });
-
-        (thirdPartyEntries || []).forEach(log => {
-            if (log.date === selectedAgendaDate) {
-                let status: 'AGENDADO' | 'CONCLUÍDO' | 'TERCEIRO' | 'CANCELADO' = 'TERCEIRO';
-                if (log.status === 'concluido') status = 'CONCLUÍDO';
-                else if (log.status === 'cancelado') status = 'CANCELADO';
-                else if (log.status === 'agendado') status = 'AGENDADO';
-
-                list.push({
-                    id: log.id,
-                    supplierName: log.companyName,
-                    supplierCpf: log.companyCnpj,
-                    time: log.time || '00:00',
-                    arrivalTime: log.arrivalTime,
-                    status: status,
-                    type: 'TERCEIRO'
-                });
-            }
-        });
-
-        return list.sort((a, b) => a.time.localeCompare(b.time));
-    }, [suppliers, thirdPartyEntries, selectedAgendaDate]);
 
     const weeklyDeliveries = useMemo(() => {
         const list: { date: string; supplierName: string; time: string; status: 'AGENDADO' | 'CONCLUÍDO' | 'TERCEIRO' | 'CANCELADO'; id: string; type: 'FORNECEDOR' | 'TERCEIRO'; itemName?: string }[] = [];

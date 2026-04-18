@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import type { Supplier, Delivery, WarehouseMovement } from '../types';
-import { Download, Search, Calendar, ChevronRight, Filter, FileCheck, AlertCircle, Trash2, Edit2, RotateCcw, Eye } from 'lucide-react';
+import { Download, Search, Calendar, FileCheck, AlertCircle, Trash2, RotateCcw, Eye } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app } from '../firebaseConfig';
 import { toast } from 'sonner';
@@ -49,20 +49,12 @@ const MONTHS = [
 
 const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   suppliers,
-  warehouseLog,
   onReopenInvoice,
   onDeleteInvoice,
-  onUpdateInvoiceItems,
-  onUpdateInvoiceUrl,
-  onManualInvoiceEntry,
-  onMarkInvoiceAsOpened,
-  mode = 'admin'
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-    const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'opened'>('all');
-    const [activeMonthTab, setActiveMonthTab] = useState<number>(new Date().getMonth());
-  
+    const [statusFilter] = useState<'all' | 'pending' | 'opened'>('all');
+    
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
     title: string;
@@ -88,7 +80,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
               supplierCpf: supplier.cpf,
               invoiceNumber: d.invoiceNumber,
               invoiceUrl: d.invoiceUrl,
-              date: d.invoiceDate || d.date, // Use internal date if available
+              date: d.invoiceDate || d.date, 
               originalDate: d.date,
               items: [],
               isOpened: d.isOpened || false,
@@ -99,7 +91,6 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           }
           acc[d.invoiceNumber].items.push(d);
           
-          // Use the oldest date as the invoice date if multiple deliveries are attached
           if (new Date(d.date) < new Date(acc[d.invoiceNumber].date)) {
             acc[d.invoiceNumber].date = d.date;
           }
@@ -110,14 +101,44 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
       Object.values(grouped).forEach(inv => invoices.push(inv));
     });
 
-    // Sort by date (Newest first)
     return invoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [suppliers]);
+
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    allInvoices.forEach(inv => {
+      const d = new Date(inv.date + 'T00:00:00');
+      if (!isNaN(d.getTime())) {
+        months.add(`${d.getFullYear()}-${d.getMonth()}`);
+      }
+    });
+    return Array.from(months).sort((a, b) => {
+        const [yA, mA] = a.split('-').map(Number);
+        const [yB, mB] = b.split('-').map(Number);
+        return (yB * 12 + mB) - (yA * 12 + mA);
+    });
+  }, [allInvoices]);
+
+  const [activeMonthTab, setActiveMonthTab] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${now.getMonth()}`;
+  });
+
+  // Adjust state during render logic
+  const [prevAvailableMonths, setPrevAvailableMonths] = useState(availableMonths);
+  if (availableMonths !== prevAvailableMonths) {
+    setPrevAvailableMonths(availableMonths);
+    if (availableMonths.length > 0 && !availableMonths.includes(activeMonthTab)) {
+        setActiveMonthTab(availableMonths[0]);
+    }
+  }
 
     const filteredInvoices = useMemo(() => {
         return allInvoices.filter(inv => {
             const invoiceDate = new Date(inv.date + 'T00:00:00');
-            const matchesMonth = invoiceDate.getMonth() === activeMonthTab && invoiceDate.getFullYear() === selectedYear;
+            const monthKey = `${invoiceDate.getFullYear()}-${invoiceDate.getMonth()}`;
+            const matchesMonth = monthKey === activeMonthTab;
+            
             const matchesStatus = statusFilter === 'all' || 
                               (statusFilter === 'pending' && !inv.isOpened) ||
                               (statusFilter === 'opened' && inv.isOpened);
@@ -128,10 +149,12 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             
             return matchesMonth && matchesStatus && matchesSearch;
         });
-    }, [allInvoices, activeMonthTab, selectedYear, statusFilter, searchTerm]);
+    }, [allInvoices, activeMonthTab, statusFilter, searchTerm]);
 
   const handleOpenPdf = async (url: string) => {
     let finalUrl = url;
+    if (!url) return;
+    
     if (url.startsWith('rtdb://')) {
       const path = url.substring(7);
       const db = getDatabase(app);
@@ -144,7 +167,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           toast.error("PDF não encontrado.");
           return;
         }
-      } catch (e) {
+      } catch {
         toast.error("Erro ao carregar PDF.");
         return;
       }
@@ -191,19 +214,24 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
         {/* Seletor de Mês (Scroll Horizontal) */}
         <div className="bg-gray-50 px-4 py-3 overflow-x-auto whitespace-nowrap scrollbar-hide flex gap-2 border-b border-gray-100">
-          {MONTHS.map((month, idx) => (
-            <button
-              key={month}
-              onClick={() => setActiveMonthTab(idx)}
-              className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                activeMonthTab === idx 
-                  ? 'bg-indigo-600 text-white shadow-lg' 
-                  : 'text-gray-400 hover:bg-white hover:text-indigo-600'
-              }`}
-            >
-              {month}
-            </button>
-          ))}
+          {availableMonths.length > 0 ? availableMonths.map((key) => {
+            const [y, m] = key.split('-').map(Number);
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveMonthTab(key)}
+                className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                  activeMonthTab === key 
+                    ? 'bg-indigo-600 text-white shadow-lg' 
+                    : 'text-gray-400 hover:bg-white hover:text-indigo-600'
+                }`}
+              >
+                {MONTHS[m]} {y}
+              </button>
+            );
+          }) : (
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-4 py-2">Nenhuma NF disponível</p>
+          )}
         </div>
 
         <div className="p-4 md:p-8">
@@ -310,7 +338,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
               <div className="bg-gray-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Search className="h-10 w-10 text-gray-300" />
               </div>
-              <h3 className="text-xl font-black text-gray-400 uppercase tracking-tighter italic">Nenhuma nota encontrada em {MONTHS[activeMonthTab]}</h3>
+              <h3 className="text-xl font-black text-gray-400 uppercase tracking-tighter italic">Nenhuma nota encontrada nesta seleção</h3>
               <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Experimente mudar o filtro ou pesquisar por outro termo</p>
             </div>
           )}

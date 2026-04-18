@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis 
+  PieChart, Pie, Cell, AreaChart, Area 
 } from 'recharts';
 import type { Supplier, WarehouseMovement, CleaningLog, FinancialRecord, VehicleExitOrder, ThirdPartyEntryLog, DirectorPerCapitaLog, PerCapitaConfig, AcquisitionItem, Delivery } from '../types';
 
@@ -17,18 +17,13 @@ interface AdminGraphsProps {
   acquisitionItems: AcquisitionItem[];
 }
 
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6'];
-
 const AdminGraphs: React.FC<AdminGraphsProps> = ({ 
   suppliers = [], 
   warehouseLog = [], 
   cleaningLogs = [], 
   financialRecords = [], 
   vehicleExitOrders = [],
-  thirdPartyEntries = [],
-  directorWithdrawals = [],
-  perCapitaConfig,
-  acquisitionItems = []
+  perCapitaConfig
 }) => {
 
   const perCapitaDenominator = (perCapitaConfig?.inmateCount || 0) + (perCapitaConfig?.staffCount || 0) || 1;
@@ -191,33 +186,6 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
       .sort((a, b) => b.delivered - a.delivered)
       .slice(0, 5);
   }, [suppliers]);
-
-  // 9. Entradas de Terceiros por Local
-  const thirdPartyData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    thirdPartyEntries.forEach(entry => {
-      const locations = Array.isArray(entry.locations) ? entry.locations : [entry.locations || 'Outros'];
-      locations.forEach(loc => {
-        const key = typeof loc === 'string' ? loc : 'Outros';
-        counts[key] = (counts[key] || 0) + 1;
-      });
-    });
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [thirdPartyEntries]);
-
-  // 10. Retiradas do Diretor (Top 5 Itens)
-  const directorData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    directorWithdrawals.forEach(log => {
-      (log.items || []).forEach(item => {
-        counts[item.name] = (counts[item.name] || 0) + (Number(item.quantity) || 0);
-      });
-    });
-    return Object.entries(counts)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-  }, [directorWithdrawals]);
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 

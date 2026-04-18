@@ -67,47 +67,53 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({ suppliers
     useEffect(() => {
         const barcode = manualBarcode.trim();
         if (barcode.length >= 8) {
-            let foundMatch = false;
-            for (const s of suppliers) {
-                const deliveries = (Object.values(s.deliveries || {}) as any[]).filter((d: any) => d.barcode === barcode);
-                if (deliveries.length > 0) {
-                    // Se o fornecedor ainda não foi selecionado, seleciona
-                    if (!selectedSupplierCpf) {
-                        setSelectedSupplierCpf(s.cpf);
-                    }
-                    // Se for saída e a NF de entrada não foi selecionada, tenta selecionar
-                    if (manualType === 'saída' && !manualInboundNf) {
-                        setManualInboundNf(deliveries[0].invoiceNumber || '');
-                    }
-                    
-                    if (deliveries.length === 1) {
-                        setSelectedItemName(deliveries[0].item || '');
-                        
-                        const entryLog = warehouseLog.find(l => l.barcode === barcode && l.type === 'entrada');
-                        if (entryLog) {
-                            setManualLot(entryLog.lotNumber || '');
-                            setManualExp(entryLog.expirationDate || '');
+            setTimeout(() => {
+                let foundMatch = false;
+                for (const s of suppliers) {
+                    const deliveries = (Object.values(s.deliveries || {}) as any[]).filter((d: any) => d.barcode === barcode);
+                    if (deliveries.length > 0) {
+                        // Se o fornecedor ainda não foi selecionado, seleciona
+                        if (!selectedSupplierCpf && s.cpf) {
+                            setSelectedSupplierCpf(s.cpf);
                         }
-                    } else {
-                        // Se houver múltiplos itens com mesmo código, não preenche item automaticamente
-                        // setSelectedItemName('');
+                        // Se for saída e a NF de entrada não foi selecionada, tenta selecionar
+                        if (manualType === 'saída' && !manualInboundNf) {
+                            const invNum = deliveries[0].invoiceNumber || '';
+                            if (invNum) setManualInboundNf(invNum);
+                        }
+                        
+                        if (deliveries.length === 1) {
+                            const itName = deliveries[0].item || '';
+                            if (selectedItemName !== itName) setSelectedItemName(itName);
+                            
+                            const entryLog = warehouseLog.find(l => l.barcode === barcode && l.type === 'entrada');
+                            if (entryLog) {
+                                const lNum = entryLog.lotNumber || '';
+                                const eExp = entryLog.expirationDate || '';
+                                if (manualLot !== lNum) setManualLot(lNum);
+                                if (manualExp !== eExp) setManualExp(eExp);
+                            }
+                        } else {
+                            // Se houver múltiplos itens com mesmo código, não preenche item automaticamente
+                            // setSelectedItemName('');
+                        }
+                        foundMatch = true;
+                        break;
                     }
-                    foundMatch = true;
-                    break;
                 }
-            }
-            
-            if (!foundMatch) {
-                const entryLog = warehouseLog.find(l => l.barcode === barcode && l.type === 'entrada');
-                if (entryLog) {
-                    const supplier = suppliers.find(s => s.name === entryLog.supplierName);
-                    if (supplier && !selectedSupplierCpf) setSelectedSupplierCpf(supplier.cpf);
-                    setSelectedItemName(entryLog.itemName);
-                    if (manualType === 'saída' && !manualInboundNf) setManualInboundNf(entryLog.inboundInvoice || '');
-                    setManualLot(entryLog.lotNumber || '');
-                    setManualExp(entryLog.expirationDate || '');
+                
+                if (!foundMatch) {
+                    const entryLog = warehouseLog.find(l => l.barcode === barcode && l.type === 'entrada');
+                    if (entryLog) {
+                        const supplier = suppliers.find(s => s.name === entryLog.supplierName);
+                        if (supplier && !selectedSupplierCpf) setSelectedSupplierCpf(supplier.cpf);
+                        setSelectedItemName(entryLog.itemName);
+                        if (manualType === 'saída' && !manualInboundNf) setManualInboundNf(entryLog.inboundInvoice || '');
+                        setManualLot(entryLog.lotNumber || '');
+                        setManualExp(entryLog.expirationDate || '');
+                    }
                 }
-            }
+            }, 0);
         }
     }, [manualBarcode, suppliers, warehouseLog, manualType, selectedSupplierCpf, manualInboundNf]);
 

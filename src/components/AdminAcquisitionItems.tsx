@@ -138,7 +138,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                             const totalQuantity = item.acquiredQuantity + (item.contractAddendum || 0);
                             const totalValue = totalQuantity * (item.unitValue || 0);
                             
-                            let extraCols = '';
+                            let extraCols: string;
                             if (category !== 'PPAIS' && category !== 'PERECÍVEIS') {
                                 extraCols = `<td class="text-right">${item.stockBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
                             } else {

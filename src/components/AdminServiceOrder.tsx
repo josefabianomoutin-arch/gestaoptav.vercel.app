@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ClipboardList, Search, Filter, CheckCircle2, XCircle, Clock, AlertCircle, Edit3, Trash2, Save, X, CalendarPlus, Calendar, Wrench, FileText, Upload, ShieldCheck, Printer, Lock } from 'lucide-react';
+import { ClipboardList, Search, Filter, CheckCircle2, Clock, AlertCircle, Edit3, Trash2, Save, X, CalendarPlus, Calendar, Wrench, FileText, Upload, ShieldCheck, Printer, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { ServiceOrder, MaintenanceSchedule } from '../types';
 
@@ -22,7 +22,6 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
   maintenanceSchedules = [],
   onRegisterMaintenanceSchedule,
   onUpdateMaintenanceSchedule,
-  onDeleteMaintenanceSchedule,
   systemPasswords = {}
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -137,7 +136,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
     }
   };
 
-  const generatePDF = (schedule: MaintenanceSchedule, order: ServiceOrder) => {
+  const generatePDF = (schedule: MaintenanceSchedule) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -834,7 +833,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
 
                               {ms.validatedByChief && ms.validatedByDirector && (
                                 <button
-                                  onClick={() => generatePDF(ms, order)}
+                                  onClick={() => generatePDF(ms)}
                                   className="flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-sm"
                                 >
                                   <Printer className="h-3 w-3" />

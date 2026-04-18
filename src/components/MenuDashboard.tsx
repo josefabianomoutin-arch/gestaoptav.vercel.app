@@ -20,7 +20,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
   const currentMenu = useMemo(() => {
-    let rows: MenuRow[] = [];
+    let rows: MenuRow[];
     if (dailyMenus[selectedDate]) {
       rows = dailyMenus[selectedDate];
     } else {

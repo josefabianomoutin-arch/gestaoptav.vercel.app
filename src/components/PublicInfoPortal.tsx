@@ -12,10 +12,13 @@ const PublicInfoPortal: React.FC<PublicInfoPortalProps> = ({ isOpen, onClose, in
   const isAbrilVerde = new Date().getMonth() === 3; // April is index 3
   const [selectedInfo, setSelectedInfo] = React.useState<PublicInfo | null>(null);
 
-  // Reset selected info when portal closes
-  React.useEffect(() => {
-    if (!isOpen) setSelectedInfo(null);
-  }, [isOpen]);
+  const [prevIsOpen, setPrevIsOpen] = React.useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
+    if (!isOpen && selectedInfo !== null) {
+      setSelectedInfo(null);
+    }
+  }
 
   return (
     <AnimatePresence>

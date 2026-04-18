@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { StandardMenu, DailyMenus, MenuRow, Supplier } from '../types';
 
 interface AdminStandardMenuProps {
@@ -301,12 +301,10 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
       setLabelModalOpen(true);
   };
 
-  useEffect(() => {
-    const weekForDate = getWeekNumber(new Date(selectedDate + 'T00:00:00'));
-    if (weekForDate !== selectedWeek) {
-        setSelectedWeek(weekForDate);
-    }
-  }, [selectedDate, selectedWeek]);
+  const weekForDate = getWeekNumber(new Date(selectedDate + 'T00:00:00'));
+  if (weekForDate !== selectedWeek) {
+    setSelectedWeek(weekForDate);
+  }
 
   const handleWeekChange = (weekNumber: number) => {
     const year = new Date(selectedDate + 'T00:00:00').getFullYear();
@@ -420,8 +418,16 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
     return `${(calculatedTotal / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${suffix}`;
   }
 
-  // Carrega o cardápio para a data selecionada
-  useEffect(() => {
+  // Adjust state during rendering pattern to avoid useEffect cascading renders
+  const [prevDate, setPrevDate] = useState(selectedDate);
+  const [prevDailyMenusStr, setPrevDailyMenusStr] = useState(JSON.stringify(dailyMenus[selectedDate]));
+  
+  const currentDailyMenusStr = JSON.stringify(dailyMenus[selectedDate]);
+
+  if (selectedDate !== prevDate || currentDailyMenusStr !== prevDailyMenusStr) {
+    setPrevDate(selectedDate);
+    setPrevDailyMenusStr(currentDailyMenusStr);
+
     const normalize = (rows: any[], baseId: string): MenuRow[] => {
       const defaultRow = { period: '', foodItem: '', preparationDetails: '', contractedItem: '', unitWeight: '', totalWeight: '' };
       return (rows || []).map((row, i) => ({
@@ -445,7 +451,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
         const baseTemplateRows = template[dayName] || [];
         const paddedTemplateRows = Array.from({ length: ROWS_PER_DAY }, (_, i) => baseTemplateRows[i] || {});
         
-        const copiesWithoutIds = (paddedTemplateRows as Partial<MenuRow>[]).map(({ id, ...rest }) => rest);
+        const copiesWithoutIds = (paddedTemplateRows as Partial<MenuRow>[]).map(({ id: _id, ...rest }) => rest);
 
         rowsToSet = normalize(copiesWithoutIds, selectedDate);
     }
@@ -454,13 +460,12 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
         row.totalWeight = calculateTotalWeight(row.unitWeight, row.contractedItem);
     });
     setCurrentMenu(rowsToSet);
-
-  }, [selectedDate, dailyMenus, template, inmateCount]);
+  }
 
 
   const handleInputChange = (index: number, field: keyof MenuRow, value: string) => {
     const updated = [...currentMenu];
-    let newRow = { ...updated[index], [field]: value };
+    const newRow = { ...updated[index], [field]: value };
 
     // LÓGICA DE AUTO-PREENCHIMENTO DO PESO UNITÁRIO
     if (field === 'contractedItem') {
@@ -485,7 +490,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
     try {
       await onUpdateDailyMenus({ ...dailyMenus, [selectedDate]: currentMenu.filter(r => r.foodItem || r.contractedItem || r.unitWeight || r.preparationDetails) });
       alert(isLoadedFromSaved ? 'Cardápio atualizado com sucesso!' : 'Cardápio do dia salvo com sucesso!');
-    } catch (e) {
+    } catch {
       alert('Erro ao salvar.');
     } finally {
       setIsSaving(false);

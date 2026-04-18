@@ -1,15 +1,14 @@
 
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import html2pdf from 'html2pdf.js';
-import type { Supplier, Delivery, PerCapitaConfig, WarehouseMovement, AcquisitionItem } from '../types';
-import AdminContractItems from './AdminContractItems';
+import type { Supplier, PerCapitaConfig, WarehouseMovement, AcquisitionItem } from '../types';
 import AdminAcquisitionItems from './AdminAcquisitionItems';
 import AdminPerCapitaSuppliers from './AdminPerCapitaSuppliers';
 import AdminAtaGenerator from './AdminAtaGenerator';
 import AdminContractGenerator from './AdminContractGenerator';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import type { PerCapitaSupplier } from '../types';
 
 interface AdminPerCapitaProps {
@@ -34,51 +33,10 @@ const normalizeItemName = (name: string): string => {
     return (name || '')
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "") // Remove acentos
-        .replace(/[;,. \-\/]/g, " ")    // Troca separadores por espaço
+        .replace(/[;,. -/]/g, " ")    // Troca separadores por espaço
         .replace(/\s+/g, " ")           // Remove espaços duplos
         .trim()
         .toUpperCase();
-};
-
-const formatContractedTotal = (quantity: number, unitString?: string): string => {
-    const [unitType, unitWeightStr] = (unitString || 'kg-1').split('-');
-    
-    if (['litro', 'embalagem', 'caixa'].some(u => unitType.includes(u))) {
-        // For volume, quantity is total Liters
-        return `${quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L`;
-    }
-    
-    if (unitType === 'dz') {
-        // For dozen, quantity is number of dozens
-        return `${quantity.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Dz`;
-    }
-
-    if (unitType === 'un') {
-        // For 'un', the quantity stored is already the total weight in kg.
-        return `${quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`;
-    }
-
-    // For everything else (saco, balde, kg, etc.), convert quantity of units to total weight.
-    const unitWeight = parseFloat(unitWeightStr) || 1;
-    const totalWeight = quantity * unitWeight;
-    return `${totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`;
-};
-
-const getContractItemWeight = (item: { totalKg?: number, unit?: string }): number => {
-    if (!item) return 0;
-    const [unitType, unitWeightStr] = (item.unit || 'kg-1').split('-');
-    
-    const quantity = item.totalKg || 0;
-
-    if (unitType === 'un') {
-        return quantity;
-    }
-    if (unitType === 'dz') {
-        return 0;
-    }
-
-    const unitWeight = parseFloat(unitWeightStr) || 1;
-    return quantity * unitWeight;
 };
 
 const hortifrutiKeywords = [
@@ -97,26 +55,16 @@ const perishablesKeywords = [
     'toucinho', 'bisteca', 'lombo', 'pernil', 'hambúrguer', 'ovo', 'atum', 'sardinha'
 ];
 
+const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
 const isHortifrutiOrPerishable = (itemName: string): boolean => {
     const lowerItemName = itemName.toLowerCase();
     const allKeywords = [...hortifrutiKeywords, ...perishablesKeywords];
     return allKeywords.some(keyword => lowerItemName.includes(keyword));
 };
 
-const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-
-const PTRES_OPTIONS = ['380328'] as const;
-const PTRES_DESCRIPTIONS: Record<string, string> = {
-    '380302': 'Materiais para o Setor de Saúde',
-    '380303': 'Recurso para Atender peças e serviços de viaturas',
-    '380304': 'Recurso para atender despesas de materiais e serviços administrativos',
-    '380308': 'Recurso para atender peças e serviço para manutenção e conservação da Unidade',
-    '380328': 'Recurso para Diárias e Outras Despesas'
-};
-
 const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ 
     suppliers, 
-    warehouseLog, 
     perCapitaConfig, 
     onUpdatePerCapitaConfig, 
     onUpdateContractForItem, 
@@ -130,7 +78,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'ADIANTAMENTOS' | 'CONTROLE' | 'AUDIT'>('CALCULO');
     const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS' | 'CONTRACT' | 'ATA' | 'SCHEDULE'>('ITEMS');
     const [pereciveisSubTab, setPereciveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
-    const contractSummaryRef = useRef<HTMLDivElement>(null);
     const [staffCount, setStaffCount] = useState<number>(0);
     const [inmateCount, setInmateCount] = useState<number>(0);
     const [customPerCapita, setCustomPerCapita] = useState<Record<string, string>>({});
@@ -148,7 +95,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [comparisonFilter, setComparisonFilter] = useState<'TODOS' | 'SEM_ENTREGA' | 'ATENCAO' | 'AVANCADO' | 'CONCLUIDO' | 'COM_EMPENHO'>('TODOS');
 
-    useEffect(() => {
+    const [prevPerCapitaConfig, setPrevPerCapitaConfig] = useState(perCapitaConfig);
+    if (perCapitaConfig !== prevPerCapitaConfig) {
+        setPrevPerCapitaConfig(perCapitaConfig);
         setStaffCount(perCapitaConfig.staffCount || 0);
         setInmateCount(perCapitaConfig.inmateCount || 0);
         setCustomPerCapita(perCapitaConfig.customValues || {});
@@ -161,7 +110,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
         setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
         setIsDirty(false);
-    }, [perCapitaConfig]);
+    }
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -224,18 +173,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const handleMonthlyAdvanceChange = (month: string, value: string) => {
         const numValue = parseFloat(value) || 0;
         setMonthlyAdvances(prev => ({ ...prev, [month]: numValue }));
-        setIsDirty(true);
-    };
-
-    const handlePtresValueChange = (ptres: string, nature: 'pieces' | 'services', value: string) => {
-        const numValue = parseFloat(value) || 0;
-        setPtresResources(prev => ({ 
-            ...prev, 
-            [ptres]: { 
-                ...(prev[ptres] || { pieces: 0, services: 0 }), 
-                [nature]: numValue 
-            } 
-        }));
         setIsDirty(true);
     };
 
@@ -371,14 +308,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         return result;
     }, [suppliers, ppaisProducers, pereciveisSuppliers]);
 
-    const handleCustomPerCapitaChange = (itemName: string, value: string) => {
-        setCustomPerCapita(prev => ({
-            ...prev,
-            [itemName]: value.replace(/[^0-9,]/g, '')
-        }));
-        setIsDirty(true);
-    };
-
     const itemData = useMemo(() => {
       const data = new Map<string, { totalQuantity: number; totalValue: number; unit: string; category: string }>();
       
@@ -405,10 +334,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         .map(([name, values]) => ({ name, ...values }))
         .sort((a, b) => a.name.localeCompare(b.name));
     }, [suppliers, ppaisAsSuppliers, pereciveisAsSuppliers]);
-
-    const filteredItemData = useMemo(() => {
-        return itemData.filter(item => isHortifrutiOrPerishable(item.name));
-    }, [itemData]);
 
     const perCapitaDenominator = useMemo(() => {
         return inmateCount + staffCount;
@@ -585,7 +510,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
             const total = totalFromAcq + totalOnlyInContract;
             
-            let divisor = 12;
+            let divisor: number;
             if (cat === 'PERECÍVEIS') {
                 divisor = 4; // Apenas Maio, Junho, Julho, Agosto
             } else if (cat === 'PPAIS') {
@@ -757,7 +682,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         });
 
         return issues;
-    }, [suppliers, ppaisProducers, pereciveisSuppliers, acquisitionItems, onUpdateContractForItem, ppaisAsSuppliers, pereciveisAsSuppliers]);
+    }, [suppliers, ppaisProducers, pereciveisSuppliers, acquisitionItems, onUpdateContractForItem, ppaisAsSuppliers, pereciveisAsSuppliers, handleUpdatePereciveisSuppliers, handleUpdateProducers]);
 
     const handleFixAllInconsistencies = async () => {
         setIsSaving(true);

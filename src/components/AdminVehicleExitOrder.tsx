@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, VehicleInspection } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import ConfirmModal from './ConfirmModal';
@@ -100,7 +100,6 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
     // Recognition UI State
     const [recognitionStatus, setRecognitionStatus] = useState<'idle' | 'scanning' | 'confirming' | 'success' | 'error'>('idle');
-    const [scannedPlate, setScannedPlate] = useState<string | null>(null);
     const [pendingOrder, setPendingOrder] = useState<VehicleExitOrder | null>(null);
     const [actionType, setActionType] = useState<'exit' | 'return' | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -153,11 +152,13 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         });
     }, [vehicleAssets, inTransitPlates, editingOrder]);
 
-    useEffect(() => {
-        if (securityMode) {
+    const [prevSecurityMode, setPrevSecurityMode] = useState(securityMode);
+    if (securityMode !== prevSecurityMode) {
+        setPrevSecurityMode(securityMode);
+        if (securityMode && activeSubTab !== 'gate') {
             setActiveSubTab('gate');
         }
-    }, [securityMode]);
+    }
 
     const startCamera = async () => {
         setCameraError(null);
@@ -206,7 +207,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         setRecognitionStatus('idle');
     };
 
-    const captureAndRecognizePlate = async () => {
+    const captureAndRecognizePlate = useCallback(async () => {
         if (!videoRef.current || !canvasRef.current || isProcessingPlate) return;
 
         if (!isAutoScanEnabled) {
@@ -251,7 +252,6 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 }
             } else {
                 setLastScannedPlate(plate);
-                setScannedPlate(plate);
                 
                 const matchingOrder = orders.find(o => 
                     o.plate.replace(/[^A-Z0-9]/g, '') === plate && 
@@ -290,7 +290,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         } finally {
             setIsProcessingPlate(false);
         }
-    };
+    }, [isAutoScanEnabled, isProcessingPlate, orders]);
 
     const confirmRecognitionAction = async () => {
         if (!pendingOrder || !actionType) return;
@@ -324,7 +324,6 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 setRecognitionStatus('idle');
                 setPendingOrder(null);
                 setActionType(null);
-                setScannedPlate(null);
             }, 3000);
         } catch (err) {
             console.error("Error updating order:", err);
@@ -352,7 +351,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 clearInterval(autoScanIntervalRef.current);
             }
         };
-    }, [isAutoScanEnabled, isCameraActive, recognitionStatus]);
+    }, [isAutoScanEnabled, isCameraActive, recognitionStatus, captureAndRecognizePlate]);
 
     const handleQuickRegister = async (order: VehicleExitOrder, type: 'exit' | 'return') => {
         if (type === 'exit' && !order.validationRole) {
@@ -1422,7 +1421,6 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                             setRecognitionStatus('idle');
                                                             setPendingOrder(null);
                                                             setActionType(null);
-                                                            setScannedPlate(null);
                                                         }}
                                                         className="flex-1 bg-white border-2 border-amber-200 text-amber-700 font-black py-3 rounded-2xl uppercase text-[10px] tracking-widest hover:bg-amber-100 transition-all"
                                                     >

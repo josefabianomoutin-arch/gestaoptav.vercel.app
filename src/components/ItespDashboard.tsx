@@ -43,7 +43,7 @@ const getMonthNameFromDateString = (dateStr?: string): string => {
     }
 
     // Teste 2: Regex para formatos DD-MM-YYYY ou YYYY-MM-DD
-    const parts = s.replace(/[\/]/g, '-').split('-');
+    const parts = s.replace(/[/]/g, '-').split('-');
     if (parts.length >= 2) {
         // Se YYYY-MM-DD, mês é o segundo (index 1)
         if (parts[0].length === 4) {
@@ -57,7 +57,7 @@ const getMonthNameFromDateString = (dateStr?: string): string => {
     }
     
     // Fallback: Se contiver '-01-' ou '/01/' ou começar com '01/'
-    if (s.includes("-01-") || s.includes("/01/") || s.match(/^01[-\/]/)) return "Janeiro";
+    if (s.includes("-01-") || s.includes("/01/") || s.match(/^01[-/]/)) return "Janeiro";
     
     return "Mês Indefinido";
 };

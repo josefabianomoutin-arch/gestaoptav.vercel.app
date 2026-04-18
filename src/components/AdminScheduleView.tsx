@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
-import type { Supplier, Delivery, ThirdPartyEntryLog } from '../types';
+import React, { useState, useMemo } from 'react';
+import type { Supplier, ThirdPartyEntryLog } from '../types';
 import WeeklyScheduleControl from './WeeklyScheduleControl';
 import ConfirmModal from './ConfirmModal';
 
@@ -118,13 +118,11 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
             .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }, [suppliers, reportSupplierCpf, reportSelectedMonth]);
 
-    useEffect(() => {
-        if (reportItems.length > 0) {
-            setSelectedItemIds(reportItems.map(item => item.id));
-        } else {
-            setSelectedItemIds([]);
-        }
-    }, [reportItems]);
+    const [prevReportItems, setPrevReportItems] = useState(reportItems);
+    if (reportItems !== prevReportItems) {
+        setPrevReportItems(reportItems);
+        setSelectedItemIds(reportItems.map(item => item.id));
+    }
 
     const selectedReportItems = useMemo(() => {
         return reportItems.filter(item => selectedItemIds.includes(item.id));
@@ -139,8 +137,6 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
     const handleGenerateReport = () => {
         const supplier = suppliers.find(s => s.cpf === reportSupplierCpf);
         if (!supplier || !reportSelectedMonth || selectedReportItems.length === 0) return;
-
-        const { totalWeight, totalValue } = reportTotals;
 
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;

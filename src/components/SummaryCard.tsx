@@ -19,8 +19,8 @@ const getContractItemDisplayInfo = (item: Supplier['contractItems'][0]): { quant
     const contractQuantity = parseFloat(rawQuantity.replace(',', '.')) || 0;
     
     const unitWeight = parseFloat(unitWeightStr?.toString().replace(',', '.') || '1') || 1;
-    let displayQuantity = contractQuantity;
-    let displayUnit = 'Un';
+    let displayQuantity: number;
+    let displayUnit: string;
     switch (unitType) {
         case 'kg': case 'un': displayQuantity = contractQuantity; displayUnit = 'Kg'; break;
         case 'saco': case 'balde': case 'pacote': case 'pote': displayQuantity = contractQuantity * unitWeight; displayUnit = 'Kg'; break;

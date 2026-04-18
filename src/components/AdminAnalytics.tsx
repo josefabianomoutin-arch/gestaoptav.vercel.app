@@ -39,7 +39,7 @@ const getMonthNameFromDateString = (dateStr?: string): string => {
     }
 
     // Limpeza de separadores para tratar 01-01 ou 01/01
-    const cleanS = s.replace(/[\/]/g, '-');
+    const cleanS = s.replace(/[/]/g, '-');
     const parts = cleanS.split('-');
     
     if (parts.length >= 2) {
@@ -70,7 +70,7 @@ const ITESP_SUPPLIERS_NAMES = [
     'SONIA REGINA COLOMBO CELESTINO', 'TANIA MARA BALDAO DE BARROS'
 ];
 
-const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], warehouseLog = [], perCapitaConfig }) => {
+const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], perCapitaConfig }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedSupplierName, setSelectedSupplierName] = useState<string>('all');
     const [selectedProductName, setSelectedProductName] = useState<string>('all');
@@ -146,7 +146,7 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], warehou
                 if (!months.includes(delMonth)) return;
 
                 // Busca no mapa consolidado
-                for (const [key, entry] of consolidated.entries()) {
+                for (const entry of consolidated.values()) {
                     if (entry.month === delMonth) {
                         const sMatch = entry.normSupplier === sNorm || entry.normSupplier.includes(sNorm) || sNorm.includes(entry.normSupplier);
                         if (sMatch) {
@@ -171,7 +171,7 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], warehou
         }).filter(i => i.contractedKgMonthly > 0 || i.receivedKg > 0)
           .sort((a, b) => months.indexOf(a.month) - months.indexOf(b.month));
 
-    }, [suppliers, warehouseLog, perCapitaConfig]);
+    }, [suppliers, perCapitaConfig, itespSet]);
 
     const productOptions = useMemo(() => {
         const products = new Set<string>();

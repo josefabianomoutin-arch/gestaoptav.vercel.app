@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
-import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, MenuRow, ContractItem, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, DailyAllowance, Staff, ValidationRole, VehicleInspection, ServiceOrder, MaintenanceSchedule, PublicInfo } from './types';
+import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, VehicleInspection, ServiceOrder, MaintenanceSchedule, PublicInfo } from './types';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
@@ -14,7 +14,7 @@ import VehicleOrderDashboard from './components/VehicleOrderDashboard';
 import JulioDashboard from './components/JulioDashboard';
 import ServiceOrderDashboard from './components/ServiceOrderDashboard';
 import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
-import { ref as storageRef, uploadString, getDownloadURL, uploadBytes } from 'firebase/storage';
+import { ref as storageRef, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { app, storage } from './firebaseConfig';
 
 let database: any;
@@ -94,8 +94,6 @@ const App: React.FC = () => {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
   const [vehicleAssets, setVehicleAssets] = useState<VehicleAsset[]>([]);
   const [driverAssets, setDriverAssets] = useState<DriverAsset[]>([]);
-  const [dailyAllowances, setDailyAllowances] = useState<DailyAllowance[]>([]);
-  const [staff, setStaff] = useState<Staff[]>([]);
   const [validationRoles, setValidationRoles] = useState<ValidationRole[]>([]);
   const [systemPasswords, setSystemPasswords] = useState<Record<string, string>>({});
   const [maintenanceSchedules, setMaintenanceSchedules] = useState<MaintenanceSchedule[]>([]);
@@ -329,16 +327,6 @@ const App: React.FC = () => {
     }
     
     return false;
-  };
-
-  const handleUpdateSystemPassword = async (key: string, newPassword: string) => {
-    try {
-      await set(child(systemPasswordsRef, key), newPassword);
-      return { success: true };
-    } catch (error) {
-      console.error('Erro ao atualizar senha:', error);
-      return { success: false, message: String(error) };
-    }
   };
 
   const handleRegisterServiceOrder = async (order: Omit<ServiceOrder, 'id'>) => {
@@ -721,7 +709,7 @@ const App: React.FC = () => {
           
           // Se o storage falhar, tentamos salvar no RTDB apenas se o arquivo não for gigante
           if (invoiceUrl.length > 500000) { // ~500KB limit for RTDB strings to avoid hanging
-             throw new Error("O arquivo é muito grande para o servidor de backup. Tente um arquivo menor ou verifique sua conexão.");
+             throw new Error("O arquivo é muito grande para o servidor de backup. Tente um arquivo menor ou verifique sua conexão.", { cause: storageError });
           }
           const invoiceId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
           const invoiceRef = child(ref(database), `invoices/${invoiceId}`);
@@ -883,50 +871,6 @@ const App: React.FC = () => {
     }
   }, [suppliers]);
 
-  const handleMarkArrival = async (supplierCpf: string, deliveryId: string) => {
-    const now = new Date();
-    const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-    
-    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-    if (isMainSupplier) {
-      const supplierRef = child(suppliersRef, supplierCpf);
-      await runTransaction(supplierRef, (currentData: Supplier) => {
-        if (currentData && currentData.deliveries) {
-          currentData.deliveries = currentData.deliveries.map(d => {
-            if (d.id === deliveryId) {
-              return { ...d, arrivalTime: currentTime };
-            }
-            return d;
-          });
-        }
-        return currentData;
-      });
-      return;
-    }
-
-    await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
-      if (currentData) {
-        const findAndMark = (list: any[] | undefined) => {
-          const s = list?.find(p => p.cpfCnpj === supplierCpf);
-          if (s && s.deliveries) {
-            s.deliveries = s.deliveries.map((d: any) => {
-              if (d.id === deliveryId) {
-                return { ...d, arrivalTime: currentTime };
-              }
-              return d;
-            });
-            return true;
-          }
-          return false;
-        };
-        if (!findAndMark(currentData.ppaisProducers)) {
-          findAndMark(currentData.pereciveisSuppliers);
-        }
-      }
-      return currentData;
-    });
-  };
-
   // --- GERENCIAMENTO DE NOTAS FISCAIS (ADMIN) ---
 
   const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => {
@@ -1084,7 +1028,7 @@ const App: React.FC = () => {
         try {
           // Se o storage falhar, tentamos salvar no RTDB apenas se o arquivo não for gigante
           if (invoiceUrl.length > 500000) { // ~500KB limit for RTDB strings to avoid hanging
-             throw new Error("O arquivo é muito grande para o servidor de backup. Tente um arquivo menor ou verifique sua conexão.");
+             throw new Error("O arquivo é muito grande para o servidor de backup. Tente um arquivo menor ou verifique sua conexão.", { cause: storageError });
           }
           const invoiceId = `inv_upd_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
           const invoiceRef = child(ref(database), `invoices/${invoiceId}`);
@@ -1160,7 +1104,7 @@ const App: React.FC = () => {
       console.error("Error updating per capita invoice URL:", e);
       return { success: false, message: 'Erro ao gravar no banco de dados.' };
     }
-  }, [suppliers, suppliersRef, perCapitaConfigRef]);
+  }, [suppliers]);
 
   const handleMarkInvoiceAsOpened = useCallback(async (supplierCpf: string, invoiceNumber: string) => {
     const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
@@ -1212,7 +1156,7 @@ const App: React.FC = () => {
       console.error("Error marking per capita invoice as opened:", e);
       return { success: false };
     }
-  }, [suppliers, suppliersRef, perCapitaConfigRef]);
+  }, [suppliers]);
 
   const handleReopenInvoice = async (supplierCpf: string, invoiceNumber: string) => {
     const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
@@ -1787,8 +1731,8 @@ const App: React.FC = () => {
         await update(warehouseLogRef, updates);
       }
       return { success: true, message: 'Registros de saída zerados com sucesso.' };
-    } catch (e) {
-      return { success: false, message: 'Falha ao zerar registros de saída.' };
+    } catch (e: any) {
+      return { success: false, message: 'Falha ao zerar registros de saída.', detail: e.message };
     }
   };
 
