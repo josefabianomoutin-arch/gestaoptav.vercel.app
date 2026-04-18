@@ -10,9 +10,9 @@ interface SubportariaDashboardProps {
   thirdPartyEntries: ThirdPartyEntryLog[];
   maintenanceSchedules: MaintenanceSchedule[];
   serviceOrders: ServiceOrder[];
-  onUpdateMaintenanceSchedule: (id: string, updates: Partial<MaintenanceSchedule>) => Promise<void>;
+  onUpdateMaintenanceSchedule: (id: string, updates: Partial<MaintenanceSchedule>) => Promise<{ success: boolean; message: string }>;
   onUpdateThirdPartyEntry: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message: string }>;
-  onDeleteThirdPartyEntry: (id: string) => Promise<void>;
+  onDeleteThirdPartyEntry: (id: string) => Promise<{ success: boolean; message: string }>;
   onLogout: () => void;
   vehicleExitOrders: VehicleExitOrder[];
   vehicleAssets: VehicleAsset[];

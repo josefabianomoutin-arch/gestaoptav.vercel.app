@@ -6,7 +6,7 @@ interface AdminThirdPartyEntryProps {
     logs: ThirdPartyEntryLog[];
     onRegister: (log: Omit<ThirdPartyEntryLog, 'id'>) => Promise<{ success: boolean; message: string }>;
     onUpdate: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message: string }>;
-    onDelete: (id: string) => Promise<void>;
+    onDelete: (id: string) => Promise<any>;
 }
 
 const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onRegister, onUpdate, onDelete }) => {

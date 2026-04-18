@@ -59,8 +59,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   mode = 'admin'
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
-    const [selectedYear, setSelectedYear] = useState<number>(2026);
+    const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'opened'>('all');
     const [activeMonthTab, setActiveMonthTab] = useState<number>(new Date().getMonth());
   
@@ -311,7 +310,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
               <div className="bg-gray-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Search className="h-10 w-10 text-gray-300" />
               </div>
-              <h3 className="text-xl font-black text-gray-400 uppercase tracking-tighter italic">Nenhuma nota encontrada em {MONTHS[selectedMonth]}</h3>
+              <h3 className="text-xl font-black text-gray-400 uppercase tracking-tighter italic">Nenhuma nota encontrada em {MONTHS[activeMonthTab]}</h3>
               <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Experimente mudar o filtro ou pesquisar por outro termo</p>
             </div>
           )}

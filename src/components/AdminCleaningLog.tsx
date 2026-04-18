@@ -7,7 +7,7 @@ interface AdminCleaningLogProps {
   logs: CleaningLog[];
   financialRecords: FinancialRecord[];
   onRegister: (log: Omit<CleaningLog, 'id'>) => Promise<{ success: boolean; message: string }>;
-  onDelete: (id: string) => Promise<void>;
+  onDelete: (id: string) => Promise<any>;
 }
 
 const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialRecords, onRegister, onDelete }) => {

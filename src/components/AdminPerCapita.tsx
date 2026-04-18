@@ -16,7 +16,7 @@ interface AdminPerCapitaProps {
   suppliers: Supplier[];
   warehouseLog: WarehouseMovement[];
   perCapitaConfig: PerCapitaConfig;
-  onUpdatePerCapitaConfig: (config: PerCapitaConfig) => void;
+  onUpdatePerCapitaConfig: (config: PerCapitaConfig) => Promise<any>;
   onUpdateContractForItem: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string }[]) => Promise<{ success: boolean, message: string }>;
   onUpdateAcquisitionItem: (item: AcquisitionItem) => Promise<{ success: boolean, message: string }>;
   onDeleteAcquisitionItem: (id: string) => Promise<{ success: boolean, message: string }>;
@@ -34,7 +34,7 @@ const normalizeItemName = (name: string): string => {
     return (name || '')
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "") // Remove acentos
-        .replace(/[;,\.\-\/]/g, " ")    // Troca separadores por espaço
+        .replace(/[;,. \-\/]/g, " ")    // Troca separadores por espaço
         .replace(/\s+/g, " ")           // Remove espaços duplos
         .trim()
         .toUpperCase();
@@ -1148,7 +1148,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                         </div>
                     </div>
                 </div>
-            ) : activeSubTab === 'AUDIT' ? (
+            ) : (activeSubTab as string) === 'AUDIT' ? (
                 <div className="animate-fade-in space-y-8">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-8 rounded-[2.5rem] shadow-xl border-l-8 border-red-600">
                         <div>
@@ -1967,7 +1967,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                             </div>
                         ) : (
                             <AdminAcquisitionItems 
-                                category={activeSubTab} 
+                                category={activeSubTab === 'AUDIT' ? 'PPAIS' : activeSubTab} 
                                 items={acquisitionItems} 
                                 onUpdate={onUpdateAcquisitionItem} 
                                 onDelete={onDeleteAcquisitionItem} 

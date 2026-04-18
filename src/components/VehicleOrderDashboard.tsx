@@ -19,16 +19,17 @@ interface VehicleOrderDashboardProps {
   onDeleteMaintenanceSchedule: (id: string) => Promise<{ success: boolean; message: string }>;
   onRegister: (order: Omit<VehicleExitOrder, 'id'>) => Promise<{ success: boolean; message: string; id?: string }>;
   onUpdate: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
-  onDelete: (id: string) => Promise<void>;
+  onDelete: (id: string) => Promise<{ success: boolean; message: string }>;
+  onValidateOrder?: (id: string, validatedBy: string, validationRole: string) => Promise<{ success: boolean; message: string }>;
   onRegisterVehicleAsset: (asset: Omit<VehicleAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateVehicleAsset: (asset: VehicleAsset) => Promise<{ success: boolean; message: string }>;
-  onDeleteVehicleAsset: (id: string) => Promise<void>;
+  onDeleteVehicleAsset: (id: string) => Promise<{ success: boolean; message: string }>;
   onRegisterDriverAsset: (asset: Omit<DriverAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateDriverAsset: (asset: DriverAsset) => Promise<{ success: boolean; message: string }>;
-  onDeleteDriverAsset: (id: string) => Promise<void>;
+  onDeleteDriverAsset: (id: string) => Promise<{ success: boolean; message: string }>;
   onRegisterVehicleInspection?: (inspection: Omit<VehicleInspection, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateVehicleInspection?: (inspection: VehicleInspection) => Promise<{ success: boolean; message: string }>;
-  onDeleteVehicleInspection?: (id: string) => Promise<void>;
+  onDeleteVehicleInspection?: (id: string) => Promise<{ success: boolean; message: string }>;
   onLogout: () => void;
   role?: 'infraestrutura' | 'ordem_saida';
 }

@@ -1577,75 +1577,87 @@ const App: React.FC = () => {
   };
 
   const handleUpdateAcquisitionItem = async (item: AcquisitionItem) => {
-    const itemRef = child(acquisitionItemsRef, item.id);
-    const oldItemSnapshot = await get(itemRef);
-    const oldItem = oldItemSnapshot.val() as AcquisitionItem | null;
+    try {
+      const itemRef = child(acquisitionItemsRef, item.id);
+      const oldItemSnapshot = await get(itemRef);
+      const oldItem = oldItemSnapshot.val() as AcquisitionItem | null;
 
-    await set(itemRef, item);
+      await set(itemRef, item);
 
-    // Se o nome mudou, precisamos atualizar em todos os fornecedores
-    if (oldItem && oldItem.name !== item.name) {
-      const suppliersSnapshot = await get(suppliersRef);
-      const allSuppliers = suppliersSnapshot.val() || {};
-      
-      for (const cpf in allSuppliers) {
-        const supplier = allSuppliers[cpf] as Supplier;
-        if (supplier.contractItems) {
-          const updatedItems = supplier.contractItems.map(ci => 
-            ci.name === oldItem.name ? { ...ci, name: item.name } : ci
-          );
-          if (JSON.stringify(updatedItems) !== JSON.stringify(supplier.contractItems)) {
-            await update(child(suppliersRef, cpf), { contractItems: updatedItems });
+      // Se o nome mudou, precisamos atualizar em todos os fornecedores
+      if (oldItem && oldItem.name !== item.name) {
+        const suppliersSnapshot = await get(suppliersRef);
+        const allSuppliers = suppliersSnapshot.val() || {};
+        
+        for (const cpf in allSuppliers) {
+          const supplier = allSuppliers[cpf] as Supplier;
+          if (supplier.contractItems) {
+            const updatedItems = supplier.contractItems.map(ci => 
+              ci.name === oldItem.name ? { ...ci, name: item.name } : ci
+            );
+            if (JSON.stringify(updatedItems) !== JSON.stringify(supplier.contractItems)) {
+              await update(child(suppliersRef, cpf), { contractItems: updatedItems });
+            }
           }
         }
-      }
 
-      // Também atualizar no perCapitaConfig
-      const updatedPpais = (perCapitaConfig.ppaisProducers || []).map(p => ({
-        ...p,
-        contractItems: (p.contractItems || []).map(ci => ci.name === oldItem.name ? { ...ci, name: item.name } : ci)
-      }));
-      const updatedPereciveis = (perCapitaConfig.pereciveisSuppliers || []).map(p => ({
-        ...p,
-        contractItems: (p.contractItems || []).map(ci => ci.name === oldItem.name ? { ...ci, name: item.name } : ci)
-      }));
-      await set(perCapitaConfigRef, { ...perCapitaConfig, ppaisProducers: updatedPpais, pereciveisSuppliers: updatedPereciveis });
+        // Também atualizar no perCapitaConfig
+        const updatedPpais = (perCapitaConfig.ppaisProducers || []).map(p => ({
+          ...p,
+          contractItems: (p.contractItems || []).map(ci => ci.name === oldItem.name ? { ...ci, name: item.name } : ci)
+        }));
+        const updatedPereciveis = (perCapitaConfig.pereciveisSuppliers || []).map(p => ({
+          ...p,
+          contractItems: (p.contractItems || []).map(ci => ci.name === oldItem.name ? { ...ci, name: item.name } : ci)
+        }));
+        await set(perCapitaConfigRef, { ...perCapitaConfig, ppaisProducers: updatedPpais, pereciveisSuppliers: updatedPereciveis });
+      }
+      return { success: true, message: 'Item atualizado com sucesso' };
+    } catch (e) {
+      console.error(e);
+      return { success: false, message: 'Erro ao atualizar item' };
     }
   };
 
   const handleDeleteAcquisitionItem = async (id: string) => {
-    const itemRef = child(acquisitionItemsRef, id);
-    const itemSnapshot = await get(itemRef);
-    const item = itemSnapshot.val() as AcquisitionItem | null;
+    try {
+      const itemRef = child(acquisitionItemsRef, id);
+      const itemSnapshot = await get(itemRef);
+      const item = itemSnapshot.val() as AcquisitionItem | null;
 
-    if (item) {
-      // Remover de todos os fornecedores
-      const suppliersSnapshot = await get(suppliersRef);
-      const allSuppliers = suppliersSnapshot.val() || {};
-      
-      for (const cpf in allSuppliers) {
-        const supplier = allSuppliers[cpf] as Supplier;
-        if (supplier.contractItems) {
-          const updatedItems = supplier.contractItems.filter(ci => ci.name !== item.name);
-          if (updatedItems.length !== supplier.contractItems.length) {
-            await update(child(suppliersRef, cpf), { contractItems: updatedItems });
+      if (item) {
+        // Remover de todos os fornecedores
+        const suppliersSnapshot = await get(suppliersRef);
+        const allSuppliers = suppliersSnapshot.val() || {};
+        
+        for (const cpf in allSuppliers) {
+          const supplier = allSuppliers[cpf] as Supplier;
+          if (supplier.contractItems) {
+            const updatedItems = supplier.contractItems.filter(ci => ci.name !== item.name);
+            if (updatedItems.length !== supplier.contractItems.length) {
+              await update(child(suppliersRef, cpf), { contractItems: updatedItems });
+            }
           }
         }
+
+        // Também remover do perCapitaConfig
+        const updatedPpais = (perCapitaConfig.ppaisProducers || []).map(p => ({
+          ...p,
+          contractItems: (p.contractItems || []).map(ci => ci.name === item.name ? null : ci).filter(Boolean)
+        }));
+        const updatedPereciveis = (perCapitaConfig.pereciveisSuppliers || []).map(p => ({
+          ...p,
+          contractItems: (p.contractItems || []).map(ci => ci.name === item.name ? null : ci).filter(Boolean)
+        }));
+        await set(perCapitaConfigRef, { ...perCapitaConfig, ppaisProducers: updatedPpais, pereciveisSuppliers: updatedPereciveis });
       }
 
-      // Também remover do perCapitaConfig
-      const updatedPpais = (perCapitaConfig.ppaisProducers || []).map(p => ({
-        ...p,
-        contractItems: (p.contractItems || []).map(ci => ci.name === item.name ? null : ci).filter(Boolean)
-      }));
-      const updatedPereciveis = (perCapitaConfig.pereciveisSuppliers || []).map(p => ({
-        ...p,
-        contractItems: (p.contractItems || []).map(ci => ci.name === item.name ? null : ci).filter(Boolean)
-      }));
-      await set(perCapitaConfigRef, { ...perCapitaConfig, ppaisProducers: updatedPpais, pereciveisSuppliers: updatedPereciveis });
+      await remove(itemRef);
+      return { success: true, message: 'Item excluído com sucesso' };
+    } catch (e) {
+      console.error(e);
+      return { success: false, message: 'Erro ao excluir item' };
     }
-
-    await remove(itemRef);
   };
 
   const handleRegisterWarehouseEntry = async (payload: any) => {
@@ -2084,7 +2096,8 @@ const App: React.FC = () => {
           }}
           onDeleteVehicleExitOrder={async (id) => {
             console.log("Deleting vehicle exit order (JulioDashboard) with ID:", id);
-            return remove(child(vehicleExitOrdersRef, id));
+            await remove(child(vehicleExitOrdersRef, id));
+            return { success: true, message: 'Ordem de saída excluída' };
           }}
           onRegisterDriverAsset={async (s) => {
             const r = push(driverAssetsRef);
@@ -2095,7 +2108,10 @@ const App: React.FC = () => {
             await set(child(driverAssetsRef, s.id), s);
             return { success: true, message: 'Servidor atualizado' };
           }}
-          onDeleteDriverAsset={async (id) => remove(child(driverAssetsRef, id))}
+          onDeleteDriverAsset={async (id) => {
+            await remove(child(driverAssetsRef, id));
+            return { success: true, message: 'Servidor excluído' };
+          }}
           onRegisterVehicleAsset={async (v) => {
             const r = push(vehicleAssetsRef);
             await set(r, { ...v, id: r.key });
@@ -2105,7 +2121,10 @@ const App: React.FC = () => {
             await set(child(vehicleAssetsRef, v.id), v);
             return { success: true, message: 'Veículo atualizado' };
           }}
-          onDeleteVehicleAsset={async (id) => remove(child(vehicleAssetsRef, id))}
+          onDeleteVehicleAsset={async (id) => {
+            await remove(child(vehicleAssetsRef, id));
+            return { success: true, message: 'Veículo excluído' };
+          }}
           onRegisterValidationRole={async (vr) => {
             const r = push(validationRolesRef);
             await set(r, { ...vr, id: r.key });
@@ -2115,7 +2134,10 @@ const App: React.FC = () => {
             await set(child(validationRolesRef, vr.id), vr);
             return { success: true, message: 'Cargo de validação atualizado' };
           }}
-          onDeleteValidationRole={async (id) => remove(child(validationRolesRef, id))}
+          onDeleteValidationRole={async (id) => {
+            await remove(child(validationRolesRef, id));
+            return { success: true, message: 'Cargo excluído' };
+          }}
           onRegisterVehicleInspection={async (inspection) => {
             const r = push(vehicleInspectionsRef);
             await set(r, { ...inspection, id: r.key });
@@ -2125,7 +2147,10 @@ const App: React.FC = () => {
             await set(child(vehicleInspectionsRef, inspection.id), inspection);
             return { success: true, message: 'Inspeção atualizada' };
           }}
-          onDeleteVehicleInspection={async (id) => remove(child(vehicleInspectionsRef, id))}
+          onDeleteVehicleInspection={async (id) => {
+            await remove(child(vehicleInspectionsRef, id));
+            return { success: true, message: 'Inspeção excluída' };
+          }}
         />
       );
     }
@@ -2141,7 +2166,9 @@ const App: React.FC = () => {
           thirdPartyEntries={thirdPartyEntries}
           maintenanceSchedules={maintenanceSchedules}
           serviceOrders={serviceOrders}
-          onUpdateMaintenanceSchedule={handleUpdateMaintenanceSchedule}
+          onUpdateMaintenanceSchedule={async (id, updates) => {
+            return await handleUpdateMaintenanceSchedule(id, updates);
+          }}
           onUpdateThirdPartyEntry={async (log) => {
             await set(child(thirdPartyEntriesRef, log.id), log);
             return { success: true, message: 'Atualizado' };
@@ -2155,7 +2182,10 @@ const App: React.FC = () => {
             await set(child(vehicleExitOrdersRef, order.id), order);
             return { success: true, message: 'Atualizado' };
           }}
-          onDeleteThirdPartyEntry={async (id) => remove(child(thirdPartyEntriesRef, id))}
+          onDeleteThirdPartyEntry={async (id) => {
+            await remove(child(thirdPartyEntriesRef, id));
+            return { success: true, message: 'Excluído' };
+          }}
         />
       );
     }
@@ -2197,8 +2227,8 @@ const App: React.FC = () => {
             return { success: true, message: 'Atualizado' };
           }}
           onDelete={async (id) => {
-            console.log("Deleting vehicle exit order (VehicleOrderDashboard) with ID:", id);
-            return remove(child(vehicleExitOrdersRef, id));
+            await remove(child(vehicleExitOrdersRef, id));
+            return { success: true, message: 'Ordem excluída' };
           }}
           onRegisterVehicleAsset={async (v) => {
             const r = push(vehicleAssetsRef);
@@ -2209,7 +2239,10 @@ const App: React.FC = () => {
             await set(child(vehicleAssetsRef, v.id), v);
             return { success: true, message: 'Atualizado' };
           }}
-          onDeleteVehicleAsset={async (id) => remove(child(vehicleAssetsRef, id))}
+          onDeleteVehicleAsset={async (id) => {
+            await remove(child(vehicleAssetsRef, id));
+            return { success: true, message: 'Veículo excluído' };
+          }}
           onRegisterDriverAsset={async (d) => {
             const r = push(driverAssetsRef);
             await set(r, { ...d, id: r.key });
@@ -2219,7 +2252,10 @@ const App: React.FC = () => {
             await set(child(driverAssetsRef, d.id), d);
             return { success: true, message: 'Atualizado' };
           }}
-          onDeleteDriverAsset={async (id) => remove(child(driverAssetsRef, id))}
+          onDeleteDriverAsset={async (id) => {
+            await remove(child(driverAssetsRef, id));
+            return { success: true, message: 'Servidor excluído' };
+          }}
           onRegisterVehicleInspection={async (inspection) => {
             const r = push(vehicleInspectionsRef);
             await set(r, { ...inspection, id: r.key });
@@ -2229,7 +2265,10 @@ const App: React.FC = () => {
             await set(child(vehicleInspectionsRef, inspection.id), inspection);
             return { success: true, message: 'Inspeção atualizada' };
           }}
-          onDeleteVehicleInspection={async (id) => remove(child(vehicleInspectionsRef, id))}
+          onDeleteVehicleInspection={async (id) => {
+            await remove(child(vehicleInspectionsRef, id));
+            return { success: true, message: 'Inspeção excluída' };
+          }}
           onValidateOrder={async (orderId, validatedBy, validationRole) => {
             const timestamp = new Date().toISOString();
             await update(child(vehicleExitOrdersRef, orderId), {

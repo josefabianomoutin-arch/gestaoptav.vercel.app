@@ -6,7 +6,7 @@ import ConfirmModal from './ConfirmModal';
 interface AdminFinancialManagerProps {
   records: FinancialRecord[];
   onSave: (record: Omit<FinancialRecord, 'id'> & { id?: string }) => Promise<{ success: boolean; message?: string }>;
-  onDelete: (id: string) => Promise<void>;
+  onDelete: (id: string) => Promise<any>;
 }
 
 const PTRES_OPTIONS = ['380302', '380303', '380304', '380308', '380328'] as const;

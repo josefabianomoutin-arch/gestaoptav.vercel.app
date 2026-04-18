@@ -166,7 +166,7 @@ const ItespDashboard: React.FC<ItespDashboardProps> = ({ suppliers = [], warehou
             
             return {
                 ...data,
-                id: `itp-${idx}-${Date.now()}`,
+                id: `itp-${idx}-${data.cpf || 'no-cpf'}-${data.month}`,
                 receivedKg: cappedReceivedKg, // Use capped value for display and calculations
                 actualReceivedKg: data.receivedKg, // Keep original for details if needed
                 shortfallKg,

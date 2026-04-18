@@ -182,13 +182,14 @@ export interface FinancialRecord {
     notaCredito?: string;
     dataFinalizacaoProcesso?: string;
     modalidade?: string;
-    adiantado?: boolean | string;
+    adiantado?: any;
     ptres?: string;
     favorecido?: string;
     data?: string;
     dataSolicitacao?: string;
     selecao?: any;
     justificativa?: string;
+    localUtilizado?: string;
 }
 
 export interface ThirdPartyEntryLog {
@@ -201,7 +202,7 @@ export interface ThirdPartyEntryLog {
     vehiclePlate?: string;
     status: 'agendado' | 'concluido' | 'cancelado';
     arrivalTime?: string;
-    locations?: string[];
+    locations?: string[] | string;
     photo?: string;
     vehicle?: string;
     plate?: string;

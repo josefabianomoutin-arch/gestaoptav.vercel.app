@@ -5,7 +5,7 @@ import type { StandardMenu, DailyMenus, MenuRow, Supplier } from '../types';
 interface AdminStandardMenuProps {
   template: StandardMenu;
   dailyMenus: DailyMenus;
-  onUpdateDailyMenus: (menus: DailyMenus) => Promise<void>;
+  onUpdateDailyMenus: (menus: DailyMenus) => Promise<any>;
   inmateCount: number;
   suppliers: Supplier[];
 }

@@ -25,16 +25,16 @@ interface JulioDashboardProps {
   onDeleteVehicleExitOrder: (id: string) => Promise<{ success: boolean; message: string }>;
   onRegisterDriverAsset: (s: Omit<DriverAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateDriverAsset: (s: DriverAsset) => Promise<{ success: boolean; message: string }>;
-  onDeleteDriverAsset: (id: string) => Promise<void>;
+  onDeleteDriverAsset: (id: string) => Promise<{ success: boolean; message: string }>;
   onRegisterVehicleAsset: (v: Omit<VehicleAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateVehicleAsset: (v: VehicleAsset) => Promise<{ success: boolean; message: string }>;
-  onDeleteVehicleAsset: (id: string) => Promise<void>;
+  onDeleteVehicleAsset: (id: string) => Promise<{ success: boolean; message: string }>;
   onRegisterValidationRole: (vr: Omit<ValidationRole, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateValidationRole: (vr: ValidationRole) => Promise<{ success: boolean; message: string }>;
-  onDeleteValidationRole: (id: string) => Promise<void>;
+  onDeleteValidationRole: (id: string) => Promise<{ success: boolean; message: string }>;
   onRegisterVehicleInspection: (inspection: Omit<VehicleInspection, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateVehicleInspection: (inspection: VehicleInspection) => Promise<{ success: boolean; message: string }>;
-  onDeleteVehicleInspection: (id: string) => Promise<void>;
+  onDeleteVehicleInspection: (id: string) => Promise<{ success: boolean; message: string }>;
 }
 
 const JulioDashboard: React.FC<JulioDashboardProps> = ({
@@ -183,9 +183,7 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
             orders={serviceOrders}
             maintenanceSchedules={maintenanceSchedules}
             onUpdate={onUpdateServiceOrder}
-            onDelete={async (id) => {
-              await onDeleteServiceOrder(id);
-            }}
+            onDelete={onDeleteServiceOrder}
             onRegisterMaintenanceSchedule={onRegisterMaintenanceSchedule}
             onUpdateMaintenanceSchedule={onUpdateMaintenanceSchedule}
             onDeleteMaintenanceSchedule={onDeleteMaintenanceSchedule}

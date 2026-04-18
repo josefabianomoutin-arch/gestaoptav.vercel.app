@@ -92,6 +92,8 @@ const VehicleInspectionTab: React.FC<VehicleInspectionTabProps> = ({
     setFormData({
       vehicleId: '',
       driverId: '',
+      inspector: '',
+      items: {},
       date: new Date().toISOString().slice(0, 16),
       type: 'INÍCIO DO PLANTÃO',
       breakdownDescription: '',
@@ -112,10 +114,12 @@ const VehicleInspectionTab: React.FC<VehicleInspectionTabProps> = ({
   const openEditModal = (inspection: VehicleInspection) => {
     setEditingInspection(inspection);
     setFormData({
-      vehicleId: inspection.vehicleId,
-      driverId: inspection.driverId,
+      vehicleId: inspection.vehicleId || '',
+      driverId: inspection.driverId || '',
+      inspector: inspection.inspector || '',
+      items: inspection.items || {},
       date: inspection.date,
-      type: inspection.type,
+      type: inspection.type || '',
       breakdownDescription: inspection.breakdownDescription || '',
       lightingIssues: inspection.lightingIssues || [],
       lightingDescription: inspection.lightingDescription || '',

@@ -142,7 +142,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
   
-  const pendingDailyInvoices = useMemo(() => {
+  const pendingDailyInvoices = useMemo((): {date: string, deliveries: Delivery[]}[] => {
     const pending = (Object.values(supplier.deliveries || {}) as any[]).filter(d => {
         const deliveryDate = new Date(d.date + 'T00:00:00');
         return d.item === 'AGENDAMENTO PENDENTE' && deliveryDate < SIMULATED_TODAY;
@@ -155,7 +155,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     return Object.entries(groupedByDate).map(([date, deliveries]) => ({ date, deliveries: deliveries as Delivery[] })).sort((a,b) => b.date.localeCompare(a.date));
   }, [supplier.deliveries]);
 
-  const uploadedInvoices = useMemo(() => {
+  const uploadedInvoices = useMemo((): any[] => {
     const uploaded = (Object.values(supplier.deliveries || {}) as any[]).filter((d: any) => d.invoiceUploaded && d.invoiceNumber);
     const groupedByNf = uploaded.reduce((acc, delivery) => {
         if (!acc[delivery.invoiceNumber]) {

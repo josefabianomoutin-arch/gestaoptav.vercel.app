@@ -8,7 +8,7 @@ interface AdminScheduleViewProps {
   suppliers: Supplier[];
   thirdPartyEntries: ThirdPartyEntryLog[];
   onCancelDeliveries: (supplierCpf: string, deliveryIds: string[]) => void;
-  onDeleteThirdPartyEntry: (id: string) => Promise<void>;
+  onDeleteThirdPartyEntry: (id: string) => Promise<any>;
 }
 
 const formatDate = (dateString: string) => {
