@@ -12,8 +12,8 @@ interface AlmoxarifadoDashboardProps {
     onRegisterEntry: (payload: any) => Promise<{ success: boolean; message: string }>;
     onRegisterWithdrawal: (payload: any) => Promise<{ success: boolean; message: string }>;
     onResetExits: () => Promise<{ success: boolean; message: string }>;
-    onReopenInvoice: (supplierCpf: string, invoiceNumber: string) => void;
-    onDeleteInvoice: (supplierCpf: string, invoiceNumber: string) => void;
+    onReopenInvoice: (supplierCpf: string, invoiceNumber: string) => Promise<void>;
+    onDeleteInvoice: (supplierCpf: string, invoiceNumber: string) => Promise<void>;
     onUpdateInvoiceItems: (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => Promise<{ success: boolean; message?: string }>;
     onUpdateInvoiceUrl: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => Promise<{ success: boolean; message?: string }>;
     onMarkInvoiceAsOpened: (supplierCpf: string, invoiceNumber: string) => Promise<{ success: boolean }>;
@@ -30,6 +30,9 @@ interface AlmoxarifadoDashboardProps {
     onRegisterDriverAsset: (asset: Omit<DriverAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
     onUpdateDriverAsset: (asset: DriverAsset) => Promise<{ success: boolean; message: string }>;
     onDeleteDriverAsset: (id: string) => Promise<void>;
+    onRegisterVehicleExitOrder: (order: any) => Promise<{ success: boolean; message: string; id: string }>;
+    onUpdateVehicleExitOrder: (order: any) => Promise<{ success: boolean; message: string }>;
+    onDeleteVehicleExitOrder: (id: string) => Promise<void>;
     validationRoles: any[];
     vehicleExitOrders?: any[];
 }
@@ -79,7 +82,11 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     onRegisterDriverAsset,
     onUpdateDriverAsset,
     onDeleteDriverAsset,
-    validationRoles
+    onRegisterVehicleExitOrder,
+    onUpdateVehicleExitOrder,
+    onDeleteVehicleExitOrder,
+    validationRoles,
+    vehicleExitOrders
 }) => {
     const [activeTab, setActiveTab] = useState<'entry' | 'exit' | 'receipt' | 'agenda'>('entry');
     const [selectedAgendaDate, setSelectedAgendaDate] = useState(new Date().toISOString().split('T')[0]);

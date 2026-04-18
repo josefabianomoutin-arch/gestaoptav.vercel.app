@@ -5,26 +5,24 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Delivery, ContractItem } from '../types';
 
 interface SendInvoiceModalProps {
-  isOpen: boolean;
+  invoiceInfo: { date: string; deliveries: Delivery[] };
+  contractItems: ContractItem[];
   onClose: () => void;
-  onSave: (invoice: any) => void;
+  onSave: (invoiceNumber: string, invoiceUrl: string, deliveries: Delivery[], invoiceDate?: string) => void;
 }
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ isOpen, onClose, onSave }) => {
+const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contractItems, onClose, onSave }) => {
   const [loading, setLoading] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState('');
-  const [invoiceDate, setInvoiceDate] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState(invoiceInfo.date);
   const [supplierName, setSupplierName] = useState('');
-  const [deliveries, setDeliveries] = useState<Partial<Delivery>[]>([]);
-  const [contractItems] = useState<ContractItem[]>([
-    { id: '1', name: 'Item A', valuePerKg: 10.5, totalKg: 0 },
-    { id: '2', name: 'Item B', valuePerKg: 20.0, totalKg: 0 },
-  ]);
+  const [deliveries, setDeliveries] = useState<any[]>(invoiceInfo.deliveries.map(d => ({ ...d })));
+  const [invoiceUrl, setInvoiceUrl] = useState('');
 
   const handleAddDelivery = () => {
-    setDeliveries([...deliveries, { id: crypto.randomUUID(), itemId: '', itemName: '', kg: 0, value: 0 }]);
+    setDeliveries([...deliveries, { id: `manual-${Date.now()}`, itemId: '', itemName: '', kg: 0, value: 0 }]);
   };
 
   const handleRemoveDelivery = (id: string) => {
@@ -34,7 +32,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ isOpen, onClose, on
   const handleUpdateDelivery = (id: string, field: string, val: any) => {
     setDeliveries(deliveries.map(d => {
       if (d.id === id) {
-        const updated = { ...d, [field]: val } as any;
+        const updated = { ...d, [field]: val };
         if (field === 'itemId') {
           const item = contractItems.find(ci => ci.id === val);
           if (item) updated.itemName = item.name;
@@ -54,10 +52,10 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ isOpen, onClose, on
         reader.readAsDataURL(file);
       });
 
-      const response = await ai.getGenerativeModel({ model: "gemini-1.5-flash" }).generateContent({
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
         contents: [
           {
-            role: "user",
             parts: [
               { text: "Extract invoice data: number, date, supplier, and items (name, quantity, totalValue). Return JSON." },
               {
@@ -69,22 +67,22 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ isOpen, onClose, on
             ]
           }
         ],
-        generationConfig: {
+        config: {
           responseMimeType: "application/json",
           responseSchema: {
-            type: SchemaType.OBJECT,
+            type: Type.OBJECT,
             properties: {
-              number: { type: SchemaType.STRING },
-              date: { type: SchemaType.STRING },
-              supplier: { type: SchemaType.STRING },
+              number: { type: Type.STRING },
+              date: { type: Type.STRING },
+              supplier: { type: Type.STRING },
               items: {
-                type: SchemaType.ARRAY,
+                type: Type.ARRAY,
                 items: {
-                  type: SchemaType.OBJECT,
+                  type: Type.OBJECT,
                   properties: {
-                    name: { type: SchemaType.STRING },
-                    quantity: { type: SchemaType.NUMBER },
-                    totalValue: { type: SchemaType.NUMBER }
+                    name: { type: Type.STRING },
+                    quantity: { type: Type.NUMBER },
+                    totalValue: { type: Type.NUMBER }
                   }
                 }
               }
@@ -93,21 +91,21 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ isOpen, onClose, on
         }
       });
 
-      // Simple fix for Gemini SDK version mismatch if needed, but let's assume correct usage
-      const data = JSON.parse(response.response.text());
+      const text = response.text || '{}';
+      const data = JSON.parse(text);
       if (data.number) setInvoiceNumber(data.number);
       if (data.date) setInvoiceDate(data.date);
       if (data.supplier) setSupplierName(data.supplier);
       
       if (data.items) {
         const extractedDeliveries = data.items.map((item: any) => ({
-          id: crypto.randomUUID(),
+          id: `extracted-${Date.now()}-${Math.random()}`,
           itemName: item.name,
           kg: item.quantity || 0,
           value: item.totalValue || 0,
           itemId: contractItems.find(ci => ci.name === item.name)?.id || ''
         }));
-        setDeliveries(extractedDeliveries);
+        setDeliveries(prev => [...prev, ...extractedDeliveries]);
       }
     } catch (error) {
       console.error("Extraction error:", error);
@@ -122,18 +120,14 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ isOpen, onClose, on
   };
 
   const handleSave = () => {
-    onSave({
-      id: crypto.randomUUID(),
-      number: invoiceNumber,
-      date: invoiceDate,
-      supplierName,
-      deliveries,
-      totalValue: deliveries.reduce((acc, d) => acc + (d.value || 0), 0)
-    });
+    // Basic validation
+    if (!invoiceNumber) {
+        alert("Número da nota é obrigatório");
+        return;
+    }
+    onSave(invoiceNumber, invoiceUrl, deliveries, invoiceDate);
     onClose();
   };
-
-  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
@@ -150,33 +144,36 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ isOpen, onClose, on
         </div>
 
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Número da Nota</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div className="space-y-1">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">URL da Nota (Firebase Storage)</label>
               <input 
                 type="text" 
-                value={invoiceNumber}
-                onChange={(e) => setInvoiceNumber(e.target.value)}
+                value={invoiceUrl}
+                onChange={(e) => setInvoiceUrl(e.target.value)}
+                placeholder="https://firebasestorage.googleapis.com/..."
                 className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Data da Nota</label>
-              <input 
-                type="date" 
-                value={invoiceDate}
-                onChange={(e) => setInvoiceDate(e.target.value)}
-                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Fornecedor</label>
-              <input 
-                type="text" 
-                value={supplierName}
-                onChange={(e) => setSupplierName(e.target.value)}
-                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-              />
+            <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Número da Nota</label>
+                  <input 
+                    type="text" 
+                    value={invoiceNumber}
+                    onChange={(e) => setInvoiceNumber(e.target.value)}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Data da Nota</label>
+                  <input 
+                    type="date" 
+                    value={invoiceDate}
+                    onChange={(e) => setInvoiceDate(e.target.value)}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  />
+                </div>
             </div>
           </div>
 
@@ -185,7 +182,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ isOpen, onClose, on
             <div className="flex gap-2">
               <label className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl cursor-pointer hover:bg-blue-100 transition-colors">
                 <FileText className="w-4 h-4" />
-                <span className="text-sm font-medium">Extrair PDF</span>
+                <span className="text-sm font-medium">Extrair PDF (AI)</span>
                 <input type="file" accept="application/pdf" className="hidden" onChange={handleFileUpload} />
               </label>
               <button 
@@ -201,7 +198,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ isOpen, onClose, on
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12 space-y-4">
               <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-              <p className="text-gray-500 font-medium">Extraindo dados...</p>
+              <p className="text-gray-500 font-medium">Extraindo dados com Gemini AI...</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -257,11 +254,6 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ isOpen, onClose, on
                   </motion.div>
                 ))}
               </AnimatePresence>
-              {deliveries.length === 0 && (
-                <div className="text-center py-12 border-2 border-dashed border-gray-100 rounded-3xl">
-                  <p className="text-gray-400">Nenhum item adicionado.</p>
-                </div>
-              )}
             </div>
           )}
         </div>

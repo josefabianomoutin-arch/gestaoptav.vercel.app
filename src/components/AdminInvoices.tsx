@@ -39,6 +39,7 @@ interface AdminInvoicesProps {
   ) => Promise<{ success: boolean; message?: string }>;
   onMarkInvoiceAsOpened: (supplierCpf: string, invoiceNumber: string) => Promise<{ success: boolean }>;
   mode?: 'admin' | 'warehouse_entry' | 'warehouse_exit';
+  onRegisterExit?: (payload: any) => Promise<{ success: boolean; message: string }>;
 }
 
 const MONTHS = [
@@ -57,9 +58,11 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   onMarkInvoiceAsOpened,
   mode = 'admin'
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+    const [selectedYear, setSelectedYear] = useState<number>(2026);
+    const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'opened'>('all');
+    const [activeMonthTab, setActiveMonthTab] = useState<number>(new Date().getMonth());
   
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
@@ -112,18 +115,21 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     return invoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [suppliers]);
 
-  const filteredInvoices = useMemo(() => {
-    return allInvoices.filter(inv => {
-      const invoiceDate = new Date(inv.date + 'T00:00:00');
-      const matchesMonth = invoiceDate.getMonth() === selectedMonth && invoiceDate.getFullYear() === selectedYear;
-      const matchesSearch = 
-        inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        inv.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        inv.items.some((it: any) => it.item.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      return matchesMonth && matchesSearch;
-    });
-  }, [allInvoices, selectedMonth, selectedYear, searchTerm]);
+    const filteredInvoices = useMemo(() => {
+        return allInvoices.filter(inv => {
+            const invoiceDate = new Date(inv.date + 'T00:00:00');
+            const matchesMonth = invoiceDate.getMonth() === activeMonthTab && invoiceDate.getFullYear() === selectedYear;
+            const matchesStatus = statusFilter === 'all' || 
+                              (statusFilter === 'pending' && !inv.isOpened) ||
+                              (statusFilter === 'opened' && inv.isOpened);
+            const matchesSearch = 
+              inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              inv.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              inv.items.some((it: any) => it.item.toLowerCase().includes(searchTerm.toLowerCase()));
+            
+            return matchesMonth && matchesStatus && matchesSearch;
+        });
+    }, [allInvoices, activeMonthTab, selectedYear, statusFilter, searchTerm]);
 
   const handleOpenPdf = async (url: string) => {
     let finalUrl = url;
@@ -189,9 +195,9 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           {MONTHS.map((month, idx) => (
             <button
               key={month}
-              onClick={() => setSelectedMonth(idx)}
+              onClick={() => setActiveMonthTab(idx)}
               className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                selectedMonth === idx 
+                activeMonthTab === idx 
                   ? 'bg-indigo-600 text-white shadow-lg' 
                   : 'text-gray-400 hover:bg-white hover:text-indigo-600'
               }`}

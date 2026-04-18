@@ -52,8 +52,8 @@ interface AdminDashboardProps {
   onDeleteWarehouseEntry: (logEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
   onUpdateWarehouseEntry: (updatedEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
   onUpdateContractForItem: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string }[]) => Promise<{ success: boolean, message: string }>;
-  onUpdateAcquisitionItem: (item: AcquisitionItem) => Promise<void>;
-  onDeleteAcquisitionItem: (id: string) => Promise<void>;
+  onUpdateAcquisitionItem: (item: AcquisitionItem) => Promise<void | { success: boolean; message: string }>;
+  onDeleteAcquisitionItem: (id: string) => Promise<void | { success: boolean; message: string }>;
   acquisitionItems: AcquisitionItem[];
   onRegisterCleaningLog: (log: Omit<CleaningLog, 'id'>) => Promise<{ success: boolean; message: string }>;
   onDeleteCleaningLog: (id: string) => Promise<void>;
@@ -92,10 +92,10 @@ interface AdminDashboardProps {
   serviceOrders: ServiceOrder[];
   maintenanceSchedules: MaintenanceSchedule[];
   onUpdateServiceOrder: (order: ServiceOrder) => Promise<{ success: boolean; message: string }>;
-  onDeleteServiceOrder: (id: string) => Promise<{ success: boolean; message: string }>;
+  onDeleteServiceOrder: (id: string) => Promise<void | { success: boolean; message: string }>;
   onRegisterMaintenanceSchedule: (schedule: Omit<MaintenanceSchedule, 'id'>) => Promise<{ success: boolean; message: string }>;
-  onUpdateMaintenanceSchedule: (id: string, updates: Partial<MaintenanceSchedule>) => Promise<void>;
-  onDeleteMaintenanceSchedule: (id: string) => Promise<void>;
+  onUpdateMaintenanceSchedule: (id: string, updates: Partial<MaintenanceSchedule>) => Promise<void | { success: boolean; message: string }>;
+  onDeleteMaintenanceSchedule: (id: string) => Promise<void | { success: boolean; message: string }>;
   validationRoles: any[];
   onUpdateSupplierObservations?: (cpf: string, observations: string) => Promise<{ success: boolean; message?: string }>;
   systemPasswords: Record<string, string>;

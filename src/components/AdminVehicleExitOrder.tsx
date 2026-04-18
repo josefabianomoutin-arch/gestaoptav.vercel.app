@@ -1,0 +1,2290 @@
+
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, VehicleInspection } from '../types';
+import { GoogleGenAI } from "@google/genai";
+import ConfirmModal from './ConfirmModal';
+import VehicleInspectionTab from './VehicleInspectionTab';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+interface AdminVehicleExitOrderProps {
+    orders: VehicleExitOrder[];
+    onRegister: (order: Omit<VehicleExitOrder, 'id'>) => Promise<{ success: boolean; message: string; id?: string }>;
+    onUpdate: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
+    onDelete?: (id: string) => Promise<void>;
+    vehicleAssets: VehicleAsset[];
+    onRegisterVehicleAsset: (asset: Omit<VehicleAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
+    onUpdateVehicleAsset: (asset: VehicleAsset) => Promise<{ success: boolean; message: string }>;
+    onDeleteVehicleAsset: (id: string) => Promise<void>;
+    driverAssets: DriverAsset[];
+    onRegisterDriverAsset: (asset: Omit<DriverAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
+    onUpdateDriverAsset: (asset: DriverAsset) => Promise<{ success: boolean; message: string }>;
+    onDeleteDriverAsset: (id: string) => Promise<void>;
+    validationRoles: ValidationRole[];
+    onRegisterValidationRole?: (vr: Omit<ValidationRole, 'id'>) => Promise<{ success: boolean; message: string }>;
+    onUpdateValidationRole?: (vr: ValidationRole) => Promise<{ success: boolean; message: string }>;
+    onDeleteValidationRole?: (id: string) => Promise<void>;
+    inspections?: VehicleInspection[];
+    onRegisterInspection?: (inspection: Omit<VehicleInspection, 'id'>) => Promise<{ success: boolean; message: string }>;
+    onUpdateInspection?: (inspection: VehicleInspection) => Promise<{ success: boolean; message: string }>;
+    onDeleteInspection?: (id: string) => Promise<void>;
+    onUpdateVehicleExitOrder?: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
+    readOnly?: boolean;
+    securityMode?: boolean;
+    hideAssets?: boolean;
+    hideEdit?: boolean;
+    showGateTab?: boolean;
+    userRole?: string;
+}
+
+const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({ 
+    orders = [], onRegister, onUpdate, onDelete,
+    vehicleAssets = [], onRegisterVehicleAsset, onUpdateVehicleAsset, onDeleteVehicleAsset,
+    driverAssets = [], onRegisterDriverAsset, onUpdateDriverAsset, onDeleteDriverAsset,
+    validationRoles = [], onRegisterValidationRole, onUpdateValidationRole, onDeleteValidationRole,
+    inspections = [], onRegisterInspection, onUpdateInspection, onDeleteInspection,
+    onUpdateVehicleExitOrder,
+    readOnly = false,
+    securityMode = false,
+    hideAssets = false,
+    hideEdit = false,
+    showGateTab = false,
+    userRole = ''
+}) => {
+    const [activeSubTab, setActiveSubTab] = useState<'orders' | 'assets' | 'gate' | 'inspections'>('orders');
+    const [activeAssetTab, setActiveAssetTab] = useState<'vehicles' | 'drivers' | 'roles'>('vehicles');
+    
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
+    const [isValidationRoleModalOpen, setIsValidationRoleModalOpen] = useState(false);
+    const [editingValidationRole, setEditingValidationRole] = useState<ValidationRole | null>(null);
+    const [validationRoleFormData, setValidationRoleFormData] = useState<any>({
+        roleName: '',
+        responsibleName: '',
+        name: '',
+        permissions: [],
+        password: ''
+    });
+    const [validatingOrder, setValidatingOrder] = useState<VehicleExitOrder | null>(null);
+    const [selectedValidationRoleId, setSelectedValidationRoleId] = useState<string>('');
+    const [validationPassword, setValidationPassword] = useState('');
+    const [isUploadingPdf, setIsUploadingPdf] = useState<string | null>(null);
+    const [editingOrder, setEditingOrder] = useState<VehicleExitOrder | null>(null);
+    const [formData, setFormData] = useState<any>({
+        date: new Date().toISOString().split('T')[0],
+        vehicle: '',
+        plate: '',
+        assetNumber: '',
+        responsibleServer: '',
+        serverRole: '',
+        destination: '',
+        fctNumber: '',
+        companions: [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
+        observations: '',
+        exitTime: '',
+        exitDate: '',
+        returnTime: '',
+        returnDate: '',
+        validationRole: '',
+        validatedBy: ''
+    });
+
+    // Gate Control State
+    const [isCameraActive, setIsCameraActive] = useState(false);
+    const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+    const [isProcessingPlate, setIsProcessingPlate] = useState(false);
+    const [cameraError, setCameraError] = useState<string | null>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [gateTab, setGateTab] = useState<'manual' | 'camera'>('manual');
+
+    // Recognition UI State
+    const [recognitionStatus, setRecognitionStatus] = useState<'idle' | 'scanning' | 'confirming' | 'success' | 'error'>('idle');
+    const [scannedPlate, setScannedPlate] = useState<string | null>(null);
+    const [pendingOrder, setPendingOrder] = useState<VehicleExitOrder | null>(null);
+    const [actionType, setActionType] = useState<'exit' | 'return' | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [isAutoScanEnabled, setIsAutoScanEnabled] = useState(false);
+    const [lastScannedPlate, setLastScannedPlate] = useState<string | null>(null);
+    const autoScanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Checklist Modal State
+    const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
+    const [vehicleChecklist, setVehicleChecklist] = useState({
+        water: null as boolean | null,
+        oil: null as boolean | null,
+        tires: null as boolean | null,
+        lights: null as boolean | null
+    });
+    const [isChecklistCompleted, setIsChecklistCompleted] = useState(false);
+
+    // Confirmation Modal State
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant?: 'danger' | 'warning' | 'info';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => {},
+    });
+
+    const pendingValidationCount = useMemo(() => {
+        return orders.filter(o => !o.validationRole && !o.exitTime).length;
+    }, [orders]);
+
+    const inTransitPlates = useMemo(() => {
+        return orders
+            .filter(o => o.exitTime && !o.returnTime)
+            .map(o => o.plate.replace(/[^A-Z0-9]/g, '').toUpperCase());
+    }, [orders]);
+
+    const availableVehicles = useMemo(() => {
+        return vehicleAssets.filter(v => {
+            const plate = v.plate.replace(/[^A-Z0-9]/g, '').toUpperCase();
+            // Se estiver editando, o veículo da própria ordem deve estar disponível
+            if (editingOrder && editingOrder.plate.replace(/[^A-Z0-9]/g, '').toUpperCase() === plate) {
+                return true;
+            }
+            return !inTransitPlates.includes(plate);
+        });
+    }, [vehicleAssets, inTransitPlates, editingOrder]);
+
+    useEffect(() => {
+        if (securityMode) {
+            setActiveSubTab('gate');
+        }
+    }, [securityMode]);
+
+    const startCamera = async () => {
+        setCameraError(null);
+        try {
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+            } catch (e) {
+                console.log("Environment camera failed, trying default video");
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: true 
+                });
+            }
+
+            setCameraStream(stream);
+            setIsCameraActive(true);
+        } catch (err) {
+            console.error("Error accessing camera:", err);
+            setCameraError("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
+        }
+    };
+
+    useEffect(() => {
+        if (isCameraActive && videoRef.current && cameraStream) {
+            videoRef.current.srcObject = cameraStream;
+            videoRef.current.play().catch(err => console.error("Video play error:", err));
+        }
+    }, [isCameraActive, cameraStream]);
+
+    const stopCamera = () => {
+        if (autoScanIntervalRef.current) {
+            clearInterval(autoScanIntervalRef.current);
+            autoScanIntervalRef.current = null;
+        }
+        setIsAutoScanEnabled(false);
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            setCameraStream(null);
+        }
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+        setIsCameraActive(false);
+        setRecognitionStatus('idle');
+    };
+
+    const captureAndRecognizePlate = async () => {
+        if (!videoRef.current || !canvasRef.current || isProcessingPlate) return;
+
+        if (!isAutoScanEnabled) {
+            setRecognitionStatus('scanning');
+        }
+        setIsProcessingPlate(true);
+        setErrorMessage(null);
+
+        try {
+            const context = canvasRef.current.getContext('2d');
+            if (!context) return;
+
+            canvasRef.current.width = videoRef.current.videoWidth;
+            canvasRef.current.height = videoRef.current.videoHeight;
+            context.drawImage(videoRef.current, 0, 0);
+
+            const base64Image = canvasRef.current.toDataURL('image/jpeg').split(',')[1];
+            
+            // Cache bust: 2026-03-12T09:02:10
+            const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+            
+            const result = await ai.models.generateContent({
+                model: "gemini-3-flash-preview",
+                contents: [{
+                    role: "user",
+                    parts: [
+                        { text: "Extraia apenas a placa do veículo desta imagem. Responda apenas com a placa no formato AAA-0000 ou AAA0A00 (Mercosul). Se não encontrar, responda 'NÃO ENCONTRADA'." },
+                        { inlineData: { mimeType: "image/jpeg", data: base64Image } }
+                    ]
+                }]
+            });
+
+            const plate = (result.text || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+            console.log("Plate recognized:", plate);
+
+            if (plate === 'NAOENCONTRADA' || plate.length < 7) {
+                if (!isAutoScanEnabled) {
+                    setRecognitionStatus('error');
+                    setErrorMessage("Placa não reconhecida. Tente novamente ou use o registro manual.");
+                } else {
+                    setRecognitionStatus('idle');
+                }
+            } else {
+                setLastScannedPlate(plate);
+                setScannedPlate(plate);
+                
+                const matchingOrder = orders.find(o => 
+                    o.plate.replace(/[^A-Z0-9]/g, '') === plate && 
+                    (!o.exitTime || !o.returnTime)
+                );
+
+                if (matchingOrder) {
+                    setPendingOrder(matchingOrder);
+                    setActionType(!matchingOrder.exitTime ? 'exit' : 'return');
+                    setRecognitionStatus('confirming');
+                    // If auto-scan is on, we pause it to let user confirm
+                    if (isAutoScanEnabled) {
+                        setIsAutoScanEnabled(false);
+                        if (autoScanIntervalRef.current) {
+                            clearInterval(autoScanIntervalRef.current);
+                            autoScanIntervalRef.current = null;
+                        }
+                    }
+                } else {
+                    if (!isAutoScanEnabled) {
+                        setRecognitionStatus('error');
+                        setErrorMessage(`Veículo com placa ${plate} identificado, mas nenhuma ordem pendente foi encontrada.`);
+                    } else {
+                        setRecognitionStatus('idle');
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Error recognizing plate:", err);
+            if (!isAutoScanEnabled) {
+                setRecognitionStatus('error');
+                setErrorMessage("Erro ao processar imagem.");
+            } else {
+                setRecognitionStatus('idle');
+            }
+        } finally {
+            setIsProcessingPlate(false);
+        }
+    };
+
+    const confirmRecognitionAction = async () => {
+        if (!pendingOrder || !actionType) return;
+
+        if (actionType === 'exit' && !pendingOrder.validationRole) {
+            setRecognitionStatus('error');
+            setErrorMessage("Esta ordem de saída ainda não foi validada. A saída não pode ser registrada.");
+            return;
+        }
+
+        const now = new Date();
+        const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        const currentDate = now.toISOString().split('T')[0];
+
+        try {
+            if (actionType === 'exit') {
+                await onUpdate({
+                    ...pendingOrder,
+                    exitTime: currentTime,
+                    exitDate: currentDate
+                });
+            } else {
+                await onUpdate({
+                    ...pendingOrder,
+                    returnTime: currentTime,
+                    returnDate: currentDate
+                });
+            }
+            setRecognitionStatus('success');
+            setTimeout(() => {
+                setRecognitionStatus('idle');
+                setPendingOrder(null);
+                setActionType(null);
+                setScannedPlate(null);
+            }, 3000);
+        } catch (err) {
+            console.error("Error updating order:", err);
+            setRecognitionStatus('error');
+            setErrorMessage("Erro ao atualizar registro no banco de dados.");
+        }
+    };
+
+    useEffect(() => {
+        if (isAutoScanEnabled && isCameraActive) {
+            autoScanIntervalRef.current = setInterval(() => {
+                if (recognitionStatus === 'idle') {
+                    captureAndRecognizePlate();
+                }
+            }, 5000); // Scan every 5 seconds
+        } else {
+            if (autoScanIntervalRef.current) {
+                clearInterval(autoScanIntervalRef.current);
+                autoScanIntervalRef.current = null;
+            }
+        }
+
+        return () => {
+            if (autoScanIntervalRef.current) {
+                clearInterval(autoScanIntervalRef.current);
+            }
+        };
+    }, [isAutoScanEnabled, isCameraActive, recognitionStatus]);
+
+    const handleQuickRegister = async (order: VehicleExitOrder, type: 'exit' | 'return') => {
+        if (type === 'exit' && !order.validationRole) {
+            alert('Esta ordem de saída ainda não foi validada por uma autoridade superior. A saída não pode ser registrada.');
+            return;
+        }
+
+        const now = new Date();
+        const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        const currentDate = now.toISOString().split('T')[0];
+
+        if (type === 'exit') {
+            await onUpdate({ ...order, exitTime: currentTime, exitDate: currentDate });
+        } else {
+            await onUpdate({ ...order, returnTime: currentTime, returnDate: currentDate });
+        }
+    };
+
+    // Asset Modals State
+    const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
+    const [editingVehicle, setEditingVehicle] = useState<VehicleAsset | null>(null);
+    const [vehicleFormData, setVehicleFormData] = useState<Omit<VehicleAsset, 'id'>>({
+        model: '',
+        plate: '',
+        assetNumber: ''
+    });
+
+    const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
+    const [editingDriver, setEditingDriver] = useState<DriverAsset | null>(null);
+    const [driverFormData, setDriverFormData] = useState<Omit<DriverAsset, 'id'>>({
+        name: '',
+        role: '',
+        cnhCategory: 'B',
+        isFitToDrive: true
+    });
+
+    const handlePrint = (order: VehicleExitOrder) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const dateObj = new Date(order.date + 'T12:00:00');
+        const day = dateObj.getDate().toString().padStart(2, '0');
+        const monthNames = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+        const month = monthNames[dateObj.getMonth()];
+        const year = dateObj.getFullYear();
+
+        const formattedDate = `${day}/${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${year}`;
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Ordem de Saída de Veículo - ${order.plate}</title>
+                <style>
+                    @page { size: A4; margin: 15mm; }
+                    body { font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.4; color: #000; margin: 0; padding: 0; }
+                    .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 5px; }
+                    .header h1 { font-size: 13pt; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+                    .header h2 { font-size: 10pt; margin: 2px 0; font-weight: normal; font-style: italic; }
+                    
+                    .title { text-align: center; font-weight: bold; font-size: 14pt; margin: 15px 0; text-transform: uppercase; text-decoration: underline; }
+                    
+                    .content-section { margin-bottom: 15px; text-align: justify; }
+                    .field-value { border-bottom: 1px solid #000; display: inline-block; padding: 0 5px; font-weight: bold; text-transform: uppercase; }
+                    
+                    .companions-section { margin-top: 15px; border: 1px solid #000; padding: 10px; border-radius: 5px; }
+                    .companions-title { font-weight: bold; text-transform: uppercase; font-size: 9pt; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 2px; }
+                    .companions-table { width: 100%; border-collapse: collapse; }
+                    .companions-table td { padding: 4px 0; border-bottom: 1px dotted #ccc; font-size: 10pt; }
+                    .companions-table tr:last-child td { border-bottom: none; }
+                    
+                    .footer-note { font-size: 8pt; text-align: center; margin: 15px 0; padding: 8px; border: 1px dashed #666; background-color: #f9f9f9; line-height: 1.2; }
+                    
+                    .signatures-container { margin-top: 20px; }
+                    .signatures-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+                    .signature-box { border: 1px solid #000; padding: 10px; min-height: 80px; position: relative; display: flex; flex-direction: column; justify-content: space-between; }
+                    .signature-box .box-title { font-weight: bold; font-size: 8pt; text-transform: uppercase; margin-bottom: 5px; }
+                    .signature-line { border-top: 1px solid #000; text-align: center; font-size: 8pt; margin-top: 10px; padding-top: 2px; font-weight: bold; }
+                    
+                    .date-location { text-align: right; margin: 15px 0; font-weight: bold; }
+                    
+                    .fct-section { display: flex; align-items: center; justify-content: center; border: 1px solid #000; padding: 10px; font-size: 10pt; }
+                    
+                    @media print {
+                        .no-print { display: none; }
+                        body { -webkit-print-color-adjust: exact; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA</h1>
+                    <h2>Coordenadoria das Unidades Prisionais da Região Norte do Estado</h2>
+                    <h1 style="margin-top: 2px; font-size: 14pt;">PENITENCIÁRIA DE TAIÚVA</h1>
+                </div>
+
+                <div class="title">ORDEM DE SAÍDA DE VEÍCULO</div>
+
+                <div class="content-section">
+                    Autorizo a saída do veículo <span class="field-value" style="min-width: 150px;">${order.vehicle}</span>, 
+                    placa <span class="field-value" style="min-width: 80px;">${order.plate}</span>, 
+                    patrimônio <span class="field-value" style="min-width: 60px;">${order.assetNumber}</span>, sob a 
+                    responsabilidade do Policial Penal <span class="field-value" style="min-width: 250px;">${order.responsibleServer}</span>, 
+                    ocupante do cargo de <span class="field-value" style="min-width: 180px;">${order.serverRole}</span>.
+                </div>
+                
+                <div class="content-section">
+                    O referido deslocamento tem como destino a cidade/local de: <span class="field-value" style="min-width: 300px;">${order.destination}</span>.
+                </div>
+
+                <div class="date-location">
+                    TAIÚVA, <span class="field-value" style="min-width: 30px;">${day}</span> de <span class="field-value" style="min-width: 100px;">${month}</span> de <span class="field-value" style="min-width: 50px;">${year}</span>.
+                </div>
+
+                <div class="companions-section">
+                    <div class="companions-title">Acompanhantes da Missão</div>
+                    <table class="companions-table">
+                        ${(order.companions || []).filter(c => c.name.trim() !== '').map((c, i) => `
+                            <tr>
+                                <td style="width: 25px; font-weight: bold;">${i + 1}.</td>
+                                <td><span style="font-weight: bold; text-transform: uppercase;">${c.name}</span></td>
+                                <td style="width: 30px; text-align: right; padding-right: 5px;">RG:</td>
+                                <td style="width: 120px;"><span style="font-weight: bold;">${c.rg}</span></td>
+                            </tr>
+                        `).join('') || '<tr><td colspan="4" style="text-align: center; color: #999;">Nenhum acompanhante registrado</td></tr>'}
+                    </table>
+                </div>
+
+                <div class="footer-note">
+                    <strong>IMPORTANTE:</strong> PARA FINS DE PROTOCOLIZAÇÃO DA DIÁRIA, APRESENTAR ESTE DOCUMENTO JUNTO COM A SOLICITAÇÃO DE DIÁRIA E FCT DENTRO DO PRAZO DE 3 DIAS ÚTEIS APÓS O REGRESSO.
+                </div>
+
+                <div class="signatures-container">
+                    <div class="signatures-grid">
+                        <div class="signature-box">
+                            <div class="box-title">Registro de Saída</div>
+                            <div>DATA: ${order.exitTime ? `<span class="field-value" style="min-width: 80px; text-align: center;">${formattedDate}</span>` : '____/____/____'}</div>
+                            <div>HORÁRIO: ${order.exitTime ? `<span class="field-value" style="min-width: 80px; text-align: center;">${order.exitTime}</span>` : '___________'}</div>
+                            <div class="signature-line">Ass. Policial Penal Sub-Portaria</div>
+                        </div>
+                        <div class="signature-box">
+                            <div class="box-title">Registro de Retorno</div>
+                            <div>DATA: ${order.returnTime ? `<span class="field-value" style="min-width: 80px; text-align: center;">${formattedDate}</span>` : '____/____/____'}</div>
+                            <div>HORÁRIO: ${order.returnTime ? `<span class="field-value" style="min-width: 80px; text-align: center;">${order.returnTime}</span>` : '___________'}</div>
+                            <div class="signature-line">Ass. Policial Penal Sub-Portaria</div>
+                        </div>
+                    </div>
+
+                    <div class="signatures-grid">
+                        <div class="signature-box">
+                            <div class="box-title">Autorização Superior</div>
+                            <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                                ${order.validationRole ? `
+                                    <div style="font-size: 10pt; font-weight: 900; color: #4f46e5; text-transform: uppercase;">VALIDADO DIGITALMENTE</div>
+                                    <div style="font-size: 8pt; font-weight: bold; margin-top: 2px;">${order.validatedBy}</div>
+                                    <div style="font-size: 7pt; color: #666;">${order.validationRole}</div>
+                                    <div style="font-size: 6pt; color: #999; margin-top: 2px;">${new Date(order.validationTimestamp!).toLocaleString('pt-BR')}</div>
+                                ` : ''}
+                            </div>
+                            <div class="signature-line">${order.validationRole || 'Chefe de Seção'}</div>
+                        </div>
+                        <div class="fct-section">
+                            <div>
+                                <strong>Anexar FCT nº:</strong> <span class="field-value" style="min-width: 100px;">${order.fctNumber}</span>
+                                ${order.observations ? `<br><div style="margin-top: 5px; font-size: 8pt; font-style: italic;"><strong>Obs:</strong> ${order.observations}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <script>
+                    window.onload = () => {
+                        window.print();
+                        setTimeout(() => window.close(), 500);
+                    };
+                </script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
+    const handleGenerateReportPDF = () => {
+        const doc = new jsPDF();
+        
+        // Header
+        doc.setFontSize(16);
+        doc.setTextColor(79, 70, 229); // Indigo-600
+        doc.text('RELATÓRIO DE ORDENS DE SAÍDA E CHECKLIST', 105, 15, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text('PENITENCIÁRIA DE TAIÚVA', 105, 22, { align: 'center' });
+        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 105, 28, { align: 'center' });
+
+        const tableData = orders.map(order => [
+            order.date.split('-').reverse().join('/'),
+            `${order.vehicle}\n(${order.plate})`,
+            order.responsibleServer,
+            order.destination,
+            order.exitTime || '-',
+            order.returnTime || '-',
+            order.checklist ? 
+                `ÁGUA: ${order.checklist.water ? 'OK' : 'NÃO OK'}\n` +
+                `ÓLEO: ${order.checklist.oil ? 'OK' : 'NÃO OK'}\n` +
+                `PNEUS: ${order.checklist.tires ? 'OK' : 'NÃO OK'}\n` +
+                `LUZES: ${order.checklist.lights ? 'OK' : 'NÃO OK'}` : 'N/A'
+        ]);
+
+        autoTable(doc, {
+            startY: 35,
+            head: [['DATA', 'VEÍCULO', 'RESPONSÁVEL', 'DESTINO', 'SAÍDA', 'RETORNO', 'CHECKLIST']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
+            styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak' },
+            columnStyles: {
+                0: { cellWidth: 18, halign: 'center' },
+                1: { cellWidth: 28 },
+                2: { cellWidth: 35 },
+                3: { cellWidth: 35 },
+                4: { cellWidth: 15, halign: 'center' },
+                5: { cellWidth: 15, halign: 'center' },
+                6: { cellWidth: 35, fontSize: 6 }
+            },
+            alternateRowStyles: { fillColor: [245, 247, 255] }
+        });
+
+        doc.save(`relatorio_frota_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
+    const handleAttachPdf = async (order: VehicleExitOrder) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'application/pdf';
+        input.onchange = async (e: any) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            
+            if (file.size > 2 * 1024 * 1024) {
+                alert("O arquivo é muito grande. O tamanho máximo permitido é 2MB.");
+                return;
+            }
+
+            setIsUploadingPdf(order.id);
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const base64 = event.target?.result as string;
+                if (onUpdateVehicleExitOrder) {
+                    const res = await onUpdateVehicleExitOrder({ ...order, pdfUrl: base64 });
+                    if (!res.success) alert(res.message);
+                } else if (onUpdate) {
+                    const res = await onUpdate({ ...order, pdfUrl: base64 });
+                    if (!res.success) alert(res.message);
+                }
+                setIsUploadingPdf(null);
+            };
+            reader.readAsDataURL(file);
+        };
+        input.click();
+    };
+
+    const handleOpenPdf = (url: string) => {
+        if (url.startsWith('data:application/pdf;base64,')) {
+            try {
+                const base64Content = url.split(',')[1];
+                const binaryString = window.atob(base64Content);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                const blob = new Blob([bytes], { type: 'application/pdf' });
+                const blobUrl = URL.createObjectURL(blob);
+                window.open(blobUrl, '_blank');
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+            } catch (error) {
+                console.error("Erro ao processar PDF:", error);
+                alert("Erro ao abrir o PDF.");
+            }
+        } else {
+            window.open(url, '_blank');
+        }
+    };
+
+    const groupedOrders = useMemo(() => {
+        return {
+            withPdf: orders.filter(o => o.pdfUrl),
+            withoutPdf: orders.filter(o => !o.pdfUrl)
+        };
+    }, [orders]);
+
+    const renderOrderRow = (order: VehicleExitOrder) => (
+        <tr key={order.id} className={`hover:bg-gray-50 transition-colors ${!order.validationRole && !order.exitTime ? 'bg-red-50/30' : ''}`}>
+            <td className="p-4 font-bold text-gray-600">
+                {order.date.split('-').reverse().join('/')}
+                {!order.validationRole && !order.exitTime && (
+                    <div className="mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black bg-red-100 text-red-600 uppercase animate-pulse">
+                            Aguardando Validação
+                        </span>
+                    </div>
+                )}
+            </td>
+            <td className="p-4">
+                <div className="font-black text-gray-800 uppercase">{order.vehicle}</div>
+                <div className="text-[10px] text-indigo-500 font-mono flex items-center gap-2">
+                    {order.plate}
+                    {order.pdfUrl && (
+                        <button 
+                            onClick={() => handleOpenPdf(order.pdfUrl!)}
+                            className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-1 hover:bg-indigo-100"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            PDF
+                        </button>
+                    )}
+                </div>
+            </td>
+            <td className="p-4">
+                <div className="font-bold text-gray-700 uppercase">{order.responsibleServer}</div>
+                <div className="text-[10px] text-gray-400 uppercase">{order.serverRole}</div>
+            </td>
+            <td className="p-4 font-bold text-gray-600 uppercase">{order.destination}</td>
+            <td className="p-4 font-mono text-gray-500">{order.fctNumber}</td>
+            {(securityMode || orders.some(o => o.exitTime || o.returnTime)) && (
+                <>
+                    <td className="p-4 text-center">
+                        {order.exitTime ? (
+                            <div className="flex flex-col items-center">
+                                <span className="text-indigo-600 font-black text-xs">{order.exitTime}</span>
+                                <span className="text-[9px] text-gray-400 font-bold">{order.exitDate?.split('-').reverse().join('/')}</span>
+                            </div>
+                        ) : <span className="text-gray-300">--:--</span>}
+                    </td>
+                    <td className="p-4 text-center">
+                        {order.returnTime ? (
+                            <div className="flex flex-col items-center">
+                                <span className="text-emerald-600 font-black text-xs">{order.returnTime}</span>
+                                <span className="text-[9px] text-gray-400 font-bold">{order.returnDate?.split('-').reverse().join('/')}</span>
+                            </div>
+                        ) : <span className="text-gray-300">--:--</span>}
+                    </td>
+                </>
+            )}
+            <td className="p-4">
+                <div className="flex items-center justify-center gap-2">
+                    {securityMode ? (
+                        <button 
+                            onClick={() => handleEdit(order)}
+                            className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                            title="Registrar Horários"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </button>
+                    ) : (
+                        <>
+                            {!readOnly && !hideEdit && (
+                                <button 
+                                    onClick={() => handleEdit(order)} 
+                                    className={`p-2 rounded-xl transition-all ${order.validationRole ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                                    title={order.validationRole ? "Registrar Horários" : "Editar"}
+                                >
+                                    {order.validationRole ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                    )}
+                                </button>
+                            )}
+                            {!readOnly && (
+                                <button 
+                                    onClick={() => handlePrint(order)}
+                                    className="p-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all shadow-sm"
+                                    title="Imprimir / Baixar PDF"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                    </svg>
+                                </button>
+                            )}
+                            {!readOnly && (
+                                <button 
+                                    onClick={() => handleOpenValidation(order)} 
+                                    className={`p-2 rounded-xl transition-all ${order.validationRole ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                                    title={order.validationRole ? "Validado" : "Validar Saída"}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </button>
+                            )}
+                            {!readOnly && (
+                                <button 
+                                    onClick={() => handleAttachPdf(order)}
+                                    disabled={isUploadingPdf === order.id}
+                                    className={`p-2 rounded-xl transition-all ${order.pdfUrl ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                                    title={order.pdfUrl ? "Substituir PDF" : "Anexar PDF"}
+                                >
+                                    {isUploadingPdf === order.id ? (
+                                        <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                    )}
+                                </button>
+                            )}
+                            {onDelete && !readOnly && (
+                                <button 
+                                    onClick={() => {
+                                        setConfirmConfig({
+                                            isOpen: true,
+                                            title: 'Excluir Ordem de Saída',
+                                            message: 'Tem certeza que deseja excluir esta ordem?',
+                                            variant: 'danger',
+                                            onConfirm: async () => {
+                                                console.log("Confirming deletion for order ID:", order.id);
+                                                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                                                try {
+                                                    await onDelete(order.id);
+                                                } catch (error) {
+                                                    console.error("Error deleting order:", error);
+                                                    alert("Erro ao excluir a ordem.");
+                                                }
+                                            }
+                                        });
+                                    }} 
+                                    className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors" 
+                                    title="Excluir"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                            )}
+                        </>
+                    )}
+                </div>
+            </td>
+        </tr>
+    );
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        // Validation
+        if (!formData.fctNumber || !formData.destination || !formData.responsibleServer || !formData.vehicle || !formData.serverRole) {
+            alert('Por favor, preencha todos os campos obrigatórios (FCT, Destino, Responsável, Cargo e Veículo).');
+            return;
+        }
+
+        const finalData = { ...formData };
+        if (finalData.exitTime) {
+            if (!finalData.exitDate) finalData.exitDate = finalData.date;
+        } else {
+            finalData.exitDate = '';
+        }
+        
+        if (finalData.returnTime) {
+            if (!finalData.returnDate) finalData.returnDate = finalData.date;
+        } else {
+            finalData.returnDate = '';
+        }
+
+        if (editingOrder) {
+            if (finalData.exitTime && !finalData.validationRole) {
+                alert('Atenção: Não é possível registrar o horário de saída sem a validação de uma autoridade superior.');
+                return;
+            }
+            await onUpdate({ ...finalData, id: editingOrder.id });
+            setIsModalOpen(false);
+            setEditingOrder(null);
+            setFormData({
+                date: new Date().toISOString().split('T')[0],
+                vehicle: '',
+                plate: '',
+                assetNumber: '',
+                responsibleServer: '',
+                serverRole: '',
+                destination: '',
+                fctNumber: '',
+                companions: [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
+                observations: '',
+                exitTime: '',
+                exitDate: '',
+                returnTime: '',
+                returnDate: '',
+                validationRole: '',
+                validatedBy: ''
+            });
+        } else if (isChecklistCompleted) {
+            // Se o checklist já foi completado, salva no banco
+            const orderWithChecklist = {
+                ...finalData,
+                checklist: {
+                    water: vehicleChecklist.water || false,
+                    oil: vehicleChecklist.oil || false,
+                    tires: vehicleChecklist.tires || false,
+                    lights: vehicleChecklist.lights || false
+                }
+            };
+
+            await onRegister(orderWithChecklist);
+            setIsModalOpen(false);
+            setEditingOrder(null);
+            setIsChecklistCompleted(false); // Reseta para o próximo
+            setFormData({
+                date: new Date().toISOString().split('T')[0],
+                vehicle: '',
+                plate: '',
+                assetNumber: '',
+                responsibleServer: '',
+                serverRole: '',
+                destination: '',
+                fctNumber: '',
+                companions: [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
+                observations: '',
+                exitTime: '',
+                exitDate: '',
+                returnTime: '',
+                returnDate: '',
+                validationRole: '',
+                validatedBy: ''
+            });
+        } else {
+            // Se for um novo cadastro e não fez o checklist, abre o checklist
+            setVehicleChecklist({
+                water: null,
+                oil: null,
+                tires: null,
+                lights: null
+            });
+            setIsModalOpen(false); // Fecha o modal da ordem para não travar
+            setIsChecklistModalOpen(true);
+        }
+    };
+
+    const handleConfirmChecklist = async () => {
+        // Apenas marca como completado e volta para a ordem
+        setIsChecklistCompleted(true);
+        setIsChecklistModalOpen(false);
+        setIsModalOpen(true);
+    };
+
+    const handleEdit = (order: VehicleExitOrder) => {
+        setEditingOrder(order);
+        setFormData({
+            date: order.date,
+            vehicle: order.vehicle,
+            plate: order.plate,
+            assetNumber: order.assetNumber,
+            responsibleServer: order.responsibleServer,
+            serverRole: order.serverRole,
+            destination: order.destination,
+            fctNumber: order.fctNumber,
+            companions: (order.companions && order.companions.length > 0 ? order.companions : [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }]) as any[],
+            observations: order.observations || '',
+            exitTime: order.exitTime || '',
+            exitDate: order.exitDate || '',
+            returnTime: order.returnTime || '',
+            returnDate: order.returnDate || '',
+            validationRole: order.validationRole || '',
+            validatedBy: order.validatedBy || ''
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleOpenValidation = (order: VehicleExitOrder) => {
+        setValidatingOrder(order);
+        setFormData({
+            ...formData,
+            validationRole: order.validationRole || '',
+            validatedBy: order.validatedBy || ''
+        });
+        
+        // Find the correct role ID based on both role name and responsible name
+        const role = validationRoles.find(r => 
+            r.roleName === order.validationRole && 
+            r.responsibleName === order.validatedBy
+        );
+        setSelectedValidationRoleId(role ? role.id : '');
+        
+        setIsValidationModalOpen(true);
+    };
+
+    const handleConfirmValidation = async () => {
+        if (!validatingOrder || !selectedValidationRoleId) return;
+
+        // Verify password
+        const selectedRole = validationRoles.find(r => r.id === selectedValidationRoleId);
+        if (selectedRole && selectedRole.password) {
+            if (validationPassword !== selectedRole.password) {
+                alert('Senha de validação incorreta!');
+                return;
+            }
+        }
+
+        const updatedOrder: VehicleExitOrder = {
+            ...validatingOrder,
+            validationRole: selectedRole?.roleName || '',
+            validatedBy: selectedRole?.responsibleName || '',
+            validationTimestamp: new Date().toISOString()
+        };
+
+        const response = await onUpdate(updatedOrder);
+        if (response.success) {
+            setIsValidationModalOpen(false);
+            setValidatingOrder(null);
+            setValidationPassword('');
+            setSelectedValidationRoleId('');
+        } else {
+            alert(response.message);
+        }
+    };
+
+    const handleVehicleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (editingVehicle) {
+            await onUpdateVehicleAsset({ ...vehicleFormData, id: editingVehicle.id });
+        } else {
+            await onRegisterVehicleAsset(vehicleFormData);
+        }
+        setIsVehicleModalOpen(false);
+        setEditingVehicle(null);
+        setVehicleFormData({ model: '', plate: '', assetNumber: '' });
+    };
+
+    const handleDriverSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (editingDriver) {
+            await onUpdateDriverAsset({ ...driverFormData, id: editingDriver.id });
+        } else {
+            await onRegisterDriverAsset(driverFormData);
+        }
+        setIsDriverModalOpen(false);
+        setEditingDriver(null);
+        setDriverFormData({ name: '', role: '', cnhCategory: 'B', isFitToDrive: true });
+    };
+
+    const handleValidationRoleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (editingValidationRole) {
+            await onUpdateValidationRole?.({ ...validationRoleFormData, id: editingValidationRole.id });
+        } else {
+            await onRegisterValidationRole?.(validationRoleFormData);
+        }
+        setIsValidationRoleModalOpen(false);
+        setEditingValidationRole(null);
+        setValidationRoleFormData({ roleName: '', responsibleName: '', password: '' });
+    };
+
+    return (
+        <div className="space-y-8 animate-fade-in relative pb-20">
+            {/* Background Effects */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/5 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-[120px] animate-pulse delay-700" />
+            </div>
+
+            {pendingValidationCount > 0 && (
+                <div className="relative z-20 bg-red-50 border-2 border-red-200 p-6 rounded-[2rem] flex items-center gap-6 animate-pulse shadow-lg shadow-red-100/50 mx-2">
+                    <div className="bg-red-600 text-white p-4 rounded-2xl flex-shrink-0 shadow-lg shadow-red-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    </div>
+                    <div>
+                        <p className="text-xl font-black text-red-900 uppercase tracking-tighter italic">Atenção: Validação Pendente</p>
+                        <p className="text-sm font-bold text-red-700 uppercase tracking-tight mt-1">Existem {pendingValidationCount} ordens de saída aguardando validação superior para serem liberadas na portaria.</p>
+                    </div>
+                </div>
+            )}
+
+            <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white/80 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-xl border border-white/20">
+                <div className="flex items-center gap-4">
+                    <div className="bg-indigo-600 p-4 rounded-3xl shadow-lg shadow-indigo-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 className="text-3xl font-black text-indigo-950 uppercase tracking-tighter italic leading-none">Controle de Frota</h2>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Gestão de Saídas, Retornos e Ativos</p>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 bg-gray-100/50 p-2 rounded-3xl backdrop-blur-sm border border-gray-200/50">
+                    <button 
+                        onClick={() => setActiveSubTab('orders')}
+                        className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'orders' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-500 hover:bg-white/50'}`}
+                    >
+                        Ordens
+                    </button>
+                    {(securityMode || showGateTab) && (
+                        <button 
+                            onClick={() => setActiveSubTab('gate')}
+                            className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'gate' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-500 hover:bg-white/50'}`}
+                        >
+                            Sub Portaria
+                        </button>
+                    )}
+                    {!readOnly && !hideAssets && (
+                        <>
+                            <button 
+                                onClick={() => setActiveSubTab('inspections')}
+                                className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'inspections' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-500 hover:bg-white/50'}`}
+                            >
+                                Inspeções
+                            </button>
+                            <button 
+                                onClick={() => setActiveSubTab('assets')}
+                                className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'assets' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-500 hover:bg-white/50'}`}
+                            >
+                                Cadastros
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {activeSubTab === 'orders' && (
+                <div className="relative z-10 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {orders.some(o => !o.validationRole && !o.exitTime) && (
+                        <div className="bg-red-50 border border-red-200 p-4 rounded-3xl flex items-center gap-4 animate-pulse">
+                            <div className="bg-red-100 p-2 rounded-full text-red-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h4 className="text-xs font-black text-red-900 uppercase">Atenção: Ordens Aguardando Validação</h4>
+                                <p className="text-[10px] text-red-600 font-bold uppercase">Existem {orders.filter(o => !o.validationRole && !o.exitTime).length} ordens de saída que precisam ser validadas antes da liberação do veículo.</p>
+                            </div>
+                        </div>
+                    )}
+                    {!readOnly && !securityMode && (
+                        <div className="flex justify-end gap-3">
+                            {(userRole === 'julio' || userRole === 'infraestrutura') && (
+                                <button 
+                                    onClick={() => handleGenerateReportPDF()}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 px-10 rounded-2xl transition-all shadow-xl shadow-emerald-100 active:scale-95 uppercase text-xs tracking-widest flex items-center gap-2 group"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m3.243-4.243a4 4 0 015.657 0L12 14.142l1.101-1.101a4 4 0 015.657 0M12 12V3" /></svg>
+                                    Relatório PDF
+                                </button>
+                            )}
+                            <button 
+                                onClick={() => { setEditingOrder(null); setIsModalOpen(true); }}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 px-10 rounded-2xl transition-all shadow-xl shadow-indigo-100 active:scale-95 uppercase text-xs tracking-widest flex items-center gap-2 group"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                Nova Ordem de Saída
+                            </button>
+                        </div>
+                    )}
+
+                    <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] shadow-xl border border-white/20 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm border-collapse">
+                                <thead className="bg-gray-50/50 text-[10px] uppercase text-gray-400 font-black tracking-widest">
+                                    <tr>
+                                        <th className="p-6 text-left">Data</th>
+                                        <th className="p-6 text-left">Veículo / Placa</th>
+                                        <th className="p-6 text-left">Responsável</th>
+                                        <th className="p-6 text-left">Destino</th>
+                                        <th className="p-6 text-left">FCT</th>
+                                        {(securityMode || orders.some(o => o.exitTime || o.returnTime)) && (
+                                            <>
+                                                <th className="p-6 text-center">Saída</th>
+                                                <th className="p-6 text-center">Retorno</th>
+                                            </>
+                                        )}
+                                        <th className="p-6 text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {orders.length > 0 ? (
+                                        <>
+                                            {/* Ordens com Anexo */}
+                                            {groupedOrders.withPdf.length > 0 && (
+                                                <>
+                                                    <tr className="bg-indigo-50/30">
+                                                        <td colSpan={8} className="p-3 text-[10px] font-black text-indigo-600 uppercase tracking-widest text-center border-y border-indigo-100/50 backdrop-blur-sm">
+                                                            Ordens com Anexo (PDF)
+                                                        </td>
+                                                    </tr>
+                                                    {groupedOrders.withPdf.sort((a,b) => b.date.localeCompare(a.date)).map(order => renderOrderRow(order))}
+                                                </>
+                                            )}
+                                            {/* Ordens sem Anexo */}
+                                            {groupedOrders.withoutPdf.length > 0 && (
+                                                <>
+                                                    <tr className="bg-amber-50/30">
+                                                        <td colSpan={8} className="p-3 text-[10px] font-black text-amber-600 uppercase tracking-widest text-center border-y border-amber-100/50 backdrop-blur-sm">
+                                                            Ordens sem Anexo
+                                                        </td>
+                                                    </tr>
+                                                    {groupedOrders.withoutPdf.sort((a,b) => b.date.localeCompare(a.date)).map(order => renderOrderRow(order))}
+                                                </>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={8} className="p-20 text-center">
+                                                <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                    </svg>
+                                                </div>
+                                                <p className="text-gray-400 font-black uppercase tracking-widest italic">Nenhuma ordem registrada</p>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {activeSubTab === 'gate' && (
+                <div className="space-y-6">
+                    {orders.some(o => !o.validationRole && !o.exitTime) && (
+                        <div className="bg-amber-50 border border-amber-200 p-4 rounded-3xl flex items-center gap-4">
+                            <div className="bg-amber-100 p-2 rounded-full text-amber-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h4 className="text-xs font-black text-amber-900 uppercase italic tracking-tighter">Liberação Bloqueada</h4>
+                                <p className="text-[10px] text-amber-600 font-bold uppercase">Algumas ordens de saída estão aguardando validação superior. O registro de saída para estes veículos está desativado.</p>
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex bg-gray-100 p-1 rounded-2xl w-fit">
+                        <button 
+                            onClick={() => { setGateTab('manual'); stopCamera(); }}
+                            className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${gateTab === 'manual' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}
+                        >
+                            Registro Manual
+                        </button>
+                        <button 
+                            onClick={() => { setGateTab('camera'); startCamera(); }}
+                            className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${gateTab === 'camera' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}
+                        >
+                            Reconhecimento de Placa
+                        </button>
+                    </div>
+
+                    {gateTab === 'manual' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden">
+                                <div className="p-6 border-b border-gray-50 bg-indigo-50/30">
+                                    <h3 className="text-sm font-black text-indigo-900 uppercase italic tracking-tighter">Aguardando Saída</h3>
+                                    <p className="text-[9px] text-indigo-400 font-bold uppercase">Veículos com ordem emitida</p>
+                                </div>
+                                <div className="divide-y divide-gray-50 max-h-[500px] overflow-y-auto custom-scrollbar">
+                                    {orders.filter(o => !o.exitTime).length > 0 ? orders.filter(o => !o.exitTime).map(order => (
+                                        <div key={order.id} className={`p-4 hover:bg-gray-50 transition-colors flex justify-between items-center ${!order.validationRole ? 'bg-red-50/80 border-l-4 border-red-500' : ''}`}>
+                                            <div>
+                                                <div className="font-black text-gray-800 uppercase text-xs flex items-center gap-2">
+                                                    {order.vehicle}
+                                                    {!order.validationRole ? (
+                                                        <span className="bg-red-600 text-white text-[8px] px-2 py-0.5 rounded-full font-black uppercase shadow-sm">Bloqueado - Aguardando Validação</span>
+                                                    ) : (
+                                                        <span className="bg-green-100 text-green-600 text-[8px] px-2 py-0.5 rounded-full font-black uppercase">Validado</span>
+                                                    )}
+                                                </div>
+                                                <div className="text-[10px] text-indigo-500 font-mono font-bold">{order.plate}</div>
+                                                <div className="text-[9px] text-gray-400 uppercase mt-1">{order.responsibleServer}</div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                {onDelete && !readOnly && (
+                                                    <button 
+                                                        onClick={() => {
+                                                            setConfirmConfig({
+                                                                isOpen: true,
+                                                                title: 'Excluir Ordem',
+                                                                message: 'Tem certeza que deseja excluir esta ordem pendente?',
+                                                                variant: 'danger',
+                                                                onConfirm: () => {
+                                                                    setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                                                                    onDelete(order.id);
+                                                                }
+                                                            });
+                                                        }}
+                                                        className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                                                        title="Excluir"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                )}
+                                                <button 
+                                                    onClick={() => handleQuickRegister(order, 'exit')}
+                                                    disabled={!order.validationRole}
+                                                    className={`font-black py-2 px-4 rounded-xl text-[9px] uppercase tracking-widest shadow-lg active:scale-95 transition-all ${!order.validationRole ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none' : 'bg-indigo-600 text-white shadow-indigo-100'}`}
+                                                >
+                                                    {order.validationRole ? 'Registrar Saída' : 'Aguardando Validação'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )) : (
+                                        <div className="p-10 text-center text-gray-300 text-[10px] font-bold uppercase italic">Nenhuma ordem pendente</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden">
+                                <div className="p-6 border-b border-gray-50 bg-emerald-50/30">
+                                    <h3 className="text-sm font-black text-emerald-900 uppercase italic tracking-tighter">Em Trânsito</h3>
+                                    <p className="text-[9px] text-emerald-400 font-bold uppercase">Veículos fora da unidade</p>
+                                </div>
+                                <div className="divide-y divide-gray-50 max-h-[500px] overflow-y-auto custom-scrollbar">
+                                    {orders.filter(o => o.exitTime && !o.returnTime).length > 0 ? orders.filter(o => o.exitTime && !o.returnTime).map(order => (
+                                        <div key={order.id} className="p-4 hover:bg-gray-50 transition-colors flex justify-between items-center">
+                                            <div>
+                                                <div className="font-black text-gray-800 uppercase text-xs">{order.vehicle}</div>
+                                                <div className="text-[10px] text-emerald-500 font-mono font-bold">{order.plate}</div>
+                                                <div className="text-[9px] text-gray-400 uppercase mt-1">Saída: {order.exitTime}</div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                {onDelete && !readOnly && (
+                                                    <button 
+                                                        onClick={() => {
+                                                            setConfirmConfig({
+                                                                isOpen: true,
+                                                                title: 'Excluir Ordem',
+                                                                message: 'Tem certeza que deseja excluir esta ordem em trânsito?',
+                                                                variant: 'danger',
+                                                                onConfirm: () => {
+                                                                    setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                                                                    onDelete(order.id);
+                                                                }
+                                                            });
+                                                        }}
+                                                        className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                                                        title="Excluir"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                )}
+                                                <button 
+                                                    onClick={() => handleQuickRegister(order, 'return')}
+                                                    className="bg-emerald-600 text-white font-black py-2 px-4 rounded-xl text-[9px] uppercase tracking-widest shadow-lg shadow-emerald-100 active:scale-95"
+                                                >
+                                                    Registrar Retorno
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )) : (
+                                        <div className="p-10 text-center text-gray-300 text-[10px] font-bold uppercase italic">Nenhum veículo em trânsito</div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden p-6">
+                            <div className="max-w-xl mx-auto space-y-6">
+                                <div className="relative aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border-4 border-gray-100">
+                                    {isCameraActive ? (
+                                        <video 
+                                            ref={videoRef} 
+                                            autoPlay 
+                                            playsInline 
+                                            muted
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-4">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                            <button 
+                                                onClick={startCamera}
+                                                className="bg-indigo-600 text-white font-black py-3 px-8 rounded-2xl text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 active:scale-95"
+                                            >
+                                                Ativar Câmera
+                                            </button>
+                                        </div>
+                                    )}
+                                    {isProcessingPlate && !isAutoScanEnabled && (
+                                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center text-white gap-4">
+                                            <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            <p className="font-black text-[10px] uppercase tracking-[0.2em]">Processando Placa...</p>
+                                        </div>
+                                    )}
+                                    {isAutoScanEnabled && isProcessingPlate && (
+                                        <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
+                                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            <span className="text-[9px] font-black text-white uppercase tracking-widest">Lendo...</span>
+                                        </div>
+                                    )}
+                                    {lastScannedPlate && (
+                                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl border-2 border-indigo-100 shadow-xl animate-bounce">
+                                            <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest text-center mb-0.5">Última Placa</p>
+                                            <p className="text-lg font-black text-indigo-900 font-mono tracking-tighter">{lastScannedPlate}</p>
+                                        </div>
+                                    )}
+                                    <canvas ref={canvasRef} className="hidden" />
+                                </div>
+
+                                {cameraError && (
+                                    <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-xs font-bold text-center border border-red-100">
+                                        {cameraError}
+                                    </div>
+                                )}
+
+                                <div className="flex flex-wrap justify-center gap-4">
+                                    {isCameraActive && (
+                                        <>
+                                            <button 
+                                                onClick={stopCamera}
+                                                className="bg-gray-100 text-gray-500 font-black py-3 px-6 rounded-2xl text-[10px] uppercase tracking-widest active:scale-95"
+                                            >
+                                                Desativar
+                                            </button>
+                                            <button 
+                                                onClick={() => setIsAutoScanEnabled(!isAutoScanEnabled)}
+                                                className={`font-black py-3 px-6 rounded-2xl text-[10px] uppercase tracking-widest active:scale-95 flex items-center gap-2 transition-all ${isAutoScanEnabled ? 'bg-green-600 text-white shadow-lg shadow-green-100' : 'bg-gray-100 text-gray-500'}`}
+                                            >
+                                                <div className={`w-2 h-2 rounded-full ${isAutoScanEnabled ? 'bg-white animate-pulse' : 'bg-gray-300'}`}></div>
+                                                {isAutoScanEnabled ? 'Auto-Scan Ativo' : 'Ativar Auto-Scan'}
+                                            </button>
+                                            <button 
+                                                onClick={captureAndRecognizePlate}
+                                                disabled={isProcessingPlate || recognitionStatus === 'confirming'}
+                                                className="bg-indigo-600 text-white font-black py-4 px-10 rounded-2xl text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-100 active:scale-95 flex items-center gap-3 disabled:opacity-50"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                Capturar e Identificar
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Recognition Feedback Area */}
+                                {recognitionStatus !== 'idle' && (
+                                    <div className={`mt-6 p-6 rounded-3xl border-2 transition-all animate-fade-in ${
+                                        recognitionStatus === 'scanning' ? 'bg-indigo-50 border-indigo-100' :
+                                        recognitionStatus === 'confirming' ? 'bg-amber-50 border-amber-200' :
+                                        recognitionStatus === 'success' ? 'bg-green-50 border-green-200' :
+                                        'bg-red-50 border-red-200'
+                                    }`}>
+                                        {recognitionStatus === 'scanning' && (
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                                                <div>
+                                                    <p className="font-black text-indigo-900 uppercase text-xs">Analisando Imagem...</p>
+                                                    <p className="text-[10px] text-indigo-400 font-bold uppercase">Buscando placa do veículo</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {recognitionStatus === 'confirming' && pendingOrder && (
+                                            <div className="space-y-4">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Veículo Identificado</p>
+                                                        <h4 className="text-xl font-black text-amber-900 uppercase tracking-tighter italic">{pendingOrder.vehicle}</h4>
+                                                        <p className="text-sm font-mono font-bold text-amber-700">{pendingOrder.plate}</p>
+                                                    </div>
+                                                    <div className={`px-4 py-2 rounded-xl text-white font-black text-[10px] uppercase tracking-widest ${actionType === 'exit' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
+                                                        {actionType === 'exit' ? 'Saída' : 'Retorno'}
+                                                    </div>
+                                                </div>
+                                                <div className="bg-white/50 p-4 rounded-2xl border border-amber-100">
+                                                    <p className="text-xs font-bold text-amber-800">
+                                                        Deseja registrar o horário de <span className="font-black uppercase">{actionType === 'exit' ? 'Saída' : 'Retorno'}</span> para este veículo agora?
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-3">
+                                                    <button 
+                                                        onClick={() => {
+                                                            setRecognitionStatus('idle');
+                                                            setPendingOrder(null);
+                                                            setActionType(null);
+                                                            setScannedPlate(null);
+                                                        }}
+                                                        className="flex-1 bg-white border-2 border-amber-200 text-amber-700 font-black py-3 rounded-2xl uppercase text-[10px] tracking-widest hover:bg-amber-100 transition-all"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                    <button 
+                                                        onClick={confirmRecognitionAction}
+                                                        className="flex-[2] bg-amber-600 text-white font-black py-3 rounded-2xl uppercase text-[10px] tracking-widest shadow-lg shadow-amber-200 hover:bg-amber-700 transition-all active:scale-95"
+                                                    >
+                                                        Confirmar Registro
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {recognitionStatus === 'success' && (
+                                            <div className="flex items-center gap-4">
+                                                <div className="bg-green-500 p-2 rounded-full text-white">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                                </div>
+                                                <div>
+                                                    <p className="font-black text-green-900 uppercase text-xs">Registro Realizado!</p>
+                                                    <p className="text-[10px] text-green-600 font-bold uppercase">O banco de dados foi atualizado com sucesso.</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {recognitionStatus === 'error' && (
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="bg-red-500 p-2 rounded-full text-white">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-black text-red-900 uppercase text-xs">Atenção</p>
+                                                        <p className="text-[10px] text-red-600 font-bold uppercase">{errorMessage}</p>
+                                                    </div>
+                                                </div>
+                                                <button 
+                                                    onClick={() => setRecognitionStatus('idle')}
+                                                    className="w-full bg-white border-2 border-red-100 text-red-400 font-black py-2 rounded-xl uppercase text-[9px] tracking-widest hover:bg-red-50 transition-all"
+                                                >
+                                                    Fechar
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div className="bg-amber-50 p-6 rounded-[2rem] border border-amber-100">
+                                    <h4 className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        Como Funciona
+                                    </h4>
+                                    <p className="text-[10px] text-amber-600 leading-relaxed font-medium">
+                                        Posicione a câmera de forma que a placa do veículo esteja bem visível e centralizada. O sistema utilizará inteligência artificial para extrair a placa e registrar automaticamente a saída ou o retorno, baseando-se nas ordens pendentes.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+            {activeSubTab === 'inspections' && !readOnly && !hideAssets && (
+                <VehicleInspectionTab 
+                    inspections={inspections}
+                    vehicleAssets={vehicleAssets}
+                    driverAssets={driverAssets}
+                    onRegister={onRegisterInspection!}
+                    onUpdate={onUpdateInspection!}
+                    onDelete={onDeleteInspection!}
+                />
+            )}
+            {activeSubTab === 'assets' && !readOnly && !hideAssets && (
+                <div className="space-y-6 mt-12">
+                    <div className="flex gap-4 border-b border-gray-100 pb-2">
+                        <button 
+                            onClick={() => setActiveAssetTab('vehicles')}
+                            className={`px-4 py-2 font-black text-[9px] uppercase tracking-widest transition-all ${activeAssetTab === 'vehicles' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            Veículos
+                        </button>
+                        <button 
+                            onClick={() => setActiveAssetTab('drivers')}
+                            className={`px-4 py-2 font-black text-[9px] uppercase tracking-widest transition-all ${activeAssetTab === 'drivers' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            Motoristas / Acompanhantes
+                        </button>
+                        <button 
+                            onClick={() => setActiveAssetTab('roles')}
+                            className={`px-4 py-2 font-black text-[9px] uppercase tracking-widest transition-all ${activeAssetTab === 'roles' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            Cargos de Validação
+                        </button>
+                    </div>
+
+                    {activeAssetTab === 'vehicles' ? (
+                        <div className="space-y-4">
+                            <div className="flex justify-end">
+                                <button 
+                                    onClick={() => { setEditingVehicle(null); setVehicleFormData({ model: '', plate: '', assetNumber: '' }); setIsVehicleModalOpen(true); }}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2 px-6 rounded-xl transition-all shadow-lg shadow-emerald-100 active:scale-95 uppercase text-[9px] tracking-widest flex items-center gap-2"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                    Novo Veículo
+                                </button>
+                            </div>
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 text-[9px] uppercase text-gray-400 font-black">
+                                        <tr>
+                                            <th className="p-3 text-left">Modelo</th>
+                                            <th className="p-3 text-left">Placa</th>
+                                            <th className="p-3 text-left">Patrimônio</th>
+                                            <th className="p-3 text-center">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {vehicleAssets.map(v => (
+                                            <tr key={v.id} className="hover:bg-gray-50">
+                                                <td className="p-3 font-bold text-gray-700 uppercase">{v.model}</td>
+                                                <td className="p-3 font-mono text-indigo-600 font-bold">{v.plate}</td>
+                                                <td className="p-3 text-gray-500">{v.assetNumber}</td>
+                                                <td className="p-3">
+                                                    <div className="flex justify-center gap-2">
+                                                        <button onClick={() => { setEditingVehicle(v); setVehicleFormData({ model: v.model, plate: v.plate, assetNumber: v.assetNumber }); setIsVehicleModalOpen(true); }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+                                                        <button 
+                                                            onClick={() => {
+                                                                setConfirmConfig({
+                                                                    isOpen: true,
+                                                                    title: 'Excluir Veículo',
+                                                                    message: 'Tem certeza que deseja excluir este veículo?',
+                                                                    variant: 'danger',
+                                                                    onConfirm: () => {
+                                                                        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                                                                        onDeleteVehicleAsset(v.id);
+                                                                    }
+                                                                });
+                                                            }} 
+                                                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ) : activeAssetTab === 'drivers' ? (
+                        <div className="space-y-4">
+                            <div className="flex justify-end">
+                                <button 
+                                    onClick={() => { setEditingDriver(null); setDriverFormData({ name: '', role: '', cnhCategory: 'B', isFitToDrive: true }); setIsDriverModalOpen(true); }}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2 px-6 rounded-xl transition-all shadow-lg shadow-emerald-100 active:scale-95 uppercase text-[9px] tracking-widest flex items-center gap-2"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                    Novo Motorista / Acompanhante
+                                </button>
+                            </div>
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 text-[9px] uppercase text-gray-400 font-black">
+                                        <tr>
+                                            <th className="p-3 text-left">Nome</th>
+                                            <th className="p-3 text-left">Cargo</th>
+                                            <th className="p-3 text-center">CNH</th>
+                                            <th className="p-3 text-center">Status</th>
+                                            <th className="p-3 text-center">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {driverAssets.map(d => (
+                                            <tr key={d.id} className="hover:bg-gray-50">
+                                                <td className="p-3 font-bold text-gray-700 uppercase">{d.name}</td>
+                                                <td className="p-3 text-gray-500 uppercase text-[10px]">{d.role}</td>
+                                                <td className="p-3 text-center font-black text-indigo-600">{d.cnhCategory}</td>
+                                                <td className="p-3 text-center">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${d.isFitToDrive ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                                                        {d.isFitToDrive ? 'Apto' : 'Inapto'}
+                                                    </span>
+                                                </td>
+                                                <td className="p-3">
+                                                    <div className="flex justify-center gap-2">
+                                                        <button onClick={() => { setEditingDriver(d); setDriverFormData({ name: d.name, role: d.role, cnhCategory: d.cnhCategory, isFitToDrive: d.isFitToDrive }); setIsDriverModalOpen(true); }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+                                                        <button 
+                                                            onClick={() => {
+                                                                setConfirmConfig({
+                                                                    isOpen: true,
+                                                                    title: 'Excluir Motorista',
+                                                                    message: 'Tem certeza que deseja excluir este motorista?',
+                                                                    variant: 'danger',
+                                                                    onConfirm: () => {
+                                                                        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                                                                        onDeleteDriverAsset(d.id);
+                                                                    }
+                                                                });
+                                                            }} 
+                                                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="flex justify-end">
+                                <button 
+                                    onClick={() => { setEditingValidationRole(null); setValidationRoleFormData({ roleName: '', responsibleName: '', password: '' }); setIsValidationRoleModalOpen(true); }}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2 px-6 rounded-xl transition-all shadow-lg shadow-emerald-100 active:scale-95 uppercase text-[9px] tracking-widest flex items-center gap-2"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                    Novo Cargo
+                                </button>
+                            </div>
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 text-[9px] uppercase text-gray-400 font-black">
+                                        <tr>
+                                            <th className="p-3 text-left">Cargo</th>
+                                            <th className="p-3 text-left">Responsável</th>
+                                            <th className="p-3 text-center">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {validationRoles.map(vr => (
+                                            <tr key={vr.id} className="hover:bg-gray-50">
+                                                <td className="p-3 font-bold text-gray-700 uppercase">{vr.roleName}</td>
+                                                <td className="p-3 text-gray-500 uppercase text-[10px]">{vr.responsibleName}</td>
+                                                <td className="p-3">
+                                                    <div className="flex justify-center gap-2">
+                                                        <button onClick={() => { setEditingValidationRole(vr); setValidationRoleFormData({ roleName: vr.roleName, responsibleName: vr.responsibleName, password: vr.password || '' }); setIsValidationRoleModalOpen(true); }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+                                                        <button 
+                                                            onClick={() => {
+                                                                setConfirmConfig({
+                                                                    isOpen: true,
+                                                                    title: 'Excluir Cargo',
+                                                                    message: 'Tem certeza que deseja excluir este cargo de validação?',
+                                                                    variant: 'danger',
+                                                                    onConfirm: () => {
+                                                                        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                                                                        onDeleteValidationRole?.(vr.id);
+                                                                    }
+                                                                });
+                                                            }} 
+                                                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Nova Ordem Modal */}
+            {/* Modal de Validação */}
+            {isValidationModalOpen && (
+                <div className="fixed inset-0 bg-indigo-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in">
+                        <div className="bg-indigo-900 p-6 text-white">
+                            <h3 className="text-xl font-black uppercase tracking-tighter italic">Validar Saída de Veículo</h3>
+                            <p className="text-indigo-300 font-bold text-[10px] uppercase tracking-widest mt-1">Autorização Digital de Responsável</p>
+                        </div>
+                        <div className="p-6 space-y-6">
+                            <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+                                <div className="text-[10px] font-black text-indigo-400 uppercase mb-1">Veículo / Placa</div>
+                                <div className="font-black text-indigo-900 uppercase">{validatingOrder?.vehicle} ({validatingOrder?.plate})</div>
+                                <div className="mt-2 text-[10px] font-black text-indigo-400 uppercase mb-1">Responsável</div>
+                                <div className="font-bold text-indigo-800 uppercase">{validatingOrder?.responsibleServer}</div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Selecione o Cargo/Responsável para Validar</label>
+                                <select 
+                                    value={selectedValidationRoleId}
+                                    onChange={e => {
+                                        const roleId = e.target.value;
+                                        const role = validationRoles.find(r => r.id === roleId);
+                                        setSelectedValidationRoleId(roleId);
+                                        setFormData({ 
+                                            ...formData, 
+                                            validationRole: role ? role.roleName : '',
+                                            validatedBy: role ? role.responsibleName : ''
+                                        });
+                                    }}
+                                    className="w-full h-12 px-4 border-2 border-indigo-100 rounded-2xl bg-indigo-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-sm"
+                                >
+                                    <option value="">SELECIONE O RESPONSÁVEL</option>
+                                    {validationRoles.map(role => (
+                                        <option key={role.id} value={role.id}>
+                                            {role.roleName} - {role.responsibleName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {selectedValidationRoleId && (
+                                <div className="space-y-2 animate-fade-in">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Senha de Validação</label>
+                                    <input 
+                                        type="password"
+                                        value={validationPassword}
+                                        onChange={e => setValidationPassword(e.target.value)}
+                                        placeholder="DIGITE SUA SENHA"
+                                        className="w-full h-12 px-4 border-2 border-indigo-100 rounded-2xl bg-indigo-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-sm"
+                                    />
+                                </div>
+                            )}
+
+                            {formData.validatedBy && (
+                                <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex items-center gap-3">
+                                    <div className="bg-emerald-500 p-2 rounded-full text-white">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                    </div>
+                                    <div>
+                                        <div className="text-[10px] font-black text-emerald-600 uppercase">Confirmado por</div>
+                                        <div className="font-black text-emerald-900 uppercase">{formData.validatedBy}</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-6 bg-gray-50 flex gap-3">
+                            <button 
+                                onClick={() => { setIsValidationModalOpen(false); setValidationPassword(''); setSelectedValidationRoleId(''); }}
+                                className="flex-1 bg-white border-2 border-gray-200 text-gray-400 font-black py-3 rounded-2xl uppercase text-[10px] tracking-widest hover:bg-gray-100 transition-all"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={handleConfirmValidation}
+                                disabled={!selectedValidationRoleId || !validationPassword}
+                                className="flex-[2] bg-indigo-600 text-white font-black py-3 rounded-2xl uppercase text-[10px] tracking-widest shadow-lg hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Confirmar Validação
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-2 md:p-4">
+                    <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto custom-scrollbar border border-white/20">
+                        <div className="p-4 md:p-6">
+                            <div className="flex justify-between items-center mb-4 border-b pb-3">
+                                <div>
+                                    <h3 className="text-lg md:text-xl font-black text-gray-900 uppercase tracking-tighter italic">
+                                        {isChecklistCompleted ? 'Finalizar Cadastro' : (securityMode || editingOrder?.validationRole) ? 'Registrar Horários' : editingOrder ? 'Editar Ordem' : 'Nova Ordem de Saída'}
+                                    </h3>
+                                    <p className="text-gray-400 font-bold text-[8px] uppercase tracking-widest mt-0.5">
+                                        {isChecklistCompleted ? 'Checklist realizado com sucesso. Clique em salvar para finalizar.' : (securityMode || editingOrder?.validationRole) ? 'Informe os horários de saída e retorno' : 'Preencha os dados do deslocamento'}
+                                    </p>
+                                </div>
+                                <button onClick={() => { setIsModalOpen(false); setIsChecklistCompleted(false); }} className="p-1.5 bg-gray-100 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-500 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                { (securityMode || editingOrder?.validationRole) ? (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Saída</label>
+                                            <input 
+                                                type="time" 
+                                                value={formData.exitTime || ''} 
+                                                onChange={e => setFormData({ ...formData, exitTime: e.target.value })}
+                                                className="w-full h-12 px-3 border-2 border-indigo-100 rounded-xl bg-indigo-50 font-black text-indigo-900 focus:bg-white focus:border-indigo-500 transition-all outline-none text-lg text-center"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Retorno</label>
+                                            <input 
+                                                type="time" 
+                                                value={formData.returnTime || ''} 
+                                                onChange={e => setFormData({ ...formData, returnTime: e.target.value })}
+                                                className="w-full h-12 px-3 border-2 border-emerald-100 rounded-xl bg-emerald-50 font-black text-emerald-900 focus:bg-white focus:border-emerald-500 transition-all outline-none text-lg text-center"
+                                            />
+                                        </div>
+                                        <div className="col-span-2 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                            <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Resumo da Ordem</p>
+                                            <p className="text-xs font-bold text-gray-700">{formData.vehicle} - {formData.plate}</p>
+                                            <p className="text-[10px] font-medium text-gray-500">{formData.responsibleServer}</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Data</label>
+                                        <input 
+                                            type="date" 
+                                            required
+                                            value={formData.date}
+                                            onChange={e => setFormData({ ...formData, date: e.target.value })}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Veículo (Modelo)</label>
+                                        <input 
+                                            type="text" 
+                                            list="vehicle-models"
+                                            required
+                                            placeholder="Ex: VW CARGO"
+                                            value={formData.vehicle}
+                                            onChange={e => {
+                                                const val = e.target.value.toUpperCase();
+                                                const found = availableVehicles.find(v => v.model === val);
+                                                if (found) {
+                                                    setFormData({ ...formData, vehicle: found.model, plate: found.plate, assetNumber: found.assetNumber });
+                                                } else {
+                                                    setFormData({ ...formData, vehicle: val });
+                                                }
+                                            }}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                        <datalist id="vehicle-models">
+                                            {availableVehicles.map(v => <option key={v.id} value={v.model}>{v.plate}</option>)}
+                                        </datalist>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Placa</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            placeholder="Ex: FSP4J81"
+                                            value={formData.plate}
+                                            onChange={e => setFormData({ ...formData, plate: e.target.value.toUpperCase() })}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-mono"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Patrimônio</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            placeholder="Ex: 1710"
+                                            value={formData.assetNumber}
+                                            onChange={e => setFormData({ ...formData, assetNumber: e.target.value.toUpperCase() })}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-3">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Funcionário Responsável</label>
+                                        <input 
+                                            type="text" 
+                                            list="driver-names"
+                                            required
+                                            placeholder="Nome Completo"
+                                            value={formData.responsibleServer}
+                                            onChange={e => {
+                                                const val = e.target.value.toUpperCase();
+                                                const found = driverAssets.find(d => d.name === val);
+                                                if (found) {
+                                                    setFormData({ ...formData, responsibleServer: found.name, serverRole: found.role });
+                                                } else {
+                                                    setFormData({ ...formData, responsibleServer: val });
+                                                }
+                                            }}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                        <datalist id="driver-names">
+                                            {driverAssets.map(d => <option key={d.id} value={d.name}>{d.role}</option>)}
+                                        </datalist>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Cargo</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            placeholder="Ex: POLICIAL PENAL"
+                                            value={formData.serverRole}
+                                            onChange={e => setFormData({ ...formData, serverRole: e.target.value.toUpperCase() })}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Destino</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            placeholder="Ex: ARARAQUARA - SP"
+                                            value={formData.destination}
+                                            onChange={e => setFormData({ ...formData, destination: e.target.value.toUpperCase() })}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 space-y-3">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[9px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                            Acompanhantes
+                                        </label>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, companions: [...formData.companions, { name: '', rg: '' }] })}
+                                            className="text-[8px] font-black text-indigo-600 uppercase hover:underline"
+                                        >
+                                            + Adicionar
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                        {formData.companions.map((c, i) => (
+                                            <div key={i} className="bg-white p-2 rounded-lg border border-gray-200 shadow-sm space-y-1.5 relative group">
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newCompanions = formData.companions.filter((_, idx) => idx !== i);
+                                                        setFormData({ ...formData, companions: newCompanions });
+                                                    }}
+                                                    className="absolute -top-1 -right-1 bg-red-100 text-red-600 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                </button>
+                                                <div className="space-y-0.5">
+                                                    <label className="text-[7px] font-black text-gray-400 uppercase">Nome ({i + 1})</label>
+                                                    <input 
+                                                        type="text" 
+                                                        value={c.name}
+                                                        onChange={e => {
+                                                            const newCompanions = [...formData.companions];
+                                                            newCompanions[i].name = e.target.value.toUpperCase();
+                                                            setFormData({ ...formData, companions: newCompanions });
+                                                        }}
+                                                        className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-gray-50 font-bold outline-none focus:border-indigo-500 transition-all text-[10px]"
+                                                    />
+                                                </div>
+                                                <div className="space-y-0.5">
+                                                    <label className="text-[7px] font-black text-gray-400 uppercase">RG</label>
+                                                    <input 
+                                                        type="text" 
+                                                        value={c.rg}
+                                                        onChange={e => {
+                                                            const newCompanions = [...formData.companions];
+                                                            newCompanions[i].rg = e.target.value.toUpperCase();
+                                                            setFormData({ ...formData, companions: newCompanions });
+                                                        }}
+                                                        className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-gray-50 font-bold outline-none focus:border-indigo-500 transition-all text-[10px]"
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Número da FCT (Anexar)</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            placeholder="Ex: 1630/2025"
+                                            value={formData.fctNumber}
+                                            onChange={e => setFormData({ ...formData, fctNumber: e.target.value.toUpperCase() })}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-mono"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Observações</label>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Opcional"
+                                            value={formData.observations}
+                                            onChange={e => setFormData({ ...formData, observations: e.target.value.toUpperCase() })}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Saída</label>
+                                        <input 
+                                            type="time" 
+                                            value={formData.exitTime || ''} 
+                                            onChange={e => setFormData({ ...formData, exitTime: e.target.value })}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Retorno</label>
+                                        <input 
+                                            type="time" 
+                                            value={formData.returnTime || ''} 
+                                            onChange={e => setFormData({ ...formData, returnTime: e.target.value })}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        <div className="flex gap-3 pt-1">
+                            <button 
+                                type="button"
+                                onClick={() => { setIsModalOpen(false); setIsChecklistCompleted(false); }}
+                                className="flex-1 h-10 bg-gray-100 text-gray-500 font-black rounded-xl hover:bg-gray-200 transition-all uppercase text-[9px] tracking-widest"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                type="submit"
+                                className={`flex-[2] h-10 rounded-xl font-black transition-all shadow-xl active:scale-95 uppercase text-[9px] tracking-widest ${isChecklistCompleted ? 'bg-emerald-600 text-white shadow-emerald-100 hover:bg-emerald-700' : 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700'}`}
+                            >
+                                {isChecklistCompleted ? 'Finalizar e Salvar' : securityMode ? 'Salvar Horários' : editingOrder ? 'Salvar Alterações' : 'Continuar para Checklist'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    )}
+
+            {/* Vehicle Asset Modal */}
+            {isVehicleModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-md border border-white/20">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter italic">{editingVehicle ? 'Editar Veículo' : 'Novo Veículo'}</h3>
+                                <button onClick={() => setIsVehicleModalOpen(false)} className="p-2 bg-gray-100 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-500 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                            <form onSubmit={handleVehicleSubmit} className="space-y-4">
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Modelo</label>
+                                    <input type="text" required value={vehicleFormData.model} onChange={e => setVehicleFormData({ ...vehicleFormData, model: e.target.value.toUpperCase() })} className="w-full h-10 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 outline-none text-xs" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Placa</label>
+                                        <input type="text" required value={vehicleFormData.plate} onChange={e => setVehicleFormData({ ...vehicleFormData, plate: e.target.value.toUpperCase() })} className="w-full h-10 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 outline-none text-xs font-mono" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Patrimônio</label>
+                                        <input type="text" required value={vehicleFormData.assetNumber} onChange={e => setVehicleFormData({ ...vehicleFormData, assetNumber: e.target.value.toUpperCase() })} className="w-full h-10 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 outline-none text-xs" />
+                                    </div>
+                                </div>
+                                <button type="submit" className="w-full h-12 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest mt-4">
+                                    {editingVehicle ? 'Salvar Alterações' : 'Cadastrar Veículo'}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Driver Asset Modal */}
+            {isDriverModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-md border border-white/20">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter italic">{editingDriver ? 'Editar Motorista' : 'Novo Motorista'}</h3>
+                                <button onClick={() => setIsDriverModalOpen(false)} className="p-2 bg-gray-100 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-500 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                            <form onSubmit={handleDriverSubmit} className="space-y-4">
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Nome Completo</label>
+                                    <input type="text" required value={driverFormData.name} onChange={e => setDriverFormData({ ...driverFormData, name: e.target.value.toUpperCase() })} className="w-full h-10 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 outline-none text-xs" />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Cargo</label>
+                                    <input type="text" required value={driverFormData.role} onChange={e => setDriverFormData({ ...driverFormData, role: e.target.value.toUpperCase() })} className="w-full h-10 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 outline-none text-xs" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Categoria CNH</label>
+                                        <select value={driverFormData.cnhCategory} onChange={e => setDriverFormData({ ...driverFormData, cnhCategory: e.target.value })} className="w-full h-10 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 outline-none text-xs">
+                                            <option value="A">A</option>
+                                            <option value="B">B</option>
+                                            <option value="C">C</option>
+                                            <option value="D">D</option>
+                                            <option value="E">E</option>
+                                            <option value="AB">AB</option>
+                                            <option value="AC">AC</option>
+                                            <option value="AD">AD</option>
+                                            <option value="AE">AE</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Apto a Dirigir?</label>
+                                        <div className="flex items-center h-10 gap-4">
+                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                <input type="radio" checked={driverFormData.isFitToDrive} onChange={() => setDriverFormData({ ...driverFormData, isFitToDrive: true })} className="w-4 h-4 text-indigo-600" />
+                                                <span className="text-[10px] font-black uppercase text-emerald-600">Sim</span>
+                                            </label>
+                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                <input type="radio" checked={!driverFormData.isFitToDrive} onChange={() => setDriverFormData({ ...driverFormData, isFitToDrive: false })} className="w-4 h-4 text-red-600" />
+                                                <span className="text-[10px] font-black uppercase text-red-600">Não</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="submit" className="w-full h-12 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest mt-4">
+                                    {editingDriver ? 'Salvar Alterações' : 'Cadastrar Motorista'}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Validation Role Modal */}
+            {isValidationRoleModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-md border border-white/20">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter italic">{editingValidationRole ? 'Editar Cargo' : 'Novo Cargo'}</h3>
+                                <button onClick={() => setIsValidationRoleModalOpen(false)} className="p-2 bg-gray-100 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-500 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                            <form onSubmit={handleValidationRoleSubmit} className="space-y-4">
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Nome do Cargo</label>
+                                    <input type="text" required value={validationRoleFormData.roleName} onChange={e => setValidationRoleFormData({ ...validationRoleFormData, roleName: e.target.value.toUpperCase() })} className="w-full h-10 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 outline-none text-xs" placeholder="Ex: CHEFE DE SEÇÃO" />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Responsável</label>
+                                    <input type="text" required value={validationRoleFormData.responsibleName} onChange={e => setValidationRoleFormData({ ...validationRoleFormData, responsibleName: e.target.value.toUpperCase() })} className="w-full h-10 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 outline-none text-xs" placeholder="Nome do Funcionário" />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Senha de Validação</label>
+                                    <input type="password" required value={validationRoleFormData.password} onChange={e => setValidationRoleFormData({ ...validationRoleFormData, password: e.target.value })} className="w-full h-10 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 outline-none text-xs" placeholder="Senha para validar ordens" />
+                                </div>
+                                <button type="submit" className="w-full h-12 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest mt-4">
+                                    {editingValidationRole ? 'Salvar Alterações' : 'Cadastrar Cargo'}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <ConfirmModal 
+                {...confirmConfig} 
+                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))} 
+            />
+
+            {/* Checklist Modal */}
+            {isChecklistModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 border border-white/20">
+                        <div className="bg-indigo-600 p-8 text-white relative overflow-hidden">
+                            <div className="absolute top-[-20%] right-[-10%] w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+                            <h3 className="text-2xl font-black uppercase tracking-tighter italic flex items-center gap-3 relative z-10">
+                                <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                Checklist de Saída
+                            </h3>
+                        </div>
+                        
+                        <div className="p-8 space-y-8">
+                            <div className="space-y-2">
+                                <p className="text-xl font-black text-indigo-950 uppercase tracking-tight italic">
+                                    {(() => {
+                                        const hour = new Date().getHours();
+                                        if (hour >= 5 && hour < 12) return 'Bom dia';
+                                        if (hour >= 12 && hour < 18) return 'Boa tarde';
+                                        return 'Boa noite';
+                                    })()}, <span className="text-indigo-600 underline decoration-indigo-200 underline-offset-4">{formData.responsibleServer}</span>!
+                                </p>
+                                <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest leading-relaxed">
+                                    Vamos realizar a checagem dos itens do veículo antes de liberar a saída.
+                                </p>
+                            </div>
+
+                            <div className="space-y-3">
+                                {[
+                                    { id: 'water', label: 'Nível da água do radiador' },
+                                    { id: 'oil', label: 'Nível do óleo' },
+                                    { id: 'tires', label: 'Calibragem dos pneus' },
+                                    { id: 'lights', label: 'Luzes de sinalização' }
+                                ].map((item) => (
+                                    <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100 group hover:bg-indigo-50/30 transition-all">
+                                        <span className="text-[11px] font-black text-gray-600 uppercase tracking-tight group-hover:text-indigo-900 transition-colors">{item.label}</span>
+                                        <div className="flex gap-1.5">
+                                            <button 
+                                                onClick={() => setVehicleChecklist(prev => ({ ...prev, [item.id]: true }))}
+                                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${vehicleChecklist[item.id as keyof typeof vehicleChecklist] === true ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100 scale-105' : 'bg-white text-gray-400 border border-gray-200 hover:border-emerald-200 hover:text-emerald-600'}`}
+                                            >
+                                                OK
+                                            </button>
+                                            <button 
+                                                onClick={() => setVehicleChecklist(prev => ({ ...prev, [item.id]: false }))}
+                                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${vehicleChecklist[item.id as keyof typeof vehicleChecklist] === false ? 'bg-red-600 text-white shadow-lg shadow-red-100 scale-105' : 'bg-white text-gray-400 border border-gray-200 hover:border-red-200 hover:text-red-600'}`}
+                                            >
+                                                NÃO OK
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="flex gap-3 pt-4">
+                                <button 
+                                    onClick={() => {
+                                        setIsChecklistModalOpen(false);
+                                        setIsModalOpen(true); // Retorna para a ordem de saída
+                                    }}
+                                    className="flex-1 px-6 py-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all active:scale-95"
+                                >
+                                    Voltar
+                                </button>
+                                <button 
+                                    onClick={handleConfirmChecklist}
+                                    disabled={!(vehicleChecklist.water !== null && vehicleChecklist.oil !== null && vehicleChecklist.tires !== null && vehicleChecklist.lights !== null) || !(vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights)}
+                                    className={`flex-1 px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl active:scale-95 ${
+                                        (vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights) 
+                                        ? 'bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700' 
+                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                                    }`}
+                                >
+                                    Confirmar Checklist
+                                </button>
+                            </div>
+                            
+                            {(!(vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights) && (vehicleChecklist.water !== null && vehicleChecklist.oil !== null && vehicleChecklist.tires !== null && vehicleChecklist.lights !== null)) && (
+                                <div className="bg-red-50 p-3 rounded-xl border border-red-100 animate-pulse">
+                                    <p className="text-center text-[9px] text-red-600 font-black uppercase tracking-widest">
+                                        Atenção: Todos os itens devem estar OK para liberar a saída do veículo.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default AdminVehicleExitOrder;
