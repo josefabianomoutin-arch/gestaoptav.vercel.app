@@ -105,6 +105,8 @@ const App: React.FC = () => {
   const _unusedStaff = staff;
   const [publicInfo, setPublicInfo] = useState<PublicInfo[]>([]);
 
+  console.log("App mounted, user:", user);
+
   useEffect(() => {
     if (!database) return;
 
