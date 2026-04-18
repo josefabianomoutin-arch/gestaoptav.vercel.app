@@ -66,6 +66,32 @@ async function startServer() {
     }
   });
 
+  app.post("/api/gemini-compare", async (req, res) => {
+    try {
+      const { image1, image2, prompt } = req.body;
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      
+      const result = await ai.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: [{
+          role: "user",
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: "image/jpeg", data: image1 } },
+            { inlineData: { mimeType: "image/jpeg", data: image2 } }
+          ]
+        }]
+      });
+      
+      const text = result.text || '{}';
+      res.json(JSON.parse(text.replace(/```json/g, '').replace(/```/g, '')));
+    } catch (error) {
+      console.error("Gemini Compare error:", error);
+      res.status(500).json({ error: "Failed to compare images" });
+    }
+  });
+
   // Vite middleware for development
   const vite = await createViteServer({
     server: { middlewareMode: true },

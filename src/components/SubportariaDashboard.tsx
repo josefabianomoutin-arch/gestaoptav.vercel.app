@@ -115,27 +115,22 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                 
                 try {
                     // Cache bust: 2026-03-12T09:02:10
-                    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
                     const refBase64 = verifyingLog.photo.split(',')[1];
                     const capBase64 = photoData.split(',')[1];
 
-                    const response = await ai.models.generateContent({
-                        model: "gemini-3-flash-preview",
-                        contents: [
-                            {
-                                parts: [
-                                    { text: "Compare estas duas fotos. Elas são da mesma pessoa? Responda com um objeto JSON: { \"match\": boolean, \"confidence\": number (0-100), \"reason\": string }. Responda em Português." },
-                                    { inlineData: { mimeType: "image/jpeg", data: refBase64 } },
-                                    { inlineData: { mimeType: "image/jpeg", data: capBase64 } }
-                                ]
-                            }
-                        ],
-                        config: {
-                            responseMimeType: "application/json"
-                        }
+                    const response = await fetch('/api/gemini-compare', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            image1: refBase64,
+                            image2: capBase64,
+                            prompt: "Compare estas duas fotos. Elas são da mesma pessoa? Responda com um objeto JSON: { \"match\": boolean, \"confidence\": number (0-100), \"reason\": string }. Responda em Português."
+                        })
                     });
 
-                    const result = JSON.parse(response.text || '{}');
+                    if (!response.ok) throw new Error("Falha na chamada da API");
+                    const result = await response.json();
+                    
                     setVerificationResult(result);
                     setVerificationStatus(result.match ? 'success' : 'failed');
                 } catch (e) {
