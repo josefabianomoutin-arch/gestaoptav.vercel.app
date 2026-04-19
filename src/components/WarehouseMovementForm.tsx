@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, X, Package, Calendar, FileText, Barcode, Copy } from 'lucide-react';
 import type { Supplier, WarehouseMovement } from '../types';
+import { toast } from 'sonner';
 
 interface WarehouseMovementFormProps {
     suppliers: Supplier[];

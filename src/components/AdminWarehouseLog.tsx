@@ -46,7 +46,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
     const availableMonths = useMemo(() => {
         const months = new Set<string>();
         warehouseLog.forEach(log => {
-            const dateStr = log.date || log.timestamp?.split('T')[0];
+            const dateStr = log.date || (typeof log.timestamp === 'number' ? new Date(log.timestamp).toISOString().split('T')[0] : (log.timestamp as any)?.split?.('T')?.[0]);
             if (dateStr) {
                 const d = new Date(dateStr + 'T00:00:00');
                 if (!isNaN(d.getTime())) {
@@ -119,7 +119,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
     const filteredLog = useMemo(() => {
         return warehouseLog
             .filter(log => {
-                const dateStr = log.date || log.timestamp?.split('T')[0];
+                const dateStr = log.date || (typeof log.timestamp === 'number' ? new Date(log.timestamp).toISOString().split('T')[0] : (log.timestamp as any)?.split?.('T')?.[0]);
                 const logDate = new Date(dateStr + 'T00:00:00');
                 const monthKey = `${logDate.getFullYear()}-${logDate.getMonth()}`;
                 const matchesMonth = monthKey === activeMonthTab;
@@ -615,7 +615,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                                 className="text-gray-400 hover:text-amber-500 hover:bg-amber-50 p-1.5 rounded-lg transition-all"
                                                 title="Imprimir Etiqueta"
                                             >
-                                                <Printer className="h-3.5 w-3.5" />
+                                                <Printer className="h-4 w-4" />
                                             </button>
                                             <button 
                                                 onClick={() => setEditingLog(log)}

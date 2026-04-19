@@ -69,7 +69,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     nl: '', 
     pd: '', 
     type: mode === 'warehouse_exit' ? 'saída' : 'entrada',
-    items: [] as { name: string; kg: number; value: number; lotNumber?: string }[]
+    items: [] as { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[]
   });
   
   const [newItem, setNewItem] = useState({ name: '', kg: 0, value: 0, lotNumber: '', expirationDate: '' });
@@ -149,7 +149,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
   const [activeMonthTab, setActiveMonthTab] = useState<string>(() => {
     const now = new Date();
-    return `${now.getFullYear()}-${now.getMonth()}`;
+    const currentMonthKey = `${now.getFullYear()}-${now.getMonth()}`;
+    return availableMonths.includes(currentMonthKey) ? currentMonthKey : (availableMonths[0] || currentMonthKey);
   });
 
   const [prevAvailableMonths, setPrevAvailableMonths] = useState(availableMonths);
@@ -246,7 +247,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             name: it.name,
             kg: it.kg,
             value: it.value * it.kg,
-            lotNumber: it.lotNumber || 'MANUAL'
+            lotNumber: it.lotNumber || 'MANUAL',
+            expirationDate: it.expirationDate
         })), 
         '', '', '', 
         manualEntryData.nl, 
@@ -395,7 +397,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                                 <h1>${it.item}</h1>
                                                 <p>Fornecedor: ${inv.supplierName}</p>
                                                 <p>NF: ${inv.invoiceNumber} | Data: ${new Date(inv.date).toLocaleDateString()}</p>
-                                                <p>Qtd: ${it.kg}kg | Lote: ${it.lotNumber || 'MANUAL'}</p>
+                                                <p>Qtd: ${it.kg}kg | Lote: ${it.lots?.[0]?.lotNumber || it.lotNumber || 'N/A'}</p>
+                                                <p>Validade: ${it.lots?.[0]?.expirationDate ? it.lots[0].expirationDate.split('-').reverse().join('/') : (it.expirationDate || 'N/A')}</p>
                                                 <svg id="barcode"></svg>
                                             </div>
                                             <script>
@@ -600,6 +603,10 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                             <span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
                                                 {it.kg.toLocaleString('pt-BR')} Kg • {formatCurrency(it.value * it.kg)}
                                             </span>
+                                            <div className="flex gap-2 mt-0.5">
+                                                {it.lotNumber && <span className="text-[7px] font-black text-indigo-400 uppercase italic">Lote: {it.lotNumber}</span>}
+                                                {it.expirationDate && <span className="text-[7px] font-black text-amber-500 uppercase italic">Val: {it.expirationDate.split('-').reverse().join('/')}</span>}
+                                            </div>
                                         </div>
                                         <button 
                                             onClick={() => {
