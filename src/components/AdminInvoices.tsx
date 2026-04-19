@@ -76,9 +76,16 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
       const deliveries = Object.values(supplier.deliveries || {}) as Delivery[];
       const grouped = deliveries.reduce((acc, d) => {
         if (d.invoiceNumber) {
-          // Identify entry/exit for this invoiceNumber using warehouseLog
-          const movement = warehouseLog.find(log => log.invoiceNumber === d.invoiceNumber);
-          const isExit = movement && (movement.type === 'saida' || movement.type === 'saída');
+          // Identify entry/exit using WarehouseMovement fields.
+          // Note: d.invoiceNumber is used to link to WarehouseMovement log entries.
+          // For entries, movement.inboundInvoice matches. For exits, movement.outboundInvoice matches.
+          const movement = warehouseLog.find(log => 
+            log.inboundInvoice === d.invoiceNumber || 
+            log.outboundInvoice === d.invoiceNumber
+          );
+          
+          // An invoice linked to an outboundInvoice means it's an exit.
+          const isExit = movement && movement.outboundInvoice === d.invoiceNumber;
           
           if (mode === 'warehouse_entry' && isExit) return acc;
           if (mode === 'warehouse_exit' && !isExit) return acc;
