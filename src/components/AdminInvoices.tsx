@@ -72,7 +72,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     items: [] as { name: string; kg: number; value: number; lotNumber?: string }[]
   });
   
-  const [newItem, setNewItem] = useState({ name: '', kg: 0, value: 0 });
+  const [newItem, setNewItem] = useState({ name: '', kg: 0, value: 0, lotNumber: '', expirationDate: '' });
     const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
 
   const [confirmConfig, setConfirmConfig] = useState<{
@@ -552,6 +552,27 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     />
                                 </div>
                             </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Lote</label>
+                                    <input 
+                                        type="text" 
+                                        value={newItem.lotNumber} 
+                                        onChange={e => setNewItem({...newItem, lotNumber: e.target.value.toUpperCase()})}
+                                        placeholder="LOTE..."
+                                        className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px]" 
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Validade</label>
+                                    <input 
+                                        type="date" 
+                                        value={newItem.expirationDate} 
+                                        onChange={e => setNewItem({...newItem, expirationDate: e.target.value})}
+                                        className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px]" 
+                                    />
+                                </div>
+                            </div>
                             <button 
                                 onClick={() => {
                                     if (!newItem.name || !newItem.kg) {
@@ -560,9 +581,9 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     }
                                     setManualEntryData({
                                         ...manualEntryData,
-                                        items: [...manualEntryData.items, { ...newItem, lotNumber: 'MANUAL' }]
+                                        items: [...manualEntryData.items, { ...newItem, lotNumber: newItem.lotNumber || 'MANUAL' }]
                                     });
-                                    setNewItem({ name: '', kg: 0, value: 0 });
+                                    setNewItem({ name: '', kg: 0, value: 0, lotNumber: '', expirationDate: '' });
                                 }}
                                 className="w-full h-9 bg-zinc-800 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-2"
                             >

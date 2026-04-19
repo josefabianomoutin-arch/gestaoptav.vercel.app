@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, X, Package, Calendar, FileText, Barcode } from 'lucide-react';
+import { Plus, X, Package, Calendar, FileText, Barcode, Copy } from 'lucide-react';
 import type { Supplier, WarehouseMovement } from '../types';
 
 interface WarehouseMovementFormProps {
@@ -254,6 +254,23 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
 
     const handleRemoveItem = (id: string) => {
         setItems(prev => prev.filter(i => i.id !== id));
+    };
+
+    const handleDuplicateItem = (item: any) => {
+        setSelectedItemName(item.itemName);
+        setManualQuantity(item.quantity.toString());
+        setManualLot(item.lot);
+        setManualExp(item.exp);
+        setManualBarcode(item.barcode);
+        setManualInboundNf(item.inboundInvoice || '');
+        setManualNl(item.nlNumber || '');
+        setManualPd(item.pdNumber || '');
+        setManualValue(item.value?.toString() || '');
+        setManualWeight(item.weight?.toString() || '');
+        
+        // Foca no input de quantidade ou código de barras
+        barcodeInputRef.current?.focus();
+        toast.info(`Dados de "${item.itemName}" copiados para o formulário.`);
     };
 
     const handleRegisterAll = async () => {
@@ -513,9 +530,24 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                     <div key={item.id} className="bg-slate-50 px-3 py-1.5 rounded-xl border border-gray-100 flex items-center gap-3 shadow-xs animate-in slide-in-from-left-2 transition-all group">
                                         <div className="flex flex-col">
                                             <span className="text-[9px] font-black text-gray-900 leading-none">{item.itemName}</span>
-                                            <span className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">{item.quantity} kg • {item.lot || '-'}</span>
+                                            <div className="flex flex-col mt-0.5">
+                                                <span className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">
+                                                    {item.quantity} kg • LOTE: {item.lot || '-'}
+                                                </span>
+                                                <span className="text-[7px] text-indigo-400 font-black uppercase">
+                                                    VAL: {item.exp ? item.exp.split('-').reverse().join('/') : '-'}
+                                                </span>
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-1.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button 
+                                                type="button"
+                                                onClick={() => handleDuplicateItem(item)}
+                                                className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                                title="Duplicar / Copiar dados"
+                                            >
+                                                <Copy className="h-3.5 w-3.5" />
+                                            </button>
                                             <button 
                                                 type="button"
                                                 onClick={() => handlePrintItemLabel(item)}

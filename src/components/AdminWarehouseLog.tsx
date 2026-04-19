@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
     Plus, 
     Printer, 
@@ -7,20 +7,10 @@ import {
     Search, 
     Edit2, 
     Trash2, 
-    X, 
-    Calendar, 
-    Barcode, 
-    Package, 
-    Save, 
-    Clock, 
-    AlertCircle,
-    History,
-    FileText,
-    TrendingUp
+    Clock
 } from 'lucide-react';
-import type { WarehouseMovement, Supplier, ContractItem } from '../types';
+import type { WarehouseMovement, Supplier } from '../types';
 import ConfirmModal from './ConfirmModal';
-import { motion } from 'motion/react';
 
 const monthNamesInOrder = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -137,10 +127,12 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                 const typeMatch = filterType === 'all' || log.type === filterType;
                 const searchMatch = searchTerm === '' ||
                     log.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    log.lotNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    (log.lotNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                     (log.barcode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                     (log.nlNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                     (log.pdNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    (log.inboundInvoice || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    (log.outboundInvoice || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                     log.supplierName.toLowerCase().includes(searchTerm.toLowerCase());
                 return matchesMonth && typeMatch && searchMatch;
             })
@@ -586,6 +578,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                 <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Produto / Origem</th>
                                 <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Cód. Barras</th>
                                 <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Lote</th>
+                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Validade</th>
                                 <th className="p-3 text-right font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Quantidade</th>
                                 <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">NF / REQ</th>
                                 <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">NL / PD</th>
@@ -604,7 +597,10 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                         <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">{log.supplierName}</p>
                                     </td>
                                     <td className="p-2 font-mono text-[10px] text-blue-600 font-black tracking-tighter">{log.barcode || '-'}</td>
-                                    <td className="p-2 font-mono text-[10px] uppercase font-bold text-gray-500">{log.lotNumber}</td>
+                                    <td className="p-2 font-mono text-[10px] uppercase font-bold text-gray-500">{log.lotNumber || '-'}</td>
+                                    <td className="p-2 font-mono text-[10px] uppercase font-bold text-gray-400">
+                                        {log.expirationDate ? log.expirationDate.split('-').reverse().join('/') : '-'}
+                                    </td>
                                     <td className="p-2 text-right font-mono font-black text-gray-900 bg-gray-50/30 group-hover:bg-transparent">
                                         {(log.quantity || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg
                                     </td>
