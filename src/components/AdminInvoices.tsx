@@ -62,7 +62,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter] = useState<'all' | 'pending' | 'opened'>('all');
     const [isManualModalOpen, setIsManualModalOpen] = useState(false);
-    const [manualEntryData, setManualEntryData] = useState({ supplierCpf: '', date: '', invoiceNumber: '', nl: '', pd: '' });
+  const [manualEntryData, setManualEntryData] = useState({ supplierCpf: '', date: '', invoiceNumber: '', nl: '', pd: '', type: mode === 'warehouse_exit' ? 'saida' : 'entrada' });
     const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
 
   const [confirmConfig, setConfirmConfig] = useState<{
@@ -211,127 +211,140 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-gray-100 italic">
-        <div className="p-6 md:p-8 border-b border-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div className="flex items-center gap-4">
-            <div className="bg-indigo-600 p-3 rounded-2xl text-white">
-                <FileCheck className="h-8 w-8" />
+    <div className="space-y-4 animate-fade-in">
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 italic">
+        <div className="p-4 md:p-6 border-b border-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-600 p-2 rounded-xl text-white">
+                <FileCheck className="h-6 w-6" />
             </div>
             <div>
-                <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tighter italic">Consulta de Notas Fiscais</h2>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Gerenciamento centralizado de faturamentos</p>
+                <h2 className="text-lg font-black text-gray-800 uppercase tracking-tighter italic leading-none">Gestão de NFs</h2>
+                <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Consulta e Controle</p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-            <div className="relative flex-1 md:w-64">
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <div className="relative flex-1 md:w-40">
                 <input 
                 type="text" 
-                placeholder="Pesquisar..." 
+                placeholder="NF, Fornecedor..." 
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-gray-50 border-2 border-gray-100 h-12 px-10 rounded-2xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white transition-all shadow-inner"
+                className="w-full bg-gray-50 border border-gray-100 h-8 px-8 rounded-lg text-[9px] font-bold outline-none focus:ring-1 focus:ring-indigo-400 focus:bg-white transition-all"
                 />
-                <Search className="h-4 w-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
+                <Search className="h-3 w-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300" />
             </div>
-            {mode !== 'warehouse_exit' && (
-                <button 
-                    onClick={() => setIsManualModalOpen(true)}
-                    className="h-12 px-6 bg-zinc-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-black active:scale-95 transition-all flex items-center gap-2"
-                >
-                    <Plus className="h-4 w-4" /> Entrada Manual
-                </button>
-            )}
+            <button 
+                onClick={() => setIsManualModalOpen(true)}
+                className="h-8 px-3 bg-indigo-600 text-white rounded-lg font-black text-[9px] uppercase tracking-wider shadow-sm hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-1.5"
+            >
+                <Plus className="h-3 w-3" /> 
+                {mode === 'warehouse_exit' ? 'Manual (Saída)' : 'Manual (Entrada)'}
+            </button>
           </div>
         </div>
 
-        <div className="bg-slate-50 px-4 py-3 overflow-x-auto whitespace-nowrap scrollbar-hide flex gap-2 border-b border-gray-100">
+        <div className="bg-slate-50 px-2 py-1.5 overflow-x-auto whitespace-nowrap scrollbar-hide flex gap-1 border-b border-gray-100">
           {availableMonths.length > 0 ? availableMonths.map((key) => {
             const [y, m] = key.split('-').map(Number);
             return (
               <button
                 key={key}
                 onClick={() => setActiveMonthTab(key)}
-                className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                className={`px-3 py-1 rounded-md text-[8px] font-black uppercase tracking-widest transition-all ${
                   activeMonthTab === key 
-                    ? 'bg-indigo-600 text-white shadow-lg' 
+                    ? 'bg-indigo-600 text-white shadow-sm' 
                     : 'text-gray-400 hover:bg-white hover:text-indigo-600'
                 }`}
               >
-                {MONTHS[m]} {y}
+                {MONTHS[m].substring(0,3)}/{y}
               </button>
             );
           }) : (
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-4 py-2">Nenhuma NF disponível</p>
+            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest px-2 py-1">Sem NFs</p>
           )}
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse table-fixed min-w-[1000px]">
             <thead>
               <tr className="bg-slate-50 border-b border-gray-100">
-                <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">NF # / Data</th>
-                <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Fornecedor</th>
-                <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Itens</th>
-                <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Valor</th>
-                <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Ações</th>
+                <th className="w-[12%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">NF # / Data</th>
+                <th className="w-[20%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Fornecedor</th>
+                <th className="w-[30%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Itens</th>
+                <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">NL / PD</th>
+                <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Valor</th>
+                <th className="w-[8%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {filteredInvoices.length > 0 ? filteredInvoices.map((inv, idx) => (
-                <tr key={`${inv.supplierCpf}-${inv.invoiceNumber}`} className="border-b border-gray-50 hover:bg-slate-50 transition-colors group">
-                  <td className="px-8 py-5">
-                    <div className="font-black text-indigo-900 tracking-tighter">#{inv.invoiceNumber}</div>
-                    <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{new Date(inv.date + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
+              {filteredInvoices.length > 0 ? filteredInvoices.map((inv, idx) => {
+                const hasMissingInfo = !inv.nl || !inv.pd;
+                return (
+                <tr key={`${inv.supplierCpf}-${inv.invoiceNumber}`} className={`border-b border-gray-50 transition-colors group ${hasMissingInfo ? 'bg-red-50/70 hover:bg-red-50' : 'hover:bg-slate-50'}`}>
+                  <td className="px-3 py-1.5">
+                    <div className={`font-black tracking-tighter text-[11px] ${hasMissingInfo ? 'text-red-700' : 'text-indigo-900'}`}>#{inv.invoiceNumber}</div>
+                    <div className="text-[8px] text-gray-400 font-bold uppercase tracking-tight">{new Date(inv.date + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
                   </td>
-                  <td className="px-8 py-5">
-                    <div className="text-xs font-black text-gray-800 uppercase line-clamp-1">{inv.supplierName}</div>
-                    <div className="text-[9px] text-gray-400 font-bold tracking-widest">{inv.supplierCpf}</div>
+                  <td className="px-3 py-1.5">
+                    <div className="text-[10px] font-black text-gray-800 uppercase line-clamp-1 leading-tight">{inv.supplierName}</div>
+                    <div className="text-[7px] text-gray-400 font-bold tracking-widest leading-none mt-0.5">{inv.supplierCpf}</div>
                   </td>
-                  <td className="px-8 py-5 max-w-md">
+                  <td className="px-3 py-1.5">
                     <div className="flex flex-wrap gap-1">
                       {inv.items.map((it: any, i: number) => (
-                        <span key={i} className="bg-white border border-gray-100 text-[#475569] text-[9px] font-bold px-2 py-0.5 rounded uppercase whitespace-nowrap">
+                        <span key={i} className="bg-white border border-gray-100 text-[#475569] text-[7px] font-bold px-1.5 py-0.5 rounded shadow-xs">
                           {it.item} ({(it.kg || 0).toLocaleString('pt-BR')} Kg)
                         </span>
                       ))}
                     </div>
                   </td>
-                  <td className="px-8 py-5">
-                    <div className="text-xs font-black text-green-700">
+                  <td className="px-3 py-1.5 text-center">
+                    <div className="flex flex-col gap-0.5 items-center">
+                      <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${inv.nl ? 'bg-green-100 text-green-700' : 'bg-red-500 text-white animate-pulse'}`}>
+                        NL: {inv.nl || 'MISSING'}
+                      </span>
+                      <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${inv.pd ? 'bg-blue-100 text-blue-700' : 'bg-red-500 text-white animate-pulse'}`}>
+                        PD: {inv.pd || 'MISSING'}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <div className={`text-[10px] font-black ${hasMissingInfo ? 'text-red-600' : 'text-green-700'}`}>
                         {formatCurrency(inv.items.reduce((sum: number, it: any) => sum + (it.value || 0), 0))}
                     </div>
                   </td>
-                  <td className="px-8 py-5">
+                  <td className="px-3 py-1.5">
                     {inv.isOpened ? (
-                      <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border border-blue-100 flex items-center justify-center gap-1 w-fit">
-                        <Eye className="h-3 w-3" /> Visualizada
+                      <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border border-blue-100 flex items-center justify-center gap-1 w-fit">
+                        <Eye className="h-2 w-2" /> OK
                       </span>
                     ) : (
-                      <span className="bg-amber-50 text-amber-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border border-amber-100 flex items-center justify-center gap-1 w-fit">
-                        <AlertCircle className="h-3 w-3" /> Pendente
+                      <span className="bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border border-amber-100 flex items-center justify-center gap-1 w-fit">
+                        <AlertCircle className="h-2 w-2" /> PEND
                       </span>
                     )}
                   </td>
-                  <td className="px-8 py-5">
-                    <div className="flex items-center justify-center gap-2">
-                      <button onClick={() => handleOpenPdf(inv.invoiceUrl)} className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm" title="Ver PDF"><Download className="h-4 w-4" /></button>
-                      <button onClick={() => handleEditItems(inv)} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm" title="Editar Itens"><Edit2 className="h-4 w-4" /></button>
+                  <td className="px-3 py-1.5">
+                    <div className="flex items-center justify-center gap-1">
+                      <button onClick={() => handleOpenPdf(inv.invoiceUrl)} className="p-1 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-600 hover:text-white transition-all" title="Ver PDF"><Download className="h-3 w-3" /></button>
+                      <button onClick={() => handleEditItems(inv)} className="p-1 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-600 hover:text-white transition-all" title="Editar Itens"><Edit2 className="h-3 w-3" /></button>
                       <button onClick={() => setConfirmConfig({
                           isOpen: true,
                           title: 'Excluir NF',
                           message: `Excluir NF #${inv.invoiceNumber}?`,
                           variant: 'danger',
                           onConfirm: async () => { await onDeleteInvoice(inv.supplierCpf, inv.invoiceNumber); setConfirmConfig(prev => ({ ...prev, isOpen: false })); }
-                      })} className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-sm" title="Excluir"><Trash2 className="h-4 w-4" /></button>
-                      <button onClick={async () => { await onReopenInvoice(inv.supplierCpf, inv.invoiceNumber); toast.success('Nota reaberta para edição!'); }} className="p-2 bg-zinc-100 text-zinc-900 rounded-xl hover:bg-black hover:text-white transition-all shadow-sm" title="Reabrir"><RotateCcw className="h-4 w-4" /></button>
+                      })} className="p-1 bg-rose-50 text-rose-600 rounded-md hover:bg-rose-600 hover:text-white transition-all" title="Excluir"><Trash2 className="h-3 w-3" /></button>
+                      <button onClick={async () => { await onReopenInvoice(inv.supplierCpf, inv.invoiceNumber); toast.success('Reaberta!'); }} className="p-1 bg-zinc-100 text-zinc-900 rounded-md hover:bg-black hover:text-white transition-all" title="Reabrir"><RotateCcw className="h-3 w-3" /></button>
                     </div>
                   </td>
                 </tr>
-              )) : (
+                );
+              }) : (
                 <tr>
-                    <td colSpan={6} className="px-8 py-32 text-center text-gray-300 font-black uppercase italic tracking-widest">Nenhuma nota encontrada em {MONTHS[Number(activeMonthTab.split('-')[1])]}</td>
+                    <td colSpan={7} className="px-8 py-20 text-center text-gray-300 font-black uppercase italic tracking-widest text-xs">Nenhuma nota encontrada</td>
                 </tr>
               )}
             </tbody>
@@ -343,45 +356,47 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
       {isManualModalOpen && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100 italic">
-                  <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-zinc-900 text-white font-black uppercase tracking-tighter italic">
+                  <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-zinc-900 text-white font-black uppercase tracking-tighter italic">
                       <div>
-                        <h3 className="text-xl">Novo Cadastro de NF</h3>
-                        <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Registro manual no sistema</p>
+                        <h3 className="text-lg">
+                            {mode === 'warehouse_exit' ? 'Nova Saída de NF' : 'Novo Cadastro de NF'}
+                        </h3>
+                        <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">Lançamento manual no banco de dados</p>
                       </div>
-                      <button onClick={() => setIsManualModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="h-6 w-6" /></button>
+                      <button onClick={() => setIsManualModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="h-5 w-5" /></button>
                   </div>
-                  <div className="p-8 space-y-4">
+                  <div className="p-6 space-y-4">
                       <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Fornecedor</label>
-                          <select value={manualEntryData.supplierCpf} onChange={e => setManualEntryData({...manualEntryData, supplierCpf: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-2xl h-12 px-4 shadow-inner outline-none focus:ring-4 focus:ring-indigo-100 font-bold text-xs uppercase">
+                          <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Fornecedor</label>
+                          <select value={manualEntryData.supplierCpf} onChange={e => setManualEntryData({...manualEntryData, supplierCpf: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px] uppercase">
                               <option value="">Selecione...</option>
                               {suppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
                           </select>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Data</label>
-                            <input type="date" value={manualEntryData.date} onChange={e => setManualEntryData({...manualEntryData, date: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-2xl h-12 px-4 shadow-inner outline-none focus:ring-4 focus:ring-indigo-100 font-bold text-xs" />
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Data</label>
+                            <input type="date" value={manualEntryData.date} onChange={e => setManualEntryData({...manualEntryData, date: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Número NF</label>
-                            <input type="text" value={manualEntryData.invoiceNumber} onChange={e => setManualEntryData({...manualEntryData, invoiceNumber: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-2xl h-12 px-4 shadow-inner outline-none focus:ring-4 focus:ring-indigo-100 font-bold text-xs" />
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Número NF</label>
+                            <input type="text" value={manualEntryData.invoiceNumber} onChange={e => setManualEntryData({...manualEntryData, invoiceNumber: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NL (Opcional)</label>
-                            <input type="text" value={manualEntryData.nl} onChange={e => setManualEntryData({...manualEntryData, nl: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-2xl h-12 px-4 shadow-inner outline-none focus:ring-4 focus:ring-indigo-100 font-bold text-xs" />
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">NL (Opcional)</label>
+                            <input type="text" value={manualEntryData.nl} onChange={e => setManualEntryData({...manualEntryData, nl: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">PD (Opcional)</label>
-                            <input type="text" value={manualEntryData.pd} onChange={e => setManualEntryData({...manualEntryData, pd: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-2xl h-12 px-4 shadow-inner outline-none focus:ring-4 focus:ring-indigo-100 font-bold text-xs" />
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">PD (Opcional)</label>
+                            <input type="text" value={manualEntryData.pd} onChange={e => setManualEntryData({...manualEntryData, pd: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
                         </div>
                       </div>
                   </div>
-                  <div className="p-8 bg-zinc-50 border-t border-gray-100 flex gap-3">
-                      <button onClick={() => setIsManualModalOpen(false)} className="flex-1 bg-white border border-gray-200 h-14 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 active:scale-95 transition-all">Cancelar</button>
-                      <button onClick={handleManualSave} className="flex-1 bg-indigo-600 text-white h-14 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all">Cadastrar NF</button>
+                  <div className="p-6 bg-zinc-50 border-t border-gray-100 flex gap-2.5">
+                      <button onClick={() => setIsManualModalOpen(false)} className="flex-1 bg-white border border-gray-200 h-12 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-gray-50 active:scale-95 transition-all">Cancelar</button>
+                      <button onClick={handleManualSave} className="flex-1 bg-indigo-600 text-white h-12 rounded-xl font-black text-[9px] uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all">Confirmar Registro</button>
                   </div>
               </motion.div>
           </div>
@@ -391,20 +406,20 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
       {editingInvoice && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100 italic">
-                  <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-indigo-600 text-white font-black uppercase tracking-tighter italic">
+                  <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-indigo-600 text-white font-black uppercase tracking-tighter italic">
                       <div>
-                        <h3 className="text-xl">Editar Itens da NF #{editingInvoice.invoiceNumber}</h3>
-                        <p className="text-[10px] text-indigo-100 font-bold uppercase tracking-widest">Ajuste de quantidades e valores</p>
+                        <h3 className="text-xl leading-none">Ajuste de Itens - NF #{editingInvoice.invoiceNumber}</h3>
+                        <p className="text-[9px] text-indigo-100 font-bold uppercase tracking-widest mt-1">Modificar pesos e valores</p>
                       </div>
-                      <button onClick={() => setEditingInvoice(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="h-6 w-6" /></button>
+                      <button onClick={() => setEditingInvoice(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="h-5 w-5" /></button>
                   </div>
-                  <div className="p-8 space-y-4 max-h-[60vh] overflow-y-auto">
+                  <div className="p-6 space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar">
                       {editingInvoice.items.map((item: any, idx: number) => (
-                          <div key={idx} className="bg-slate-50 p-6 rounded-2xl space-y-4 border border-gray-100">
-                              <div className="font-black text-xs text-indigo-900 uppercase">Item: {item.item}</div>
-                              <div className="grid grid-cols-2 gap-4">
-                                  <div className="space-y-1">
-                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Peso/Qtd (Kg)</label>
+                          <div key={idx} className="bg-slate-50 p-4 rounded-xl space-y-3 border border-gray-100 shadow-sm">
+                              <div className="font-black text-[10px] text-indigo-900 uppercase tracking-tight">Produto: {item.item}</div>
+                              <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-0.5">
+                                      <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Peso/Qtd (Kg)</label>
                                       <input 
                                           type="number" 
                                           value={item.kg} 
@@ -413,11 +428,11 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                               newItems[idx] = { ...item, kg: Number(e.target.value) };
                                               setEditingInvoice({ ...editingInvoice, items: newItems });
                                           }}
-                                          className="w-full h-12 px-4 rounded-xl border-2 border-gray-100 outline-none focus:border-indigo-400 font-bold text-xs" 
+                                          className="w-full h-9 px-3 rounded-lg border-2 border-gray-100 outline-none focus:border-indigo-400 font-bold text-[10px]" 
                                       />
                                   </div>
-                                  <div className="space-y-1">
-                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Valor Unit. (R$)</label>
+                                  <div className="space-y-0.5">
+                                      <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Valor Unit (R$)</label>
                                       <input 
                                           type="number" 
                                           value={item.value / item.kg || 0} 
@@ -427,15 +442,15 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                               newItems[idx] = { ...item, value: newPrice * item.kg };
                                               setEditingInvoice({ ...editingInvoice, items: newItems });
                                           }}
-                                          className="w-full h-12 px-4 rounded-xl border-2 border-gray-100 outline-none focus:border-indigo-400 font-bold text-xs" 
+                                          className="w-full h-9 px-3 rounded-lg border-2 border-gray-100 outline-none focus:border-indigo-400 font-bold text-[10px]" 
                                       />
                                   </div>
                               </div>
                           </div>
                       ))}
                   </div>
-                  <div className="p-8 bg-zinc-50 border-t border-gray-100 flex gap-3">
-                      <button onClick={() => setEditingInvoice(null)} className="flex-1 bg-white border border-gray-200 h-14 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all">Cancelar</button>
+                  <div className="p-6 bg-zinc-50 border-t border-gray-100 flex gap-2.5">
+                      <button onClick={() => setEditingInvoice(null)} className="flex-1 bg-white border border-gray-200 h-12 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-gray-50 transition-all">Sair</button>
                       <button 
                         onClick={async () => {
                             const res = await onUpdateInvoiceItems(
@@ -448,15 +463,15 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                 }))
                             );
                             if (res.success) {
-                                toast.success("NF atualizada!");
+                                toast.success("Alterações salvas!");
                                 setEditingInvoice(null);
                             } else {
-                                toast.error(res.message || "Erro ao atualizar.");
+                                toast.error(res.message || "Erro.");
                             }
                         }}
-                        className="flex-1 bg-indigo-600 text-white h-14 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:bg-indigo-700 transition-all"
+                        className="flex-1 bg-indigo-600 text-white h-12 rounded-xl font-black text-[9px] uppercase tracking-widest shadow-lg hover:bg-indigo-700 transition-all"
                       >
-                        Salvar Alterações
+                        Salvar Ajustes
                       </button>
                   </div>
               </motion.div>
