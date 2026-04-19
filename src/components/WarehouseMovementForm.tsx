@@ -287,6 +287,33 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             return;
         }
 
+        if (!navigator.onLine) {
+            const offlineEntries = JSON.parse(localStorage.getItem('offline_warehouse_entries') || '[]');
+            const newEntries = items.map(item => ({
+                supplierCpf: selectedSupplierCpf,
+                date: manualDate,
+                invoiceNumber: manualNf,
+                itemName: item.itemName,
+                quantity: item.quantity,
+                barcode: item.barcode,
+                lotNumber: item.lot || 'UNICO',
+                expirationDate: item.exp,
+                inboundInvoice: item.inboundInvoice,
+                nlNumber: item.nlNumber,
+                pdNumber: item.pdNumber,
+                value: item.value,
+                weight: item.weight,
+                type: manualType,
+                timestamp: new Date().toISOString()
+            }));
+            offlineEntries.push(...newEntries);
+            localStorage.setItem('offline_warehouse_entries', JSON.stringify(offlineEntries));
+            alert("Sistema offline! Lançamentos salvos localmente para futura sincronização.");
+            setItems([]);
+            setManualNf('');
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             let successCount = 0;
