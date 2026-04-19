@@ -1970,6 +1970,7 @@ const App: React.FC = () => {
                onManualInvoiceEntry={handleManualInvoiceEntry}
                onMarkInvoiceAsOpened={handleMarkInvoiceAsOpened}
                thirdPartyEntries={thirdPartyEntries}
+               perCapitaConfig={perCapitaConfig}
                onRegisterThirdPartyEntry={async (l) => {
                    const r = push(thirdPartyEntriesRef);
                    await set(r, { ...l, id: r.key });

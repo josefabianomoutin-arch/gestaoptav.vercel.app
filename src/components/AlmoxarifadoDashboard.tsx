@@ -4,6 +4,7 @@ import JsBarcode from 'jsbarcode';
 import type { Supplier, WarehouseMovement, ContractItem, ThirdPartyEntryLog, VehicleAsset, DriverAsset } from '../types';
 import AdminInvoices from './AdminInvoices';
 import AgendaChegadas from './AgendaChegadas';
+import WarehouseMovementForm from './WarehouseMovementForm';
 
 interface AlmoxarifadoDashboardProps {
     suppliers: Supplier[];
@@ -19,6 +20,7 @@ interface AlmoxarifadoDashboardProps {
     onMarkInvoiceAsOpened: (supplierCpf: string, invoiceNumber: string) => Promise<{ success: boolean }>;
     onManualInvoiceEntry: (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => Promise<{ success: boolean; message?: string }>;
     thirdPartyEntries: ThirdPartyEntryLog[];
+    perCapitaConfig?: any;
     onRegisterThirdPartyEntry: (log: Omit<ThirdPartyEntryLog, 'id'>) => Promise<{ success: boolean; message: string }>;
     onUpdateThirdPartyEntry: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message: string }>;
     onDeleteThirdPartyEntry: (id: string) => Promise<void>;
@@ -64,6 +66,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     suppliers, 
     warehouseLog, 
     onLogout, 
+    onRegisterEntry,
     onRegisterWithdrawal, 
     onReopenInvoice,
     onDeleteInvoice,
@@ -513,30 +516,56 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             <main className="p-4 md:p-8 max-w-6xl mx-auto space-y-8">
                 
                 {activeTab === 'entry' ? (
-                    <AdminInvoices 
-                        suppliers={suppliers} 
-                        warehouseLog={warehouseLog}
-                        onReopenInvoice={onReopenInvoice} 
-                        onDeleteInvoice={onDeleteInvoice} 
-                        onUpdateInvoiceItems={onUpdateInvoiceItems} 
-                        onUpdateInvoiceUrl={onUpdateInvoiceUrl}
-                        onManualInvoiceEntry={onManualInvoiceEntry}
-                        onMarkInvoiceAsOpened={onMarkInvoiceAsOpened}
-                        mode="warehouse_entry"
-                    />
+                    <div className="space-y-8">
+                        <WarehouseMovementForm 
+                            suppliers={suppliers} 
+                            warehouseLog={warehouseLog} 
+                            onRegisterEntry={onRegisterEntry}
+                            onRegisterWithdrawal={onRegisterWithdrawal}
+                            initialMode="entrada"
+                            perCapitaConfig={perCapitaConfig}
+                        />
+                        <div className="border-t border-gray-100 pt-8">
+                            <AdminInvoices 
+                                suppliers={suppliers} 
+                                warehouseLog={warehouseLog}
+                                onReopenInvoice={onReopenInvoice} 
+                                onDeleteInvoice={onDeleteInvoice} 
+                                onUpdateInvoiceItems={onUpdateInvoiceItems} 
+                                onUpdateInvoiceUrl={onUpdateInvoiceUrl}
+                                onManualInvoiceEntry={onManualInvoiceEntry}
+                                onMarkInvoiceAsOpened={onMarkInvoiceAsOpened}
+                                mode="warehouse_entry"
+                                perCapitaConfig={perCapitaConfig}
+                            />
+                        </div>
+                    </div>
                 ) : activeTab === 'exit' ? (
-                    <AdminInvoices 
-                        suppliers={suppliers} 
-                        warehouseLog={warehouseLog}
-                        onReopenInvoice={onReopenInvoice} 
-                        onDeleteInvoice={onDeleteInvoice} 
-                        onUpdateInvoiceItems={onUpdateInvoiceItems} 
-                        onUpdateInvoiceUrl={onUpdateInvoiceUrl}
-                        onManualInvoiceEntry={onManualInvoiceEntry}
-                        onMarkInvoiceAsOpened={onMarkInvoiceAsOpened}
-                        mode="warehouse_exit"
-                        onRegisterExit={onRegisterWithdrawal}
-                    />
+                    <div className="space-y-8">
+                        <WarehouseMovementForm 
+                            suppliers={suppliers} 
+                            warehouseLog={warehouseLog} 
+                            onRegisterEntry={async (p) => { return { success: false, message: 'Not allowed here' } }}
+                            onRegisterWithdrawal={onRegisterWithdrawal}
+                            initialMode="saída"
+                            perCapitaConfig={perCapitaConfig}
+                        />
+                        <div className="border-t border-gray-100 pt-8">
+                            <AdminInvoices 
+                                suppliers={suppliers} 
+                                warehouseLog={warehouseLog}
+                                onReopenInvoice={onReopenInvoice} 
+                                onDeleteInvoice={onDeleteInvoice} 
+                                onUpdateInvoiceItems={onUpdateInvoiceItems} 
+                                onUpdateInvoiceUrl={onUpdateInvoiceUrl}
+                                onManualInvoiceEntry={onManualInvoiceEntry}
+                                onMarkInvoiceAsOpened={onMarkInvoiceAsOpened}
+                                mode="warehouse_exit"
+                                onRegisterExit={onRegisterWithdrawal}
+                                perCapitaConfig={perCapitaConfig}
+                            />
+                        </div>
+                    </div>
                 ) : activeTab === 'agenda' ? (
                     <AgendaChegadas 
                         suppliers={suppliers} 

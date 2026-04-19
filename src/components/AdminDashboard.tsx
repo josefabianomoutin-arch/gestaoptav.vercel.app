@@ -438,7 +438,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
         );
       case 'contracts': return <AdminContractItems suppliers={combinedSuppliers} warehouseLog={warehouseLog} onUpdateContractForItem={onUpdateContractForItem} />;
       case 'finance': return <AdminFinancialManager records={financialRecords} onSave={onSaveFinancialRecord} onDelete={onDeleteFinancialRecord} />;
-      case 'invoices': return <AdminInvoices suppliers={combinedSuppliers} warehouseLog={warehouseLog} onReopenInvoice={props.onReopenInvoice} onDeleteInvoice={props.onDeleteInvoice} onUpdateInvoiceItems={props.onUpdateInvoiceItems} onUpdateInvoiceUrl={props.onUpdateInvoiceUrl} onManualInvoiceEntry={props.onManualInvoiceEntry} onMarkInvoiceAsOpened={props.onMarkInvoiceAsOpened} />;
+      case 'invoices': return <AdminInvoices suppliers={combinedSuppliers} warehouseLog={warehouseLog} onReopenInvoice={props.onReopenInvoice} onDeleteInvoice={props.onDeleteInvoice} onUpdateInvoiceItems={props.onUpdateInvoiceItems} onUpdateInvoiceUrl={props.onUpdateInvoiceUrl} onManualInvoiceEntry={props.onManualInvoiceEntry} onMarkInvoiceAsOpened={props.onMarkInvoiceAsOpened} perCapitaConfig={perCapitaConfig} />;
       case 'schedule': return <AdminScheduleView suppliers={combinedSuppliers} thirdPartyEntries={thirdPartyEntries} onCancelDeliveries={onCancelDeliveries} onDeleteThirdPartyEntry={onDeleteThirdPartyEntry} />;
       case 'perCapita': return <AdminPerCapita suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onUpdatePerCapitaConfig={onUpdatePerCapitaConfig} onUpdateContractForItem={onUpdateContractForItem} onUpdateAcquisitionItem={props.onUpdateAcquisitionItem} onDeleteAcquisitionItem={props.onDeleteAcquisitionItem} acquisitionItems={acquisitionItems} onUpdateSupplierObservations={props.onUpdateSupplierObservations} onSyncPPAISToAgenda={props.onSyncPPAISToAgenda} />;
       case 'cleaning': return <AdminCleaningLog logs={cleaningLogs} financialRecords={financialRecords} onRegister={props.onRegisterCleaningLog} onDelete={props.onDeleteCleaningLog} />;
@@ -487,7 +487,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       />;
       case 'menu': return <AdminStandardMenu suppliers={suppliers} template={props.standardMenu} dailyMenus={props.dailyMenus} onUpdateDailyMenus={props.onUpdateDailyMenu} inmateCount={perCapitaConfig.inmateCount || 0} />;
       case 'publicInfo': return <AdminPublicInfo infoList={props.publicInfo} onSave={props.onSavePublicInfo} onDelete={props.onDeletePublicInfo} />;
-      case 'almoxarifado': return <WarehouseMovementForm suppliers={suppliers} warehouseLog={warehouseLog} onRegisterEntry={props.onRegisterEntry} onRegisterWithdrawal={props.onRegisterWithdrawal} />;
+      case 'almoxarifado': return <WarehouseMovementForm suppliers={suppliers} warehouseLog={warehouseLog} onRegisterEntry={props.onRegisterEntry} onRegisterWithdrawal={props.onRegisterWithdrawal} perCapitaConfig={perCapitaConfig} />;
       case 'info': 
         return (
             <div className="max-w-4xl mx-auto space-y-6 animate-fade-in p-4 md:p-0 pb-16">

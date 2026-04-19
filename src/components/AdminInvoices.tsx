@@ -40,6 +40,7 @@ interface AdminInvoicesProps {
   onMarkInvoiceAsOpened: (supplierCpf: string, invoiceNumber: string) => Promise<{ success: boolean }>;
   mode?: 'admin' | 'warehouse_entry' | 'warehouse_exit';
   onRegisterExit?: (payload: any) => Promise<{ success: boolean; message: string }>;
+  perCapitaConfig?: any;
 }
 
 const MONTHS = [
@@ -57,12 +58,23 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   onManualInvoiceEntry,
   onMarkInvoiceAsOpened,
   mode = 'admin',
-  onRegisterExit
+  onRegisterExit,
+  perCapitaConfig
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter] = useState<'all' | 'pending' | 'opened'>('all');
     const [isManualModalOpen, setIsManualModalOpen] = useState(false);
-  const [manualEntryData, setManualEntryData] = useState({ supplierCpf: '', date: '', invoiceNumber: '', nl: '', pd: '', type: mode === 'warehouse_exit' ? 'saida' : 'entrada' });
+  const [manualEntryData, setManualEntryData] = useState({ 
+    supplierCpf: '', 
+    date: '', 
+    invoiceNumber: '', 
+    nl: '', 
+    pd: '', 
+    type: mode === 'warehouse_exit' ? 'saida' : 'entrada',
+    items: [] as { name: string; kg: number; value: number; lotNumber?: string }[]
+  });
+  
+  const [newItem, setNewItem] = useState({ name: '', kg: 0, value: 0 });
     const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
 
   const [confirmConfig, setConfirmConfig] = useState<{
@@ -190,15 +202,68 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     }
   };
 
+   const availableItems = useMemo(() => {
+    const items = new Set<string>();
+    
+    // Search in main suppliers
+    const selectedSupplier = suppliers.find(s => s.cpf === manualEntryData.supplierCpf);
+    if (selectedSupplier) {
+        Object.values(selectedSupplier.contractItems || {}).forEach((ci: any) => {
+            if (ci.name) items.add(ci.name);
+        });
+    }
+
+    // Search in perCapitaConfig for other quadrimesters
+    if (perCapitaConfig && manualEntryData.supplierCpf) {
+        const pEntry = perCapitaConfig.ppaisProducers?.find((p: any) => p.cpfCnpj === manualEntryData.supplierCpf);
+        const fEntry = perCapitaConfig.pereciveisSuppliers?.find((f: any) => f.cpfCnpj === manualEntryData.supplierCpf);
+        const pcEntry = pEntry || fEntry;
+        
+        if (pcEntry && pcEntry.contractItems) {
+            pcEntry.contractItems.forEach((ci: any) => {
+                if (ci.name) items.add(ci.name);
+            });
+        }
+    }
+
+    return Array.from(items).sort();
+  }, [suppliers, perCapitaConfig, manualEntryData.supplierCpf]);
+
   const handleManualSave = async () => {
     if (!manualEntryData.supplierCpf || !manualEntryData.invoiceNumber || !manualEntryData.date) {
         toast.error("Preencha fornecedor, data e número da NF.");
         return;
     }
-    const res = await onManualInvoiceEntry(manualEntryData.supplierCpf, manualEntryData.date, manualEntryData.invoiceNumber, [], '', '', '', manualEntryData.nl, manualEntryData.pd);
+    if (manualEntryData.items.length === 0) {
+        toast.error("Adicione pelo menos um item à nota.");
+        return;
+    }
+    const res = await onManualInvoiceEntry(
+        manualEntryData.supplierCpf, 
+        manualEntryData.date, 
+        manualEntryData.invoiceNumber, 
+        manualEntryData.items.map(it => ({
+            name: it.name,
+            kg: it.kg,
+            value: it.value * it.kg,
+            lotNumber: it.lotNumber || 'MANUAL'
+        })), 
+        '', '', '', 
+        manualEntryData.nl, 
+        manualEntryData.pd
+    );
     if (res.success) {
         toast.success("NF registrada com sucesso!");
         setIsManualModalOpen(false);
+        setManualEntryData({ 
+            supplierCpf: '', 
+            date: '', 
+            invoiceNumber: '', 
+            nl: '', 
+            pd: '', 
+            type: mode === 'warehouse_exit' ? 'saida' : 'entrada',
+            items: []
+        });
     } else {
         toast.error(res.message || "Erro ao registrar NF.");
     }
@@ -365,33 +430,118 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                       </div>
                       <button onClick={() => setIsManualModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="h-5 w-5" /></button>
                   </div>
-                  <div className="p-6 space-y-4">
-                      <div className="space-y-1">
-                          <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Fornecedor</label>
-                          <select value={manualEntryData.supplierCpf} onChange={e => setManualEntryData({...manualEntryData, supplierCpf: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px] uppercase">
-                              <option value="">Selecione...</option>
-                              {suppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
-                          </select>
+                  <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Fornecedor</label>
+                            <select value={manualEntryData.supplierCpf} onChange={e => setManualEntryData({...manualEntryData, supplierCpf: e.target.value, items: []})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px] uppercase">
+                                <option value="">Selecione...</option>
+                                {suppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Data</label>
+                              <input type="date" value={manualEntryData.date} onChange={e => setManualEntryData({...manualEntryData, date: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
+                          </div>
+                          <div className="space-y-1">
+                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Número NF</label>
+                              <input type="text" value={manualEntryData.invoiceNumber} onChange={e => setManualEntryData({...manualEntryData, invoiceNumber: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">NL (Opcional)</label>
+                              <input type="text" value={manualEntryData.nl} onChange={e => setManualEntryData({...manualEntryData, nl: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
+                          </div>
+                          <div className="space-y-1">
+                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">PD (Opcional)</label>
+                              <input type="text" value={manualEntryData.pd} onChange={e => setManualEntryData({...manualEntryData, pd: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
+                          </div>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Data</label>
-                            <input type="date" value={manualEntryData.date} onChange={e => setManualEntryData({...manualEntryData, date: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
+
+                      <div className="border-t border-gray-100 pt-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <h4 className="text-[10px] font-black text-gray-800 uppercase tracking-widest">Adicionar Itens</h4>
+                            <span className="text-[8px] text-gray-400 font-bold uppercase">{manualEntryData.items.length} itens adicionados</span>
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Número NF</label>
-                            <input type="text" value={manualEntryData.invoiceNumber} onChange={e => setManualEntryData({...manualEntryData, invoiceNumber: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
+                        
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-gray-100 space-y-3">
+                            <div className="space-y-1">
+                                <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Item (Q1, Q2, Q3)</label>
+                                <select 
+                                    value={newItem.name} 
+                                    onChange={e => setNewItem({...newItem, name: e.target.value})}
+                                    disabled={!manualEntryData.supplierCpf}
+                                    className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px] uppercase"
+                                >
+                                    <option value="">Selecione o Item...</option>
+                                    {availableItems.map(it => <option key={it} value={it}>{it}</option>)}
+                                </select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Peso/Qtd (Kg)</label>
+                                    <input 
+                                        type="number" 
+                                        value={newItem.kg || ''} 
+                                        onChange={e => setNewItem({...newItem, kg: Number(e.target.value)})}
+                                        className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px]" 
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Valor Unit (R$)</label>
+                                    <input 
+                                        type="number" 
+                                        value={newItem.value || ''} 
+                                        onChange={e => setNewItem({...newItem, value: Number(e.target.value)})}
+                                        className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px]" 
+                                    />
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => {
+                                    if (!newItem.name || !newItem.kg) {
+                                        toast.error("Preencha o nome e a quantidade do item.");
+                                        return;
+                                    }
+                                    setManualEntryData({
+                                        ...manualEntryData,
+                                        items: [...manualEntryData.items, { ...newItem, lotNumber: 'MANUAL' }]
+                                    });
+                                    setNewItem({ name: '', kg: 0, value: 0 });
+                                }}
+                                className="w-full h-9 bg-zinc-800 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-2"
+                            >
+                                <Plus className="h-3 w-3" /> Adicionar Item à Nota
+                            </button>
                         </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">NL (Opcional)</label>
-                            <input type="text" value={manualEntryData.nl} onChange={e => setManualEntryData({...manualEntryData, nl: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">PD (Opcional)</label>
-                            <input type="text" value={manualEntryData.pd} onChange={e => setManualEntryData({...manualEntryData, pd: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
-                        </div>
+
+                        {manualEntryData.items.length > 0 && (
+                            <div className="space-y-1.5">
+                                {manualEntryData.items.map((it, i) => (
+                                    <div key={i} className="flex items-center justify-between bg-white border border-gray-100 p-2 rounded-lg group hover:border-indigo-200 transition-all">
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] font-black text-indigo-900 uppercase leading-none">{it.name}</span>
+                                            <span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                                                {it.kg.toLocaleString('pt-BR')} Kg • {formatCurrency(it.value * it.kg)}
+                                            </span>
+                                        </div>
+                                        <button 
+                                            onClick={() => {
+                                                const newItems = [...manualEntryData.items];
+                                                newItems.splice(i, 1);
+                                                setManualEntryData({ ...manualEntryData, items: newItems });
+                                            }}
+                                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                       </div>
                   </div>
                   <div className="p-6 bg-zinc-50 border-t border-gray-100 flex gap-2.5">
