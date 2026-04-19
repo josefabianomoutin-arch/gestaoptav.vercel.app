@@ -584,22 +584,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 />
                             </div>
                         )}
-
-                        <div className="border-t border-gray-100 pt-8">
-                            <AdminInvoices 
-                                suppliers={suppliers} 
-                                warehouseLog={warehouseLog}
-                                onReopenInvoice={onReopenInvoice} 
-                                onDeleteInvoice={onDeleteInvoice} 
-                                onUpdateInvoiceItems={onUpdateInvoiceItems} 
-                                onUpdateInvoiceUrl={onUpdateInvoiceUrl}
-                                onManualInvoiceEntry={onManualInvoiceEntry}
-                                onMarkInvoiceAsOpened={onMarkInvoiceAsOpened}
-                                mode="warehouse_exit"
-                                onRegisterExit={onRegisterWithdrawal}
-                                perCapitaConfig={perCapitaConfig}
-                            />
-                        </div>
                     </div>
                 ) : activeTab === 'history' ? (
                     <div className="space-y-6">
