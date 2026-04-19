@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import type { Supplier, Delivery, WarehouseMovement } from '../types';
-import { Download, Search, Calendar, FileCheck, AlertCircle, Trash2, RotateCcw, Eye, Plus, X, Edit2 } from 'lucide-react';
+import { Download, Search, FileCheck, AlertCircle, Trash2, RotateCcw, Eye, Plus, X, Edit2, Printer, Barcode as BarcodeIcon } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app } from '../firebaseConfig';
 import { toast } from 'sonner';
@@ -55,11 +55,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   onReopenInvoice,
   onDeleteInvoice,
   onUpdateInvoiceItems,
-  onUpdateInvoiceUrl,
   onManualInvoiceEntry,
-  onMarkInvoiceAsOpened,
   mode = 'admin',
-  onRegisterExit,
   perCapitaConfig
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -101,7 +98,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             log.inboundInvoice === d.invoiceNumber || 
             log.outboundInvoice === d.invoiceNumber
           );
-          const isExit = (d as any).type === 'saída' || (movement && movement.outboundInvoice === d.invoiceNumber);
+          const isExit = (d as any).type === 'saída' || (movement && movement.type === 'saída');
           
           if (mode === 'warehouse_entry' && isExit) return acc;
           if (mode === 'warehouse_exit' && !isExit) return acc;
@@ -169,7 +166,9 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             const monthKey = `${invoiceDate.getFullYear()}-${invoiceDate.getMonth()}`;
             const matchesMonth = monthKey === activeMonthTab;
             const matchesStatus = statusFilter === 'all' || (statusFilter === 'pending' && !inv.isOpened) || (statusFilter === 'opened' && inv.isOpened);
-            const matchesSearch = inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || inv.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) || inv.items.some((it: any) => it.item.toLowerCase().includes(searchTerm.toLowerCase()));
+            const matchesSearch = inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                 inv.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                 inv.items.some((it: any) => it.item.toLowerCase().includes(searchTerm.toLowerCase()) || (it.barcode && it.barcode.toLowerCase().includes(searchTerm.toLowerCase())));
             return matchesMonth && matchesStatus && matchesSearch;
         });
     }, [allInvoices, activeMonthTab, statusFilter, searchTerm]);
@@ -286,8 +285,10 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                 <FileCheck className="h-6 w-6" />
             </div>
             <div>
-                <h2 className="text-lg font-black text-gray-800 uppercase tracking-tighter italic leading-none">Gestão de NFs</h2>
-                <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Consulta e Controle</p>
+                <h2 className="text-lg font-black text-indigo-900 uppercase tracking-tighter italic leading-none">
+                    {mode === 'warehouse_exit' ? 'Gestão de Saídas' : mode === 'warehouse_entry' ? 'Gestão de Entradas' : 'Gestão de NFs'}
+                </h2>
+                <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-0.5 italic">Consulta e Controle de Documentos</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -336,12 +337,12 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           <table className="w-full text-left border-collapse table-fixed min-w-[1000px]">
             <thead>
               <tr className="bg-slate-50 border-b border-gray-100">
-                <th className="w-[12%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">NF # / Data</th>
-                <th className="w-[20%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Fornecedor</th>
-                <th className="w-[30%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Itens</th>
-                <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">NL / PD</th>
-                <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Valor</th>
-                <th className="w-[8%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">NF # / Data</th>
+                <th className="w-[18%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Fornecedor</th>
+                <th className="w-[30%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Itens / Etiquetas</th>
+                <th className="w-[12%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">NL / PD</th>
+                <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Valor Total</th>
+                <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
                 <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Ações</th>
               </tr>
             </thead>
@@ -359,21 +360,70 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                     <div className="text-[7px] text-gray-400 font-bold tracking-widest leading-none mt-0.5">{inv.supplierCpf}</div>
                   </td>
                   <td className="px-3 py-1.5">
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-col gap-1.5">
                       {inv.items.map((it: any, i: number) => (
-                        <span key={i} className="bg-white border border-gray-100 text-[#475569] text-[7px] font-bold px-1.5 py-0.5 rounded shadow-xs">
-                          {it.item} ({(it.kg || 0).toLocaleString('pt-BR')} Kg)
-                        </span>
+                        <div key={i} className="flex items-center gap-2 group/item">
+                            <div className="flex flex-col border-l-2 border-indigo-100 pl-2">
+                                <span className="text-[9px] font-black text-indigo-900 leading-none uppercase">
+                                    {it.item} ({(it.kg || 0).toLocaleString('pt-BR')} Kg)
+                                </span>
+                                {it.barcode && (
+                                    <span className="text-[7px] font-mono text-blue-600 font-black tracking-tight mt-0.5 flex items-center gap-1">
+                                        <BarcodeIcon className="h-2 w-2" /> {it.barcode}
+                                    </span>
+                                )}
+                            </div>
+                            <button 
+                                onClick={() => {
+                                    const printWindow = window.open('', '_blank');
+                                    if (!printWindow) return;
+                                    const htmlContent = `
+                                        <html>
+                                        <head>
+                                            <title>Etiqueta - ${it.item}</title>
+                                            <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                                            <style>
+                                                @page { size: 100mm 50mm; margin: 0; }
+                                                body { margin: 0; padding: 0; font-family: sans-serif; }
+                                                .label { width: 100mm; height: 50mm; padding: 5mm; box-sizing: border-box; display: flex; flex-direction: column; }
+                                                h1 { font-size: 14pt; margin: 0; }
+                                                p { font-size: 10pt; margin: 2pt 0; }
+                                            </style>
+                                        </head>
+                                        <body>
+                                            <div class="label">
+                                                <h1>${it.item}</h1>
+                                                <p>Fornecedor: ${inv.supplierName}</p>
+                                                <p>NF: ${inv.invoiceNumber} | Data: ${new Date(inv.date).toLocaleDateString()}</p>
+                                                <p>Qtd: ${it.kg}kg | Lote: ${it.lotNumber || 'MANUAL'}</p>
+                                                <svg id="barcode"></svg>
+                                            </div>
+                                            <script>
+                                                JsBarcode("#barcode", "${it.barcode || 'N/A'}", { height: 40, displayValue: true, fontSize: 14 });
+                                                setTimeout(() => { window.print(); window.close(); }, 500);
+                                            </script>
+                                        </body>
+                                        </html>
+                                    `;
+                                    printWindow.document.write(htmlContent);
+                                    printWindow.document.close();
+                                }}
+                                className="opacity-0 group-hover/item:opacity-100 p-1 bg-amber-50 text-amber-600 rounded hover:bg-amber-600 hover:text-white transition-all ml-auto"
+                                title="Imprimir Etiqueta"
+                            >
+                                <Printer className="h-2.5 w-2.5" />
+                            </button>
+                        </div>
                       ))}
                     </div>
                   </td>
                   <td className="px-3 py-1.5 text-center">
                     <div className="flex flex-col gap-0.5 items-center">
                       <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${inv.nl ? 'bg-green-100 text-green-700' : 'bg-red-500 text-white animate-pulse'}`}>
-                        NL: {inv.nl || 'MISSING'}
+                        NL: {inv.nl || 'PENDENTE'}
                       </span>
                       <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${inv.pd ? 'bg-blue-100 text-blue-700' : 'bg-red-500 text-white animate-pulse'}`}>
-                        PD: {inv.pd || 'MISSING'}
+                        PD: {inv.pd || 'PENDENTE'}
                       </span>
                     </div>
                   </td>

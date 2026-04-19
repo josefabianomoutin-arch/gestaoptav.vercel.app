@@ -515,18 +515,22 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                             <span className="text-[9px] font-black text-gray-900 leading-none">{item.itemName}</span>
                                             <span className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">{item.quantity} kg • {item.lot || '-'}</span>
                                         </div>
-                                        <div className="flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex items-center gap-1.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button 
                                                 type="button"
                                                 onClick={() => handlePrintItemLabel(item)}
-                                                className="text-amber-500 hover:bg-amber-50 p-1 rounded-lg transition-all"
+                                                className="flex items-center gap-1 py-1 px-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-600 hover:text-white transition-all shadow-sm border border-amber-100"
                                                 title="Imprimir Etiqueta"
                                             >
-                                                <Plus className="h-3 w-3 rotate-45" /> {/* Use Print Icon if available, or stay simple */}
-                                                <span className="text-[7px] font-black uppercase ml-0.5">Label</span>
+                                                <Barcode className="h-3 w-3" />
+                                                <span className="text-[8px] font-black uppercase">Etiqueta</span>
                                             </button>
-                                            <button onClick={() => handleRemoveItem(item.id)} className="text-rose-400 hover:text-rose-600 p-1 rounded-lg transition-all">
-                                                <X className="h-3 w-3" />
+                                            <button 
+                                                onClick={() => handleRemoveItem(item.id)} 
+                                                className="p-1 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                                title="Remover"
+                                            >
+                                                <X className="h-3.5 w-3.5" />
                                             </button>
                                         </div>
                                     </div>
