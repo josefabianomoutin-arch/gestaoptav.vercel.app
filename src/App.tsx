@@ -1689,21 +1689,27 @@ const App: React.FC = () => {
         // --- Atualiza o saldo no lote do fornecedor ---
         if (supplier) {
             const sRef = child(suppliersRef, supplier.cpf);
-            await runTransaction(sRef, (currentData: Supplier) => {
+            let updatedLotQty = 0;
+            const transactionResult = await runTransaction(sRef, (currentData: Supplier) => {
                 if (currentData && currentData.deliveries) {
-                    const delivery = currentData.deliveries.find(d => 
+                    const delivery = (currentData.deliveries as any[]).find((d: any) => 
                         d.item === payload.itemName && 
                         d.invoiceNumber === payload.inboundInvoice
                     );
                     if (delivery && delivery.lots) {
-                        const lot = delivery.lots.find(l => l.lotNumber === payload.lotNumber);
+                        const lot = delivery.lots.find((l: any) => l.lotNumber === payload.lotNumber);
                         if (lot) {
-                            lot.remainingQuantity = (lot.remainingQuantity || 0) - payload.quantity;
+                            updatedLotQty = (lot.remainingQuantity || 0) - payload.quantity;
+                            lot.remainingQuantity = updatedLotQty;
+                            return currentData;
                         }
                     }
                 }
-                return currentData;
+                return; // Abort
             });
+            
+            if (!transactionResult.committed) return { success: false, message: 'Falha ao processar a baixa no estoque.' };
+            payload.remainingQuantity = updatedLotQty;
         }
 
         const exit: any = {
