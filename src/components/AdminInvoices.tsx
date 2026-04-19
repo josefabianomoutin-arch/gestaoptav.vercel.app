@@ -49,8 +49,10 @@ const MONTHS = [
 
 const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   suppliers,
+  warehouseLog,
   onReopenInvoice,
   onDeleteInvoice,
+  mode = 'admin'
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter] = useState<'all' | 'pending' | 'opened'>('all');
@@ -74,6 +76,13 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
       const deliveries = Object.values(supplier.deliveries || {}) as Delivery[];
       const grouped = deliveries.reduce((acc, d) => {
         if (d.invoiceNumber) {
+          // Identify entry/exit for this invoiceNumber using warehouseLog
+          const movement = warehouseLog.find(log => log.invoiceNumber === d.invoiceNumber);
+          const isExit = movement && (movement.type === 'saida' || movement.type === 'saída');
+          
+          if (mode === 'warehouse_entry' && isExit) return acc;
+          if (mode === 'warehouse_exit' && !isExit) return acc;
+
           if (!acc[d.invoiceNumber]) {
             acc[d.invoiceNumber] = {
               supplierName: supplier.name,
@@ -102,7 +111,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     });
 
     return invoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [suppliers]);
+  }, [suppliers, warehouseLog, mode]);
 
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
