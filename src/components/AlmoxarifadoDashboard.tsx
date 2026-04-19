@@ -6,6 +6,7 @@ import AdminInvoices from './AdminInvoices';
 import AgendaChegadas from './AgendaChegadas';
 import WarehouseMovementForm from './WarehouseMovementForm';
 import AdminWarehouseLog from './AdminWarehouseLog';
+import SynchronizationModule from './SynchronizationModule';
 
 interface AlmoxarifadoDashboardProps {
     suppliers: Supplier[];
@@ -27,19 +28,7 @@ interface AlmoxarifadoDashboardProps {
     onRegisterThirdPartyEntry: (log: Omit<ThirdPartyEntryLog, 'id'>) => Promise<{ success: boolean; message: string }>;
     onUpdateThirdPartyEntry: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message: string }>;
     onDeleteThirdPartyEntry: (id: string) => Promise<void>;
-    vehicleAssets: VehicleAsset[];
-    onRegisterVehicleAsset: (asset: Omit<VehicleAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
-    onUpdateVehicleAsset: (asset: VehicleAsset) => Promise<{ success: boolean; message: string }>;
-    onDeleteVehicleAsset: (id: string) => Promise<void>;
-    driverAssets: DriverAsset[];
-    onRegisterDriverAsset: (asset: Omit<DriverAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
-    onUpdateDriverAsset: (asset: DriverAsset) => Promise<{ success: boolean; message: string }>;
-    onDeleteDriverAsset: (id: string) => Promise<void>;
-    onRegisterVehicleExitOrder: (order: any) => Promise<{ success: boolean; message: string; id: string }>;
-    onUpdateVehicleExitOrder: (order: any) => Promise<{ success: boolean; message: string }>;
-    onDeleteVehicleExitOrder: (id: string) => Promise<void>;
-    validationRoles: any[];
-    vehicleExitOrders?: any[];
+    [key: string]: any;
 }
 
 const Barcode: React.FC<{ value: string }> = ({ value }) => {
@@ -82,7 +71,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     thirdPartyEntries,
     perCapitaConfig
 }) => {
-    const [activeTab, setActiveTab] = useState<'entry' | 'exit' | 'receipt' | 'agenda' | 'history'>('entry');
+    const [activeTab, setActiveTab] = useState<'entry' | 'exit' | 'receipt' | 'agenda' | 'history' | 'sync'>('entry');
     const [selectedAgendaDate, setSelectedAgendaDate] = useState(new Date().toISOString().split('T')[0]);
     const [receiptSupplierCpf, setReceiptSupplierCpf] = useState('');
     const [receiptInvoice, setReceiptInvoice] = useState('');
@@ -515,6 +504,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         <button onClick={() => setActiveTab('history')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'history' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Histórico Geral</button>
                         <button onClick={() => setActiveTab('agenda')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'agenda' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Agenda</button>
                         <button onClick={() => setActiveTab('receipt')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'receipt' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Termo</button>
+                        <button onClick={() => setActiveTab('sync')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'sync' ? 'bg-white text-amber-600 shadow-sm' : 'text-amber-500'}`}>Sincronização</button>
                     </div>
                     <button onClick={onLogout} className="bg-red-50 text-red-600 font-black py-2 px-6 rounded-xl text-xs uppercase border border-red-100 shadow-sm active:scale-95">Sair</button>
                 </div>
@@ -561,6 +551,14 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             />
                         </div>
                     </div>
+                ) : activeTab === 'sync' ? (
+                    <SynchronizationModule onSyncWithFirebase={async (data) => {
+                        for (const entry of data) {
+                            const res = entry.type === 'entrada' ? await onRegisterEntry(entry) : await onRegisterWithdrawal(entry);
+                            if (!res.success) throw new Error(res.message);
+                        }
+                        return true;
+                    }} />
                 ) : activeTab === 'exit' ? (
                     <div className="space-y-8">
                         <WarehouseMovementForm 
@@ -585,6 +583,14 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             </div>
                         )}
                     </div>
+                ) : activeTab === 'sync' ? (
+                    <SynchronizationModule onSyncWithFirebase={async (data) => {
+                        for (const entry of data) {
+                            const res = entry.type === 'entrada' ? await onRegisterEntry(entry) : await onRegisterWithdrawal(entry);
+                            if (!res.success) throw new Error(res.message);
+                        }
+                        return true;
+                    }} />
                 ) : activeTab === 'history' ? (
                     <div className="space-y-6">
                          <AdminWarehouseLog 
