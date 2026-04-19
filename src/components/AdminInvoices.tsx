@@ -35,7 +35,8 @@ interface AdminInvoicesProps {
     receiptTermNumber?: string, 
     invoiceDate?: string, 
     nl?: string, 
-    pd?: string
+    pd?: string,
+    type?: 'entrada' | 'saída'
   ) => Promise<{ success: boolean; message?: string }>;
   onMarkInvoiceAsOpened: (supplierCpf: string, invoiceNumber: string) => Promise<{ success: boolean }>;
   mode?: 'admin' | 'warehouse_entry' | 'warehouse_exit';
@@ -70,7 +71,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     invoiceNumber: '', 
     nl: '', 
     pd: '', 
-    type: mode === 'warehouse_exit' ? 'saida' : 'entrada',
+    type: mode === 'warehouse_exit' ? 'saída' : 'entrada',
     items: [] as { name: string; kg: number; value: number; lotNumber?: string }[]
   });
   
@@ -100,7 +101,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             log.inboundInvoice === d.invoiceNumber || 
             log.outboundInvoice === d.invoiceNumber
           );
-          const isExit = movement && movement.outboundInvoice === d.invoiceNumber;
+          const isExit = (d as any).type === 'saída' || (movement && movement.outboundInvoice === d.invoiceNumber);
           
           if (mode === 'warehouse_entry' && isExit) return acc;
           if (mode === 'warehouse_exit' && !isExit) return acc;
@@ -250,7 +251,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
         })), 
         '', '', '', 
         manualEntryData.nl, 
-        manualEntryData.pd
+        manualEntryData.pd,
+        manualEntryData.type as any
     );
     if (res.success) {
         toast.success("NF registrada com sucesso!");
@@ -261,7 +263,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             invoiceNumber: '', 
             nl: '', 
             pd: '', 
-            type: mode === 'warehouse_exit' ? 'saida' : 'entrada',
+            type: mode === 'warehouse_exit' ? 'saída' : 'entrada',
             items: []
         });
     } else {
@@ -564,6 +566,17 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                       <button onClick={() => setEditingInvoice(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="h-5 w-5" /></button>
                   </div>
                   <div className="p-6 space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar">
+                      <div className="grid grid-cols-2 gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mb-2">
+                        <div className="space-y-0.5">
+                            <label className="text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-0.5">Nota de Lançamento (NL)</label>
+                            <input type="text" value={editingInvoice.nl || ''} onChange={e => setEditingInvoice({...editingInvoice, nl: e.target.value.toUpperCase()})} className="w-full h-10 px-3 rounded-xl border-2 border-indigo-100 outline-none focus:border-indigo-400 font-bold text-[11px] uppercase" />
+                        </div>
+                        <div className="space-y-0.5">
+                            <label className="text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-0.5">Parecer de Despesa (PD)</label>
+                            <input type="text" value={editingInvoice.pd || ''} onChange={e => setEditingInvoice({...editingInvoice, pd: e.target.value.toUpperCase()})} className="w-full h-10 px-3 rounded-xl border-2 border-indigo-100 outline-none focus:border-indigo-400 font-bold text-[11px] uppercase" />
+                        </div>
+                      </div>
+
                       {editingInvoice.items.map((item: any, idx: number) => (
                           <div key={idx} className="bg-slate-50 p-4 rounded-xl space-y-3 border border-gray-100 shadow-sm">
                               <div className="font-black text-[10px] text-indigo-900 uppercase tracking-tight">Produto: {item.item}</div>
@@ -610,7 +623,10 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     name: it.item,
                                     kg: it.kg,
                                     value: it.value
-                                }))
+                                })),
+                                undefined, undefined, undefined, undefined, undefined,
+                                editingInvoice.nl,
+                                editingInvoice.pd
                             );
                             if (res.success) {
                                 toast.success("Alterações salvas!");

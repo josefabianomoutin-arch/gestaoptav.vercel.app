@@ -1,7 +1,31 @@
 
 import React, { useState, useMemo, useRef } from 'react';
+import { 
+    Plus, 
+    Printer, 
+    FileIcon, 
+    Search, 
+    Edit2, 
+    Trash2, 
+    X, 
+    Calendar, 
+    Barcode, 
+    Package, 
+    Save, 
+    Clock, 
+    AlertCircle,
+    History,
+    FileText,
+    TrendingUp
+} from 'lucide-react';
 import type { WarehouseMovement, Supplier, ContractItem } from '../types';
 import ConfirmModal from './ConfirmModal';
+import { motion } from 'motion/react';
+
+const monthNamesInOrder = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
 
 interface AdminWarehouseLogProps {
     warehouseLog: WarehouseMovement[];
@@ -28,6 +52,38 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const [isManualModalOpen, setIsManualModalOpen] = useState(false);
     const [editingLog, setEditingLog] = useState<WarehouseMovement | null>(null);
+
+    const availableMonths = useMemo(() => {
+        const months = new Set<string>();
+        warehouseLog.forEach(log => {
+            const dateStr = log.date || log.timestamp?.split('T')[0];
+            if (dateStr) {
+                const d = new Date(dateStr + 'T00:00:00');
+                if (!isNaN(d.getTime())) {
+                    months.add(`${d.getFullYear()}-${d.getMonth()}`);
+                }
+            }
+        });
+        return Array.from(months).sort((a, b) => {
+            const [yA, mA] = a.split('-').map(Number);
+            const [yB, mB] = b.split('-').map(Number);
+            return (yB * 12 + mB) - (yA * 12 + mA);
+        });
+    }, [warehouseLog]);
+
+    const [activeMonthTab, setActiveMonthTab] = useState<string>(() => {
+        const now = new Date();
+        const currentMonthKey = `${now.getFullYear()}-${now.getMonth()}`;
+        return availableMonths.includes(currentMonthKey) ? currentMonthKey : (availableMonths[0] || currentMonthKey);
+    });
+
+    const [prevAvailableMonths, setPrevAvailableMonths] = useState(availableMonths);
+    if (availableMonths !== prevAvailableMonths) {
+        setPrevAvailableMonths(availableMonths);
+        if (availableMonths.length > 0 && !availableMonths.includes(activeMonthTab)) {
+            setActiveMonthTab(availableMonths[0]);
+        }
+    }
 
     // Confirmation Modal State
     const [confirmConfig, setConfirmConfig] = useState<{
@@ -73,20 +129,27 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
     const filteredLog = useMemo(() => {
         return warehouseLog
             .filter(log => {
+                const dateStr = log.date || log.timestamp?.split('T')[0];
+                const logDate = new Date(dateStr + 'T00:00:00');
+                const monthKey = `${logDate.getFullYear()}-${logDate.getMonth()}`;
+                const matchesMonth = monthKey === activeMonthTab;
+
                 const typeMatch = filterType === 'all' || log.type === filterType;
                 const searchMatch = searchTerm === '' ||
                     log.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     log.lotNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     (log.barcode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    (log.nlNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    (log.pdNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                     log.supplierName.toLowerCase().includes(searchTerm.toLowerCase());
-                return typeMatch && searchMatch;
+                return matchesMonth && typeMatch && searchMatch;
             })
             .sort((a, b) => {
                 const dateA = new Date(a.date || a.timestamp).getTime();
                 const dateB = new Date(b.date || b.timestamp).getTime();
                 return dateB - dateA;
             });
-    }, [warehouseLog, filterType, searchTerm]);
+    }, [warehouseLog, filterType, searchTerm, activeMonthTab]);
 
     React.useEffect(() => {
         const table = tableRef.current;
@@ -412,121 +475,173 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
     };
 
     return (
-        <div className="bg-white p-6 rounded-2xl shadow-lg max-w-7xl mx-auto border-t-8 border-gray-700 animate-fade-in space-y-12">
+        <div className="bg-white p-3 md:p-5 rounded-[2rem] shadow-sm max-w-full mx-auto animate-fade-in space-y-6">
             
             {/* CABEÇALHO E FILTROS */}
-            <div>
-                <div className="flex flex-col sm:flex-row justify-between items-start mb-8 gap-4 border-b pb-6">
+            <div className="space-y-4">
+                <div className="flex flex-col md:flex-row justify-between items-start gap-4 pb-4 border-b border-gray-50">
                     <div>
-                        <h2 className="text-3xl font-black text-gray-800 uppercase tracking-tighter">Histórico de Estoque</h2>
-                        <p className="text-gray-400 font-medium">Gerencie as movimentações e realize lançamentos retroativos usando a Data do Documento.</p>
+                        <h2 className="text-xl font-black text-gray-900 uppercase tracking-tighter italic">Histórico de Estoque</h2>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest italic leading-none mt-1">Gerenciamento de movimentações e lançamentos</p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
                         <button 
                             onClick={() => setIsManualModalOpen(true)}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2 px-6 rounded-xl transition-all shadow-md active:scale-95 uppercase tracking-widest text-xs flex items-center gap-2"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-1.5 px-4 rounded-xl transition-all shadow-sm active:scale-95 uppercase tracking-tighter text-[9px] flex items-center gap-1.5 italic"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
-                            Lançar Movimentação Manual
+                            <Plus className="h-3 w-3" />
+                            Novo Lançamento
                         </button>
                         <button 
                             onClick={() => handlePrintLabels(filteredLog)}
                             disabled={filteredLog.length === 0}
-                            className="bg-amber-500 hover:bg-amber-600 text-white font-black py-2 px-6 rounded-xl transition-all shadow-md active:scale-95 uppercase tracking-widest text-xs flex items-center gap-2 disabled:bg-gray-300"
+                            className="bg-amber-500 hover:bg-amber-600 text-white font-black py-1.5 px-4 rounded-xl transition-all shadow-sm active:scale-95 uppercase tracking-tighter text-[9px] flex items-center gap-1.5 italic disabled:bg-gray-200"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z" clipRule="evenodd" /></svg>
-                            Imprimir Etiquetas (Filtradas)
+                            <Printer className="h-3 w-3" />
+                            Imprimir Etiquetas
                         </button>
                         <button 
                             onClick={handlePrintPDF}
-                            className="bg-gray-800 hover:bg-gray-900 text-white font-black py-2 px-6 rounded-xl transition-all shadow-md active:scale-95 uppercase tracking-widest text-xs flex items-center gap-2"
+                            className="bg-zinc-800 hover:bg-black text-white font-black py-1.5 px-4 rounded-xl transition-all shadow-sm active:scale-95 uppercase tracking-tighter text-[9px] flex items-center gap-1.5 italic"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                            Imprimir PDF
+                            <FileIcon className="h-3 w-3" />
+                            Exportar PDF
                         </button>
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                    <input type="text" placeholder="Pesquisar (Nome, Lote, Código de Barras)..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full sm:w-80 border rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-gray-400 transition-all font-bold" />
-                    <select value={filterType} onChange={(e) => setFilterType(e.target.value as any)} className="border rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-gray-400 transition-all bg-white font-bold">
-                        <option value="all">Todos</option>
-                        <option value="entrada">Entradas</option>
-                        <option value="saída">Saídas</option>
-                    </select>
+                {/* Sub-abas de meses */}
+                {availableMonths.length > 0 && (
+                    <div className="flex overflow-x-auto pb-1 gap-1 custom-scrollbar scrollbar-hide">
+                        {availableMonths.map(monthKey => {
+                            const [year, month] = monthKey.split('-').map(Number);
+                            const label = `${monthNamesInOrder[month]} / ${year}`;
+                            const isActive = activeMonthTab === monthKey;
+                            return (
+                                <button
+                                    key={monthKey}
+                                    onClick={() => setActiveMonthTab(monthKey)}
+                                    className={`whitespace-nowrap px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-tighter transition-all italic border-2 ${
+                                        isActive 
+                                        ? 'bg-zinc-900 text-white border-zinc-900 shadow-md scale-105 z-10' 
+                                        : 'bg-white text-zinc-400 border-zinc-50 hover:bg-zinc-50 hover:text-zinc-600'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+                    <div className="relative w-full sm:w-80 group">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-indigo-500 transition-colors">
+                            <Search className="h-3 w-3" />
+                        </div>
+                        <input 
+                            type="text" 
+                            placeholder="Pesquisar (Nome, Lote, Código de Barras)..." 
+                            value={searchTerm} 
+                            onChange={(e) => setSearchTerm(e.target.value)} 
+                            className="w-full bg-gray-50/50 border border-gray-100 rounded-xl pl-9 pr-4 py-2 text-[10px] outline-none focus:ring-4 focus:ring-indigo-50/50 transition-all font-bold placeholder:text-gray-300 italic" 
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl w-full sm:w-auto">
+                        <button 
+                            onClick={() => setFilterType('all')} 
+                            className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tighter transition-all italic ${filterType === 'all' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-400 hover:text-zinc-600'}`}
+                        >
+                            Tudo
+                        </button>
+                        <button 
+                            onClick={() => setFilterType('entrada')} 
+                            className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tighter transition-all italic ${filterType === 'entrada' ? 'bg-white text-green-600 shadow-sm' : 'text-zinc-400 hover:text-green-500'}`}
+                        >
+                            Entradas
+                        </button>
+                        <button 
+                            onClick={() => setFilterType('saída')} 
+                            className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tighter transition-all italic ${filterType === 'saída' ? 'bg-white text-red-600 shadow-sm' : 'text-zinc-400 hover:text-red-500'}`}
+                        >
+                            Saídas
+                        </button>
+                    </div>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div 
                         ref={topScrollRef} 
-                        className="overflow-x-auto overflow-y-hidden custom-scrollbar border-b border-gray-100" 
-                        style={{ height: '12px' }}
+                        className="overflow-x-auto overflow-y-hidden custom-scrollbar border-b border-gray-50" 
+                        style={{ height: '8px' }}
                     >
                         <div style={{ height: '1px' }}></div>
                     </div>
-                    <div ref={bottomScrollRef} className="overflow-x-auto max-h-[65vh] custom-scrollbar">
-                        <table ref={tableRef} className="w-full text-sm">
-                            <thead className="bg-gray-100 sticky top-0 z-10 border-b">
-                            <tr>
-                                <th className="p-3 text-left text-[10px] font-black uppercase text-gray-500 tracking-widest">Tipo</th>
-                                <th className="p-3 text-left text-[10px] font-black uppercase text-gray-500 tracking-widest">Data Doc.</th>
-                                <th className="p-3 text-left text-[10px] font-black uppercase text-gray-500 tracking-widest">Produto</th>
-                                <th className="p-3 text-left text-[10px] font-black uppercase text-gray-500 tracking-widest">Barras</th>
-                                <th className="p-3 text-left text-[10px] font-black uppercase text-gray-500 tracking-widest">Lote</th>
-                                <th className="p-3 text-right text-[10px] font-black uppercase text-gray-500 tracking-widest">Quantidade</th>
-                                <th className="p-3 text-left text-[10px] font-black uppercase text-gray-500 tracking-widest">NF/Doc</th>
-                                <th className="p-3 text-center text-[10px] font-black uppercase text-gray-500 tracking-widest">Ações</th>
+                    <div ref={bottomScrollRef} className="overflow-x-auto max-h-[50vh] custom-scrollbar scrollbar-thin scrollbar-thumb-gray-200">
+                        <table ref={tableRef} className="w-full text-[10px] border-separate border-spacing-0">
+                            <thead className="bg-gray-50/80 backdrop-blur-md sticky top-0 z-10">
+                            <tr className="italic">
+                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Tipo</th>
+                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100 whitespace-nowrap">Data Doc.</th>
+                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Produto / Origem</th>
+                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Cód. Barras</th>
+                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Lote</th>
+                                <th className="p-3 text-right font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Quantidade</th>
+                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">NF / REQ</th>
+                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">NL / PD</th>
+                                <th className="p-3 text-center font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Ações</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-gray-50">
                             {filteredLog.map(log => (
-                                <tr key={log.id} className="hover:bg-gray-50 transition-colors">
-                                    <td className="p-3">
-                                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${log.type === 'entrada' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{log.type}</span>
+                                <tr key={log.id} className={`hover:bg-indigo-50/30 transition-colors group ${(!log.nlNumber || !log.pdNumber) ? 'bg-red-50/40' : ''}`}>
+                                    <td className="p-2 pl-3">
+                                        <span className={`text-[8px] font-black px-2 py-0.5 rounded-lg uppercase italic ${log.type === 'entrada' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{log.type}</span>
                                     </td>
-                                    <td className="p-3 font-mono text-indigo-700 text-xs font-black">{(log.date || '').split('-').reverse().join('/')}</td>
-                                    <td className="p-3">
-                                        <p className="font-bold text-gray-800 uppercase text-xs">{log.itemName}</p>
-                                        <p className="text-[9px] text-gray-400 uppercase">{log.supplierName}</p>
+                                    <td className="p-2 font-mono text-indigo-700 text-[10px] font-black">{(log.date || '').split('-').reverse().join('/')}</td>
+                                    <td className="p-2">
+                                        <p className="font-black text-gray-900 uppercase leading-none">{log.itemName}</p>
+                                        <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">{log.supplierName}</p>
                                     </td>
-                                    <td className="p-3 font-mono text-xs text-blue-600 font-bold">{log.barcode || '-'}</td>
-                                    <td className="p-3 font-mono text-xs">{log.lotNumber}</td>
-                                    <td className="p-3 text-right font-mono font-black text-gray-800">
+                                    <td className="p-2 font-mono text-[10px] text-blue-600 font-black tracking-tighter">{log.barcode || '-'}</td>
+                                    <td className="p-2 font-mono text-[10px] uppercase font-bold text-gray-500">{log.lotNumber}</td>
+                                    <td className="p-2 text-right font-mono font-black text-gray-900 bg-gray-50/30 group-hover:bg-transparent">
                                         {(log.quantity || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg
                                     </td>
-                                    <td className="p-3 font-mono text-xs text-gray-500">{log.inboundInvoice || log.outboundInvoice || '-'}</td>
-                                    <td className="p-3 text-center">
-                                        <div className="flex justify-center gap-1">
+                                    <td className="p-2 font-mono text-[10px] text-gray-400 font-bold italic">{log.inboundInvoice || log.outboundInvoice || '-'}</td>
+                                    <td className={`p-2 font-mono text-[10px] font-black italic ${(!log.nlNumber || !log.pdNumber) ? 'text-red-600 bg-red-50' : 'text-gray-400'}`}>
+                                        {log.nlNumber || 'S/ NL'} / {log.pdNumber || 'S/ PD'}
+                                    </td>
+                                    <td className="p-2 text-center">
+                                        <div className="flex justify-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                                             <button 
                                                 onClick={() => handlePrintLabel(log)}
-                                                className="text-gray-500 hover:bg-gray-100 p-2 rounded-full transition-colors"
+                                                className="text-gray-400 hover:text-amber-500 hover:bg-amber-50 p-1.5 rounded-lg transition-all"
                                                 title="Imprimir Etiqueta"
                                             >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                                                </svg>
+                                                <Printer className="h-3.5 w-3.5" />
                                             </button>
                                             <button 
                                                 onClick={() => setEditingLog(log)}
-                                                className="text-blue-500 hover:bg-blue-50 p-2 rounded-full transition-colors"
+                                                className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all"
                                                 title="Editar Registro"
                                             >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                <Edit2 className="h-3.5 w-3.5" />
                                             </button>
                                             <button 
                                                 onClick={() => handleDelete(log)} 
                                                 disabled={isDeleting === log.id}
-                                                className="text-red-400 hover:text-red-700 p-2 rounded-full transition-colors disabled:opacity-50"
+                                                className="text-gray-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-all disabled:opacity-50"
                                                 title="Excluir Registro"
                                             >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                <Trash2 className="h-3.5 w-3.5" />
                                             </button>
                                         </div>
                                     </td>
                                 </tr>
                             ))}
                             {filteredLog.length === 0 && (
-                                <tr><td colSpan={8} className="p-20 text-center text-gray-400 italic font-medium uppercase tracking-widest">Nenhuma movimentação localizada.</td></tr>
+                                <tr><td colSpan={8} className="p-16 text-center text-gray-200 italic font-black uppercase tracking-[0.2em] text-[10px]">Sem registros para este filtro</td></tr>
                             )}
                         </tbody>
                     </table>
@@ -534,68 +649,51 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                 </div>
             </div>
 
-            {/* NOVO CAMPO: MONITORAMENTO DE PRAZO DE VALIDADE (SHELF-LIFE) */}
-            <div className="pt-10 border-t-2 border-dashed border-gray-100">
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="bg-amber-100 text-amber-600 p-2 rounded-xl">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            {/* MONITORAMENTO DE PRAZO DE VALIDADE */}
+            <div className="pt-8 border-t border-gray-50">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-amber-50 text-amber-500 p-2 rounded-[1.2rem]">
+                        <Clock className="h-5 w-5" />
                     </div>
                     <div>
-                        <h3 className="text-2xl font-black text-gray-800 uppercase tracking-tighter">Análise de Shelf-Life (Vida Útil)</h3>
-                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Relacionamento entre Data de Entrada e Vencimento</p>
+                        <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter italic leading-none">Análise de Shelf-Life</h3>
+                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1 italic">Monitoramento de Validade das Entradas</p>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="flex overflow-x-auto pb-4 gap-3 scrollbar-hide">
                     {validityAnalysis.length > 0 ? validityAnalysis.map(item => (
-                        <div key={`shelf-${item.id}`} className="bg-slate-50 p-5 rounded-[2rem] border-2 border-white shadow-sm flex flex-col justify-between hover:shadow-md transition-all group">
-                            <div className="space-y-3">
-                                <div className="flex justify-between items-start">
-                                    <span className="text-[10px] font-black bg-indigo-600 text-white px-3 py-1 rounded-full uppercase shadow-sm">Entrada Recente</span>
-                                    <div className={`px-3 py-1 rounded-lg text-white font-black text-[10px] uppercase shadow-sm ${
+                        <div key={`shelf-${item.id}`} className="min-w-[200px] bg-white p-4 rounded-[1.5rem] border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-all group shrink-0 italic">
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[8px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-lg uppercase italic">Entrada</span>
+                                    <div className={`px-2 py-0.5 rounded-lg text-white font-black text-[8px] uppercase tracking-tighter italic ${
                                         item.shelfLifeDays > 180 ? 'bg-green-900 border border-green-700' : 
-                                        item.shelfLifeDays > 30 ? 'bg-green-500' : 
-                                        item.shelfLifeDays > 15 ? 'bg-orange-500' : 
-                                        'bg-red-500'
+                                        item.shelfLifeDays > 30 ? 'bg-green-600' : 
+                                        item.shelfLifeDays > 15 ? 'bg-amber-500' : 
+                                        'bg-rose-600'
                                     }`}>
                                         Prazo: {item.shelfLifeDays} dias
                                     </div>
                                 </div>
                                 <div>
-                                    <p className="text-xs font-black text-gray-800 uppercase leading-tight line-clamp-1">{item.itemName}</p>
-                                    <p className="text-[9px] text-gray-400 font-bold uppercase mt-1">{item.supplierName}</p>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 py-2 border-y border-gray-100">
-                                    <div>
-                                        <p className="text-[8px] font-black text-gray-400 uppercase">Entrada</p>
-                                        <p className="text-[11px] font-mono font-bold text-indigo-700">{(item.date || '').split('-').reverse().join('/')}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-[8px] font-black text-gray-400 uppercase">Vencimento</p>
-                                        <p className="text-[11px] font-mono font-bold text-red-600">{(item.expirationDate || '').split('-').reverse().join('/')}</p>
-                                    </div>
+                                    <p className="font-black text-xs text-gray-900 leading-none truncate uppercase">{item.itemName}</p>
+                                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-1 truncate">{item.supplierName}</p>
                                 </div>
                             </div>
-                            <div className="mt-4 flex items-center justify-between">
-                                <p className="text-[9px] text-gray-400 font-mono">Lote: {item.lotNumber}</p>
-                                <div className="flex items-center gap-2">
-                                    <button 
-                                        onClick={() => handlePrintLabel(item)}
-                                        className="text-indigo-400 hover:text-indigo-600 transition-colors p-1"
-                                        title="Imprimir Etiqueta"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                                        </svg>
-                                    </button>
-                                    <span className={`text-[9px] font-black uppercase transition-colors ${item.shelfLifeDays > 180 ? 'text-green-800' : 'text-indigo-400'} group-hover:text-indigo-600`}>Giro Calculado</span>
+                            <div className="mt-4 pt-2 border-t border-gray-50 flex justify-between items-end">
+                                <div>
+                                    <p className="text-[7px] text-gray-400 font-black uppercase">Validade</p>
+                                    <p className="font-black text-[9px] text-gray-700">{(item.expirationDate || '').split('-').reverse().join('/')}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[7px] text-gray-400 font-black uppercase">Qtd</p>
+                                    <p className="font-black text-[9px] text-zinc-900">{(item.quantity || 0).toFixed(2)} kg</p>
                                 </div>
                             </div>
                         </div>
                     )) : (
-                        <div className="col-span-full py-12 text-center bg-gray-50 rounded-[3rem] border-4 border-dashed border-gray-100 opacity-50">
-                            <p className="text-gray-400 font-black uppercase tracking-widest italic">Aguardando entradas com validade informada para gerar análise.</p>
-                        </div>
+                        <div className="w-full text-center py-8 text-gray-300 font-black uppercase text-[10px] italic tracking-widest">Aguardando dados de análise...</div>
                     )}
                 </div>
             </div>
@@ -662,6 +760,10 @@ const EditWarehouseMovementModal: React.FC<EditWarehouseMovementModalProps> = ({
     const [documentNumber, setDocumentNumber] = useState(logEntry.inboundInvoice || logEntry.outboundInvoice || '');
     const [date, setDate] = useState(logEntry.date || '');
     const [expirationDate, setExpirationDate] = useState(logEntry.expirationDate || '');
+    const [nlNumber, setNlNumber] = useState(logEntry.nlNumber || '');
+    const [pdNumber, setPdNumber] = useState(logEntry.pdNumber || '');
+    const [value, setValue] = useState(String(logEntry.value || 0).replace('.', ','));
+    const [weight, setWeight] = useState(String(logEntry.weight || 0).replace('.', ','));
     const [isSaving, setIsSaving] = useState(false);
 
     const selectedSupplier = useMemo(() => suppliers.find(s => s.cpf === selectedCpf), [suppliers, selectedCpf]);
@@ -687,7 +789,11 @@ const EditWarehouseMovementModal: React.FC<EditWarehouseMovementModalProps> = ({
             quantity: qtyVal,
             inboundInvoice: type === 'entrada' ? documentNumber : '',
             outboundInvoice: type === 'saída' ? documentNumber : '',
-            expirationDate
+            expirationDate,
+            nlNumber,
+            pdNumber,
+            value: parseFloat(value.replace(',', '.')) || 0,
+            weight: parseFloat(weight.replace(',', '.')) || qtyVal
         };
 
         await onSave(updated);
@@ -750,6 +856,23 @@ const EditWarehouseMovementModal: React.FC<EditWarehouseMovementModalProps> = ({
                             <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Data de Validade</label>
                             <input type="date" value={expirationDate} onChange={e => setExpirationDate(e.target.value)} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-400" />
                         </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-rose-600 uppercase ml-1">NL (Nota Lançamento)</label>
+                            <input type="text" value={nlNumber} onChange={e => setNlNumber(e.target.value.toUpperCase())} className="w-full p-2 border-2 border-rose-100 rounded-xl outline-none focus:ring-2 focus:ring-rose-400" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-rose-600 uppercase ml-1">PD (Parecer Despesa)</label>
+                            <input type="text" value={pdNumber} onChange={e => setPdNumber(e.target.value.toUpperCase())} className="w-full p-2 border-2 border-rose-100 rounded-xl outline-none focus:ring-2 focus:ring-rose-400" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-emerald-600 uppercase ml-1">Valor Unitário / Total</label>
+                            <input type="text" value={value} onChange={e => setValue(e.target.value.replace(/[^0-9,]/g, ''))} className="w-full p-2 border-2 border-emerald-100 rounded-xl outline-none focus:ring-2 focus:ring-emerald-400 font-mono" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-amber-600 uppercase ml-1">Peso Bruto</label>
+                            <input type="text" value={weight} onChange={e => setWeight(e.target.value.replace(/[^0-9,]/g, ''))} className="w-full p-2 border-2 border-amber-100 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 font-mono" />
+                        </div>
                     </div>
 
                     <div className="flex justify-end gap-3 pt-6 border-t">
@@ -795,10 +918,30 @@ const ManualWarehouseMovementModal: React.FC<ManualWarehouseMovementModalProps> 
     const [documentNumber, setDocumentNumber] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [expirationDate, setExpirationDate] = useState('');
+    const [nlNumber, setNlNumber] = useState('');
+    const [pdNumber, setPdNumber] = useState('');
+    const [value, setValue] = useState('');
+    const [weight, setWeight] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
     const selectedSupplier = useMemo(() => suppliers.find(s => s.cpf === selectedCpf), [suppliers, selectedCpf]);
-    const availableItems = useMemo(() => selectedSupplier ? (Object.values(selectedSupplier.contractItems || {}) as any[]).sort((a,b) => a.name.localeCompare(b.name)) : [], [selectedSupplier]);
+    const availableItems = useMemo(() => {
+        if (selectedSupplier) {
+            return (Object.values(selectedSupplier.contractItems || {}) as any[]).sort((a,b) => a.name.localeCompare(b.name));
+        }
+        // If no supplier selected, show all items from all suppliers
+        const allItems: any[] = [];
+        const seen = new Set<string>();
+        suppliers.forEach(s => {
+            (Object.values(s.contractItems || {}) as any[]).forEach(ci => {
+                if (!seen.has(ci.name)) {
+                    allItems.push(ci);
+                    seen.add(ci.name);
+                }
+            });
+        });
+        return allItems.sort((a,b) => a.name.localeCompare(b.name));
+    }, [selectedSupplier, suppliers]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -809,6 +952,9 @@ const ManualWarehouseMovementModal: React.FC<ManualWarehouseMovementModalProps> 
         }
 
         setIsSaving(true);
+        const val = parseFloat(value.replace(',', '.')) || 0;
+        const wgt = parseFloat(weight.replace(',', '.')) || qtyVal;
+
         const payload = type === 'entrada' ? {
             supplierCpf: selectedCpf,
             itemName: itemName,
@@ -817,7 +963,11 @@ const ManualWarehouseMovementModal: React.FC<ManualWarehouseMovementModalProps> 
             lotNumber: lotNumber || 'MANUAL',
             barcode: barcode,
             quantity: qtyVal,
-            expirationDate: expirationDate
+            expirationDate: expirationDate,
+            nlNumber,
+            pdNumber,
+            value: val,
+            weight: wgt
         } : {
             supplierCpf: selectedCpf,
             itemName: itemName,
@@ -826,7 +976,11 @@ const ManualWarehouseMovementModal: React.FC<ManualWarehouseMovementModalProps> 
             quantity: qtyVal,
             outboundInvoice: documentNumber,
             expirationDate: expirationDate,
-            date: date 
+            date: date,
+            nlNumber,
+            pdNumber,
+            value: val,
+            weight: wgt
         };
 
         await onSave(type, payload);
@@ -901,6 +1055,23 @@ const ManualWarehouseMovementModal: React.FC<ManualWarehouseMovementModalProps> 
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Data de Validade</label>
                             <input type="date" value={expirationDate} onChange={e => setExpirationDate(e.target.value)} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-rose-600 uppercase ml-1">Nota de Lançamento (NL)</label>
+                            <input type="text" value={nlNumber} onChange={e => setNlNumber(e.target.value.toUpperCase())} placeholder="NL 000" className="w-full p-2 border-2 border-rose-100 rounded-xl outline-none focus:ring-2 focus:ring-rose-400" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-rose-600 uppercase ml-1">Parecer de Despesa (PD)</label>
+                            <input type="text" value={pdNumber} onChange={e => setPdNumber(e.target.value.toUpperCase())} placeholder="PD 000" className="w-full p-2 border-2 border-rose-100 rounded-xl outline-none focus:ring-2 focus:ring-rose-400" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-emerald-600 uppercase ml-1">Valor Unitário / Total</label>
+                            <input type="text" value={value} onChange={e => setValue(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="R$ 0,00" className="w-full p-2 border-2 border-emerald-100 rounded-xl outline-none focus:ring-2 focus:ring-emerald-400" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-amber-600 uppercase ml-1">Peso Bruto</label>
+                            <input type="text" value={weight} onChange={e => setWeight(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="0,00 kg" className="w-full p-2 border-2 border-amber-100 rounded-xl outline-none focus:ring-2 focus:ring-amber-400" />
                         </div>
                     </div>
 

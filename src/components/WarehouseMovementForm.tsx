@@ -35,9 +35,25 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     const [manualInboundNf, setManualInboundNf] = useState('');
     const [manualLot, setManualLot] = useState('');
     const [manualExp, setManualExp] = useState('');
+    const [manualNl, setManualNl] = useState('');
+    const [manualPd, setManualPd] = useState('');
+    const [manualValue, setManualValue] = useState('');
+    const [manualWeight, setManualWeight] = useState('');
     
     // Lista de itens a serem processados
-    const [items, setItems] = useState<{ id: string; itemName: string; quantity: number; lot: string; exp: string; barcode: string; inboundInvoice?: string }[]>([]);
+    const [items, setItems] = useState<{ 
+        id: string; 
+        itemName: string; 
+        quantity: number; 
+        lot: string; 
+        exp: string; 
+        barcode: string; 
+        inboundInvoice?: string;
+        nlNumber?: string;
+        pdNumber?: string;
+        value?: number;
+        weight?: number;
+    }[]>([]);
     
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -83,7 +99,8 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                 addItemsFromSupplier(pEntry);
                 addItemsFromSupplier(fEntry);
             }
-        } else if (manualType === 'saída') {
+        } else {
+            // Se nenhum fornecedor selecionado, mostra TUDO (conforme pedido: busca em todos os itens)
             suppliers.forEach(addItemsFromSupplier);
             if (perCapitaConfig) {
                 perCapitaConfig.ppaisProducers?.forEach(addItemsFromSupplier);
@@ -155,10 +172,14 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             id: `item-${Date.now()}`,
             itemName: selectedItemName,
             quantity: qtyVal,
-            lot: manualLot,
+            lot: manualLot || 'UNICO',
             exp: manualExp,
-            barcode: manualBarcode,
-            inboundInvoice: manualInboundNf
+            barcode: manualBarcode || Math.random().toString(36).substr(2, 9).toUpperCase(),
+            inboundInvoice: manualInboundNf,
+            nlNumber: manualNl,
+            pdNumber: manualPd,
+            value: parseFloat(manualValue.replace(',', '.')) || 0,
+            weight: parseFloat(manualWeight.replace(',', '.')) || qtyVal
         }]);
 
         // Limpa campos do item para próxima inserção
@@ -172,6 +193,63 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         // Mas se o usuário mudar de item, talvez a NF mude.
         // Vamos manter por conveniência, mas o usuário pode mudar.
         barcodeInputRef.current?.focus();
+    };
+
+    const handlePrintItemLabel = (item: any) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Etiqueta - ${item.itemName}</title>
+                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <style>
+                    @page { size: 100mm 50mm; margin: 0; }
+                    body { margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: white; }
+                    .label-card {
+                        width: 100mm; height: 50mm;
+                        padding: 2mm 4mm; box-sizing: border-box;
+                        display: flex; flex-direction: column;
+                        border: 0.1mm solid #eee;
+                    }
+                    h1 { font-size: 11pt; margin: 0 0 1mm 0; font-weight: 900; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 0.3mm solid #000; padding-bottom: 0.5mm; }
+                    h2 { font-size: 7.5pt; margin: 0.5mm 0 1.5mm 0; font-weight: bold; text-transform: uppercase; color: #333; }
+                    .info { font-size: 7.5pt; line-height: 1.1; flex-grow: 1; }
+                    .info p { margin: 0.2mm 0; display: flex; justify-content: space-between; }
+                    .info strong { font-weight: 900; text-transform: uppercase; margin-right: 1mm; }
+                    .barcode-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+                    .barcode-svg { max-width: 90%; height: 14mm !important; }
+                </style>
+            </head>
+            <body>
+                <div class="label-card">
+                    <h1>${item.itemName}</h1>
+                    <h2>${selectedSupplier?.name || 'FORNECEDOR'}</h2>
+                    <div class="info">
+                        <p><strong>LOTE:</strong> <span>${item.lot}</span></p>
+                        <p><strong>VAL:</strong> <span>${item.exp ? item.exp.split('-').reverse().join('/') : 'N/A'}</span> / <strong>ENT:</strong> <span>${manualDate.split('-').reverse().join('/')}</span></p>
+                        <p><strong>QTD:</strong> <span>${item.quantity.toFixed(2)} kg</span> / <strong>NF:</strong> <span>${manualNf || 'N/A'}</span></p>
+                    </div>
+                    <div class="barcode-container">
+                        <svg id="barcode-item" class="barcode-svg"></svg>
+                    </div>
+                </div>
+                <script>
+                    window.onload = function() {
+                        try {
+                            JsBarcode("#barcode-item", "${item.barcode}", {
+                                format: "CODE128", width: 1.2, height: 40, displayValue: false, margin: 0
+                            });
+                        } catch (e) { console.error(e); }
+                        setTimeout(() => { window.print(); window.close(); }, 500);
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
     };
 
     const handleRemoveItem = (id: string) => {
@@ -203,7 +281,11 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                         lotNumber: item.lot || 'UNICO',
                         quantity: item.quantity,
                         expirationDate: item.exp,
-                        barcode: item.barcode
+                        barcode: item.barcode,
+                        nlNumber: item.nlNumber,
+                        pdNumber: item.pdNumber,
+                        value: item.value,
+                        weight: item.weight
                     })
                     : await onRegisterWithdrawal({
                         supplierCpf: selectedSupplierCpf,
@@ -214,7 +296,11 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                         quantity: item.quantity,
                         expirationDate: item.exp,
                         date: manualDate,
-                        barcode: item.barcode
+                        barcode: item.barcode,
+                        nlNumber: item.nlNumber,
+                        pdNumber: item.pdNumber,
+                        value: item.value,
+                        weight: item.weight
                     });
                 
                 if (res.success) successCount++;
@@ -259,7 +345,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                     </div>
                 </div>
 
-                <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner w-full md:w-auto">
+                <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner w-full md:w-auto opacity-0 pointer-events-none invisible">
                     <button 
                         type="button" 
                         onClick={() => { setManualType('entrada'); setItems([]); setManualInboundNf(''); }} 
@@ -314,14 +400,14 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
 
                 <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4 shadow-sm italic">
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                        <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-0.5">
-                                <label className="text-[8px] font-black text-indigo-600 uppercase ml-1">Produto do Contrato</label>
+                         <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="md:col-span-2 space-y-0.5">
+                                <label className="text-[8px] font-black text-indigo-600 uppercase ml-1 italic">Produto do Contrato</label>
                                 <select 
                                     value={selectedItemName} 
                                     onChange={e => {
                                         const val = e.target.value;
-                                        if (manualType === 'saída' && !selectedSupplierCpf) {
+                                        if (!selectedSupplierCpf) {
                                             const [itemName, supplierCpf] = val.split('|');
                                             setSelectedSupplierCpf(supplierCpf);
                                             setSelectedItemName(itemName);
@@ -329,12 +415,12 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                             setSelectedItemName(val);
                                         }
                                     }} 
-                                    className="w-full h-9 px-3 border border-indigo-50 rounded-lg bg-white font-black outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] disabled:opacity-50 shadow-xs uppercase" 
-                                    disabled={manualType === 'entrada' && !selectedSupplierCpf}>
-                                    <option value="">-- PRODUTO --</option>
-                                    {manualType === 'saída' && !selectedSupplierCpf ? (
+                                    className="w-full h-9 px-3 border border-indigo-50 rounded-lg bg-white font-black outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] disabled:opacity-50 shadow-xs uppercase italic" 
+                                    disabled={false}>
+                                    <option value="">-- BUSCAR PRODUTO (GERAL) --</option>
+                                    {!selectedSupplierCpf ? (
                                         (availableItems as any[]).map((it, idx) => (
-                                            <option key={`${it.name}-${idx}`} value={`${it.name}|${it.supplierCpf}`}>
+                                            <option key={`${it.name}-${it.supplierCpf}-${idx}`} value={`${it.name}|${it.supplierCpf}`}>
                                                 {it.name} ({it.supplierName})
                                             </option>
                                         ))
@@ -342,6 +428,26 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                         (availableItems as any[]).map(ci => <option key={ci.name} value={ci.name}>{ci.name}</option>)
                                     )}
                                 </select>
+                            </div>
+                            
+                            <div className="space-y-0.5">
+                                <label className="text-[8px] font-black text-rose-600 uppercase ml-1 italic">Nota de Lançamento (NL)</label>
+                                <input type="text" value={manualNl} onChange={e => setManualNl(e.target.value.toUpperCase())} placeholder="NL..." className="w-full h-9 px-3 border border-rose-50 rounded-lg bg-white font-bold outline-none focus:ring-2 focus:ring-rose-100 transition-all text-[10px] shadow-xs uppercase italic" />
+                            </div>
+
+                            <div className="space-y-0.5">
+                                <label className="text-[8px] font-black text-rose-600 uppercase ml-1 italic">Parecer de Despesa (PD)</label>
+                                <input type="text" value={manualPd} onChange={e => setManualPd(e.target.value.toUpperCase())} placeholder="PD..." className="w-full h-9 px-3 border border-rose-50 rounded-lg bg-white font-bold outline-none focus:ring-2 focus:ring-rose-100 transition-all text-[10px] shadow-xs uppercase italic" />
+                            </div>
+
+                            <div className="space-y-0.5">
+                                <label className="text-[8px] font-black text-emerald-600 uppercase ml-1 italic">Valor Total/Unit.</label>
+                                <input type="text" value={manualValue} onChange={e => setManualValue(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="R$ 0,00" className="w-full h-9 px-3 border border-emerald-50 rounded-lg bg-white font-bold outline-none focus:ring-2 focus:ring-emerald-100 transition-all text-[10px] shadow-xs font-mono" />
+                            </div>
+
+                            <div className="space-y-0.5">
+                                <label className="text-[8px] font-black text-amber-600 uppercase ml-1 italic">Peso Bruto</label>
+                                <input type="text" value={manualWeight} onChange={e => setManualWeight(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="0,00 kg" className="w-full h-9 px-3 border border-amber-50 rounded-lg bg-white font-bold outline-none focus:ring-2 focus:ring-amber-100 transition-all text-[10px] shadow-xs font-mono" />
                             </div>
                             
                             {manualType === 'saída' && (
@@ -404,14 +510,25 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                         <div className="pt-2 border-t border-gray-50">
                             <div className="flex flex-wrap gap-2 mb-4">
                                 {items.map((item) => (
-                                    <div key={item.id} className="bg-slate-50 px-3 py-1.5 rounded-xl border border-gray-100 flex items-center gap-3 shadow-xs animate-in slide-in-from-left-2 transition-all">
+                                    <div key={item.id} className="bg-slate-50 px-3 py-1.5 rounded-xl border border-gray-100 flex items-center gap-3 shadow-xs animate-in slide-in-from-left-2 transition-all group">
                                         <div className="flex flex-col">
                                             <span className="text-[9px] font-black text-gray-900 leading-none">{item.itemName}</span>
                                             <span className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">{item.quantity} kg • {item.lot || '-'}</span>
                                         </div>
-                                        <button onClick={() => handleRemoveItem(item.id)} className="text-rose-400 hover:text-rose-600 transition-colors">
-                                            <X className="h-3 w-3" />
-                                        </button>
+                                        <div className="flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button 
+                                                type="button"
+                                                onClick={() => handlePrintItemLabel(item)}
+                                                className="text-amber-500 hover:bg-amber-50 p-1 rounded-lg transition-all"
+                                                title="Imprimir Etiqueta"
+                                            >
+                                                <Plus className="h-3 w-3 rotate-45" /> {/* Use Print Icon if available, or stay simple */}
+                                                <span className="text-[7px] font-black uppercase ml-0.5">Label</span>
+                                            </button>
+                                            <button onClick={() => handleRemoveItem(item.id)} className="text-rose-400 hover:text-rose-600 p-1 rounded-lg transition-all">
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>

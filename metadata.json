@@ -1,5 +1,5 @@
 {
   "name": "Admin Invoices App",
-  "description": "An application to manage and view administrator invoices.",
+  "description": "Sistema de Gestão de Estoque e Almoxarifado com Controle de NFs, NL/PD e Etiquetas.",
   "requestFramePermissions": []
 }

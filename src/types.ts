@@ -73,6 +73,10 @@ export interface WarehouseMovement {
     outboundInvoice?: string;
     quantity?: number;
     barcode?: string;
+    nlNumber?: string;
+    pdNumber?: string;
+    value?: number;
+    weight?: number;
 }
 
 export interface PerCapitaConfig {

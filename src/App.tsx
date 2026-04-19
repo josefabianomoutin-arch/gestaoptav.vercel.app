@@ -1284,7 +1284,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleManualInvoiceEntry = async (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string, invoiceUrl?: string) => {
+  const handleManualInvoiceEntry = async (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string, type: 'entrada' | 'saída' = 'entrada', invoiceUrl?: string) => {
     let supplierName = '';
     const mainSupplier = suppliers.find(s => s.cpf === supplierCpf);
     if (mainSupplier) {
@@ -1304,18 +1304,23 @@ const App: React.FC = () => {
         const lotId = `lot-manual-${Date.now()}-${idx}`;
         const entry: any = {
             id: newLogRef.key || `ent-man-${Date.now()}-${idx}`,
-            type: 'entrada',
+            type: type,
             timestamp: new Date().toISOString(),
             date: invoiceDate || date,
             itemName: item.name,
             supplierName: supplierName,
             lotNumber: item.lotNumber || 'MANUAL',
             quantity: item.kg,
-            inboundInvoice: String(invoiceNumber || '').trim(),
             barcode: barcode || '',
             lotId: lotId,
             deliveryId: ''
         };
+        
+        if (type === 'entrada') {
+            entry.inboundInvoice = String(invoiceNumber || '').trim();
+        } else {
+            entry.outboundInvoice = String(invoiceNumber || '').trim();
+        }
         if (item.expirationDate !== undefined) entry.expirationDate = item.expirationDate;
 
         return { ref: newLogRef, entry, lotId };
@@ -1341,6 +1346,7 @@ const App: React.FC = () => {
                 value: item.value,
                 invoiceUploaded: true,
                 invoiceNumber: String(invoiceNumber || '').trim(),
+                type: type,
                 lots: [{
                   id: le.lotId,
                   lotNumber: item.lotNumber || 'MANUAL',
@@ -1744,6 +1750,52 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDeleteWarehouseEntry = async (l: WarehouseMovement) => {
+      // Se for saída, devolve a quantidade para o saldo do lote
+      if (l.type === 'saída' || l.type === 'saida') {
+          const supplier = suppliers.find(s => s.name === l.supplierName);
+          if (supplier) {
+              const sRef = child(suppliersRef, supplier.cpf);
+              await runTransaction(sRef, (currentData: Supplier) => {
+                  if (currentData && currentData.deliveries) {
+                      const delivery = currentData.deliveries.find(d => 
+                          d.item === l.itemName && 
+                          d.invoiceNumber === l.inboundInvoice
+                      );
+                      if (delivery && delivery.lots) {
+                          const lot = delivery.lots.find(lotItem => lotItem.lotNumber === l.lotNumber);
+                          if (lot) {
+                              lot.remainingQuantity = (lot.remainingQuantity || 0) + l.quantity;
+                          }
+                      }
+                  }
+                  return currentData;
+              });
+          }
+      } else if (l.type === 'entrada') {
+          // Se for entrada, remove a entrega correspondente do fornecedor
+          const supplier = suppliers.find(s => s.name === l.supplierName);
+          if (supplier) {
+              const sRef = child(suppliersRef, supplier.cpf);
+              await runTransaction(sRef, (currentData: Supplier) => {
+                  if (currentData && currentData.deliveries) {
+                      currentData.deliveries = currentData.deliveries.filter(d => 
+                          !(d.item === l.itemName && d.invoiceNumber === l.inboundInvoice && d.barcode === l.barcode)
+                      );
+                  }
+                  return currentData;
+              });
+          }
+      }
+      await remove(child(warehouseLogRef, l.id));
+      return { success: true, message: 'Excluído e saldo atualizado' };
+  };
+
+  const handleUpdateWarehouseEntry = async (l: WarehouseMovement) => {
+      await set(child(warehouseLogRef, l.id), l);
+      return { success: true, message: 'Atualizado' };
+  };
+
   const renderContent = () => {
     if (!user) {
       return <LoginScreen onLogin={handleLogin} publicInfoList={publicInfo} />;
@@ -1871,50 +1923,8 @@ const App: React.FC = () => {
           onUpdateInvoiceUrl={handleUpdateInvoiceUrl}
           onManualInvoiceEntry={handleManualInvoiceEntry}
           onMarkInvoiceAsOpened={handleMarkInvoiceAsOpened}
-          onDeleteWarehouseEntry={async (l) => {
-              // Se for saída, devolve a quantidade para o saldo do lote
-              if (l.type === 'saída' || l.type === 'saida') {
-                  const supplier = suppliers.find(s => s.name === l.supplierName);
-                  if (supplier) {
-                      const sRef = child(suppliersRef, supplier.cpf);
-                      await runTransaction(sRef, (currentData: Supplier) => {
-                          if (currentData && currentData.deliveries) {
-                              const delivery = currentData.deliveries.find(d => 
-                                  d.item === l.itemName && 
-                                  d.invoiceNumber === l.inboundInvoice
-                              );
-                              if (delivery && delivery.lots) {
-                                  const lot = delivery.lots.find(lotItem => lotItem.lotNumber === l.lotNumber);
-                                  if (lot) {
-                                      lot.remainingQuantity = (lot.remainingQuantity || 0) + l.quantity;
-                                  }
-                              }
-                          }
-                          return currentData;
-                      });
-                  }
-              } else if (l.type === 'entrada') {
-                  // Se for entrada, remove a entrega correspondente do fornecedor
-                  const supplier = suppliers.find(s => s.name === l.supplierName);
-                  if (supplier) {
-                      const sRef = child(suppliersRef, supplier.cpf);
-                      await runTransaction(sRef, (currentData: Supplier) => {
-                          if (currentData && currentData.deliveries) {
-                              currentData.deliveries = currentData.deliveries.filter(d => 
-                                  !(d.item === l.itemName && d.invoiceNumber === l.inboundInvoice && d.barcode === l.barcode)
-                              );
-                          }
-                          return currentData;
-                      });
-                  }
-              }
-              await remove(child(warehouseLogRef, l.id));
-              return { success: true, message: 'Excluído e saldo atualizado' };
-          }}
-          onUpdateWarehouseEntry={async (l) => {
-              await set(child(warehouseLogRef, l.id), l);
-              return { success: true, message: 'Atualizado' };
-          }}
+          onDeleteWarehouseEntry={handleDeleteWarehouseEntry}
+          onUpdateWarehouseEntry={handleUpdateWarehouseEntry}
           onPersistSuppliers={() => {}}
           onRestoreData={async () => true}
           onRestoreFullBackup={handleRestoreFullBackup}
@@ -1969,6 +1979,8 @@ const App: React.FC = () => {
                onUpdateInvoiceUrl={handleUpdateInvoiceUrl}
                onManualInvoiceEntry={handleManualInvoiceEntry}
                onMarkInvoiceAsOpened={handleMarkInvoiceAsOpened}
+               onDeleteWarehouseEntry={handleDeleteWarehouseEntry}
+               onUpdateWarehouseEntry={handleUpdateWarehouseEntry}
                thirdPartyEntries={thirdPartyEntries}
                perCapitaConfig={perCapitaConfig}
                onRegisterThirdPartyEntry={async (l) => {
