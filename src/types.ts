@@ -235,6 +235,7 @@ export interface AcquisitionItem {
     stockBalance?: number;
     contractItemName?: string;
     expenseNature?: string;
+    nickname?: string;
 }
 
 export interface VehicleExitOrder {

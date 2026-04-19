@@ -10,12 +10,21 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
     const [pendingEntries, setPendingEntries] = useState<any[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
 
+    const [networkPath, setNetworkPath] = useState(localStorage.getItem('warehouse_network_path') || '');
+
     useEffect(() => {
         const saved = localStorage.getItem('offline_warehouse_entries');
         if (saved) {
             setPendingEntries(JSON.parse(saved));
         }
+        const savedPath = localStorage.getItem('warehouse_network_path');
+        if (savedPath) setNetworkPath(savedPath);
     }, []);
+
+    const savePath = () => {
+        localStorage.setItem('warehouse_network_path', networkPath);
+        toast.info("Caminho da pasta de rede salvo!");
+    };
 
     const handleExport = () => {
         if (pendingEntries.length === 0) {
@@ -68,6 +77,27 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
                 <div>
                     <h2 className="text-xl font-black text-indigo-900 uppercase tracking-tighter italic leading-none">Painel de Sincronização</h2>
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1 italic">Gestão de arquivos para tráfego offline</p>
+                </div>
+            </div>
+
+            <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 mb-6">
+                <h3 className="text-sm font-black text-gray-900 uppercase mb-4 italic flex items-center gap-2">
+                    <Database className="h-4 w-4" /> Configurações do Local
+                </h3>
+                <div className="flex gap-4">
+                    <input 
+                        type="text" 
+                        value={networkPath}
+                        onChange={(e) => setNetworkPath(e.target.value)}
+                        placeholder="Ex: Z:/Estoque/Pendentes/"
+                        className="flex-grow p-3 rounded-xl border border-gray-200 text-sm font-mono"
+                    />
+                    <button 
+                        onClick={savePath}
+                        className="bg-indigo-600 text-white font-bold py-3 px-6 rounded-xl text-xs uppercase"
+                    >
+                        Salvar Caminho
+                    </button>
                 </div>
             </div>
 

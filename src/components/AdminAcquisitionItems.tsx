@@ -22,6 +22,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
 
     // Form state
     const [name, setName] = useState('');
+    const [nickname, setNickname] = useState('');
     const [contractItemName, setContractItemName] = useState('');
     const [comprasCode, setComprasCode] = useState('');
     const [becCode, setBecCode] = useState('');
@@ -192,6 +193,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
             const item: AcquisitionItem = {
                 id: editingId || `acq-${Date.now()}`,
                 name: name.toUpperCase(),
+                nickname: nickname.toUpperCase(),
                 contractItemName,
                 comprasCode,
                 becCode,
@@ -213,6 +215,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
 
     const resetForm = () => {
         setName('');
+        setNickname('');
         setContractItemName('');
         setComprasCode('');
         setBecCode('');
@@ -228,6 +231,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
 
     const startEdit = (item: AcquisitionItem) => {
         setName(item.name);
+        setNickname(item.nickname || '');
         setContractItemName(item.contractItemName || '');
         setComprasCode(item.comprasCode || '');
         setBecCode(item.becCode || '');
@@ -655,6 +659,16 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         onChange={e => setName(e.target.value)} 
                                         className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all resize-none"
                                         placeholder="Ex: ARROZ AGULHINHA TIPO 1"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Apelido (Nome abreviado para Entrada)</label>
+                                    <input 
+                                        type="text"
+                                        value={nickname} 
+                                        onChange={e => setNickname(e.target.value)} 
+                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                        placeholder="Ex: ARROZ"
                                     />
                                 </div>
 

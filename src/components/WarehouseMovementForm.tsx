@@ -84,7 +84,10 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             (Object.values(s.contractItems || {}) as any[]).forEach((ci: any) => {
                 const key = `${s.cpf}-${ci.name}`;
                 if (!seen.has(key)) {
-                    itemsList.push({ name: ci.name, supplierName: s.name, supplierCpf: s.cpf });
+                    // Tenta buscar o nickname do mapeamento de itens de aquisição
+                    // Nota: Precisa garantir que o nickname esteja disponível, caso contrário usa o nome
+                    const displayName = ci.nickname ? `${ci.nickname} (${ci.name})` : ci.name;
+                    itemsList.push({ name: ci.name, displayName, supplierName: s.name, supplierCpf: s.cpf });
                     seen.add(key);
                 }
             });
@@ -439,11 +442,11 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                     {!selectedSupplierCpf ? (
                                         (availableItems as any[]).map((it, idx) => (
                                             <option key={`${it.name}-${it.supplierCpf}-${idx}`} value={`${it.name}|${it.supplierCpf}`}>
-                                                {it.name} ({it.supplierName})
+                                                {it.displayName || it.name} ({it.supplierName})
                                             </option>
                                         ))
                                     ) : (
-                                        (availableItems as any[]).map(ci => <option key={ci.name} value={ci.name}>{ci.name}</option>)
+                                        (availableItems as any[]).map(ci => <option key={ci.name} value={ci.name}>{ci.displayName || ci.name}</option>)
                                     )}
                                 </select>
                             </div>

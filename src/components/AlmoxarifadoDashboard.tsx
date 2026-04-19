@@ -498,6 +498,15 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mt-1">Controle de Dados Finanças 2026</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    {typeof navigator !== 'undefined' && !navigator.onLine && (
+                        <div className="flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm italic">
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                            </span>
+                            Modo Offline
+                        </div>
+                    )}
                     <div className="flex bg-gray-100 p-1 rounded-xl">
                         <button onClick={() => setActiveTab('entry')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'entry' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Entrada de Materiais</button>
                         <button onClick={() => setActiveTab('exit')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'exit' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Saída de Materiais</button>
