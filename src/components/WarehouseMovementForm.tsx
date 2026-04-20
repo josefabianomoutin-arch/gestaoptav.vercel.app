@@ -58,6 +58,78 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     }[]>([]);
     
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [nfSearchTerm, setNfSearchTerm] = useState('');
+
+    const registeredInvoicesWithStock = useMemo(() => {
+        if (manualType !== 'saída') return [];
+        
+        // Entradas agrupadas por NF, Fornecedor e Item
+        const stockMap: { [key: string]: { 
+            nfNumber: string, 
+            supplierName: string, 
+            itemName: string, 
+            totalIn: number, 
+            totalOut: number,
+            lot: string,
+            exp: string
+        } } = {};
+
+        warehouseLog.forEach(log => {
+            const key = `${log.invoiceNumber || log.inboundInvoice}|${log.supplierName}|${log.itemName}`;
+            if (!stockMap[key]) {
+                stockMap[key] = { 
+                    nfNumber: log.invoiceNumber || log.inboundInvoice || '', 
+                    supplierName: log.supplierName, 
+                    itemName: log.itemName, 
+                    totalIn: 0, 
+                    totalOut: 0,
+                    lot: log.lotNumber || '',
+                    exp: log.expirationDate || ''
+                };
+            }
+            if (log.type === 'entrada') {
+                stockMap[key].totalIn += log.quantity;
+                if (log.lotNumber) stockMap[key].lot = log.lotNumber;
+                if (log.expirationDate) stockMap[key].exp = log.expirationDate;
+            } else {
+                stockMap[key].totalOut += log.quantity;
+            }
+        });
+
+        return Object.values(stockMap)
+            .filter(s => (s.totalIn - s.totalOut) > 0.001)
+            .map(s => ({
+                ...s,
+                balance: s.totalIn - s.totalOut
+            }))
+            .sort((a, b) => a.nfNumber.localeCompare(b.nfNumber));
+    }, [warehouseLog, manualType]);
+
+    const filteredNfSearch = useMemo(() => {
+        if (!nfSearchTerm) return [];
+        const term = nfSearchTerm.toLowerCase();
+        return registeredInvoicesWithStock.filter(nf => 
+            nf.nfNumber.toLowerCase().includes(term) || 
+            nf.supplierName.toLowerCase().includes(term) ||
+            nf.itemName.toLowerCase().includes(term)
+        ).slice(0, 5); // Limita a 5 resultados para o dropdown
+    }, [registeredInvoicesWithStock, nfSearchTerm]);
+
+    const handleSelectSearchedNf = (nf: any) => {
+        const supplier = suppliers.find(s => s.name === nf.supplierName);
+        if (supplier) setSelectedSupplierCpf(supplier.cpf);
+        setSelectedItemName(nf.itemName);
+        setManualInboundNf({
+            number: nf.nfNumber,
+            availableQuantity: nf.balance,
+            lot: nf.lot,
+            exp: nf.exp
+        });
+        setManualLot(nf.lot);
+        setManualExp(nf.exp);
+        setNfSearchTerm(''); // Limpa a busca
+        toast.success(`NF ${nf.nfNumber} selecionada: ${nf.itemName}`);
+    };
 
     useEffect(() => {
         barcodeInputRef.current?.focus();
@@ -131,8 +203,20 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             }
         }
 
+        // Em modo saída, garante que itens com estoque apareçam mesmo que não estejam no contrato explicitamente
+        if (manualType === 'saída') {
+            registeredInvoicesWithStock.forEach(s => {
+                const key = `${s.supplierName}-${s.itemName}`;
+                const supplier = suppliers.find(sup => sup.name === s.supplierName);
+                if (!seen.has(key) && supplier) {
+                    itemsList.push({ name: s.itemName, displayName: `[EM ESTOQUE] ${s.itemName}`, supplierName: s.supplierName, supplierCpf: supplier.cpf });
+                    seen.add(key);
+                }
+            });
+        }
+
         return itemsList.sort((a, b) => a.name.localeCompare(b.name));
-    }, [selectedSupplier, manualType, suppliers, perCapitaConfig]);
+    }, [selectedSupplier, manualType, suppliers, perCapitaConfig, registeredInvoicesWithStock]);
 
     useEffect(() => {
         const barcode = manualBarcode.trim();
@@ -293,7 +377,25 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         setManualLot(item.lot);
         setManualExp(item.exp);
         setManualBarcode(item.barcode);
-        setManualInboundNf(item.inboundInvoice || '');
+        
+        if (item.inboundInvoice) {
+            const found = manualSupplierInvoices.find(nf => nf.number === item.inboundInvoice);
+            if (found) {
+                setManualInboundNf(found);
+            } else {
+                // Se não achou no memo filtered, busca no global se em modo saída
+                const globalFound = registeredInvoicesWithStock.find(nf => nf.nfNumber === item.inboundInvoice && nf.itemName === item.itemName);
+                if (globalFound) {
+                    setManualInboundNf({
+                        number: globalFound.nfNumber,
+                        availableQuantity: globalFound.balance,
+                        lot: globalFound.lot,
+                        exp: globalFound.exp
+                    });
+                }
+            }
+        }
+        
         setManualNl(item.nlNumber || '');
         setManualPd(item.pdNumber || '');
         setManualValue(item.value?.toString() || '');
@@ -473,6 +575,52 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                     </div>
                 </div>
 
+                {manualType === 'saída' && (
+                    <div className="bg-red-50/50 p-3 rounded-xl border border-red-100 space-y-2 relative animate-fade-in">
+                        <label className="text-[9px] font-black text-red-600 uppercase flex items-center gap-2 italic">
+                            <FileText className="h-3 w-3" /> 1. Buscar Nota Fiscal de Entrada (Saldo Disponível)
+                        </label>
+                        <div className="relative">
+                            <input 
+                                type="text" 
+                                value={nfSearchTerm}
+                                onChange={e => setNfSearchTerm(e.target.value)}
+                                placeholder="Digite o nº da NF, Fornecedor ou Nome do Item para buscar saldo..."
+                                className="w-full h-10 px-4 pr-10 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-red-100 transition-all text-xs"
+                            />
+                            {nfSearchTerm && (
+                                <button 
+                                    onClick={() => setNfSearchTerm('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
+                        </div>
+
+                        {filteredNfSearch.length > 0 && (
+                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-gray-50">
+                                {filteredNfSearch.map((nf, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => handleSelectSearchedNf(nf)}
+                                        className="w-full p-4 hover:bg-red-50 text-left transition-all flex justify-between items-center group"
+                                    >
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black text-gray-900 leading-none group-hover:text-red-700 uppercase">NF {nf.nfNumber} • {nf.itemName}</span>
+                                            <span className="text-[8px] font-bold text-gray-400 mt-1 uppercase">{nf.supplierName}</span>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-xs font-black text-red-600 italic tracking-tighter">{nf.balance.toFixed(2)} DISP.</span>
+                                            <span className="text-[8px] font-black text-gray-300 uppercase">Lote: {nf.lot || '-'}</span>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4 shadow-sm italic">
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                          <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -568,7 +716,18 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                         </div>
 
                         <div className="md:col-span-2 space-y-0.5">
-                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Quantidade</label>
+                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1 flex justify-between items-center">
+                                <span>Quantidade</span>
+                                {manualInboundNf && (
+                                    <button 
+                                        onClick={() => setManualQuantity(manualInboundNf.availableQuantity.toString().replace('.', ','))}
+                                        className="text-indigo-600 hover:underline px-1 rounded hover:bg-indigo-50"
+                                        title="Baixa Total"
+                                    >
+                                        Baixar Total
+                                    </button>
+                                )}
+                            </label>
                             <input 
                                 type="text" 
                                 value={manualQuantity} 

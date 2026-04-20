@@ -718,60 +718,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     />
                 ) : activeTab === 'receipt' ? (
                     <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in">
-                        {/* Termo render logic */}
-                    </div>
-                ) : null}
-                ) : activeTab === 'sync' ? (
-                    <SynchronizationModule onSyncWithFirebase={async (data) => {
-                        for (const entry of data) {
-                            const res = entry.type === 'entrada' ? await onRegisterEntry(entry) : await onRegisterWithdrawal(entry);
-                            if (!res.success) throw new Error(res.message);
-                        }
-                        return true;
-                    }} />
-                ) : activeTab === 'exit' ? (
-                    <div className="space-y-8">
-                        <WarehouseMovementForm 
-                            suppliers={suppliers} 
-                            warehouseLog={warehouseLog} 
-                            onRegisterEntry={async (p) => { return { success: false, message: 'Not allowed here' } }}
-                            onRegisterWithdrawal={onRegisterWithdrawal}
-                            initialMode="saída"
-                            perCapitaConfig={perCapitaConfig}
-                        />
-
-                        {onDeleteWarehouseEntry && onUpdateWarehouseEntry && (
-                            <div className="border-t border-gray-100 pt-8">
-                                <AdminWarehouseLog 
-                                    warehouseLog={warehouseLog.filter(l => l.type === 'saída')}
-                                    suppliers={suppliers}
-                                    onDeleteEntry={onDeleteWarehouseEntry}
-                                    onUpdateWarehouseEntry={onUpdateWarehouseEntry}
-                                    onRegisterEntry={onRegisterEntry}
-                                    onRegisterWithdrawal={onRegisterWithdrawal}
-                                />
-                            </div>
-                        )}
-                    </div>
-                ) : activeTab === 'history' ? (
-                    <div className="space-y-6">
-                         <AdminWarehouseLog 
-                            warehouseLog={warehouseLog}
-                            suppliers={suppliers}
-                            onDeleteEntry={onDeleteWarehouseEntry!}
-                            onUpdateWarehouseEntry={onUpdateWarehouseEntry!}
-                            onRegisterEntry={onRegisterEntry}
-                            onRegisterWithdrawal={onRegisterWithdrawal}
-                        />
-                    </div>
-                ) : activeTab === 'agenda' ? (
-                    <AgendaChegadas 
-                        suppliers={suppliers} 
-                        thirdPartyEntries={thirdPartyEntries} 
-                        embedded={true} 
-                    />
-                ) : (
-                    <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in">
                         <div className="p-6 md:p-8 border-b border-gray-100 bg-gradient-to-r from-white to-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 rounded-2xl bg-teal-100 text-teal-600">
@@ -905,12 +851,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 </div>
                             </div>
                         ) : (
-                            <div className="py-20 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-                                <p className="text-gray-400 font-bold uppercase tracking-widest">Selecione um fornecedor e uma nota fiscal para visualizar o termo.</p>
+                            <div className="py-20 text-center bg-gray-50/50 rounded-[2.5rem] border-2 border-dashed border-gray-200 m-8 mt-0">
+                                <p className="text-gray-400 font-black uppercase tracking-[0.2em] text-xs">Selecione um fornecedor e uma NF para visualizar o termo de recebimento</p>
                             </div>
-
-
-)
+                        )}
+                    </div>
+                ) : null}
             </main>
             <style>{`
                 .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
