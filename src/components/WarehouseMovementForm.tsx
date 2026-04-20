@@ -480,6 +480,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                             
                             {manualType === 'entrada' && (
                                 <>
+                                    {/* Campos de entrada visíveis apenas na entrada de estoque */}
                                     <div className="space-y-0.5">
                                         <label className="text-[8px] font-black text-rose-600 uppercase ml-1 italic">Nota de Lançamento (NL)</label>
                                         <input type="text" value={manualNl} onChange={e => setManualNl(e.target.value.toUpperCase())} placeholder="NL..." className="w-full h-8 px-2 border border-rose-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-rose-100 transition-all text-[9px] shadow-xs uppercase italic" />
