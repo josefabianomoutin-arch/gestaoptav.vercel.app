@@ -7,18 +7,18 @@ interface SynchronizationModuleProps {
 }
 
 const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWithFirebase }) => {
-    const [pendingEntries, setPendingEntries] = useState<any[]>([]);
+    const [pendingEntries, setPendingEntries] = useState<any[]>(() => {
+        const saved = localStorage.getItem('offline_warehouse_entries');
+        return saved ? JSON.parse(saved) : [];
+    });
     const [isProcessing, setIsProcessing] = useState(false);
 
-    const [networkPath, setNetworkPath] = useState(localStorage.getItem('warehouse_network_path') || '');
+    const [networkPath, setNetworkPath] = useState(() => 
+        localStorage.getItem('warehouse_network_path') || ''
+    );
 
     useEffect(() => {
-        const saved = localStorage.getItem('offline_warehouse_entries');
-        if (saved) {
-            setPendingEntries(JSON.parse(saved));
-        }
-        const savedPath = localStorage.getItem('warehouse_network_path');
-        if (savedPath) setNetworkPath(savedPath);
+        // No longer need to load from localStorage here as it's done in lazy initializers
     }, []);
 
     const savePath = () => {

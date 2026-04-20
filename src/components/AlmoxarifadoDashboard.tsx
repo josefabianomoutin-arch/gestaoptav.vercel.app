@@ -631,6 +631,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 {activeTab === 'entry' ? (
                     <div className="space-y-8">
                         <WarehouseMovementForm 
+                            key="warehouse-entry"
                             suppliers={suppliers} 
                             warehouseLog={warehouseLog} 
                             onRegisterEntry={onRegisterEntry}
@@ -678,9 +679,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 ) : activeTab === 'exit' ? (
                     <div className="space-y-8">
                         <WarehouseMovementForm 
+                            key="warehouse-exit"
                             suppliers={suppliers} 
                             warehouseLog={warehouseLog} 
-                            onRegisterEntry={async (p) => { return { success: false, message: 'Not allowed here' } }}
+                            onRegisterEntry={async (_) => { return { success: false, message: 'Not allowed here' } }}
                             onRegisterWithdrawal={onRegisterWithdrawal}
                             initialMode="saída"
                             perCapitaConfig={perCapitaConfig}

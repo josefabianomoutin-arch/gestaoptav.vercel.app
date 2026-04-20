@@ -291,6 +291,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             exp: manualExp,
             barcode: manualBarcode || Math.random().toString(36).substr(2, 9).toUpperCase(),
             inboundInvoice: manualInboundNf?.number,
+            availableBefore: manualInboundNf?.availableQuantity || 0,
             nlNumber: manualNl,
             pdNumber: manualPd,
             value: parseFloat(manualValue.replace(',', '.')) || 0,
@@ -314,6 +315,8 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
+        const balanceAfter = item.availableBefore ? (item.availableBefore - item.quantity) : null;
+
         const htmlContent = `
             <html>
             <head>
@@ -335,16 +338,20 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                     .info strong { font-weight: 900; text-transform: uppercase; margin-right: 1mm; }
                     .barcode-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
                     .barcode-svg { max-width: 90%; height: 14mm !important; }
+                    .balance-box { border: 0.5mm solid #000; padding: 1mm; margin-top: 1mm; text-align: center; }
                 </style>
             </head>
             <body>
                 <div class="label-card">
                     <h1>${item.itemName}</h1>
-                    <h2>${selectedSupplier?.name || 'FORNECEDOR'}</h2>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <h2>${selectedSupplier?.name || 'FORNECEDOR'}</h2>
+                        ${balanceAfter !== null ? `<div class="balance-box"><strong>SALDO RESTANTE:</strong> ${balanceAfter.toFixed(2)} kg</div>` : ''}
+                    </div>
                     <div class="info">
                         <p><strong>LOTE:</strong> <span>${item.lot}</span></p>
-                        <p><strong>VAL:</strong> <span>${item.exp ? item.exp.split('-').reverse().join('/') : 'N/A'}</span> / <strong>ENT:</strong> <span>${manualDate.split('-').reverse().join('/')}</span></p>
-                        <p><strong>QTD:</strong> <span>${item.quantity.toFixed(2)} kg</span> / <strong>NF:</strong> <span>${manualNf || 'N/A'}</span></p>
+                        <p><strong>VAL:</strong> <span>${item.exp ? item.exp.split('-').reverse().join('/') : 'N/A'}</span> / <strong>SAÍDA:</strong> <span>${manualDate.split('-').reverse().join('/')}</span></p>
+                        <p><strong>RETIROU:</strong> <span>${item.quantity.toFixed(2)} kg</span> / <strong>ORIGEM NF:</strong> <span>${item.inboundInvoice || 'N/A'}</span></p>
                     </div>
                     <div class="barcode-container">
                         <svg id="barcode-item" class="barcode-svg"></svg>
@@ -538,223 +545,284 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                 </div>
             </div>
 
-            <div className="p-2 md:p-3 space-y-2">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-2 bg-gray-50/50 p-2 rounded-lg border border-gray-100">
-                    <div className="md:col-span-2 space-y-0.5">
-                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
-                            <FileText className="h-2 w-2" /> Fornecedor / Origem
-                        </label>
-                        <select 
-                            value={selectedSupplierCpf} 
-                            onChange={e => { setSelectedSupplierCpf(e.target.value); setSelectedItemName(''); setItems([]); }} 
-                            className="w-full h-9 px-3 border border-gray-100 rounded-lg bg-white shadow-xs font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] uppercase">
-                            <option value="">-- SELECIONE --</option>
-                            {suppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
-                        </select>
-                    </div>
-                    <div className="space-y-0.5">
-                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
-                            <Calendar className="h-2 w-2" /> Data
-                        </label>
-                        <input 
-                            type="date" 
-                            value={manualDate} 
-                            onChange={e => setManualDate(e.target.value)} 
-                            className="w-full h-9 px-3 border border-gray-100 rounded-lg bg-white shadow-xs font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px]" />
-                    </div>
-                    <div className="space-y-0.5">
-                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
-                            <Barcode className="h-2 w-2" /> Nº Documento / REQ
-                        </label>
-                        <input 
-                            type="text" 
-                            value={manualNf} 
-                            onChange={e => setManualNf(e.target.value)} 
-                            placeholder={manualType === 'entrada' ? "000.000" : "REQ-2026-X"} 
-                            className="w-full h-9 px-3 border border-gray-100 rounded-lg bg-white shadow-xs font-mono font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] placeholder:text-gray-300" />
-                    </div>
-                </div>
-
-                {manualType === 'saída' && (
-                    <div className="bg-red-50/50 p-3 rounded-xl border border-red-100 space-y-2 relative animate-fade-in">
-                        <label className="text-[9px] font-black text-red-600 uppercase flex items-center gap-2 italic">
-                            <FileText className="h-3 w-3" /> 1. Buscar Nota Fiscal de Entrada (Saldo Disponível)
-                        </label>
-                        <div className="relative">
+            <div className="p-2 md:p-3 space-y-4">
+                {manualType === 'entrada' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2 bg-gray-50/50 p-2 rounded-lg border border-gray-100">
+                        <div className="md:col-span-2 space-y-0.5">
+                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
+                                <FileText className="h-2 w-2" /> Fornecedor / Origem
+                            </label>
+                            <select 
+                                value={selectedSupplierCpf} 
+                                onChange={e => { setSelectedSupplierCpf(e.target.value); setSelectedItemName(''); setItems([]); }} 
+                                className="w-full h-9 px-3 border border-gray-100 rounded-lg bg-white shadow-xs font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] uppercase">
+                                <option value="">-- SELECIONE --</option>
+                                {suppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
+                            </select>
+                        </div>
+                        <div className="space-y-0.5">
+                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
+                                <Calendar className="h-2 w-2" /> Data
+                            </label>
+                            <input 
+                                type="date" 
+                                value={manualDate} 
+                                onChange={e => setManualDate(e.target.value)} 
+                                className="w-full h-9 px-3 border border-gray-100 rounded-lg bg-white shadow-xs font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px]" />
+                        </div>
+                        <div className="space-y-0.5">
+                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
+                                <Barcode className="h-2 w-2" /> Nº Documento / REQ
+                            </label>
                             <input 
                                 type="text" 
-                                value={nfSearchTerm}
-                                onChange={e => setNfSearchTerm(e.target.value)}
-                                placeholder="Digite o nº da NF, Fornecedor ou Nome do Item para buscar saldo..."
-                                className="w-full h-10 px-4 pr-10 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-red-100 transition-all text-xs"
-                            />
-                            {nfSearchTerm && (
-                                <button 
-                                    onClick={() => setNfSearchTerm('')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                >
-                                    <X className="h-4 w-4" />
-                                </button>
+                                value={manualNf} 
+                                onChange={e => setManualNf(e.target.value)} 
+                                placeholder="000.000" 
+                                className="w-full h-9 px-3 border border-gray-100 rounded-lg bg-white shadow-xs font-mono font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] placeholder:text-gray-300" />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <div className="bg-red-50/50 p-4 rounded-2xl border border-red-100 space-y-3 relative animate-fade-in shadow-sm">
+                            <div className="flex justify-between items-center">
+                                <label className="text-[10px] font-black text-red-600 uppercase flex items-center gap-2 italic">
+                                    <Barcode className="h-4 w-4" /> 1. BUSCAR PRODUTOR OU NOTA FISCAL
+                                </label>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex flex-col items-end">
+                                        <label className="text-[7px] font-black text-gray-400 uppercase">Data da Saída</label>
+                                        <input 
+                                            type="date" 
+                                            value={manualDate} 
+                                            onChange={e => setManualDate(e.target.value)} 
+                                            className="h-6 px-1 border-none bg-transparent font-black text-[10px] outline-none text-right text-red-600" />
+                                    </div>
+                                    <div className="flex flex-col items-end border-l pl-3 border-red-100">
+                                        <label className="text-[7px] font-black text-gray-400 uppercase">Nº REQ / Pedido</label>
+                                        <input 
+                                            type="text" 
+                                            value={manualNf} 
+                                            onChange={e => setManualNf(e.target.value)} 
+                                            placeholder="REQ..." 
+                                            className="h-6 px-1 border-none bg-transparent font-black text-[10px] outline-none text-right text-gray-900 placeholder:text-gray-300 uppercase" />
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="relative">
+                                <input 
+                                    type="text" 
+                                    value={nfSearchTerm}
+                                    onChange={e => setNfSearchTerm(e.target.value)}
+                                    placeholder="🔍 Digite Produtor ou Nº da Nota Fiscal para selecionar o saldo..."
+                                    className="w-full h-14 px-6 pr-12 border-2 border-red-100 rounded-2xl bg-white shadow-lg font-black outline-none focus:ring-4 focus:ring-red-200 transition-all text-sm placeholder:text-gray-300 italic"
+                                />
+                                {nfSearchTerm && (
+                                    <button 
+                                        onClick={() => setNfSearchTerm('')}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-600"
+                                    >
+                                        <X className="h-6 w-6" />
+                                    </button>
+                                )}
+                            </div>
+
+                            {filteredNfSearch.length > 0 && (
+                                <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-2xl z-[100] overflow-hidden divide-y divide-gray-100 animate-in fade-in zoom-in duration-200">
+                                    {filteredNfSearch.map((nf, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => handleSelectSearchedNf(nf)}
+                                            className="w-full p-4 hover:bg-red-50 text-left transition-all flex justify-between items-center group cursor-pointer"
+                                        >
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[12px] font-black text-gray-900 leading-none group-hover:text-red-700 uppercase tracking-tighter">NF {nf.nfNumber}</span>
+                                                    <span className="text-[12px] font-black text-red-600 italic tracking-tighter">• {nf.itemName}</span>
+                                                </div>
+                                                <span className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-tight">{nf.supplierName}</span>
+                                            </div>
+                                            <div className="flex flex-col items-end">
+                                                <span className="text-base font-black text-emerald-600 italic tracking-tighter pointer-events-none">{nf.balance.toFixed(2)} KG DISP.</span>
+                                                <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">Lote: {nf.lot || '-'}</span>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
                             )}
                         </div>
-
-                        {filteredNfSearch.length > 0 && (
-                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-gray-50">
-                                {filteredNfSearch.map((nf, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => handleSelectSearchedNf(nf)}
-                                        className="w-full p-4 hover:bg-red-50 text-left transition-all flex justify-between items-center group"
-                                    >
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-black text-gray-900 leading-none group-hover:text-red-700 uppercase">NF {nf.nfNumber} • {nf.itemName}</span>
-                                            <span className="text-[8px] font-bold text-gray-400 mt-1 uppercase">{nf.supplierName}</span>
-                                        </div>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-xs font-black text-red-600 italic tracking-tighter">{nf.balance.toFixed(2)} DISP.</span>
-                                            <span className="text-[8px] font-black text-gray-300 uppercase">Lote: {nf.lot || '-'}</span>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
                     </div>
                 )}
 
                 <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4 shadow-sm italic">
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                         <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div className="md:col-span-2 space-y-0.5">
-                                <label className="text-[8px] font-black text-indigo-600 uppercase ml-1 italic">Produto do Contrato</label>
-                                <select 
-                                    value={selectedItemName} 
-                                    onChange={e => {
-                                        const val = e.target.value;
-                                        if (!selectedSupplierCpf) {
-                                            const [itemName, supplierCpf] = val.split('|');
-                                            setSelectedSupplierCpf(supplierCpf);
-                                            setSelectedItemName(itemName);
-                                        } else {
-                                            setSelectedItemName(val);
-                                        }
-                                    }} 
-                                    className="w-full h-9 px-3 border border-indigo-50 rounded-lg bg-white font-black outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] disabled:opacity-50 shadow-xs uppercase italic" 
-                                    disabled={false}>
-                                    <option value="">-- BUSCAR PRODUTO (GERAL) --</option>
-                                    {!selectedSupplierCpf ? (
-                                        (availableItems as any[]).map((it, idx) => (
-                                            <option key={`${it.name}-${it.supplierCpf}-${idx}`} value={`${it.name}|${it.supplierCpf}`}>
-                                                {it.displayName || it.name} ({it.supplierName})
-                                            </option>
-                                        ))
-                                    ) : (
-                                        (availableItems as any[]).map(ci => <option key={ci.name} value={ci.name}>{ci.displayName || ci.name}</option>)
-                                    )}
-                                </select>
+                    {manualType === 'saída' && manualInboundNf ? (
+                        /* BRANCH 1: Saída simplificada com item selecionado */
+                        <div className="bg-indigo-50/50 p-5 rounded-2xl border-2 border-indigo-100 animate-in slide-in-from-top-4 shadow-inner">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-white rounded-2xl shadow-md border border-indigo-100">
+                                        <Package className="h-6 w-6 text-indigo-600" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-black text-gray-900 uppercase italic leading-none">{selectedItemName}</h3>
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase mt-1 tracking-tight">
+                                            NF ORIGEM: {manualInboundNf.number} • PRODUTOR: {selectedSupplier?.name}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-8">
+                                    <div className="text-right">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">SALDO EM ESTOQUE</p>
+                                        <p className="text-xl font-black text-emerald-600 italic leading-none">{manualInboundNf.availableQuantity.toFixed(2)} kg</p>
+                                    </div>
+                                    
+                                    <div className="w-px h-12 bg-indigo-200 hidden md:block"></div>
+
+                                    <div className="space-y-1.5">
+                                        <div className="flex justify-between items-center px-1">
+                                            <label className="text-[9px] font-black text-indigo-600 uppercase italic">PESO DA SAÍDA (KG)</label>
+                                            <button 
+                                                type="button"
+                                                onClick={() => setManualQuantity(manualInboundNf.availableQuantity.toFixed(2).replace('.', ','))}
+                                                className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 hover:bg-amber-100 transition-all shadow-sm"
+                                            >
+                                                BAIXAR TUDO
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="relative">
+                                                <input 
+                                                    type="text" 
+                                                    autoFocus
+                                                    value={manualQuantity} 
+                                                    onChange={e => setManualQuantity(e.target.value.replace(/[^0-9,.]/g, ''))} 
+                                                    placeholder="0,00" 
+                                                    className="w-32 h-12 px-4 border-2 border-indigo-600 rounded-2xl bg-gray-900 text-white font-black text-center text-lg outline-none shadow-xl focus:ring-4 focus:ring-indigo-100 transition-all font-mono" 
+                                                />
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                onClick={handleAddItem}
+                                                disabled={!manualQuantity || parseFloat(manualQuantity.replace(',', '.')) <= 0}
+                                                className="h-12 px-8 rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl transition-all active:scale-95 disabled:bg-gray-200 disabled:text-gray-400 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2"
+                                            >
+                                                <Plus className="h-5 w-5" /> LANÇAR BAIXA
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <button 
+                                        onClick={() => { setManualInboundNf(null); setSelectedItemName(''); setSelectedSupplierCpf(''); setNfSearchTerm(''); }}
+                                        className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all border border-transparent hover:border-red-100"
+                                        title="Trocar Nota/Produto"
+                                    >
+                                        <X className="h-6 w-6" />
+                                    </button>
+                                </div>
                             </div>
-                            
-                            {manualType === 'entrada' && (
-                                <>
-                                    {/* Campos de entrada visíveis apenas na entrada de estoque */}
-                                    <div className="space-y-0.5">
-                                        <label className="text-[8px] font-black text-rose-600 uppercase ml-1 italic">Nota de Lançamento (NL)</label>
-                                        <input type="text" value={manualNl} onChange={e => setManualNl(e.target.value.toUpperCase())} placeholder="NL..." className="w-full h-8 px-2 border border-rose-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-rose-100 transition-all text-[9px] shadow-xs uppercase italic" />
-                                    </div>
-
-                                    <div className="space-y-0.5">
-                                        <label className="text-[8px] font-black text-rose-600 uppercase ml-1 italic">Parecer de Despesa (PD)</label>
-                                        <input type="text" value={manualPd} onChange={e => setManualPd(e.target.value.toUpperCase())} placeholder="PD..." className="w-full h-8 px-2 border border-rose-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-rose-100 transition-all text-[9px] shadow-xs uppercase italic" />
-                                    </div>
-
-                                    <div className="space-y-0.5">
-                                        <label className="text-[8px] font-black text-emerald-600 uppercase ml-1 italic">Valor Total/Unit.</label>
-                                        <input type="text" value={manualValue} onChange={e => setManualValue(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="R$ 0,00" className="w-full h-8 px-2 border border-emerald-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-emerald-100 transition-all text-[9px] shadow-xs font-mono" />
-                                    </div>
-
-                                    <div className="space-y-0.5">
-                                        <label className="text-[8px] font-black text-amber-600 uppercase ml-1 italic">Peso Bruto</label>
-                                        <input type="text" value={manualWeight} onChange={e => setManualWeight(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="0,00 kg" className="w-full h-8 px-2 border border-amber-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-amber-100 transition-all text-[9px] shadow-xs font-mono" />
-                                    </div>
-                                </>
-                            )}
-                            
-                            {manualType === 'saída' && (
-                                <div className="space-y-0.5 animate-fade-in">
-                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">NF Origem (Disponível)</label>
+                        </div>
+                    ) : manualType === 'saída' ? (
+                        /* BRANCH 2: Saída aguardando busca */
+                        <div className="py-12 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                             <Package className="h-8 w-8 text-gray-300 mx-auto mb-3" />
+                             <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">Use a busca acima para encontrar o produtor e a nota fiscal com saldo</p>
+                        </div>
+                    ) : (
+                        /* BRANCH 3: Entrada (manualType === 'entrada') */
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                             <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div className="md:col-span-2 space-y-0.5">
+                                    <label className="text-[8px] font-black text-indigo-600 uppercase ml-1 italic">Produto</label>
                                     <select 
-                                        value={manualInboundNf ? manualInboundNf.number : ''} 
+                                        value={selectedItemName} 
                                         onChange={e => {
-                                            const selected = manualSupplierInvoices.find(nf => nf.number === e.target.value);
-                                            setManualInboundNf(selected || null);
-                                            if (selected) {
-                                                setManualLot(selected.lot);
-                                                setManualExp(selected.exp);
+                                            const val = e.target.value;
+                                            if (!selectedSupplierCpf) {
+                                                const [itemName, supplierCpf] = val.split('|');
+                                                setSelectedSupplierCpf(supplierCpf);
+                                                setSelectedItemName(itemName);
+                                            } else {
+                                                setSelectedItemName(val);
                                             }
                                         }} 
-                                        className="w-full h-9 px-3 border border-gray-100 rounded-lg bg-white shadow-xs font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] disabled:opacity-50 uppercase"
-                                        disabled={!selectedSupplierCpf}>
-                                        <option value="">-- SELECIONE NF --</option>
-                                        {manualSupplierInvoices.map(nf => 
-                                            <option key={nf.number} value={nf.number}>
-                                                NF {nf.number} (Disp: {nf.availableQuantity.toFixed(2)})
-                                            </option>
+                                        className="w-full h-9 px-3 border border-indigo-50 rounded-lg bg-white font-black outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] disabled:opacity-50 shadow-xs uppercase italic" 
+                                    >
+                                        <option value="">-- BUSCAR PRODUTO (GERAL) --</option>
+                                        {!selectedSupplierCpf ? (
+                                            (availableItems as any[]).map((it, idx) => (
+                                                <option key={`${it.name}-${it.supplierCpf}-${idx}`} value={`${it.name}|${it.supplierCpf}`}>
+                                                    {it.displayName || it.name} ({it.supplierName})
+                                                </option>
+                                            ))
+                                        ) : (
+                                            (availableItems as any[]).map(ci => <option key={ci.name} value={ci.name}>{ci.displayName || ci.name}</option>)
                                         )}
                                     </select>
                                 </div>
-                            )}
-                        </div>
+                                
+                                <div className="space-y-0.5">
+                                    <label className="text-[8px] font-black text-rose-600 uppercase ml-1 italic">Nota de Lançamento (NL)</label>
+                                    <input type="text" value={manualNl} onChange={e => setManualNl(e.target.value.toUpperCase())} placeholder="NL..." className="w-full h-8 px-2 border border-rose-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-rose-100 transition-all text-[9px] shadow-xs uppercase italic" />
+                                </div>
 
-                        <div className="md:col-span-4 space-y-0.5">
-                            <label className="text-[8px] font-black text-blue-600 uppercase ml-1">Cód. Barras</label>
-                            <input 
-                                ref={barcodeInputRef} 
-                                type="text" 
-                                value={manualBarcode} 
-                                onChange={e => setManualBarcode(e.target.value)} 
-                                placeholder="Bipar..." 
-                                className="w-full h-9 px-3 border border-blue-100 rounded-lg bg-white font-mono font-bold focus:ring-2 focus:ring-blue-50 outline-none text-[10px] placeholder:text-blue-200 transition-all shadow-xs" />
-                        </div>
+                                <div className="space-y-0.5">
+                                    <label className="text-[8px] font-black text-rose-600 uppercase ml-1 italic">Parecer de Despesa (PD)</label>
+                                    <input type="text" value={manualPd} onChange={e => setManualPd(e.target.value.toUpperCase())} placeholder="PD..." className="w-full h-8 px-2 border border-rose-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-rose-100 transition-all text-[9px] shadow-xs uppercase italic" />
+                                </div>
 
-                        <div className="md:col-span-2 space-y-0.5">
-                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1 flex justify-between items-center">
-                                <span>Quantidade</span>
-                                {manualInboundNf && (
-                                    <button 
-                                        onClick={() => setManualQuantity(manualInboundNf.availableQuantity.toString().replace('.', ','))}
-                                        className="text-indigo-600 hover:underline px-1 rounded hover:bg-indigo-50"
-                                        title="Baixa Total"
-                                    >
-                                        Baixar Total
-                                    </button>
-                                )}
-                            </label>
-                            <input 
-                                type="text" 
-                                value={manualQuantity} 
-                                onChange={e => setManualQuantity(e.target.value.replace(/[^0-9,.]/g, ''))} 
-                                placeholder="0,00" 
-                                className="w-full h-9 px-3 border border-gray-900 rounded-lg bg-gray-900 text-white font-black text-center text-sm outline-none shadow-sm font-mono" 
-                            />
-                        </div>
+                                <div className="space-y-0.5">
+                                    <label className="text-[8px] font-black text-emerald-600 uppercase ml-1 italic">Valor Total/Unit.</label>
+                                    <input type="text" value={manualValue} onChange={e => setManualValue(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="R$ 0,00" className="w-full h-8 px-2 border border-emerald-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-emerald-100 transition-all text-[9px] shadow-xs font-mono" />
+                                </div>
 
-                        <div className="md:col-span-3 space-y-0.5">
-                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Lote / Validade</label>
-                            <div className="grid grid-cols-2 gap-1">
-                                <input type="text" value={manualLot} onChange={e => setManualLot(e.target.value.toUpperCase())} placeholder="LOTE" className="w-full h-9 px-2 border border-gray-100 rounded-lg bg-white font-mono font-bold outline-none text-[9px]" />
-                                <input type="date" value={manualExp} onChange={e => setManualExp(e.target.value)} className="w-full h-9 px-1 border border-gray-100 rounded-lg bg-white font-bold outline-none text-[9px]" />
+                                <div className="space-y-0.5">
+                                    <label className="text-[8px] font-black text-amber-600 uppercase ml-1 italic">Peso Bruto</label>
+                                    <input type="text" value={manualWeight} onChange={e => setManualWeight(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="0,00 kg" className="w-full h-8 px-2 border border-amber-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-amber-100 transition-all text-[9px] shadow-xs font-mono" />
+                                </div>
+                            </div>
+
+                            <div className="md:col-span-4 space-y-0.5">
+                                <label className="text-[8px] font-black text-blue-600 uppercase ml-1">Cód. Barras</label>
+                                <input 
+                                    ref={barcodeInputRef} 
+                                    type="text" 
+                                    value={manualBarcode} 
+                                    onChange={e => setManualBarcode(e.target.value)} 
+                                    placeholder="Bipar..." 
+                                    className="w-full h-9 px-3 border border-blue-100 rounded-lg bg-white font-mono font-bold focus:ring-2 focus:ring-blue-50 outline-none text-[10px] placeholder:text-blue-200 transition-all shadow-xs" />
+                            </div>
+
+                            <div className="md:col-span-2 space-y-0.5">
+                                <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Quantidade</label>
+                                <input 
+                                    type="text" 
+                                    value={manualQuantity} 
+                                    onChange={e => setManualQuantity(e.target.value.replace(/[^0-9,.]/g, ''))} 
+                                    placeholder="0,00" 
+                                    className="w-full h-9 px-3 border border-gray-900 rounded-lg bg-gray-900 text-white font-black text-center text-sm outline-none shadow-sm font-mono" 
+                                />
+                            </div>
+
+                            <div className="md:col-span-3 space-y-0.5">
+                                <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Lote / Validade</label>
+                                <div className="grid grid-cols-2 gap-1">
+                                    <input type="text" value={manualLot} onChange={e => setManualLot(e.target.value.toUpperCase())} placeholder="LOTE" className="w-full h-9 px-2 border border-gray-100 rounded-lg bg-white font-mono font-bold outline-none text-[9px]" />
+                                    <input type="date" value={manualExp} onChange={e => setManualExp(e.target.value)} className="w-full h-9 px-1 border border-gray-100 rounded-lg bg-white font-bold outline-none text-[9px]" />
+                                </div>
+                            </div>
+
+                            <div className="md:col-span-3">
+                                <button 
+                                    type="button" 
+                                    onClick={handleAddItem}
+                                    disabled={!selectedItemName || !manualQuantity}
+                                    className="w-full h-9 rounded-lg font-black uppercase text-[9px] tracking-tight shadow-sm transition-all active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-1.5">
+                                    <Plus className="h-3 w-3" /> Adicionar Item
+                                </button>
                             </div>
                         </div>
-
-                        <div className="md:col-span-3">
-                            <button 
-                                type="button" 
-                                onClick={handleAddItem}
-                                disabled={!selectedItemName || !manualQuantity}
-                                className="w-full h-9 rounded-lg font-black uppercase text-[9px] tracking-tight shadow-sm transition-all active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-1.5">
-                                <Plus className="h-3 w-3" /> Adicionar Item
-                            </button>
-                        </div>
-                    </div>
+                    )}
 
                     {items.length > 0 && (
                         <div className="pt-2 border-t border-gray-50">
