@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
-import type { Supplier, WarehouseMovement, ContractItem, ThirdPartyEntryLog, VehicleAsset, DriverAsset } from '../types';
+import type { Supplier, WarehouseMovement, ThirdPartyEntryLog } from '../types';
 import AdminInvoices from './AdminInvoices';
 import AgendaChegadas from './AgendaChegadas';
 import WarehouseMovementForm from './WarehouseMovementForm';
@@ -71,7 +71,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     thirdPartyEntries,
     perCapitaConfig
 }) => {
-    const [activeTab, setActiveTab] = useState<string>('entry');
+    const [activeTab, setActiveTab] = useState<string>('history');
     const [selectedAgendaDate, setSelectedAgendaDate] = useState(new Date().toISOString().split('T')[0]);
     const [receiptSupplierCpf, setReceiptSupplierCpf] = useState('');
     const [receiptInvoice, setReceiptInvoice] = useState('');
@@ -616,9 +616,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         </div>
                     )}
                     <div className="flex bg-gray-100 p-1 rounded-xl">
-                        <button onClick={() => setActiveTab('entry')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'entry' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Entrada de Materiais</button>
-                        <button onClick={() => setActiveTab('exit')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'exit' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Saída de Materiais</button>
                         <button onClick={() => setActiveTab('history')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'history' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Histórico Geral</button>
+                        <button onClick={() => setActiveTab('exit')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'exit' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Saída de Materiais</button>
                         <button onClick={() => setActiveTab('agenda')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'agenda' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Agenda</button>
                         <button onClick={() => setActiveTab('receipt')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'receipt' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Termo</button>
                         <button onClick={() => setActiveTab('sync')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'sync' ? 'bg-white text-amber-600 shadow-sm' : 'text-amber-500'}`}>Sincronização</button>
@@ -628,10 +627,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             </header>
 
             <main className="p-4 md:p-8 max-w-6xl mx-auto space-y-8">
-                {activeTab === 'entry' ? (
+                {activeTab === 'history' ? (
                     <div className="space-y-8">
                         <WarehouseMovementForm 
-                            key="warehouse-entry"
+                            key="warehouse-history-entry"
                             suppliers={suppliers} 
                             warehouseLog={warehouseLog} 
                             onRegisterEntry={onRegisterEntry}
@@ -640,18 +639,16 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             perCapitaConfig={perCapitaConfig}
                         />
 
-                        {onDeleteWarehouseEntry && onUpdateWarehouseEntry && (
-                            <div className="border-t border-gray-100 pt-8">
-                                <AdminWarehouseLog 
-                                    warehouseLog={warehouseLog.filter(l => l.type === 'entrada')}
-                                    suppliers={suppliers}
-                                    onDeleteEntry={onDeleteWarehouseEntry}
-                                    onUpdateWarehouseEntry={onUpdateWarehouseEntry}
-                                    onRegisterEntry={onRegisterEntry}
-                                    onRegisterWithdrawal={onRegisterWithdrawal}
-                                />
-                            </div>
-                        )}
+                        <div className="border-t border-gray-100 pt-8">
+                            <AdminWarehouseLog 
+                                warehouseLog={warehouseLog}
+                                suppliers={suppliers}
+                                onDeleteEntry={onDeleteWarehouseEntry!}
+                                onUpdateWarehouseEntry={onUpdateWarehouseEntry!}
+                                onRegisterEntry={onRegisterEntry}
+                                onRegisterWithdrawal={onRegisterWithdrawal}
+                            />
+                        </div>
 
                         <div className="border-t border-gray-100 pt-8">
                             <AdminInvoices 
@@ -700,17 +697,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 />
                             </div>
                         )}
-                    </div>
-                ) : activeTab === 'history' ? (
-                    <div className="space-y-6">
-                         <AdminWarehouseLog 
-                            warehouseLog={warehouseLog}
-                            suppliers={suppliers}
-                            onDeleteEntry={onDeleteWarehouseEntry!}
-                            onUpdateWarehouseEntry={onUpdateWarehouseEntry!}
-                            onRegisterEntry={onRegisterEntry}
-                            onRegisterWithdrawal={onRegisterWithdrawal}
-                        />
                     </div>
                 ) : activeTab === 'agenda' ? (
                     <AgendaChegadas 
