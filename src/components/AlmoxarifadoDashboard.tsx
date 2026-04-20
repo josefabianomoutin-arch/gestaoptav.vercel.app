@@ -592,14 +592,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             </div>
                         )}
                     </div>
-                ) : activeTab === 'sync' ? (
-                    <SynchronizationModule onSyncWithFirebase={async (data) => {
-                        for (const entry of data) {
-                            const res = entry.type === 'entrada' ? await onRegisterEntry(entry) : await onRegisterWithdrawal(entry);
-                            if (!res.success) throw new Error(res.message);
-                        }
-                        return true;
-                    }} />
                 ) : activeTab === 'history' ? (
                     <div className="space-y-6">
                          <AdminWarehouseLog 
