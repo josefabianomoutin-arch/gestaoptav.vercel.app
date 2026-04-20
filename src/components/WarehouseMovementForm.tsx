@@ -409,8 +409,8 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                 </div>
             </div>
 
-            <div className="p-4 md:p-5 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+            <div className="p-2 md:p-3 space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-2 bg-gray-50/50 p-2 rounded-lg border border-gray-100">
                     <div className="md:col-span-2 space-y-0.5">
                         <label className="text-[8px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
                             <FileText className="h-2 w-2" /> Fornecedor / Origem
@@ -478,25 +478,29 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                 </select>
                             </div>
                             
-                            <div className="space-y-0.5">
-                                <label className="text-[8px] font-black text-rose-600 uppercase ml-1 italic">Nota de Lançamento (NL)</label>
-                                <input type="text" value={manualNl} onChange={e => setManualNl(e.target.value.toUpperCase())} placeholder="NL..." className="w-full h-9 px-3 border border-rose-50 rounded-lg bg-white font-bold outline-none focus:ring-2 focus:ring-rose-100 transition-all text-[10px] shadow-xs uppercase italic" />
-                            </div>
+                            {manualType === 'entrada' && (
+                                <>
+                                    <div className="space-y-0.5">
+                                        <label className="text-[8px] font-black text-rose-600 uppercase ml-1 italic">Nota de Lançamento (NL)</label>
+                                        <input type="text" value={manualNl} onChange={e => setManualNl(e.target.value.toUpperCase())} placeholder="NL..." className="w-full h-8 px-2 border border-rose-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-rose-100 transition-all text-[9px] shadow-xs uppercase italic" />
+                                    </div>
 
-                            <div className="space-y-0.5">
-                                <label className="text-[8px] font-black text-rose-600 uppercase ml-1 italic">Parecer de Despesa (PD)</label>
-                                <input type="text" value={manualPd} onChange={e => setManualPd(e.target.value.toUpperCase())} placeholder="PD..." className="w-full h-9 px-3 border border-rose-50 rounded-lg bg-white font-bold outline-none focus:ring-2 focus:ring-rose-100 transition-all text-[10px] shadow-xs uppercase italic" />
-                            </div>
+                                    <div className="space-y-0.5">
+                                        <label className="text-[8px] font-black text-rose-600 uppercase ml-1 italic">Parecer de Despesa (PD)</label>
+                                        <input type="text" value={manualPd} onChange={e => setManualPd(e.target.value.toUpperCase())} placeholder="PD..." className="w-full h-8 px-2 border border-rose-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-rose-100 transition-all text-[9px] shadow-xs uppercase italic" />
+                                    </div>
 
-                            <div className="space-y-0.5">
-                                <label className="text-[8px] font-black text-emerald-600 uppercase ml-1 italic">Valor Total/Unit.</label>
-                                <input type="text" value={manualValue} onChange={e => setManualValue(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="R$ 0,00" className="w-full h-9 px-3 border border-emerald-50 rounded-lg bg-white font-bold outline-none focus:ring-2 focus:ring-emerald-100 transition-all text-[10px] shadow-xs font-mono" />
-                            </div>
+                                    <div className="space-y-0.5">
+                                        <label className="text-[8px] font-black text-emerald-600 uppercase ml-1 italic">Valor Total/Unit.</label>
+                                        <input type="text" value={manualValue} onChange={e => setManualValue(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="R$ 0,00" className="w-full h-8 px-2 border border-emerald-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-emerald-100 transition-all text-[9px] shadow-xs font-mono" />
+                                    </div>
 
-                            <div className="space-y-0.5">
-                                <label className="text-[8px] font-black text-amber-600 uppercase ml-1 italic">Peso Bruto</label>
-                                <input type="text" value={manualWeight} onChange={e => setManualWeight(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="0,00 kg" className="w-full h-9 px-3 border border-amber-50 rounded-lg bg-white font-bold outline-none focus:ring-2 focus:ring-amber-100 transition-all text-[10px] shadow-xs font-mono" />
-                            </div>
+                                    <div className="space-y-0.5">
+                                        <label className="text-[8px] font-black text-amber-600 uppercase ml-1 italic">Peso Bruto</label>
+                                        <input type="text" value={manualWeight} onChange={e => setManualWeight(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="0,00 kg" className="w-full h-8 px-2 border border-amber-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-amber-100 transition-all text-[9px] shadow-xs font-mono" />
+                                    </div>
+                                </>
+                            )}
                             
                             {manualType === 'saída' && (
                                 <div className="space-y-0.5 animate-fade-in">
