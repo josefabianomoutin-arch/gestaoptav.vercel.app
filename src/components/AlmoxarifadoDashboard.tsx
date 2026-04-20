@@ -628,7 +628,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             </header>
 
             <main className="p-4 md:p-8 max-w-6xl mx-auto space-y-8">
-                
                 {activeTab === 'entry' ? (
                     <div className="space-y-8">
                         <WarehouseMovementForm 
@@ -668,6 +667,60 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             />
                         </div>
                     </div>
+                ) : activeTab === 'sync' ? (
+                    <SynchronizationModule onSyncWithFirebase={async (data) => {
+                        for (const entry of data) {
+                            const res = entry.type === 'entrada' ? await onRegisterEntry(entry) : await onRegisterWithdrawal(entry);
+                            if (!res.success) throw new Error(res.message);
+                        }
+                        return true;
+                    }} />
+                ) : activeTab === 'exit' ? (
+                    <div className="space-y-8">
+                        <WarehouseMovementForm 
+                            suppliers={suppliers} 
+                            warehouseLog={warehouseLog} 
+                            onRegisterEntry={async (p) => { return { success: false, message: 'Not allowed here' } }}
+                            onRegisterWithdrawal={onRegisterWithdrawal}
+                            initialMode="saída"
+                            perCapitaConfig={perCapitaConfig}
+                        />
+
+                        {onDeleteWarehouseEntry && onUpdateWarehouseEntry && (
+                            <div className="border-t border-gray-100 pt-8">
+                                <AdminWarehouseLog 
+                                    warehouseLog={warehouseLog.filter(l => l.type === 'saída')}
+                                    suppliers={suppliers}
+                                    onDeleteEntry={onDeleteWarehouseEntry}
+                                    onUpdateWarehouseEntry={onUpdateWarehouseEntry}
+                                    onRegisterEntry={onRegisterEntry}
+                                    onRegisterWithdrawal={onRegisterWithdrawal}
+                                />
+                            </div>
+                        )}
+                    </div>
+                ) : activeTab === 'history' ? (
+                    <div className="space-y-6">
+                         <AdminWarehouseLog 
+                            warehouseLog={warehouseLog}
+                            suppliers={suppliers}
+                            onDeleteEntry={onDeleteWarehouseEntry!}
+                            onUpdateWarehouseEntry={onUpdateWarehouseEntry!}
+                            onRegisterEntry={onRegisterEntry}
+                            onRegisterWithdrawal={onRegisterWithdrawal}
+                        />
+                    </div>
+                ) : activeTab === 'agenda' ? (
+                    <AgendaChegadas 
+                        suppliers={suppliers} 
+                        thirdPartyEntries={thirdPartyEntries} 
+                        embedded={true} 
+                    />
+                ) : activeTab === 'receipt' ? (
+                    <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in">
+                        {/* Termo render logic */}
+                    </div>
+                ) : null}
                 ) : activeTab === 'sync' ? (
                     <SynchronizationModule onSyncWithFirebase={async (data) => {
                         for (const entry of data) {
@@ -855,59 +908,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             <div className="py-20 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
                                 <p className="text-gray-400 font-bold uppercase tracking-widest">Selecione um fornecedor e uma nota fiscal para visualizar o termo.</p>
                             </div>
-                        )}
-                    </div>
-                )}
 
-                {/* Tabela de Agendamentos da Semana */}
-                {activeTab === 'agenda' && (
-                    <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
-                        <div className="flex justify-between items-center mb-6 border-b pb-4">
-                            <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full animate-pulse bg-indigo-600"></div>
-                                Agendamentos da Semana (Grade Completa)
-                            </h3>
-                        </div>
-                        <div className="overflow-x-auto rounded-xl">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="bg-slate-900 text-[10px] font-black uppercase text-slate-100 tracking-widest">
-                                        <th className="p-4 text-left">Data</th>
-                                        <th className="p-4 text-left">Horário</th>
-                                        <th className="p-4 text-left">Tipo</th>
-                                        <th className="p-4 text-left">Fornecedor / Empresa</th>
-                                        <th className="p-4 text-center">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {weeklyDeliveries.length > 0 ? weeklyDeliveries.map(item => (
-                                        <tr key={item.id} className="hover:bg-indigo-50/30 transition-colors">
-                                            <td className="p-4 text-xs text-slate-700 font-mono font-bold">{item.date.split('-').reverse().join('/')}</td>
-                                            <td className="p-4 text-xs font-mono text-indigo-800 font-black">{item.time}</td>
-                                            <td className="p-4 text-[9px] font-black uppercase text-slate-400">{item.type}</td>
-                                            <td className="p-4 font-bold text-slate-900 uppercase text-xs">{item.supplierName}</td>
-                                            <td className="p-4 text-center">
-                                                <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${ 
-                                                    item.status === 'CONCLUÍDO' 
-                                                        ? 'bg-indigo-100 text-indigo-700' 
-                                                        : item.status === 'CANCELADO'
-                                                            ? 'bg-red-100 text-red-700'
-                                                            : item.status === 'TERCEIRO'
-                                                                ? 'bg-amber-100 text-amber-700'
-                                                                : 'bg-gray-100 text-gray-600'
-                                                }`}>
-                                                    {item.status}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    )) : (
-                                        <tr><td colSpan={4} className="p-10 text-center text-gray-400 italic">Nenhum agendamento para esta semana...</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
+
+)
             </main>
             <style>{`
                 .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
