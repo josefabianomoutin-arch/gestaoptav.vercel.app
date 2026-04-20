@@ -33,7 +33,8 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     const [selectedItemName, setSelectedItemName] = useState('');
     const [manualBarcode, setManualBarcode] = useState('');
     const [manualQuantity, setManualQuantity] = useState('');
-    const [manualInboundNf, setManualInboundNf] = useState('');
+    const [manualInboundNf, setManualInboundNf] = useState<{ number: string, availableQuantity: number, lot: string, exp: string } | null>(null);
+    
     const [manualLot, setManualLot] = useState('');
     const [manualExp, setManualExp] = useState('');
     const [manualNl, setManualNl] = useState('');
@@ -67,13 +68,31 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     [suppliers, selectedSupplierCpf]);
 
     const manualSupplierInvoices = useMemo(() => {
-        if (!selectedSupplier) return [];
-        const invoices = new Set<string>();
-        Object.values(selectedSupplier.deliveries || {}).forEach((d: any) => {
-            if (d.invoiceNumber) invoices.add(d.invoiceNumber);
+        if (!selectedSupplier || !selectedItemName) return [];
+        // Filtra entradas do log que batem com o fornecedor e o item selecionado
+        const entries = warehouseLog.filter(l => l.supplierName === selectedSupplier.name && l.itemName === selectedItemName && l.type === 'entrada');
+        
+        // Agrupa por NF para saber o saldo disponível
+        const invoiceBalances: { [key: string]: { total: number, lot: string, exp: string } } = {};
+        
+        entries.forEach(e => {
+            if (!invoiceBalances[e.invoiceNumber]) {
+                invoiceBalances[e.invoiceNumber] = { total: 0, lot: e.lotNumber || 'UNICO', exp: e.expirationDate || '' };
+            }
+            invoiceBalances[e.invoiceNumber].total += e.quantity;
         });
-        return Array.from(invoices).sort();
-    }, [selectedSupplier]);
+
+        // Subtrai as saídas dessa NF
+        warehouseLog.filter(l => l.supplierName === selectedSupplier.name && l.inboundInvoice && l.type === 'saída').forEach(e => {
+            if (invoiceBalances[e.inboundInvoice!]) {
+                invoiceBalances[e.inboundInvoice!].total -= e.quantity;
+            }
+        });
+
+        return Object.entries(invoiceBalances)
+            .filter(([_, data]) => data.total > 0)
+            .map(([number, data]) => ({ number, availableQuantity: data.total, lot: data.lot, exp: data.exp }));
+    }, [selectedSupplier, selectedItemName, warehouseLog]);
 
     const availableItems = useMemo(() => {
         const itemsList: any[] = [];
@@ -150,7 +169,10 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                         const supplier = suppliers.find(s => s.name === entryLog.supplierName);
                         if (supplier && !selectedSupplierCpf) setSelectedSupplierCpf(supplier.cpf);
                         setSelectedItemName(entryLog.itemName);
-                        if (manualType === 'saída' && !manualInboundNf) setManualInboundNf(entryLog.inboundInvoice || '');
+                        if (manualType === 'saída' && !manualInboundNf) {
+                             const foundInv = manualSupplierInvoices.find(nf => nf.number === entryLog.inboundInvoice);
+                             if (foundInv) setManualInboundNf(foundInv);
+                        }
                         setManualLot(entryLog.lotNumber || '');
                         setManualExp(entryLog.expirationDate || '');
                     }
@@ -172,6 +194,11 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
              return;
         }
 
+        if (manualType === 'saída' && manualInboundNf && qtyVal > manualInboundNf.availableQuantity) {
+            alert(`Quantidade solicitada (${qtyVal}) maior que o saldo disponível na NF (${manualInboundNf.availableQuantity}).`);
+            return;
+        }
+
         setItems(prev => [...prev, {
             id: `item-${Date.now()}`,
             itemName: selectedItemName,
@@ -179,7 +206,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             lot: manualLot || 'UNICO',
             exp: manualExp,
             barcode: manualBarcode || Math.random().toString(36).substr(2, 9).toUpperCase(),
-            inboundInvoice: manualInboundNf,
+            inboundInvoice: manualInboundNf?.number,
             nlNumber: manualNl,
             pdNumber: manualPd,
             value: parseFloat(manualValue.replace(',', '.')) || 0,
@@ -359,7 +386,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                 alert('Todos os itens foram registrados com sucesso!');
                 setItems([]);
                 setManualNf('');
-                setManualInboundNf('');
+                setManualInboundNf(null);
                 setManualBarcode('');
                 setManualQuantity('');
                 setManualLot('');
@@ -396,13 +423,13 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                 <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner w-full md:w-auto opacity-0 pointer-events-none invisible">
                     <button 
                         type="button" 
-                        onClick={() => { setManualType('entrada'); setItems([]); setManualInboundNf(''); }} 
+                        onClick={() => { setManualType('entrada'); setItems([]); setManualInboundNf(null); }} 
                         className={`flex-1 md:flex-none px-4 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all duration-300 flex items-center justify-center gap-2 ${manualType === 'entrada' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
                         Entrada
                     </button>
                     <button 
                         type="button" 
-                        onClick={() => { setManualType('saída'); setItems([]); setManualInboundNf(''); }} 
+                        onClick={() => { setManualType('saída'); setItems([]); setManualInboundNf(null); }} 
                         className={`flex-1 md:flex-none px-4 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all duration-300 flex items-center justify-center gap-2 ${manualType === 'saída' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
                         Saída
                     </button>
@@ -505,14 +532,25 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                             
                             {manualType === 'saída' && (
                                 <div className="space-y-0.5 animate-fade-in">
-                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">NF Origem (Entrada)</label>
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">NF Origem (Disponível)</label>
                                     <select 
-                                        value={manualInboundNf} 
-                                        onChange={e => setManualInboundNf(e.target.value)} 
+                                        value={manualInboundNf ? manualInboundNf.number : ''} 
+                                        onChange={e => {
+                                            const selected = manualSupplierInvoices.find(nf => nf.number === e.target.value);
+                                            setManualInboundNf(selected || null);
+                                            if (selected) {
+                                                setManualLot(selected.lot);
+                                                setManualExp(selected.exp);
+                                            }
+                                        }} 
                                         className="w-full h-9 px-3 border border-gray-100 rounded-lg bg-white shadow-xs font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] disabled:opacity-50 uppercase"
                                         disabled={!selectedSupplierCpf}>
-                                        <option value="">-- SELECIONE NF ENTRADA --</option>
-                                        {manualSupplierInvoices.map(nf => <option key={nf} value={nf}>NF {nf}</option>)}
+                                        <option value="">-- SELECIONE NF --</option>
+                                        {manualSupplierInvoices.map(nf => 
+                                            <option key={nf.number} value={nf.number}>
+                                                NF {nf.number} (Disp: {nf.availableQuantity.toFixed(2)})
+                                            </option>
+                                        )}
                                     </select>
                                 </div>
                             )}
