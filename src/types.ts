@@ -381,6 +381,7 @@ export interface PublicInfo {
     date: string;
     sector?: string;
     updatedAt?: string;
+    isConfidential?: boolean;
 }
 
 export interface DirectorItem {

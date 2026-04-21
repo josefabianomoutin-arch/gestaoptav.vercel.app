@@ -1992,6 +1992,7 @@ const App: React.FC = () => {
                suppliers={suppliers} 
                warehouseLog={warehouseLog} 
                onLogout={handleLogout} 
+               publicInfoList={publicInfo}
                onRegisterEntry={handleRegisterWarehouseEntry} 
                onRegisterWithdrawal={handleRegisterWarehouseWithdrawal} 
                onResetExits={handleResetWarehouseExits}
@@ -2185,6 +2186,7 @@ const App: React.FC = () => {
         <ServiceOrderDashboard
           serviceOrders={serviceOrders}
           maintenanceSchedules={maintenanceSchedules}
+          publicInfoList={publicInfo}
           onRegisterServiceOrder={handleRegisterServiceOrder}
           onLogout={handleLogout}
         />
@@ -2269,6 +2271,7 @@ const App: React.FC = () => {
             return { success: true, message: 'Ordem validada' };
           }}
           onLogout={handleLogout}
+          publicInfoList={publicInfo}
           role={user.role}
         />
       );

@@ -2,7 +2,8 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
 import { Printer } from 'lucide-react';
-import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem } from '../types';
+import { motion } from 'motion/react';
+import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo } from '../types';
 import AdminInvoices from './AdminInvoices';
 import AgendaChegadas from './AgendaChegadas';
 import WarehouseMovementForm from './WarehouseMovementForm';
@@ -27,6 +28,7 @@ interface AlmoxarifadoDashboardProps {
     thirdPartyEntries: ThirdPartyEntryLog[];
     perCapitaConfig?: any;
     acquisitionItems?: AcquisitionItem[];
+    publicInfoList: PublicInfo[];
     onRegisterThirdPartyEntry: (log: Omit<ThirdPartyEntryLog, 'id'>) => Promise<{ success: boolean; message: string }>;
     onUpdateThirdPartyEntry: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message: string }>;
     onDeleteThirdPartyEntry: (id: string) => Promise<void>;
@@ -87,7 +89,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     onUpdateWarehouseEntry,
     thirdPartyEntries,
     perCapitaConfig,
-    acquisitionItems = []
+    acquisitionItems = [],
+    publicInfoList = []
 }) => {
     const [activeTab, setActiveTab] = useState<string>('history');
     const [selectedAgendaDate] = useState(new Date().toISOString().split('T')[0]);
@@ -793,34 +796,37 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 text-gray-800 pb-20">
-            <header className="bg-white shadow-md p-4 flex justify-between items-center sticky top-0 z-20 border-b-2 border-indigo-100">
+        <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
+            <header className="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-20 border-b border-slate-200">
                 <div>
-                    <h1 className="text-xl font-bold text-indigo-900 uppercase tracking-tighter leading-none">Módulo de Estoque</h1>
-                    <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mt-1">Controle de Dados Finanças 2026</p>
+                    <h1 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Módulo de Estoque</h1>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Gestão de Dados P Taiuva 2026</p>
                 </div>
                 <div className="flex items-center gap-3">
                     {typeof navigator !== 'undefined' && !navigator.onLine && (
-                        <div className="flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm italic">
+                        <div className="flex items-center gap-1.5 bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest">
                             <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                             </span>
                             Modo Offline
                         </div>
                     )}
-                    <div className="flex bg-gray-100 p-1 rounded-xl">
-                        <button onClick={() => setActiveTab('history')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'history' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Histórico Geral</button>
-                        <button onClick={() => setActiveTab('agenda')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'agenda' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Agenda</button>
-                        <button onClick={() => setActiveTab('cronograma')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'cronograma' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Cronograma</button>
-                        <button onClick={() => setActiveTab('receipt')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'receipt' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Termo</button>
-                        <button onClick={() => setActiveTab('sync')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'sync' ? 'bg-white text-amber-600 shadow-sm' : 'text-amber-500'}`}>Sincronização</button>
+                    <div className="flex bg-slate-100 p-1 rounded-2xl">
+                        {['history', 'agenda', 'cronograma', 'receipt', 'sync'].map(tab => (
+                            <button 
+                                key={tab}
+                                onClick={() => setActiveTab(tab)} 
+                                className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                {tab === 'history' ? 'Histórico Geral' : tab === 'agenda' ? 'Agenda' : tab === 'cronograma' ? 'Cronograma' : tab === 'receipt' ? 'Termo' : 'Sincronização'}
+                            </button>
+                        ))}
                     </div>
-                    <button onClick={onLogout} className="bg-red-50 text-red-600 font-black py-2 px-6 rounded-xl text-xs uppercase border border-red-100 shadow-sm active:scale-95">Sair</button>
+                    <button onClick={onLogout} className="bg-slate-100 text-slate-600 font-black py-2 px-6 rounded-xl text-xs uppercase border border-slate-200 shadow-sm hover:bg-slate-200 active:scale-95 transition-all">Sair</button>
                 </div>
             </header>
 
-            <main className="p-4 md:p-8 max-w-6xl mx-auto space-y-8">
+            <main className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
                 {activeTab === 'history' ? (
                     <div className="space-y-8">
                         <WarehouseMovementForm 

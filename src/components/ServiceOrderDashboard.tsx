@@ -7,6 +7,7 @@ import { ServiceOrder, MaintenanceSchedule } from '../types';
 interface ServiceOrderDashboardProps {
   serviceOrders: ServiceOrder[];
   maintenanceSchedules?: MaintenanceSchedule[];
+  publicInfoList: PublicInfo[];
   onRegisterServiceOrder: (order: Omit<ServiceOrder, 'id'>) => Promise<{ success: boolean; message: string }>;
   onLogout: () => void;
 }
@@ -14,6 +15,7 @@ interface ServiceOrderDashboardProps {
 const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
   serviceOrders = [],
   maintenanceSchedules = [],
+  publicInfoList = [],
   onRegisterServiceOrder,
   onLogout,
 }) => {
@@ -117,6 +119,26 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full animate-pulse" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
+
+       {/* Infobar */}
+       <div className="bg-blue-50 border-b border-blue-100 overflow-hidden py-2">
+         <div className="max-w-7xl mx-auto px-4 flex items-center gap-4">
+            <span className="text-[10px] whitespace-nowrap font-black uppercase text-blue-800 bg-blue-100 px-3 py-1 rounded-full">Comunicados:</span>
+            <div className="w-full overflow-hidden">
+                <motion.div 
+                    className="flex gap-8 whitespace-nowrap"
+                    animate={{ x: ["100%", "-100%"] }}
+                    transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+                >
+                    {publicInfoList.map(info => (
+                        <p key={info.id} className="text-xs font-bold text-blue-900">
+                             <span className="uppercase text-blue-600">{info.sector}:</span> {info.title}
+                        </p>
+                    ))}
+                </motion.div>
+            </div>
+         </div>
+       </div>
 
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-2xl border-b border-gray-200 p-4 md:p-6 shadow-sm">

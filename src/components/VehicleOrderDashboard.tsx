@@ -1,6 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
-import type { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, ServiceOrder, VehicleInspection, MaintenanceSchedule } from '../types';
+import React, { useState } from 'react';
+import { motion } from 'motion/react';
+import type { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, ServiceOrder, VehicleInspection, MaintenanceSchedule, PublicInfo } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 import AdminServiceOrder from './AdminServiceOrder';
 
@@ -12,6 +13,7 @@ interface VehicleOrderDashboardProps {
   serviceOrders: ServiceOrder[];
   maintenanceSchedules: MaintenanceSchedule[];
   vehicleInspections?: VehicleInspection[];
+  publicInfoList: PublicInfo[];
   onUpdateServiceOrder: (order: ServiceOrder) => Promise<{ success: boolean; message: string }>;
   onDeleteServiceOrder: (id: string) => Promise<{ success: boolean; message: string }>;
   onRegisterMaintenanceSchedule: (schedule: Omit<MaintenanceSchedule, 'id'>) => Promise<{ success: boolean; message: string }>;
@@ -42,6 +44,7 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
   serviceOrders = [],
   maintenanceSchedules = [],
   vehicleInspections = [],
+  publicInfoList = [],
   onUpdateServiceOrder,
   onDeleteServiceOrder,
   onRegisterMaintenanceSchedule,
@@ -63,7 +66,6 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
   role
 }) => {
   const [activeTab, setActiveTab] = useState<'veiculos' | 'servicos'>('veiculos');
-  const [sessionOrderIds, setSessionOrderIds] = useState<string[]>([]);
 
   const filteredOrders = orders;
 
@@ -73,6 +75,26 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
 
   return (
     <div className="min-h-screen bg-gray-50">
+       {/* Infobar */}
+       <div className="bg-blue-50 border-b border-blue-100 overflow-hidden py-2">
+         <div className="max-w-7xl mx-auto px-4 flex items-center gap-4">
+            <span className="text-[10px] whitespace-nowrap font-black uppercase text-blue-800 bg-blue-100 px-3 py-1 rounded-full">Comunicados:</span>
+            <div className="w-full overflow-hidden">
+                <motion.div 
+                    className="flex gap-8 whitespace-nowrap"
+                    animate={{ x: ["100%", "-100%"] }}
+                    transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+                >
+                    {publicInfoList.map(info => (
+                        <p key={info.id} className="text-xs font-bold text-blue-900">
+                             <span className="uppercase text-blue-600">{info.sector}:</span> {info.title}
+                        </p>
+                    ))}
+                </motion.div>
+            </div>
+         </div>
+       </div>
+
       <header className="bg-white text-indigo-950 p-4 shadow-sm flex justify-between items-center sticky top-0 z-50 border-b border-gray-200">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">

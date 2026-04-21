@@ -164,6 +164,17 @@ const AdminPublicInfo: React.FC<AdminPublicInfoProps> = ({ infoList, onSave, onD
                   />
                 </div>
 
+                <div className="flex items-center gap-2 mb-4">
+                  <input
+                    type="checkbox"
+                    id="isConfidential"
+                    checked={currentInfo.isConfidential || false}
+                    onChange={(e) => setCurrentInfo({ ...currentInfo, isConfidential: e.target.checked })}
+                    className="rounded text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="isConfidential" className="text-sm font-medium text-gray-700">Confidencial (apenas ordens de serviço e saída)</label>
+                </div>
+                
                 <div className="flex gap-3 pt-4">
                   <button
                     type="button"
