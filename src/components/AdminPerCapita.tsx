@@ -98,10 +98,10 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [comparisonFilter, setComparisonFilter] = useState<'TODOS' | 'SEM_ENTREGA' | 'ATENCAO' | 'AVANCADO' | 'CONCLUIDO' | 'COM_EMPENHO'>('TODOS');
 
-    const [prevPerCapitaConfig, setPrevPerCapitaConfig] = useState(perCapitaConfig);
-    if (perCapitaConfig !== prevPerCapitaConfig) {
-        console.log("AdminPerCapita: perCapitaConfig mudou", perCapitaConfig);
-        setPrevPerCapitaConfig(perCapitaConfig);
+    useEffect(() => {
+        if (!perCapitaConfig) return;
+        
+        console.log("AdminPerCapita: Sincronizando estados com perCapitaConfig", perCapitaConfig);
         setStaffCount(perCapitaConfig.staffCount || 0);
         setInmateCount(perCapitaConfig.inmateCount || 0);
         setCustomPerCapita(perCapitaConfig.customValues || {});
@@ -112,10 +112,10 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         setPtresResources(perCapitaConfig.ptresResources || {});
         setPpaisProducers(perCapitaConfig.ppaisProducers || []);
         setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
-        setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
+        setEstocaveisSuppliers(perCapitaConfig.estocaleisSuppliers || []);
         setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
         setIsDirty(false);
-    }
+    }, [perCapitaConfig]);
 
     const handleSave = async () => {
         setIsSaving(true);
