@@ -1,6 +1,6 @@
 
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import html2pdf from 'html2pdf.js';
 import type { Supplier, PerCapitaConfig, WarehouseMovement, AcquisitionItem, Delivery } from '../types';
@@ -112,7 +112,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         setPtresResources(perCapitaConfig.ptresResources || {});
         setPpaisProducers(perCapitaConfig.ppaisProducers || []);
         setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
-        setEstocaveisSuppliers(perCapitaConfig.estocaleisSuppliers || []);
+        setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
         setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
         setIsDirty(false);
     }, [perCapitaConfig]);
