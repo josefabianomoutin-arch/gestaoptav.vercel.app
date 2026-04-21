@@ -367,7 +367,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           <table className="w-full text-left border-collapse table-fixed min-w-[1000px]">
             <thead>
               <tr className="bg-slate-50 border-b border-gray-100">
-                <th className="w-[12%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">STATUS PD</th>
+                <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">PD</th>
                 <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">NF # / Data</th>
                 <th className="w-[18%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Fornecedor</th>
                 <th className="w-[30%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Itens / Etiquetas</th>
@@ -377,13 +377,13 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
               </tr>
             </thead>
             <tbody>
-              {filteredInvoices.length > 0 ? filteredInvoices.map((inv, idx) => {
+              {filteredInvoices.length > 0 ? filteredInvoices.map((inv) => {
                 const hasPd = !!inv.pd;
                 return (
                 <tr key={`${inv.supplierCpf}-${inv.invoiceNumber}`} className={`border-b border-gray-50 transition-colors group ${hasPd ? 'bg-green-50/50 hover:bg-green-50' : 'bg-red-50/70 hover:bg-red-50'}`}>
                   <td className="px-3 py-1.5 text-center">
-                    <span className={`text-[9px] font-black uppercase tracking-tighter px-2 py-1 rounded shadow-sm ${inv.pd ? 'bg-green-600 text-white' : 'bg-red-600 text-white animate-pulse'}`}>
-                      {inv.pd ? `C/PD - ${inv.pd}` : 'S/PD'}
+                    <span className={`text-[10px] font-black uppercase tracking-tighter px-2 py-1 rounded shadow-sm ${inv.pd ? 'bg-green-600 text-white' : 'bg-red-600 text-white animate-pulse'}`}>
+                      {inv.pd ? inv.pd : 'S/PD'}
                     </span>
                   </td>
                   <td className="px-3 py-1.5">
@@ -688,10 +688,6 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                   </div>
                   <div className="p-6 space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar">
                       <div className="grid grid-cols-2 gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mb-2">
-                        <div className="space-y-0.5">
-                            <label className="text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-0.5">Nota de Lançamento (NL)</label>
-                            <input type="text" value={editingInvoice.nl || ''} onChange={e => setEditingInvoice({...editingInvoice, nl: e.target.value.toUpperCase()})} className="w-full h-10 px-3 rounded-xl border-2 border-indigo-100 outline-none focus:border-indigo-400 font-bold text-[11px] uppercase" />
-                        </div>
                         <div className="space-y-0.5">
                             <label className="text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-0.5">Parecer de Despesa (PD)</label>
                             <input type="text" value={editingInvoice.pd || ''} onChange={e => setEditingInvoice({...editingInvoice, pd: e.target.value.toUpperCase()})} className="w-full h-10 px-3 rounded-xl border-2 border-indigo-100 outline-none focus:border-indigo-400 font-bold text-[11px] uppercase" />

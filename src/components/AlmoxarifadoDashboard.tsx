@@ -288,35 +288,35 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 100px;">DATA</th>
-                            <th>ITENS AGENDADOS (DESCRIÇÃO / QUANTIDADE / VALOR)</th>
-                            <th style="width: 120px;">PESO TOTAL (KG)</th>
-                            <th style="width: 120px;">VALOR TOTAL (R$)</th>
+                            <th style="width: 80px;">DATA</th>
+                            <th>PRODUTO / ITEM</th>
+                            <th style="width: 80px;">QUANT.</th>
+                            <th style="width: 90px;">VALOR UNIT.</th>
+                            <th style="width: 100px;">VALOR TOTAL</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${deliveries.length > 0 ? deliveries.map((d: any) => `
+                        ${deliveries.length > 0 ? deliveries.map((day: any) => 
+                            day.items.map((it: any, itIdx: number) => `
                             <tr>
-                                <td class="text-center font-bold">${d.date.split('-').reverse().join('/')}</td>
-                                <td>
-                                    ${d.items.map((it: any) => `
-                                        <div class="item-badge">
-                                            <span class="font-bold">${(it.item || 'N/A').toUpperCase()}:</span> 
-                                            ${(it.kg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}Kg - 
-                                            R$ ${(it.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                        </div>
-                                    `).join('')}
-                                </td>
-                                <td class="text-center font-bold">${(d.totalKg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</td>
-                                <td class="text-right font-bold">R$ ${(d.totalValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                ${itIdx === 0 ? `<td class="text-center font-bold" rowspan="${day.items.length}">${day.date.split('-').reverse().join('/')}</td>` : ''}
+                                <td>${(it.item || 'N/A').toUpperCase()}</td>
+                                <td class="text-center font-bold">${(it.kg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                <td class="text-right">R$ ${(it.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                <td class="text-right font-bold">R$ ${((it.kg || 0) * (it.value || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                             </tr>
-                        `).join('') : `<tr><td colspan="4" class="text-center italic">Nenhum agendamento para este período</td></tr>`}
+                            `).join('')
+                        ).join('') : `
+                            <tr>
+                                <td colspan="5" class="text-center italic" style="padding: 20px;">Nenhum agendamento para este período</td>
+                            </tr>
+                        `}
                     </tbody>
                     <tfoot>
-                        <tr class="font-bold uppercase">
+                        <tr class="font-bold uppercase" style="background-color: #f2f2f2;">
                             <td colspan="2" class="text-right">TOTAIS DO PERÍODO</td>
                             <td class="text-center">${deliveries.reduce((acc: number, curr: any) => acc + (curr.totalKg || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
-                            <td class="text-right">R$ ${deliveries.reduce((acc: number, curr: any) => acc + (curr.totalValue || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            <td colspan="2" class="text-right">R$ ${deliveries.reduce((acc: number, curr: any) => acc + (curr.totalValue || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -697,7 +697,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 <th style="width: 80px;">QUANT.</th>
                                 <th style="width: 60px;">UNID.</th>
                                 <th>DESCRIÇÃO</th>
-                                <th style="width: 100px;">VR. MEDIANA</th>
                                 <th style="width: 120px;">VR. TOTAL</th>
                             </tr>
                         </thead>
@@ -708,14 +707,13 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     <td class="text-right">${(it.quantity || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                     <td class="text-center">${it.unit || 'N/A'}</td>
                                     <td>${it.name || 'N/A'}</td>
-                                    <td class="text-right">${formatCurrency(it.unitPrice)}</td>
                                     <td class="text-right">${formatCurrency(it.totalValue)}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
                         <tfoot>
                             <tr style="font-weight: bold; background-color: #f2f2f2;">
-                                <td colspan="5" class="text-right">TOTAL GERAL:</td>
+                                <td colspan="4" class="text-right">TOTAL GERAL:</td>
                                 <td class="text-right">${formatCurrency(receiptData.totalInvoiceValue)}</td>
                             </tr>
                         </tfoot>
