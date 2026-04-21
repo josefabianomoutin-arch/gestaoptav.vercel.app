@@ -695,7 +695,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                         <div className="space-y-0.5">
                             <label className="text-[9px] font-black text-emerald-600 uppercase tracking-widest ml-0.5">Valor Total da Nota (R$)</label>
                             <div className="w-full h-10 px-3 rounded-xl border-2 border-emerald-200 bg-emerald-50 flex items-center font-black text-[11px] text-emerald-900">
-                                {formatCurrency(editingInvoice.items.reduce((sum: number, it: any) => sum + (it.kg * (it.value || 0)), 0))}
+                                {formatCurrency(editingInvoice.items.reduce((sum: number, it: any) => sum + (it.value || 0), 0))}
                             </div>
                         </div>
                       </div>
@@ -703,7 +703,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                       {editingInvoice.items.map((item: any, idx: number) => (
                           <div key={idx} className="bg-slate-50 p-4 rounded-xl space-y-3 border border-gray-100 shadow-sm">
                               <div className="font-black text-[10px] text-indigo-900 uppercase tracking-tight">Produto: {item.item}</div>
-                              <div className="grid grid-cols-3 gap-3">
+                              <div className="grid grid-cols-2 gap-3">
                                   <div className="space-y-0.5">
                                       <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Peso/Qtd (Kg)</label>
                                       <input 
@@ -730,15 +730,6 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                               setEditingInvoice({ ...editingInvoice, items: newItems });
                                           }}
                                           className="w-full h-9 px-3 rounded-lg border-2 border-gray-100 outline-none focus:border-indigo-400 font-bold text-[10px]" 
-                                      />
-                                  </div>
-                                  <div className="space-y-0.5">
-                                      <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Valor Total (R$)</label>
-                                      <input 
-                                          type="text" 
-                                          disabled
-                                          value={formatCurrency(item.kg * (item.value || 0))}
-                                          className="w-full h-9 px-3 rounded-lg border-2 border-gray-100 bg-gray-100 outline-none font-bold text-[10px] text-gray-600" 
                                       />
                                   </div>
                               </div>
