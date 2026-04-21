@@ -63,6 +63,8 @@ const isHortifrutiOrPerishable = (itemName: string): boolean => {
     return allKeywords.some(keyword => lowerItemName.includes(keyword));
 };
 
+const getSeiValue = (map: Record<string, string>, tab: string) => (map && tab) ? map[tab] || '' : '';
+
 const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ 
     suppliers, 
     perCapitaConfig, 
@@ -1842,7 +1844,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 suppliers={estocaveisSuppliers}
                                 onUpdate={handleUpdateEstocaveisSuppliers}
                                 type="FORNECEDOR"
-                                colorScheme="blue"
+                                colorScheme="indigo"
                             />
                         ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS' || activeSubTab === 'ESTOCÁVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : pereciveisSubTab === 'CONTRACT') ? (
                             <div className="p-8 space-y-4">
@@ -1976,7 +1978,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 suppliers={
                                     activeSubTab === 'PPAIS' ? ppaisAsSuppliers : 
                                     activeSubTab === 'PERECÍVEIS' ? pereciveisAsSuppliers : 
-                                    (activeSubTab === 'ESTOCÁVEIS' ? estocaveisSuppliers.map(s => ({ ...s, cpf: s.cpfCnpj, allowedWeeks: [], deliveries: [] } as Supplier)) : suppliers)
+                                    (activeSubTab === 'ESTOCÁVEIS' ? estocaveisSuppliers.map(s => ({ ...s, cpf: s.cpfCnpj, allowedWeeks: [], deliveries: [], initialValue: 0, contractItems: s.contractItems || [] } as unknown as Supplier)) : suppliers)
                                 }
                                 onUpdateContractForItem={
                                     activeSubTab === 'PPAIS' ? handleUpdateContractForPpais : 

@@ -897,7 +897,7 @@ const App: React.FC = () => {
 
   // --- GERENCIAMENTO DE NOTAS FISCAIS (ADMIN) ---
 
-  const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string) => {
+  const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string) => {
     const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
     if (isMainSupplier) {
       const supplierRef = child(suppliersRef, supplierCpf);
@@ -912,7 +912,6 @@ const App: React.FC = () => {
             const finalInvoiceNumber = newInvoiceNumber || invoiceNumber;
             const finalReceiptTerm = receiptTermNumber !== undefined ? receiptTermNumber : existingForNf[0].receiptTermNumber;
             const finalInvoiceDate = invoiceDate !== undefined ? invoiceDate : existingForNf[0].invoiceDate;
-            const finalNl = nl !== undefined ? nl : existingForNf[0].nl;
             const finalPd = pd !== undefined ? pd : existingForNf[0].pd;
             const existingInvoiceUrl = existingForNf.find(d => d.invoiceUrl)?.invoiceUrl;
 
@@ -942,7 +941,6 @@ const App: React.FC = () => {
               if (finalInvoiceDate !== undefined) newDelivery.invoiceDate = finalInvoiceDate;
               if (barcode !== undefined) newDelivery.barcode = barcode;
               if (finalReceiptTerm !== undefined) newDelivery.receiptTermNumber = finalReceiptTerm;
-              if (finalNl !== undefined) newDelivery.nl = finalNl;
               if (finalPd !== undefined) newDelivery.pd = finalPd;
               if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
 
@@ -972,7 +970,6 @@ const App: React.FC = () => {
               const finalInvoiceNumber = newInvoiceNumber || invoiceNumber;
               const finalReceiptTerm = receiptTermNumber !== undefined ? receiptTermNumber : existingForNf[0].receiptTermNumber;
               const finalInvoiceDate = invoiceDate !== undefined ? invoiceDate : existingForNf[0].invoiceDate;
-              const finalNl = nl !== undefined ? nl : existingForNf[0].nl;
               const finalPd = pd !== undefined ? pd : existingForNf[0].pd;
               const existingInvoiceUrl = existingForNf.find((d: any) => d.invoiceUrl)?.invoiceUrl;
 
@@ -1000,7 +997,6 @@ const App: React.FC = () => {
                 if (finalInvoiceDate !== undefined) newDelivery.invoiceDate = finalInvoiceDate;
                 if (barcode !== undefined) newDelivery.barcode = barcode;
                 if (finalReceiptTerm !== undefined) newDelivery.receiptTermNumber = finalReceiptTerm;
-                if (finalNl !== undefined) newDelivery.nl = finalNl;
                 if (finalPd !== undefined) newDelivery.pd = finalPd;
                 if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
 

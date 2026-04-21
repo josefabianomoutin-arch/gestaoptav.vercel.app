@@ -66,10 +66,10 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     invoiceNumber: '', 
     pd: '', 
     type: mode === 'warehouse_exit' ? 'saída' : 'entrada',
-    items: [] as { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[]
+    items: [] as { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string }[]
   });
   
-  const [newItem, setNewItem] = useState({ name: '', kg: 0, value: 0, lotNumber: '', expirationDate: '' });
+  const [newItem, setNewItem] = useState({ name: '', kg: 0, value: 0, lotNumber: '', expirationDate: '', barcode: '' });
     const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
 
   const [confirmConfig, setConfirmConfig] = useState<{
@@ -271,6 +271,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             expirationDate: it.expirationDate
         })), 
         '', '', 
+        manualEntryData.date, 
         manualEntryData.pd,
         manualEntryData.type as any
     );
@@ -281,7 +282,6 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             supplierCpf: '', 
             date: '', 
             invoiceNumber: '', 
-            nl: '', 
             pd: '', 
             type: mode === 'warehouse_exit' ? 'saída' : 'entrada',
             items: []
@@ -559,7 +559,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest ml-0.5">Código de Barras</label>
                                     <input 
                                         type="text" 
-                                        value={(newItem as any).barcode || ''} 
+                                        value={newItem.barcode} 
                                         onChange={e => setNewItem({...newItem, barcode: e.target.value})}
                                         placeholder="Bipar..."
                                         className="w-full bg-white border border-blue-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-blue-400 font-mono text-[10px]" 
@@ -629,7 +629,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                         ...manualEntryData,
                                         items: [...manualEntryData.items, { ...newItem, lotNumber: newItem.lotNumber || 'MANUAL' }]
                                     });
-                                    setNewItem({ name: '', kg: 0, value: 0, lotNumber: '', expirationDate: '' });
+                                    setNewItem({ name: '', kg: 0, value: 0, lotNumber: '', expirationDate: '', barcode: '' });
                                 }}
                                 className="w-full h-9 bg-zinc-800 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-2"
                             >
@@ -742,8 +742,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     kg: it.kg,
                                     value: it.value
                                 })),
-                                undefined, undefined, undefined, undefined, undefined,
-                                editingInvoice.nl,
+                                undefined, undefined, undefined, undefined,
+                                editingInvoice.date,
                                 editingInvoice.pd
                             );
                             if (res.success) {
