@@ -189,7 +189,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         }
 
         // Find items from entered invoices for this supplier and month
-        const monthIndex = MONTHS_PT.indexOf(selectedMonth);
         
         // Obter todas as entregas do fornecedor para o mês selecionado
         const supplierDeliveries = (Object.values(supplier.deliveries || {}) as any[]).filter(d => {
