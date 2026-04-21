@@ -189,7 +189,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
     const globalTotal = useMemo(() => {
         return filteredInvoices.reduce((total, inv) => {
-            const invTotal = inv.items.reduce((sum: number, it: any) => sum + ((it.value || 0) * (it.kg || it.quantity || 0)), 0);
+            const invTotal = inv.items.reduce((sum: number, it: any) => sum + (it.value || 0), 0);
             return total + invTotal;
         }, 0);
     }, [filteredInvoices]);
@@ -455,7 +455,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                   </td>
                   <td className="px-3 py-1.5">
                     <div className={`text-[10px] font-black ${!hasPd ? 'text-red-600' : 'text-green-700'}`}>
-                        {formatCurrency(inv.items.reduce((sum: number, it: any) => sum + ((it.value || 0) * (it.kg || it.quantity || 0)), 0))}
+                        {formatCurrency(inv.items.reduce((sum: number, it: any) => sum + (it.value || 0), 0))}
                     </div>
                   </td>
                   <td className="px-3 py-1.5">
