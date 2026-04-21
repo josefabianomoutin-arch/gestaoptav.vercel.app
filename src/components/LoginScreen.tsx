@@ -99,7 +99,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList }) =>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
           </div>
-          <h1 className="text-xl font-black text-slate-900 leading-tight uppercase tracking-tighter italic">SISTEMA FINANCEIRO<br/>TAIÚVA 2026</h1>
+          <h1 className="text-xl font-black text-slate-900 leading-tight uppercase tracking-tighter italic">GESTÃO DE DADOS P TAIUVA<br/>TAIÚVA 2026</h1>
           <p className={`mt-2 font-bold uppercase text-[7px] tracking-[0.4em] transition-colors duration-500 ${isAbrilVerde ? 'text-emerald-500' : 'text-indigo-400'}`}>
             Monitoramento de Dados • Gestão 1.Q
           </p>
