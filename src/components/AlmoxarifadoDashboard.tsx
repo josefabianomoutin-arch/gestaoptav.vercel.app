@@ -54,6 +54,21 @@ const Barcode: React.FC<{ value: string }> = ({ value }) => {
     return <svg ref={svgRef}></svg>;
 };
 
+const MONTHS_PT = [
+    'JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 
+    'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'
+];
+
+const YEARS = [2025, 2026, 2027];
+
+const getFirstBusinessDayOfMonth = (monthIndex: number, year: number) => {
+    const date = new Date(year, monthIndex, 1);
+    while (date.getDay() === 0 || date.getDay() === 6) {
+        date.setDate(date.getDate() + 1);
+    }
+    return date;
+};
+
 const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({ 
     suppliers, 
     warehouseLog, 
@@ -72,12 +87,16 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     perCapitaConfig
 }) => {
     const [activeTab, setActiveTab] = useState<string>('history');
-    const [selectedAgendaDate, setSelectedAgendaDate] = useState(new Date().toISOString().split('T')[0]);
+    const [selectedAgendaDate] = useState(new Date().toISOString().split('T')[0]);
     const [receiptSupplierCpf, setReceiptSupplierCpf] = useState('');
     const [receiptInvoice, setReceiptInvoice] = useState('');
     const [receiptProcessoSei, setReceiptProcessoSei] = useState('');
-    const [selectedScheduleSuppliers, setSelectedScheduleSuppliers] = useState<string[]>([]);
-    const [scheduleReportSeiNumber, setScheduleReportSeiNumber] = useState('');
+    
+    // New states for month filtering and Cronograma
+    const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS_PT[new Date().getMonth()]);
+    const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+    const [cronogramaType, setCronogramaType] = useState<'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS'>('PPAIS');
+    const [selectedCronogramaSupplier, setSelectedCronogramaSupplier] = useState<string>('');
 
     const weeklyDeliveries = useMemo(() => {
         const list: { date: string; supplierName: string; time: string; status: 'AGENDADO' | 'CONCLUÍDO' | 'TERCEIRO' | 'CANCELADO'; id: string; type: 'FORNECEDOR' | 'TERCEIRO'; itemName?: string }[] = [];
@@ -133,6 +152,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         return list.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
     }, [suppliers, thirdPartyEntries, selectedAgendaDate]);
 
+    /* 
     const uniqueWeeklySuppliers = useMemo(() => {
         const suppliersMap = new Set<string>();
         weeklyDeliveries.forEach(d => {
@@ -142,7 +162,146 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         });
         return Array.from(suppliersMap).sort();
     }, [weeklyDeliveries]);
+    */
 
+    const handlePrintCronograma = () => {
+        const monthIndex = MONTHS_PT.indexOf(selectedMonth);
+        const firstBusinessDay = getFirstBusinessDayOfMonth(monthIndex, selectedYear);
+        
+        const SeiNumber = perCapitaConfig?.seiProcessNumbers?.[cronogramaType] || '';
+        
+        // Find supplier details
+        let supplier: any;
+        if (cronogramaType === 'PPAIS') {
+            supplier = (perCapitaConfig?.ppaisProducers || []).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier);
+        } else {
+            supplier = (perCapitaConfig?.pereciveisSuppliers || []).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier);
+            if (!supplier && cronogramaType === 'ESTOCÁVEIS') {
+                supplier = suppliers.find(s => s.cpf === selectedCronogramaSupplier);
+            }
+        }
+
+        if (!supplier) {
+            alert('Por favor, selecione um fornecedor.');
+            return;
+        }
+
+        const deliveries = (supplier.deliveries || []).filter((d: any) => {
+            const delDate = new Date(d.date + 'T12:00:00');
+            return delDate.getMonth() === monthIndex && delDate.getFullYear() === selectedYear;
+        });
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Cronograma de Entrega - ${selectedMonth} de ${selectedYear}</title>
+                <style>
+                    @page { size: A4 landscape; margin: 10mm; }
+                    body { font-family: Arial, sans-serif; font-size: 10pt; line-height: 1.4; color: #000; }
+                    .header-title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+                    
+                    .header-boxes { display: flex; gap: 10px; margin-bottom: 20px; }
+                    .header-box { flex: 1; border: 1.5px solid #000; padding: 10px; border-radius: 4px; }
+                    .box-row { margin-bottom: 4px; }
+                    .label { font-weight: bold; text-transform: uppercase; }
+                    
+                    .intro-text { text-align: justify; margin-bottom: 20px; font-size: 9pt; }
+                    
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                    th, td { border: 1.5px solid #000; padding: 6px; text-align: left; vertical-align: middle; }
+                    th { font-weight: bold; text-transform: uppercase; background-color: #f2f2f2; text-align: center; }
+                    
+                    .footer-location { text-align: right; margin-top: 40px; font-weight: bold; }
+                    .signature-section { margin-top: 80px; text-align: center; }
+                    .signature-line { border-top: 1.5px solid #000; width: 300px; margin: 0 auto 5px auto; }
+                    .signature-name { font-weight: bold; text-transform: uppercase; }
+                    .signature-role { font-size: 9pt; }
+                    
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .font-bold { font-weight: bold; }
+                    
+                    .item-badge { background: #f9f9f9; padding: 2px 6px; border: 1px solid #ddd; border-radius: 4px; display: inline-block; margin: 2px; font-size: 8pt; }
+                </style>
+            </head>
+            <body>
+                <div class="header-title">CRONOGRAMA DE ENTREGA - ${selectedMonth} DE ${selectedYear}</div>
+                
+                <div class="header-boxes">
+                    <div class="header-box">
+                        <div class="box-row"><span class="label">FORNECEDOR:</span> ${supplier.name.toUpperCase()}</div>
+                        <div class="box-row"><span class="label">CPF/CNPJ:</span> ${supplier.cpfCnpj || supplier.cpf}</div>
+                        <div class="box-row"><span class="label">ENDEREÇO:</span> ${supplier.address || 'N/A'}</div>
+                    </div>
+                    <div class="header-box">
+                        <div class="box-row"><span class="label">PROCESSO SEI:</span> ${SeiNumber || 'N/A'}</div>
+                        <div class="box-row"><span class="label">UNIDADE:</span> PENITENCIÁRIA DE TAIUVA</div>
+                        <div class="box-row"><span class="label">PERÍODO:</span> ${selectedMonth} DE ${selectedYear}</div>
+                    </div>
+                </div>
+                
+                <div class="intro-text">
+                    Solicitamos as devidas providências no sentido de fornecer a esta Unidade Prisional os itens relacionados abaixo, conforme especificações contratuais. As entregas deverão ser efetuadas no endereço mencionado, das 08:00 às 11:00 horas e das 13:00 às 16:00 horas, conforme estipulado neste cronograma.
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 100px;">DATA</th>
+                            <th>ITENS AGENDADOS (DESCRIÇÃO / QUANTIDADE / VALOR)</th>
+                            <th style="width: 120px;">PESO TOTAL (KG)</th>
+                            <th style="width: 120px;">VALOR TOTAL (R$)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${deliveries.length > 0 ? deliveries.map((d: any) => `
+                            <tr>
+                                <td class="text-center font-bold">${d.date.split('-').reverse().join('/')}</td>
+                                <td>
+                                    <div class="item-badge">
+                                        <span class="font-bold">${d.item.toUpperCase()}:</span> 
+                                        ${(d.kg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}Kg - 
+                                        R$ ${(d.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    </div>
+                                </td>
+                                <td class="text-center font-bold">${(d.kg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</td>
+                                <td class="text-right font-bold">R$ ${(d.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                        `).join('') : `<tr><td colspan="4" class="text-center italic">Nenhum agendamento para este período</td></tr>`}
+                    </tbody>
+                    <tfoot>
+                        <tr class="font-bold uppercase">
+                            <td colspan="2" class="text-right">TOTAIS DO PERÍODO</td>
+                            <td class="text-center">${deliveries.reduce((acc: number, curr: any) => acc + (curr.kg || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
+                            <td class="text-right">R$ ${deliveries.reduce((acc: number, curr: any) => acc + (curr.value || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                
+                <div class="footer-location">
+                    Taiuva, ${firstBusinessDay.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </div>
+                
+                <div class="signature-section">
+                    <div class="signature-line"></div>
+                    <div class="signature-name">JOSÉ FABIANO MOUTIN</div>
+                    <div class="signature-role">Chefe de Seção de Finanças e Suprimentos</div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        setTimeout(() => {
+            printWindow.print();
+        }, 500);
+    };
+
+    /*
     const handlePrintScheduleReport = () => {
         const filteredDeliveries = weeklyDeliveries.filter(d => 
             d.type === 'FORNECEDOR' && selectedScheduleSuppliers.includes(d.supplierName)
@@ -239,6 +398,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             // printWindow.close(); // Optional: keep open for review
         }, 500);
     };
+    */
 
 
 
@@ -247,13 +407,18 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const supplierInvoices = useMemo(() => {
         if (!receiptSupplier) return [];
         const invoices = new Set<string>();
+        const monthIndex = MONTHS_PT.indexOf(selectedMonth);
+        
         Object.values((receiptSupplier.deliveries as any) || {}).forEach((d: any) => {
-            if (d.invoiceNumber) {
-                invoices.add(d.invoiceNumber);
+            if (d.invoiceNumber && d.date) {
+                const deliveryDate = new Date(d.date + 'T12:00:00');
+                if (deliveryDate.getMonth() === monthIndex && deliveryDate.getFullYear() === selectedYear) {
+                    invoices.add(d.invoiceNumber);
+                }
             }
         });
         return Array.from(invoices).sort();
-    }, [receiptSupplier]);
+    }, [receiptSupplier, selectedMonth, selectedYear]);
 
     const receiptData = useMemo(() => {
         if (!receiptSupplier || !receiptInvoice) return null;
@@ -552,6 +717,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         <button onClick={() => setActiveTab('history')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'history' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Histórico Geral</button>
                         <button onClick={() => setActiveTab('exit')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'exit' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Saída de Materiais</button>
                         <button onClick={() => setActiveTab('agenda')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'agenda' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Agenda</button>
+                        <button onClick={() => setActiveTab('cronograma')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'cronograma' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Cronograma</button>
                         <button onClick={() => setActiveTab('receipt')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'receipt' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Termo</button>
                         <button onClick={() => setActiveTab('sync')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'sync' ? 'bg-white text-amber-600 shadow-sm' : 'text-amber-500'}`}>Sincronização</button>
                     </div>
@@ -637,6 +803,82 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         thirdPartyEntries={thirdPartyEntries} 
                         embedded={true} 
                     />
+                ) : activeTab === 'cronograma' ? (
+                    <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in">
+                        <div className="p-6 md:p-8 border-b border-gray-100 bg-gradient-to-r from-white to-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 rounded-2xl bg-indigo-100 text-indigo-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter leading-none">Cronograma de Entrega</h2>
+                                    <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mt-1 italic">Gestão de Calendário de Recebimento</p>
+                                </div>
+                            </div>
+                            <button 
+                                type="button"
+                                onClick={handlePrintCronograma}
+                                disabled={!selectedCronogramaSupplier}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 px-10 rounded-2xl transition-all shadow-xl shadow-indigo-100 active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 uppercase tracking-[0.2em] text-[10px] flex items-center gap-3"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                                Imprimir Cronograma
+                            </button>
+                        </div>
+
+                        <div className="p-6 md:p-8 space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50/50 p-6 rounded-[2.5rem] border border-gray-100">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Tipo de Processo</label>
+                                    <select 
+                                        value={cronogramaType} 
+                                        onChange={e => { setCronogramaType(e.target.value as any); setSelectedCronogramaSupplier(''); }}
+                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all text-xs"
+                                    >
+                                        <option value="PPAIS">PPAIS</option>
+                                        <option value="ESTOCÁVEIS">ESTOCÁVEIS</option>
+                                        <option value="PERECÍVEIS">PERECÍVEIS</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Fornecedor / Produtor</label>
+                                    <select 
+                                        value={selectedCronogramaSupplier} 
+                                        onChange={e => setSelectedCronogramaSupplier(e.target.value)}
+                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all text-xs"
+                                    >
+                                        <option value="">-- SELECIONE --</option>
+                                        {(cronogramaType === 'PPAIS' ? (perCapitaConfig?.ppaisProducers || []) : (perCapitaConfig?.pereciveisSuppliers || [])).map((s: any) => (
+                                            <option key={s.cpfCnpj} value={s.cpfCnpj}>{s.name.toUpperCase()}</option>
+                                        ))}
+                                        {cronogramaType === 'ESTOCÁVEIS' && suppliers.filter(s => !(perCapitaConfig?.pereciveisSuppliers || []).some((p: any) => p.cpfCnpj === s.cpf)).map(s => (
+                                            <option key={s.cpf} value={s.cpf}>{s.name.toUpperCase()}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Mês</label>
+                                    <select 
+                                        value={selectedMonth} 
+                                        onChange={e => setSelectedMonth(e.target.value)}
+                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all text-xs"
+                                    >
+                                        {MONTHS_PT.map(m => <option key={m} value={m}>{m}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Ano</label>
+                                    <select 
+                                        value={selectedYear} 
+                                        onChange={e => setSelectedYear(Number(e.target.value))}
+                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all text-xs"
+                                    >
+                                        {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 ) : activeTab === 'receipt' ? (
                     <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in">
                         <div className="p-6 md:p-8 border-b border-gray-100 bg-gradient-to-r from-white to-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -661,8 +903,28 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         </div>
 
                         <div className="p-6 md:p-8 space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-50/50 p-8 rounded-[2.5rem] border border-gray-100">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50/50 p-6 rounded-[2.5rem] border border-gray-100">
                                 <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Filtro por Mês</label>
+                                    <select 
+                                        value={selectedMonth} 
+                                        onChange={e => { setSelectedMonth(e.target.value); setReceiptInvoice(''); }}
+                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-teal-100 transition-all text-xs"
+                                    >
+                                        {MONTHS_PT.map(m => <option key={m} value={m}>{m}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Ano</label>
+                                    <select 
+                                        value={selectedYear} 
+                                        onChange={e => { setSelectedYear(Number(e.target.value)); setReceiptInvoice(''); }}
+                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-teal-100 transition-all text-xs"
+                                    >
+                                        {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-2 md:col-span-2">
                                     <label className="text-[10px] font-black text-gray-400 uppercase ml-1 flex items-center gap-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                                         1. Selecionar Fornecedor
@@ -670,13 +932,13 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     <select 
                                         value={receiptSupplierCpf} 
                                         onChange={e => { setReceiptSupplierCpf(e.target.value); setReceiptInvoice(''); }} 
-                                        className="w-full h-14 px-4 border-2 border-white rounded-2xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-teal-100 transition-all text-sm appearance-none cursor-pointer"
+                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-teal-100 transition-all text-xs appearance-none cursor-pointer"
                                     >
                                         <option value="">-- SELECIONE O FORNECEDOR --</option>
-                                        {suppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
+                                        {suppliers.sort((a, b) => a.name.localeCompare(b.name)).map(s => <option key={s.cpf} value={s.cpf}>{s.name.toUpperCase()}</option>)}
                                     </select>
                                 </div>
-                                <div className="space-y-2">
+                                <div className="space-y-2 md:col-span-2">
                                     <label className="text-[10px] font-black text-gray-400 uppercase ml-1 flex items-center gap-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
                                         2. Selecionar Nota Fiscal
@@ -684,14 +946,14 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     <select 
                                         value={receiptInvoice} 
                                         onChange={e => handleInvoiceChange(e.target.value)} 
-                                        className="w-full h-14 px-4 border-2 border-white rounded-2xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-teal-100 transition-all text-sm disabled:opacity-50 appearance-none cursor-pointer" 
+                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-teal-100 transition-all text-xs disabled:opacity-50 appearance-none cursor-pointer" 
                                         disabled={!receiptSupplierCpf}
                                     >
-                                        <option value="">-- SELECIONE A NF --</option>
+                                        <option value="">-- SELECIONE A NF (${selectedMonth}/${selectedYear}) --</option>
                                         {supplierInvoices.map(nf => <option key={nf} value={nf}>NF {nf}</option>)}
                                     </select>
                                 </div>
-                                <div className="space-y-2">
+                                <div className="space-y-2 md:col-span-2">
                                     <label className="text-[10px] font-black text-gray-400 uppercase ml-1 flex items-center gap-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                                         3. Processo SEI
@@ -701,7 +963,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                         value={receiptProcessoSei} 
                                         onChange={e => setReceiptProcessoSei(e.target.value)} 
                                         placeholder="Nº do Processo SEI"
-                                        className="w-full h-14 px-4 border-2 border-white rounded-2xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-teal-100 transition-all text-sm" 
+                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-teal-100 transition-all text-xs" 
                                     />
                                 </div>
                             </div>
