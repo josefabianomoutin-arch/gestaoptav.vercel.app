@@ -302,8 +302,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             <th style="width: 80px;">DATA</th>
                             <th>PRODUTO / ITEM</th>
                             <th style="width: 80px;">QUANT.</th>
-                            <th style="width: 90px;">VALOR UNIT.</th>
-                            <th style="width: 100px;">VALOR TOTAL</th>
+                            <th style="width: 100px;">VALOR</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -313,13 +312,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 ${itIdx === 0 ? `<td class="text-center font-bold" rowspan="${day.items.length}">${day.date.split('-').reverse().join('/')}</td>` : ''}
                                 <td>${(it.item || 'N/A').toUpperCase()}</td>
                                 <td class="text-center font-bold">${(it.kg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                <td class="text-right">R$ ${(it.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                <td class="text-right font-bold">R$ ${((it.kg || 0) * (it.value || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                <td class="text-right font-bold">R$ ${(it.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                             </tr>
                             `).join('')
                         ).join('') : `
                             <tr>
-                                <td colspan="5" class="text-center italic" style="padding: 20px;">Nenhum agendamento para este período</td>
+                                <td colspan="4" class="text-center italic" style="padding: 20px;">Nenhum agendamento para este período</td>
                             </tr>
                         `}
                     </tbody>
@@ -327,7 +325,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         <tr class="font-bold uppercase" style="background-color: #f2f2f2;">
                             <td colspan="2" class="text-right">TOTAIS DO PERÍODO</td>
                             <td class="text-center">${deliveries.reduce((acc: number, curr: any) => acc + (curr.totalKg || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
-                            <td colspan="2" class="text-right">R$ ${deliveries.reduce((acc: number, curr: any) => acc + (curr.totalValue || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            <td class="text-right">R$ ${deliveries.reduce((acc: number, curr: any) => acc + curr.items.reduce((sum: number, it: any) => sum + (it.value || 0), 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -1145,7 +1143,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                 <th className="border border-black p-1">QUANT.</th>
                                                 <th className="border border-black p-1">UNID.</th>
                                                 <th className="border border-black p-1">DESCRIÇÃO</th>
-                                                <th className="border border-black p-1">VR. MEDIANA</th>
                                                 <th className="border border-black p-1">VR. TOTAL</th>
                                             </tr>
                                         </thead>
@@ -1156,11 +1153,18 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                     <td className="border border-black p-1 text-right">{(it.quantity || 0).toFixed(2)}</td>
                                                     <td className="border border-black p-1 text-center">{it.unit || 'N/A'}</td>
                                                     <td className="border border-black p-1">{it.name || 'N/A'}</td>
-                                                    <td className="border border-black p-1 text-right">{(it.unitPrice || 0).toFixed(2)}</td>
-                                                    <td className="border border-black p-1 text-right">{(it.totalValue || 0).toFixed(2)}</td>
+                                                    <td className="border border-black p-1 text-right">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(it.totalValue || 0)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
+                                        <tfoot>
+                                            <tr className="font-bold">
+                                                <td colSpan={4} className="border border-black p-1 text-right">TOTAL GERAL:</td>
+                                                <td className="border border-black p-1 text-right">
+                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receiptData.items.reduce((sum, it) => sum + (it.totalValue || 0), 0))}
+                                                </td>
+                                            </tr>
+                                        </tfoot>
                                     </table>
 
                                     <div className="text-xs text-justify leading-relaxed">
