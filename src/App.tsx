@@ -121,6 +121,7 @@ const App: React.FC = () => {
 
     onValue(suppliersRef, (snapshot) => {
       const data = snapshot.val();
+      console.log("Firebase Suppliers Data:", data);
       setSuppliers(data ? Object.values(data) : []);
     });
     onValue(warehouseLogRef, (snapshot) => {
@@ -128,7 +129,9 @@ const App: React.FC = () => {
       setWarehouseLog(data ? Object.values(data) : []);
     });
     onValue(perCapitaConfigRef, (snapshot) => {
-      setPerCapitaConfig(snapshot.val() || {});
+      const data = snapshot.val();
+      console.log("Firebase PerCapitaConfig Data:", data);
+      setPerCapitaConfig(data || {});
     });
     onValue(cleaningLogsRef, (snapshot) => {
       const data = snapshot.val();
