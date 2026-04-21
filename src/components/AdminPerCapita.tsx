@@ -100,6 +100,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
     const [prevPerCapitaConfig, setPrevPerCapitaConfig] = useState(perCapitaConfig);
     if (perCapitaConfig !== prevPerCapitaConfig) {
+        console.log("AdminPerCapita: perCapitaConfig mudou", perCapitaConfig);
         setPrevPerCapitaConfig(perCapitaConfig);
         setStaffCount(perCapitaConfig.staffCount || 0);
         setInmateCount(perCapitaConfig.inmateCount || 0);
