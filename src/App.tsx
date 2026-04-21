@@ -1296,7 +1296,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleManualInvoiceEntry = async (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, nl?: string, pd?: string, type: 'entrada' | 'saída' = 'entrada', invoiceUrl?: string) => {
+  const handleManualInvoiceEntry = async (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string, type: 'entrada' | 'saída' = 'entrada', invoiceUrl?: string) => {
     let supplierName = '';
     const mainSupplier = suppliers.find(s => s.cpf === supplierCpf);
     if (mainSupplier) {
@@ -1372,7 +1372,6 @@ const App: React.FC = () => {
               if (invoiceDate !== undefined) newDelivery.invoiceDate = invoiceDate;
               if (barcode !== undefined) newDelivery.barcode = barcode;
               if (receiptTermNumber !== undefined) newDelivery.receiptTermNumber = receiptTermNumber;
-              if (nl !== undefined) newDelivery.nl = nl;
               if (pd !== undefined) newDelivery.pd = pd;
               if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
 
@@ -1411,7 +1410,6 @@ const App: React.FC = () => {
                   if (invoiceDate !== undefined) newDelivery.invoiceDate = invoiceDate;
                   if (barcode !== undefined) newDelivery.barcode = barcode;
                   if (receiptTermNumber !== undefined) newDelivery.receiptTermNumber = receiptTermNumber;
-                  if (nl !== undefined) newDelivery.nl = nl;
                   if (pd !== undefined) newDelivery.pd = pd;
                   if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
                   if (invoiceUrl !== undefined) newDelivery.invoiceUrl = invoiceUrl;
