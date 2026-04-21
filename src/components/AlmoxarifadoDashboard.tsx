@@ -283,7 +283,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 quantity: (d as any).kg || 0,
                 unit,
                 unitPrice,
-                totalValue
+                totalValue,
+                category: contractItem?.category
             };
         });
 
@@ -306,6 +307,46 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             processoSei: receiptProcessoSei
         };
     }, [receiptSupplier, receiptInvoice, receiptProcessoSei]);
+
+    // Auto-fill SEI Number based on categories
+    const handleInvoiceChange = (invoice: string) => {
+        setReceiptInvoice(invoice);
+        if (receiptSupplier && invoice && perCapitaConfig?.seiProcessNumbers) {
+            const deliveries = Object.values((receiptSupplier.deliveries as any) || {}).filter((d: any) => 
+                d.invoiceNumber === invoice && d.item !== 'AGENDAMENTO PENDENTE'
+            );
+            
+            const categories = new Set<string>();
+            deliveries.forEach((d: any) => {
+                const contractItem = (Object.values(receiptSupplier.contractItems || {}) as any[]).find((ci: any) => ci.name === d.item);
+                if (contractItem?.category) {
+                    categories.add(contractItem.category);
+                }
+            });
+
+            const priorityList = ['ESTOCÁVEIS', 'PPAIS', 'PERECÍVEIS', 'ESTOCAVEIS', 'PERECIVEIS'];
+            let autoSei = '';
+            for (const cat of priorityList) {
+                if (categories.has(cat) && perCapitaConfig.seiProcessNumbers[cat]) {
+                    autoSei = perCapitaConfig.seiProcessNumbers[cat];
+                    break;
+                }
+            }
+
+            if (!autoSei) {
+                for (const cat of Array.from(categories)) {
+                    if (perCapitaConfig.seiProcessNumbers[cat]) {
+                        autoSei = perCapitaConfig.seiProcessNumbers[cat];
+                        break;
+                    }
+                }
+            }
+            
+            if (autoSei) {
+                setReceiptProcessoSei(autoSei);
+            }
+        }
+    };
 
     const handlePrintReceipt = () => {
         if (!receiptData) return;
@@ -642,7 +683,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     </label>
                                     <select 
                                         value={receiptInvoice} 
-                                        onChange={e => setReceiptInvoice(e.target.value)} 
+                                        onChange={e => handleInvoiceChange(e.target.value)} 
                                         className="w-full h-14 px-4 border-2 border-white rounded-2xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-teal-100 transition-all text-sm disabled:opacity-50 appearance-none cursor-pointer" 
                                         disabled={!receiptSupplierCpf}
                                     >
