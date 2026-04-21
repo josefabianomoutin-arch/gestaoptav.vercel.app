@@ -68,30 +68,28 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList }) =>
           </div>
         )}
 
-        {/* Highlighted Portal Button at the Top for Abril Verde */}
-        {isAbrilVerde && (
-          <div className="relative z-10">
+        {/* Highlighted Portal Button at the Top */}
+        <div className="relative z-10 w-full">
             <button 
               onClick={() => setIsPortalOpen(true)}
-              className="w-full bg-emerald-50 border-2 border-emerald-100 hover:border-emerald-300 p-4 rounded-3xl flex items-center gap-4 transition-all group hover:bg-emerald-100/50"
+              className="w-full bg-white border border-slate-200 hover:border-indigo-300 p-4 rounded-3xl flex items-center gap-4 transition-all group hover:shadow-lg hover:shadow-indigo-50/50"
             >
-              <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <div className="text-left">
-                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Portal de Informações</p>
-                <p className="text-[9px] font-bold text-emerald-800/70 uppercase">Fique atualizado sobre a unidade</p>
+              <div className="text-left flex-grow">
+                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest leading-none mb-1">Portal de Informações</p>
+                <p className="text-[9px] font-bold text-slate-500 uppercase">Fique atualizado sobre a unidade</p>
               </div>
-              <div className="ml-auto bg-emerald-200/50 p-2 rounded-xl text-emerald-600 group-hover:translate-x-1 transition-transform">
+              <div className="ml-auto bg-slate-100 p-2 rounded-xl text-slate-500 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </div>
             </button>
-          </div>
-        )}
+        </div>
 
         <div className="text-center relative z-10">
           <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-white shadow-xl rotate-3 transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-600' : 'bg-indigo-900'}`}>
