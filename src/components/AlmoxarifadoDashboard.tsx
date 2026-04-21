@@ -839,7 +839,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         <WarehouseMovementForm 
                             key="warehouse-exit"
                             suppliers={suppliers} 
-                            warehouseLog={warehouseLog} 
+                            warehouseLog={warehouseLog.filter(l => l.type === 'saída')} 
                             onRegisterEntry={async (_) => { return { success: false, message: 'Not allowed here' } }}
                             onRegisterWithdrawal={onRegisterWithdrawal}
                             initialMode="saída"
