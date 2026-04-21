@@ -172,34 +172,44 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         
         const SeiNumber = perCapitaConfig?.seiProcessNumbers?.[cronogramaType] || '';
         
-        // Find supplier details
-        let supplier: any;
-        if (cronogramaType === 'PPAIS') {
-            supplier = (perCapitaConfig?.ppaisProducers || []).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier);
-        } else {
-            supplier = (perCapitaConfig?.pereciveisSuppliers || []).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier);
-            if (!supplier && cronogramaType === 'ESTOCÁVEIS') {
-                supplier = suppliers.find(s => s.cpf === selectedCronogramaSupplier);
-            }
-        }
+        // Find supplier details in PC config
+        const pcSupplier = (perCapitaConfig?.ppaisProducers || []).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier) ||
+                           (perCapitaConfig?.pereciveisSuppliers || []).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier) ||
+                           (perCapitaConfig?.estocaveisSuppliers || []).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier);
 
-        if (!supplier) {
+        // Always find the actual supplier with deliveries from the main suppliers prop
+        const mainSupplier = suppliers.find(s => s.cpf === selectedCronogramaSupplier);
+        
+        if (!mainSupplier && !pcSupplier) {
             alert('Por favor, selecione um fornecedor.');
             return;
         }
 
-        // Find items from entered invoices for this supplier and month
-        
+        // Merge info: use pcSupplier for metadata, both for deliveries
+        const supplier = {
+            ...(pcSupplier || {}),
+            ...(mainSupplier || {}),
+            name: pcSupplier?.name || mainSupplier?.name || 'DESCONHECIDO',
+            cpfCnpj: pcSupplier?.cpfCnpj || mainSupplier?.cpf || selectedCronogramaSupplier
+        };
+
         // Obter todas as entregas do fornecedor para o mês selecionado
-        const supplierDeliveries = (Object.values(supplier.deliveries || {}) as any[]).filter(d => {
-            if (!d.date) return false;
-            const deliveryDate = new Date(d.date + 'T12:00:00');
+        const allDeliveries = [
+            ...(Object.values(pcSupplier?.deliveries || {}) as any[]),
+            ...(Object.values(mainSupplier?.deliveries || {}) as any[])
+        ];
+
+        const supplierDeliveries = allDeliveries.filter(d => {
+            const dateStr = d.invoiceDate || d.date;
+            if (!dateStr) return false;
+            const deliveryDate = new Date(dateStr + 'T12:00:00');
             return deliveryDate.getMonth() === monthIndex && deliveryDate.getFullYear() === selectedYear;
         });
 
         // Agrupar por data para o cronograma
         const groupedDeliveriesMap = supplierDeliveries.reduce((acc: any, d: any) => {
-            if (!acc[d.date]) acc[d.date] = [];
+            const displayDate = d.invoiceDate || d.date;
+            if (!acc[displayDate]) acc[displayDate] = [];
             
             // Tentar buscar o valor no warehouseLog
             const cleanInv = String(d.invoiceNumber || '').trim().replace(/^0+/, '');
@@ -210,10 +220,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 
                 return (lInbound === cleanInv || lOutbound === cleanInv || lInvLog === cleanInv) &&
                        (log.item === d.item || log.itemName === d.item) &&
-                       (log.supplierCpf === supplier.cpfCnpj || log.supplierCpf === supplier.cpf || log.supplierName === supplier.name);
+                       (String(log.supplierCpf || '').replace(/\D/g, '') === String(selectedCronogramaSupplier).replace(/\D/g, ''));
             });
 
-            acc[d.date].push({
+            acc[displayDate].push({
                 item: d.item,
                 kg: d.kg || d.quantity || 0,
                 value: logEntry?.value || d.value || 0,
@@ -442,7 +452,25 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
 
 
-    const receiptSupplier = useMemo(() => suppliers.find(s => s.cpf === receiptSupplierCpf), [suppliers, receiptSupplierCpf]);
+    const receiptSupplier = useMemo(() => {
+        const main = suppliers.find(s => s.cpf === receiptSupplierCpf);
+        const pc = (perCapitaConfig?.ppaisProducers || []).find((p: any) => p.cpfCnpj === receiptSupplierCpf) ||
+                   (perCapitaConfig?.pereciveisSuppliers || []).find((p: any) => p.cpfCnpj === receiptSupplierCpf) ||
+                   (perCapitaConfig?.estocaveisSuppliers || []).find((p: any) => p.cpfCnpj === receiptSupplierCpf);
+        
+        if (!main && !pc) return null;
+        
+        return {
+            ...(pc || {}),
+            ...(main || {}),
+            name: pc?.name || main?.name || 'DESCONHECIDO',
+            cpf: receiptSupplierCpf,
+            deliveries: [
+                ...(Object.values(pc?.deliveries || {}) as any[]),
+                ...(Object.values(main?.deliveries || {}) as any[])
+            ]
+        };
+    }, [suppliers, receiptSupplierCpf, perCapitaConfig]);
 
     const supplierInvoices = useMemo(() => {
         if (!receiptSupplier) return [];
@@ -450,8 +478,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         const monthIndex = MONTHS_PT.indexOf(selectedMonth);
         
         Object.values((receiptSupplier.deliveries as any) || {}).forEach((d: any) => {
-            if (d.invoiceNumber && d.date) {
-                const deliveryDate = new Date(d.date + 'T12:00:00');
+            const dateStr = d.invoiceDate || d.date;
+            if (d.invoiceNumber && dateStr) {
+                const deliveryDate = new Date(dateStr + 'T12:00:00');
                 if (deliveryDate.getMonth() === monthIndex && deliveryDate.getFullYear() === selectedYear) {
                     invoices.add(d.invoiceNumber);
                 }
