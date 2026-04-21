@@ -188,12 +188,47 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             return;
         }
 
-        const deliveries = warehouseLog.filter(l => 
-            l.supplierCpf === selectedCronogramaSupplier &&
-            l.type === 'entrada' &&
-            new Date(l.date + 'T12:00:00').getMonth() === monthIndex &&
-            new Date(l.date + 'T12:00:00').getFullYear() === selectedYear
-        );
+        // Find items from entered invoices for this supplier and month
+        const monthIndex = MONTHS_PT.indexOf(selectedMonth);
+        
+        // Obter todas as entregas do fornecedor para o mês selecionado
+        const supplierDeliveries = (Object.values(supplier.deliveries || {}) as any[]).filter(d => {
+            if (!d.date) return false;
+            const deliveryDate = new Date(d.date + 'T12:00:00');
+            return deliveryDate.getMonth() === monthIndex && deliveryDate.getFullYear() === selectedYear;
+        });
+
+        // Agrupar por data para o cronograma
+        const groupedDeliveriesMap = supplierDeliveries.reduce((acc: any, d: any) => {
+            if (!acc[d.date]) acc[d.date] = [];
+            
+            // Tentar buscar o valor no warehouseLog
+            const cleanInv = String(d.invoiceNumber || '').trim().replace(/^0+/, '');
+            const logEntry = warehouseLog.find(log => {
+                const lInbound = String(log.inboundInvoice || '').trim().replace(/^0+/, '');
+                const lOutbound = String(log.outboundInvoice || '').trim().replace(/^0+/, '');
+                const lInvLog = String(log.invoiceNumber || '').trim().replace(/^0+/, '');
+                
+                return (lInbound === cleanInv || lOutbound === cleanInv || lInvLog === cleanInv) &&
+                       (log.item === d.item || log.itemName === d.item) &&
+                       (log.supplierCpf === supplier.cpfCnpj || log.supplierCpf === supplier.cpf || log.supplierName === supplier.name);
+            });
+
+            acc[d.date].push({
+                item: d.item,
+                kg: d.kg || d.quantity || 0,
+                value: logEntry?.value || d.value || 0,
+                invoiceNumber: d.invoiceNumber
+            });
+            return acc;
+        }, {} as Record<string, any[]>);
+
+        const deliveries = Object.entries(groupedDeliveriesMap).map(([date, items]) => ({
+            date,
+            items: items as any[],
+            totalKg: (items as any[]).reduce((sum, it) => sum + (it.kg || 0), 0),
+            totalValue: (items as any[]).reduce((sum, it) => sum + ((it.kg || 0) * (it.value || 0)), 0)
+        })).sort((a, b) => a.date.localeCompare(b.date));
 
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
@@ -228,7 +263,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     .text-right { text-align: right; }
                     .font-bold { font-weight: bold; }
                     
-                    .item-badge { background: #f9f9f9; padding: 2px 6px; border: 1px solid #ddd; border-radius: 4px; display: inline-block; margin: 2px; font-size: 8pt; }
+                    .item-badge { background: #f9f9f9; padding: 4px 8px; border: 1px solid #ddd; border-radius: 6px; display: inline-block; margin: 2px; font-size: 8.5pt; }
                 </style>
             </head>
             <body>
@@ -265,22 +300,24 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             <tr>
                                 <td class="text-center font-bold">${d.date.split('-').reverse().join('/')}</td>
                                 <td>
-                                    <div class="item-badge">
-                                        <span class="font-bold">${(d.item || d.itemName || 'N/A').toUpperCase()}:</span> 
-                                        ${(d.kg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}Kg - 
-                                        R$ ${(d.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    </div>
+                                    ${d.items.map((it: any) => `
+                                        <div class="item-badge">
+                                            <span class="font-bold">${(it.item || 'N/A').toUpperCase()}:</span> 
+                                            ${(it.kg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}Kg - 
+                                            R$ ${(it.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        </div>
+                                    `).join('')}
                                 </td>
-                                <td class="text-center font-bold">${(d.kg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</td>
-                                <td class="text-right font-bold">R$ ${((d.kg || 0) * (d.value || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                <td class="text-center font-bold">${(d.totalKg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</td>
+                                <td class="text-right font-bold">R$ ${(d.totalValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                             </tr>
                         `).join('') : `<tr><td colspan="4" class="text-center italic">Nenhum agendamento para este período</td></tr>`}
                     </tbody>
                     <tfoot>
                         <tr class="font-bold uppercase">
                             <td colspan="2" class="text-right">TOTAIS DO PERÍODO</td>
-                            <td class="text-center">${deliveries.reduce((acc: number, curr: any) => acc + (curr.kg || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
-                            <td class="text-right">R$ ${deliveries.reduce((acc: number, curr: any) => acc + ((curr.kg || 0) * (curr.value || 0)), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            <td class="text-center">${deliveries.reduce((acc: number, curr: any) => acc + (curr.totalKg || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
+                            <td class="text-right">R$ ${deliveries.reduce((acc: number, curr: any) => acc + (curr.totalValue || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -427,20 +464,33 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const receiptData = useMemo(() => {
         if (!receiptSupplier || !receiptInvoice) return null;
         
-        // Buscar movimentos desta nota fiscal no warehouseLog para obter os valores REAIS registrados
-        const movements = warehouseLog.filter(l => 
-            (l.inboundInvoice === receiptInvoice || l.outboundInvoice === receiptInvoice) &&
-            l.supplierCpf === receiptSupplier.cpf
-        );
+        const cleanTargetInvoice = String(receiptInvoice).trim().replace(/^0+/, '');
+        
+        // Obter itens da nota fiscal diretamente das entregas do fornecedor (Fonte Primária)
+        const deliveries = (Object.values(receiptSupplier.deliveries || {}) as any[]).filter(d => {
+            const cleanDInv = String(d.invoiceNumber || '').trim().replace(/^0+/, '');
+            return cleanDInv === cleanTargetInvoice;
+        });
 
-        if (movements.length === 0) return null;
+        if (deliveries.length === 0) return null;
 
-        const items = movements.map(m => {
-            const contractItem = (Object.values(receiptSupplier.contractItems || {}) as any[]).find((ci: any) => ci.name === (m.item || m.itemName));
-            const unitPrice = m.value || 0;
-            const totalValue = (m.kg || 0) * unitPrice;
+        const items = deliveries.map(d => {
+            // Tentar buscar o valor registrado no warehouseLog para este item específico
+            const itemMovement = warehouseLog.find(log => {
+                const lInbound = String(log.inboundInvoice || '').trim().replace(/^0+/, '');
+                const lOutbound = String(log.outboundInvoice || '').trim().replace(/^0+/, '');
+                const lInv = String(log.invoiceNumber || '').trim().replace(/^0+/, '');
+                
+                return (lInbound === cleanTargetInvoice || lOutbound === cleanTargetInvoice || lInv === cleanTargetInvoice) &&
+                       (log.item === d.item || log.itemName === d.item) &&
+                       (log.supplierCpf === receiptSupplier.cpf || log.supplierName === receiptSupplier.name);
+            });
+
+            const contractItem = (Object.values(receiptSupplier.contractItems || {}) as any[]).find((ci: any) => ci.name === d.item);
+            const unitPrice = itemMovement?.value || d.value || 0;
+            const quantity = d.kg || d.quantity || 0;
+            const totalValue = quantity * unitPrice;
             
-            // Determinar unidade de exibição
             let unit = 'Kg';
             if (contractItem?.unit) {
                 const [unitType] = contractItem.unit.split('-');
@@ -452,22 +502,22 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             }
 
             return {
-                name: m.item || m.itemName || 'N/A',
-                quantity: m.kg || 0,
+                name: d.item || 'N/A',
+                quantity,
                 unit,
                 unitPrice,
                 totalValue,
-                category: contractItem?.category
+                category: contractItem?.category,
+                barcode: itemMovement?.barcode || d.barcode || ''
             };
         });
 
         const totalInvoiceValue = items.reduce((sum, it) => sum + it.totalValue, 0);
-        const invoiceDate = movements.find(m => m.date)?.date || ''; 
-        const receiptDate = movements[0]?.date || '';
-        const barcode = movements.find(m => m.barcode)?.barcode || '';
-        
-        // Pegar número de empenho/parecer se disponível no movimento
-        const receiptTermNumber = movements.find(m => (m as any).receiptTermNumber)?.receiptTermNumber || '';
+        const firstDelivery = deliveries[0];
+        const invoiceDate = firstDelivery.invoiceDate || firstDelivery.date || '';
+        const receiptDate = firstDelivery.date || '';
+        const barcode = items.find(it => it.barcode)?.barcode || '';
+        const receiptTermNumber = firstDelivery.receiptTermNumber || '';
 
         return {
             supplierName: receiptSupplier.name,
@@ -481,7 +531,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             receiptTermNumber,
             processoSei: receiptProcessoSei
         };
-    }, [receiptSupplier, receiptInvoice, receiptProcessoSei]);
+    }, [receiptSupplier, receiptInvoice, receiptProcessoSei, warehouseLog]);
 
     // Auto-fill SEI Number based on categories
     const handleInvoiceChange = (invoice: string) => {

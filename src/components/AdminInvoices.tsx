@@ -90,11 +90,14 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     suppliers.forEach(supplier => {
       const deliveries = Object.values(supplier.deliveries || {}) as Delivery[];
       const grouped = deliveries.reduce((acc, d) => {
-        if (d.invoiceNumber) {
-          const movement = warehouseLog.find(log => 
-            log.inboundInvoice === d.invoiceNumber || 
-            log.outboundInvoice === d.invoiceNumber
-          );
+        const cleanDInvoice = String(d.invoiceNumber || '').trim().replace(/^0+/, '');
+        if (cleanDInvoice) {
+          const movement = warehouseLog.find(log => {
+            const cleanInbound = String(log.inboundInvoice || '').trim().replace(/^0+/, '');
+            const cleanOutbound = String(log.outboundInvoice || '').trim().replace(/^0+/, '');
+            const cleanInv = String(log.invoiceNumber || '').trim().replace(/^0+/, '');
+            return cleanInbound === cleanDInvoice || cleanOutbound === cleanDInvoice || cleanInv === cleanDInvoice;
+          });
           const isExit = (d as any).type === 'saída' || (movement && movement.type === 'saída');
           
           if (mode === 'warehouse_entry' && isExit) return acc;
@@ -117,11 +120,15 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           }
           
           // Tentar buscar o valor registrado no warehouseLog para este item específico desta nota
-          const itemMovement = warehouseLog.find(log => 
-            (log.inboundInvoice === d.invoiceNumber || log.outboundInvoice === d.invoiceNumber) &&
-            (log.item === d.item || log.itemName === d.item) &&
-            log.supplierCpf === supplier.cpf
-          );
+          const itemMovement = warehouseLog.find(log => {
+            const lInbound = String(log.inboundInvoice || '').trim().replace(/^0+/, '');
+            const lOutbound = String(log.outboundInvoice || '').trim().replace(/^0+/, '');
+            const lInv = String(log.invoiceNumber || '').trim().replace(/^0+/, '');
+            
+            return (lInbound === cleanDInvoice || lOutbound === cleanDInvoice || lInv === cleanDInvoice) &&
+                   (log.item === d.item || log.itemName === d.item) &&
+                   (log.supplierCpf === supplier.cpf || log.supplierName === supplier.name);
+          });
 
           const itemValue = itemMovement?.value || d.value || 0;
           acc[d.invoiceNumber].items.push({ ...d, value: itemValue });
@@ -535,38 +542,31 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                         </div>
                         
                         <div className="bg-slate-50 p-4 rounded-2xl border border-gray-100 space-y-3">
-                            <div className="space-y-1">
-                                <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Item (Q1, Q2, Q3)</label>
-                                <select 
-                                    value={newItem.name} 
-                                    onChange={e => setNewItem({...newItem, name: e.target.value})}
-                                    disabled={!manualEntryData.supplierCpf}
-                                    className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px] uppercase"
-                                >
-                                    <option value="">Selecione o Item...</option>
-                                    {availableItems.map(it => <option key={it} value={it}>{it}</option>)}
-                                </select>
-                            </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1">
-                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Peso/Qtd (Kg)</label>
-                                    <input 
-                                        type="number" 
-                                        value={newItem.kg || ''} 
-                                        onChange={e => setNewItem({...newItem, kg: Number(e.target.value)})}
-                                        className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px]" 
-                                    />
+                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Item (Contrato)</label>
+                                    <select 
+                                        value={newItem.name} 
+                                        onChange={e => setNewItem({...newItem, name: e.target.value})}
+                                        disabled={!manualEntryData.supplierCpf}
+                                        className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px] uppercase"
+                                    >
+                                        <option value="">Selecione...</option>
+                                        {availableItems.map(it => <option key={it} value={it}>{it}</option>)}
+                                    </select>
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Valor Unit (R$)</label>
+                                    <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest ml-0.5">Código de Barras</label>
                                     <input 
-                                        type="number" 
-                                        value={newItem.value || ''} 
-                                        onChange={e => setNewItem({...newItem, value: Number(e.target.value)})}
-                                        className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px]" 
+                                        type="text" 
+                                        value={(newItem as any).barcode || ''} 
+                                        onChange={e => setNewItem({...newItem, barcode: e.target.value})}
+                                        placeholder="Bipar..."
+                                        className="w-full bg-white border border-blue-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-blue-400 font-mono text-[10px]" 
                                     />
                                 </div>
                             </div>
+                            
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1">
                                     <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Lote</label>
@@ -588,6 +588,37 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     />
                                 </div>
                             </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Quantidade (Kg)</label>
+                                    <input 
+                                        type="number" 
+                                        value={newItem.kg || ''} 
+                                        onChange={e => setNewItem({...newItem, kg: Number(e.target.value)})}
+                                        className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px]" 
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-emerald-600 uppercase tracking-widest ml-0.5">Valor Unit (R$)</label>
+                                    <input 
+                                        type="number" 
+                                        value={newItem.value || ''} 
+                                        onChange={e => setNewItem({...newItem, value: Number(e.target.value)})}
+                                        className="w-full bg-white border border-emerald-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-emerald-400 font-bold text-[10px]" 
+                                    />
+                                </div>
+                            </div>
+
+                            {newItem.kg > 0 && newItem.value > 0 && (
+                                <div className="bg-emerald-50 p-2 rounded-lg border border-emerald-100 flex justify-between items-center px-4">
+                                    <span className="text-[8px] font-black text-emerald-900 uppercase">Total do Item</span>
+                                    <span className="text-[11px] font-black text-emerald-700 font-mono tracking-tighter">
+                                        {formatCurrency(newItem.kg * newItem.value)}
+                                    </span>
+                                </div>
+                            )}
+
                             <button 
                                 onClick={() => {
                                     if (!newItem.name || !newItem.kg) {
@@ -688,11 +719,12 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                       <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Valor Unit (R$)</label>
                                       <input 
                                           type="number" 
-                                          value={item.value / item.kg || 0} 
+                                          value={item.value || 0} 
+                                          step="0.01"
                                           onChange={e => {
                                               const newPrice = Number(e.target.value);
                                               const newItems = [...editingInvoice.items];
-                                              newItems[idx] = { ...item, value: newPrice * item.kg };
+                                              newItems[idx] = { ...item, value: newPrice };
                                               setEditingInvoice({ ...editingInvoice, items: newItems });
                                           }}
                                           className="w-full h-9 px-3 rounded-lg border-2 border-gray-100 outline-none focus:border-indigo-400 font-bold text-[10px]" 

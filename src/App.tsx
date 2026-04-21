@@ -515,6 +515,22 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdatePerCapitaConfig = async (newConfig: Partial<PerCapitaConfig>) => {
+    try {
+      await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+        if (!currentData) return newConfig as PerCapitaConfig;
+        return {
+          ...currentData,
+          ...newConfig
+        } as PerCapitaConfig;
+      });
+      return { success: true };
+    } catch (e) {
+      console.error('Erro ao atualizar PerCapitaConfig:', e);
+      return { success: false, message: String(e) };
+    }
+  };
+
   const handleRegisterSupplier = async (name: string, cpf: string, allowedWeeks: number[]) => {
     try {
       console.log('Tentando registrar fornecedor:', { name, cpf, allowedWeeks });
@@ -1309,8 +1325,10 @@ const App: React.FC = () => {
             date: invoiceDate || date,
             itemName: item.name,
             supplierName: supplierName,
+            supplierCpf: supplierCpf,
             lotNumber: item.lotNumber || 'MANUAL',
             quantity: item.kg,
+            value: item.value || 0,
             barcode: barcode || '',
             lotId: lotId,
             deliveryId: ''
@@ -1630,8 +1648,10 @@ const App: React.FC = () => {
             date: payload.invoiceDate || new Date().toISOString().split('T')[0],
             itemName: payload.itemName,
             supplierName: supplier?.name || 'Desconhecido',
+            supplierCpf: payload.supplierCpf,
             lotNumber: payload.lotNumber,
             quantity: payload.quantity,
+            value: payload.value || 0,
             barcode: payload.barcode || '',
             lotId: lotId,
             deliveryId: ''
@@ -1648,7 +1668,8 @@ const App: React.FC = () => {
                 if (currentData) {
                     const deliveries = currentData.deliveries || [];
                     const contract = currentData.contractItems.find(ci => ci.name === payload.itemName);
-                    const value = contract ? (payload.quantity * contract.valuePerKg) : 0;
+                    // Use a unidade de valor do payload se disponível, senão do contrato
+                    const unitValue = payload.value || (contract ? contract.valuePerKg : 0);
                     
                     deliveries.push({
                         id: `sync-${Date.now()}`,
@@ -1656,7 +1677,7 @@ const App: React.FC = () => {
                         time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
                         item: payload.itemName,
                         kg: payload.quantity,
-                        value: value,
+                        value: unitValue,
                         invoiceUploaded: true,
                         invoiceNumber: String(payload.invoiceNumber || '').trim(),
                         barcode: payload.barcode || '',
@@ -1819,7 +1840,7 @@ const App: React.FC = () => {
           onLogout={handleLogout}
           warehouseLog={warehouseLog}
           perCapitaConfig={perCapitaConfig}
-          onUpdatePerCapitaConfig={(c) => set(perCapitaConfigRef, c)}
+          onUpdatePerCapitaConfig={handleUpdatePerCapitaConfig}
           cleaningLogs={cleaningLogs}
           onRegisterCleaningLog={async (l) => {
               const r = push(cleaningLogsRef);

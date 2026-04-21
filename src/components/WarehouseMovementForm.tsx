@@ -44,6 +44,12 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     const [manualWeight, setManualWeight] = useState('');
     const [selectedPeriod, setSelectedPeriod] = useState<'1_QUAD' | '2_3_QUAD'>('1_QUAD');
     
+    const currentTotalValue = useMemo(() => {
+        const q = parseFloat(manualQuantity.replace(',', '.')) || 0;
+        const v = parseFloat(manualValue.replace(',', '.')) || 0;
+        return q * v;
+    }, [manualQuantity, manualValue]);
+
     const updateManualValue = (itemName: string, period: '1_QUAD' | '2_3_QUAD') => {
         if (manualType === 'entrada' && itemName) {
             const acqItem = acquisitionItems.find(ai => 
@@ -787,132 +793,141 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                         </div>
                     ) : (
                         /* ENTRADA DE NOTA FISCAL - REDESIGN */
-                        <div className="space-y-3 p-1">
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                                {/* Item Selection and Period */}
-                                <div className="md:col-span-8 flex flex-col gap-2">
-                                    <div className="flex-1 space-y-0.5">
-                                        <label className="text-[8px] font-black text-indigo-600 uppercase ml-1 italic tracking-widest flex items-center gap-2">
-                                            <Package className="h-2.5 w-2.5" /> 1. Produto / Item
-                                        </label>
-                                        <select 
-                                            value={selectedItemName} 
-                                            onChange={e => {
-                                                const val = e.target.value;
-                                                if (!selectedSupplierCpf) {
-                                                    const [itemName, supplierCpf] = val.split('|');
-                                                    setSelectedSupplierCpf(supplierCpf);
-                                                    setSelectedItemName(itemName);
-                                                    updateManualValue(itemName, selectedPeriod);
-                                                } else {
-                                                    setSelectedItemName(val);
-                                                    updateManualValue(val, selectedPeriod);
-                                                }
-                                            }} 
-                                            className="w-full h-9 px-3 border-2 border-indigo-100 rounded-xl bg-white font-black outline-none focus:ring-4 focus:ring-indigo-50 transition-all text-[11px] uppercase italic appearance-none cursor-pointer" 
-                                        >
-                                            <option value="">-- SELECIONE O PRODUTO --</option>
-                                            {!selectedSupplierCpf ? (
-                                                (availableItems as any[]).map((it, idx) => (
-                                                    <option key={`${it.name}-${it.supplierCpf}-${idx}`} value={`${it.name}|${it.supplierCpf}`}>
-                                                        {it.displayName || it.name} ({it.supplierName})
-                                                    </option>
-                                                ))
-                                            ) : (
-                                                (availableItems as any[]).map(ci => <option key={ci.name} value={ci.name}>{ci.displayName || ci.name}</option>)
-                                            )}
-                                        </select>
-                                    </div>
-
-                                    {/* Period Selection moved here for better visibility */}
-                                    <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
-                                        <button 
-                                            type="button"
-                                            onClick={() => { setSelectedPeriod('1_QUAD'); updateManualValue(selectedItemName, '1_QUAD'); }}
-                                            className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all flex items-center justify-center gap-2 ${selectedPeriod === '1_QUAD' ? 'bg-indigo-600 text-white shadow-md' : 'bg-transparent text-gray-500 hover:text-gray-700'}`}
-                                        >
-                                            1º Quadrimestre
-                                            {selectedItemName && (
-                                                <span className="bg-white/20 px-1.5 py-0.5 rounded text-[7px]">
-                                                    R$ {String((acquisitionItems.find(ai => ai.name === selectedItemName || ai.nickname === selectedItemName)?.unitValue || 0)).replace('.', ',')}
-                                                </span>
-                                            )}
-                                        </button>
-                                        <button 
-                                            type="button"
-                                            onClick={() => { setSelectedPeriod('2_3_QUAD'); updateManualValue(selectedItemName, '2_3_QUAD'); }}
-                                            className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all flex items-center justify-center gap-2 ${selectedPeriod === '2_3_QUAD' ? 'bg-indigo-600 text-white shadow-md' : 'bg-transparent text-gray-500 hover:text-gray-700'}`}
-                                        >
-                                            2º e 3º Quadrimestre
-                                            {selectedItemName && (
-                                                <span className="bg-white/20 px-1.5 py-0.5 rounded text-[7px]">
-                                                     R$ {String((acquisitionItems.find(ai => ai.name === selectedItemName || ai.nickname === selectedItemName)?.unitValue23 || acquisitionItems.find(ai => ai.name === selectedItemName || ai.nickname === selectedItemName)?.unitValue || 0)).replace('.', ',')}
-                                                </span>
-                                            )}
-                                        </button>
-                                    </div>
+                        <div className="space-y-2 p-1">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+                                {/* Row 1: Item Selection */}
+                                <div className="md:col-span-12 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-indigo-600 uppercase ml-1 italic tracking-widest flex items-center gap-1.5">
+                                        <Package className="h-2 w-2" /> 1. Produto / Item
+                                    </label>
+                                    <select 
+                                        value={selectedItemName} 
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            if (!selectedSupplierCpf) {
+                                                const [itemName, supplierCpf] = val.split('|');
+                                                setSelectedSupplierCpf(supplierCpf);
+                                                setSelectedItemName(itemName);
+                                                updateManualValue(itemName, selectedPeriod);
+                                            } else {
+                                                setSelectedItemName(val);
+                                                updateManualValue(val, selectedPeriod);
+                                            }
+                                        }} 
+                                        className="w-full h-8 px-2 border border-gray-200 rounded-lg bg-white font-black outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] uppercase italic cursor-pointer" 
+                                    >
+                                        <option value="">-- SELECIONE O PRODUTO --</option>
+                                        {!selectedSupplierCpf ? (
+                                            (availableItems as any[]).map((it, idx) => (
+                                                <option key={`${it.name}-${it.supplierCpf}-${idx}`} value={`${it.name}|${it.supplierCpf}`}>
+                                                    {it.displayName || it.name} ({it.supplierName})
+                                                </option>
+                                            ))
+                                        ) : (
+                                            (availableItems as any[]).map(ci => <option key={ci.name} value={ci.name}>{ci.displayName || ci.name}</option>)
+                                        )}
+                                    </select>
                                 </div>
 
-                                {/* Financial Info Card */}
-                                <div className="md:col-span-4 bg-emerald-50 border-2 border-emerald-100 p-3 rounded-2xl flex flex-col justify-center items-center shadow-sm relative overflow-hidden">
-                                     <div className="absolute top-0 right-0 w-8 h-8 bg-emerald-200/20 rounded-full -mr-4 -mt-4"></div>
-                                     <label className="text-[8px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Total deste Item</label>
-                                     <div className="text-xl font-black text-emerald-900 font-mono tracking-tighter leading-none">
-                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                                             (parseFloat(manualQuantity.replace(',', '.')) || 0) * (parseFloat(manualValue.replace(',', '.')) || 0)
-                                         )}
-                                     </div>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-                                <div className="space-y-0.5">
-                                    <label className="text-[7.5px] font-black text-rose-600 uppercase ml-1 italic tracking-widest">Parecer (PD)</label>
-                                    <input type="text" value={manualPd} onChange={e => setManualPd(e.target.value.toUpperCase())} placeholder="PD..." className="w-full h-8 px-2 border-2 border-rose-100 rounded-lg bg-white font-black outline-none focus:ring-4 focus:ring-rose-50 transition-all text-[10px] uppercase italic" />
-                                </div>
-
-                                <div className="space-y-0.5">
-                                    <label className="text-[7.5px] font-black text-emerald-600 uppercase ml-1 italic tracking-widest">Vlr. Unitário</label>
-                                    <input type="text" value={manualValue} onChange={e => setManualValue(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="R$ 0,00" className="w-full h-8 px-2 border-2 border-emerald-100 rounded-lg bg-white font-black outline-none focus:ring-4 focus:ring-emerald-50 transition-all text-[10px] font-mono text-emerald-700" title="Altere se desejar um valor diferente do contrato" />
-                                </div>
-
-                                <div className="space-y-0.5">
-                                    <label className="text-[7.5px] font-black text-blue-600 uppercase ml-1 italic tracking-widest">Barras (Bipar)</label>
+                                {/* Row 2: Barcode and Lote */}
+                                <div className="md:col-span-6 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1">Cód. Barras</label>
                                     <input 
-                                        ref={barcodeInputRef} 
                                         type="text" 
+                                        ref={barcodeInputRef}
                                         value={manualBarcode} 
                                         onChange={e => setManualBarcode(e.target.value)} 
-                                        placeholder="Bipar..." 
-                                        className="w-full h-8 px-2 border-2 border-blue-100 rounded-lg bg-white font-mono font-bold focus:ring-4 focus:ring-blue-50 outline-none text-[9px] placeholder:text-blue-200" />
+                                        placeholder="SCANEIE OU DIGITE"
+                                        className="w-full h-8 px-2 border border-gray-200 rounded-lg bg-white font-mono font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] placeholder:text-gray-300 uppercase" 
+                                    />
+                                </div>
+                                <div className="md:col-span-6 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1">Lote</label>
+                                    <input 
+                                        type="text" 
+                                        value={manualLot} 
+                                        onChange={e => setManualLot(e.target.value)} 
+                                        placeholder="LOTE"
+                                        className="w-full h-8 px-2 border border-gray-200 rounded-lg bg-white font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] uppercase" 
+                                    />
                                 </div>
 
-                                <div className="space-y-0.5">
-                                    <label className="text-[7.5px] font-black text-gray-950 uppercase ml-1 italic tracking-widest">Quantidade (Unit/KG)</label>
+                                {/* Row 3: Quantidade and Validade */}
+                                <div className="md:col-span-4 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-emerald-600 uppercase ml-1 block">Quantidade (Kg/Un)</label>
                                     <input 
                                         type="text" 
                                         value={manualQuantity} 
                                         onChange={e => setManualQuantity(e.target.value.replace(/[^0-9,.]/g, ''))} 
-                                        placeholder="0,00" 
-                                        className="w-full h-8 px-2 border-2 border-gray-900 rounded-lg bg-gray-950 text-white font-black text-center text-[11px] outline-none shadow-md font-mono" 
+                                        placeholder="0,00"
+                                        className="w-full h-8 px-2 border-2 border-emerald-100 rounded-lg bg-white font-black outline-none focus:ring-2 focus:ring-emerald-200 transition-all text-[11px] text-center" 
+                                    />
+                                </div>
+                                <div className="md:col-span-4 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1">Validade</label>
+                                    <input 
+                                        type="date" 
+                                        value={manualExp} 
+                                        onChange={e => setManualExp(e.target.value)} 
+                                        className="w-full h-8 px-1 border border-gray-200 rounded-lg bg-white font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[9.5px]" 
+                                    />
+                                </div>
+                                <div className="md:col-span-4 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1 italic tracking-widest">Nº PD</label>
+                                    <input 
+                                        type="text" 
+                                        value={manualPd} 
+                                        onChange={e => setManualPd(e.target.value)} 
+                                        placeholder="Nº PD"
+                                        className="w-full h-8 px-2 border border-gray-200 rounded-lg bg-white font-black outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] uppercase text-indigo-600" 
                                     />
                                 </div>
 
-                                <div className="space-y-0.5 md:col-span-1">
-                                    <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1 italic tracking-widest">Lote / Val</label>
-                                    <div className="grid grid-cols-2 gap-1">
-                                        <input type="text" value={manualLot} onChange={e => setManualLot(e.target.value.toUpperCase())} placeholder="LOTE" className="w-full h-8 px-1.5 border-2 border-gray-100 rounded-lg bg-white font-mono font-bold outline-none text-[8px] focus:ring-2 focus:ring-gray-100" />
-                                        <input type="date" value={manualExp} onChange={e => setManualExp(e.target.value)} className="w-full h-8 px-0.5 border-2 border-gray-100 rounded-lg bg-white font-bold outline-none text-[8px] focus:ring-2 focus:ring-gray-100" />
+                                {/* Row 4: Period and Values */}
+                                <div className="md:col-span-7 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-indigo-600 uppercase ml-1">Período de Aquisição</label>
+                                    <div className="flex gap-1 p-0.5 bg-gray-100 rounded-lg border border-gray-200">
+                                        <button 
+                                            type="button"
+                                            onClick={() => { setSelectedPeriod('1_QUAD'); updateManualValue(selectedItemName, '1_QUAD'); }}
+                                            className={`flex-1 py-1 rounded-md text-[7px] font-black uppercase transition-all ${selectedPeriod === '1_QUAD' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            1º Quadrim.
+                                        </button>
+                                        <button 
+                                            type="button"
+                                            onClick={() => { setSelectedPeriod('2_3_QUAD'); updateManualValue(selectedItemName, '2_3_QUAD'); }}
+                                            className={`flex-1 py-1 rounded-md text-[7px] font-black uppercase transition-all ${selectedPeriod === '2_3_QUAD' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            2º e 3º Quad.
+                                        </button>
                                     </div>
                                 </div>
+                                <div className="md:col-span-5 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1">Valor Unit. (R$)</label>
+                                    <input 
+                                        type="text" 
+                                        value={manualValue} 
+                                        onChange={e => setManualValue(e.target.value)} 
+                                        className="w-full h-8 px-2 border border-gray-200 rounded-lg bg-gray-50 font-black outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] text-right" 
+                                    />
+                                </div>
 
-                                <div className="flex items-end">
+                                {/* Row 5: Total Highlight and Add Button */}
+                                <div className="md:col-span-12 flex items-center justify-between gap-3 bg-zinc-900 p-2 rounded-xl border border-zinc-800 shadow-2xl mt-1">
+                                    <div className="flex flex-col">
+                                        <span className="text-[7px] font-black text-zinc-500 uppercase tracking-widest leading-none">Total deste Item</span>
+                                        <span className="text-xl font-black text-emerald-400 italic leading-none mt-1">
+                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(currentTotalValue)}
+                                        </span>
+                                    </div>
                                     <button 
                                         type="button" 
                                         onClick={handleAddItem}
-                                        disabled={!selectedItemName || !manualQuantity}
-                                        className="w-full h-8 rounded-lg font-black uppercase text-[9px] tracking-widest shadow-lg transition-all active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-1.5">
-                                        <Plus className="h-4 w-4" /> Adicionar
+                                        disabled={!selectedItemName || !manualQuantity || parseFloat(manualQuantity.replace(',', '.')) <= 0}
+                                        className="h-10 px-6 rounded-xl font-black uppercase text-[10px] shadow-xl transition-all active:scale-95 disabled:bg-zinc-800 disabled:text-zinc-600 bg-emerald-500 hover:bg-emerald-600 text-white flex items-center gap-2 shadow-emerald-500/20"
+                                    >
+                                        <Plus className="h-4 w-4" /> ADICIONAR ITEM NA NF
                                     </button>
                                 </div>
                             </div>
