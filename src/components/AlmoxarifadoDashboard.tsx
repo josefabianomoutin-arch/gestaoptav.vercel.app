@@ -813,7 +813,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     )}
                     <div className="flex bg-gray-100 p-1 rounded-xl">
                         <button onClick={() => setActiveTab('history')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'history' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Histórico Geral</button>
-                        <button onClick={() => setActiveTab('exit')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'exit' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Saída de Materiais</button>
                         <button onClick={() => setActiveTab('agenda')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'agenda' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Agenda</button>
                         <button onClick={() => setActiveTab('cronograma')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'cronograma' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Cronograma</button>
                         <button onClick={() => setActiveTab('receipt')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeTab === 'receipt' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Termo</button>
@@ -833,6 +832,17 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             onRegisterEntry={onRegisterEntry}
                             onRegisterWithdrawal={onRegisterWithdrawal}
                             initialMode="entrada"
+                            perCapitaConfig={perCapitaConfig}
+                            acquisitionItems={acquisitionItems}
+                        />
+
+                        <WarehouseMovementForm 
+                            key="warehouse-exit"
+                            suppliers={suppliers} 
+                            warehouseLog={warehouseLog} 
+                            onRegisterEntry={async (_) => { return { success: false, message: 'Not allowed here' } }}
+                            onRegisterWithdrawal={onRegisterWithdrawal}
+                            initialMode="saída"
                             perCapitaConfig={perCapitaConfig}
                             acquisitionItems={acquisitionItems}
                         />
@@ -871,32 +881,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         }
                         return true;
                     }} />
-                ) : activeTab === 'exit' ? (
-                    <div className="space-y-8">
-                        <WarehouseMovementForm 
-                            key="warehouse-exit"
-                            suppliers={suppliers} 
-                            warehouseLog={warehouseLog} 
-                            onRegisterEntry={async (_) => { return { success: false, message: 'Not allowed here' } }}
-                            onRegisterWithdrawal={onRegisterWithdrawal}
-                            initialMode="saída"
-                            perCapitaConfig={perCapitaConfig}
-                            acquisitionItems={acquisitionItems}
-                        />
-
-                        {onDeleteWarehouseEntry && onUpdateWarehouseEntry && (
-                            <div className="border-t border-gray-100 pt-8">
-                                <AdminWarehouseLog 
-                                    warehouseLog={warehouseLog.filter(l => l.type === 'saída')}
-                                    suppliers={suppliers}
-                                    onDeleteEntry={onDeleteWarehouseEntry}
-                                    onUpdateWarehouseEntry={onUpdateWarehouseEntry}
-                                    onRegisterEntry={onRegisterEntry}
-                                    onRegisterWithdrawal={onRegisterWithdrawal}
-                                />
-                            </div>
-                        )}
-                    </div>
                 ) : activeTab === 'agenda' ? (
                     <AgendaChegadas 
                         suppliers={suppliers} 
@@ -1015,13 +999,27 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                             <span className="bg-gray-200 text-gray-500 text-[8px] font-bold px-2 py-0.5 rounded-full uppercase">Livre</span>
                                                         )}
                                                     </div>
-                                                    <div className="space-y-2">
-                                                        {(Object.values(supplier?.contractItems || {}) as any[]).map((ci, idx) => (
-                                                            <div key={idx} className="flex justify-between items-center text-[9px] font-bold uppercase italic">
-                                                                <span className="text-zinc-500">{ci.name}</span>
-                                                                <span className="text-zinc-900">{isScheduled ? `${(ci.totalKg / 4).toFixed(1)}Kg` : '-'}</span>
-                                                            </div>
-                                                        ))}
+                                                    <div className="space-y-2 text-[9px] font-bold uppercase italic">
+                                                        <p className="text-zinc-500 mb-1">Notas Fiscais:</p>
+                                                        {(() => {
+                                                            const deliveries = Object.values(supplier?.deliveries || {}) as any[];
+                                                            const monthIndex = MONTHS_PT.indexOf(selectedMonth);
+                                                            const invoices = new Set<string>();
+                                                            
+                                                            deliveries.forEach((d: any) => {
+                                                                const deliveryDate = new Date((d.invoiceDate || d.date) + 'T12:00:00');
+                                                                // Simple logic: mapping delivery weeks to 1-4. Real logic is complex, 
+                                                                // for now checking month and year:
+                                                                if (deliveryDate.getMonth() === monthIndex && deliveryDate.getFullYear() === selectedYear) {
+                                                                     // Here, to filter by week, would need more complex logic. 
+                                                                     // Showing all for the month for now.
+                                                                     if (d.invoiceNumber) invoices.add(String(d.invoiceNumber).trim());
+                                                                }
+                                                            });
+                                                            return Array.from(invoices).map(inv => (
+                                                                <span key={inv} className="block text-indigo-900 bg-indigo-100 p-1 rounded my-0.5">NF: {inv}</span>
+                                                            ));
+                                                        })()}
                                                     </div>
                                                 </div>
                                             );
