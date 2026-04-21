@@ -742,7 +742,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         <tfoot>
                             <tr style="font-weight: bold; background-color: #f2f2f2;">
                                 <td colspan="4" class="text-right">TOTAL GERAL:</td>
-                                <td class="text-right">${formatCurrency(receiptData.totalInvoiceValue)}</td>
+                                <td class="text-right">${formatCurrency(receiptData.items.reduce((sum, it) => sum + (it.totalValue || 0), 0))}</td>
                             </tr>
                         </tfoot>
                     </table>
