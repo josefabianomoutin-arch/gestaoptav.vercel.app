@@ -31,6 +31,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
     const [acquiredQuantity, setAcquiredQuantity] = useState('0');
     const [stockBalance, setStockBalance] = useState('0');
     const [unitValue, setUnitValue] = useState('0');
+    const [unitValue23, setUnitValue23] = useState('0');
     const [contractAddendum, setContractAddendum] = useState('0');
     const [isSaving, setIsSaving] = useState(false);
 
@@ -202,6 +203,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                 acquiredQuantity: parseFloat(acquiredQuantity.replace(',', '.')) || 0,
                 stockBalance: parseFloat(stockBalance.replace(',', '.')) || 0,
                 unitValue: parseFloat(unitValue.replace(',', '.')) || 0,
+                unitValue23: parseFloat(unitValue23.replace(',', '.')) || 0,
                 contractAddendum: parseFloat(contractAddendum.replace(',', '.')) || 0,
                 category
             };
@@ -224,6 +226,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
         setAcquiredQuantity('0');
         setStockBalance('0');
         setUnitValue('0');
+        setUnitValue23('0');
         setContractAddendum('0');
         setIsAdding(false);
         setEditingId(null);
@@ -240,6 +243,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
         setAcquiredQuantity(String(item.acquiredQuantity).replace('.', ','));
         setStockBalance(String(item.stockBalance).replace('.', ','));
         setUnitValue(String(item.unitValue || 0).replace('.', ','));
+        setUnitValue23(String(item.unitValue23 || 0).replace('.', ','));
         setContractAddendum(String(item.contractAddendum || 0).replace('.', ','));
         setEditingId(item.id);
         setIsAdding(true);
@@ -760,11 +764,20 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vlr. Mediana</label>
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vlr. 1º Quad.</label>
                                     <input 
                                         type="text" 
                                         value={unitValue} 
                                         onChange={e => setUnitValue(e.target.value)} 
+                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vlr. 2/3º Quad.</label>
+                                    <input 
+                                        type="text" 
+                                        value={unitValue23} 
+                                        onChange={e => setUnitValue23(e.target.value)} 
                                         className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all"
                                     />
                                 </div>

@@ -82,6 +82,7 @@ export interface WarehouseMovement {
 export interface PerCapitaConfig {
     ppaisProducers?: PerCapitaSupplier[];
     pereciveisSuppliers?: PerCapitaSupplier[];
+    estocaveisSuppliers?: PerCapitaSupplier[];
     inmateCount?: number;
     staffCount?: number;
     customValues?: Record<string, any>;
@@ -231,7 +232,8 @@ export interface AcquisitionItem {
     becCode?: string;
     acquiredQuantity: number;
     contractAddendum?: number;
-    unitValue: any;
+    unitValue: number;
+    unitValue23?: number; // Valor para 2º e 3º quadrimestre
     stockBalance?: number;
     contractItemName?: string;
     expenseNature?: string;

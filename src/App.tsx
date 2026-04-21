@@ -1989,6 +1989,7 @@ const App: React.FC = () => {
                onUpdateWarehouseEntry={handleUpdateWarehouseEntry}
                thirdPartyEntries={thirdPartyEntries}
                perCapitaConfig={perCapitaConfig}
+               acquisitionItems={acquisitionItems}
                onRegisterThirdPartyEntry={async (l) => {
                    const r = push(thirdPartyEntriesRef);
                    await set(r, { ...l, id: r.key });

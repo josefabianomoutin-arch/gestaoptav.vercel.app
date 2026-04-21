@@ -88,6 +88,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [ptresResources, setPtresResources] = useState<Record<string, { pieces: number; services: number }>>({});
     const [ppaisProducers, setPpaisProducers] = useState<PerCapitaSupplier[]>([]);
     const [pereciveisSuppliers, setPereciveisSuppliers] = useState<PerCapitaSupplier[]>([]);
+    const [estocaveisSuppliers, setEstocaveisSuppliers] = useState<PerCapitaSupplier[]>([]);
     const [monthlyAdvances, setMonthlyAdvances] = useState<Record<string, number>>({});
     const [showComparison, setShowComparison] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
@@ -108,6 +109,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         setPtresResources(perCapitaConfig.ptresResources || {});
         setPpaisProducers(perCapitaConfig.ppaisProducers || []);
         setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
+        setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
         setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
         setIsDirty(false);
     }
@@ -126,6 +128,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             ptresResources,
             ppaisProducers,
             pereciveisSuppliers,
+            estocaveisSuppliers,
             monthlyAdvances,
         };
         try {
@@ -179,8 +182,18 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const handleUpdateProducers = async (newProducers: PerCapitaSupplier[]) => {
         setPpaisProducers(newProducers);
         const newConfig: PerCapitaConfig = {
-            ...perCapitaConfig,
+            staffCount,
+            inmateCount,
+            customValues: customPerCapita,
+            seiProcessNumbers,
+            seiProcessDefinitions,
+            monthlyQuota,
+            monthlyResource,
+            ptresResources,
             ppaisProducers: newProducers,
+            pereciveisSuppliers,
+            estocaveisSuppliers,
+            monthlyAdvances,
         };
         try {
             await onUpdatePerCapitaConfig(newConfig);
@@ -194,8 +207,43 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const handleUpdatePereciveisSuppliers = async (newSuppliers: PerCapitaSupplier[]) => {
         setPereciveisSuppliers(newSuppliers);
         const newConfig: PerCapitaConfig = {
-            ...perCapitaConfig,
+            staffCount,
+            inmateCount,
+            customValues: customPerCapita,
+            seiProcessNumbers,
+            seiProcessDefinitions,
+            monthlyQuota,
+            monthlyResource,
+            ptresResources,
+            ppaisProducers,
             pereciveisSuppliers: newSuppliers,
+            estocaveisSuppliers,
+            monthlyAdvances,
+        };
+        try {
+            await onUpdatePerCapitaConfig(newConfig);
+            setIsDirty(false);
+        } catch (error) {
+            console.error("Failed to save suppliers:", error);
+            toast.error("Erro ao salvar fornecedores.");
+        }
+    };
+
+    const handleUpdateEstocaveisSuppliers = async (newSuppliers: PerCapitaSupplier[]) => {
+        setEstocaveisSuppliers(newSuppliers);
+        const newConfig: PerCapitaConfig = {
+            staffCount,
+            inmateCount,
+            customValues: customPerCapita,
+            seiProcessNumbers,
+            seiProcessDefinitions,
+            monthlyQuota,
+            monthlyResource,
+            ptresResources,
+            ppaisProducers,
+            pereciveisSuppliers,
+            estocaveisSuppliers: newSuppliers,
+            monthlyAdvances,
         };
         try {
             await onUpdatePerCapitaConfig(newConfig);
@@ -1674,7 +1722,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                     </div>
                                     <input 
                                         type="text"
-                                        value={seiProcessNumbers[activeSubTab] || ''}
+                                        value={getSeiValue(seiProcessNumbers, activeSubTab)}
                                         onChange={(e) => handleSeiNumberChange(activeSubTab, e.target.value)}
                                         placeholder="Ex: 00000.000000/0000-00" 
                                         className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl pl-11 pr-5 py-4 font-mono text-sm font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all"
@@ -1689,7 +1737,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                     </div>
                                     <input 
                                         type="text"
-                                        value={seiProcessDefinitions[activeSubTab] || ''}
+                                        value={getSeiValue(seiProcessDefinitions, activeSubTab)}
                                         onChange={(e) => handleSeiDefinitionChange(activeSubTab, e.target.value)}
                                         placeholder="Ex: Aquisição de gêneros alimentícios..." 
                                         className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl pl-11 pr-5 py-4 font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all"
@@ -1699,11 +1747,15 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                         </div>
                     </div>
 
-                    {/* Navegação Interna de Alta Densidade (PPAIS / PERECÍVEIS) */}
-                    {(activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS') && (
+                    {/* Navegação Interna de Alta Densidade (PPAIS / ESTOCÁVEIS / PERECÍVEIS) */}
+                    {(activeSubTab === 'PPAIS' || activeSubTab === 'ESTOCÁVEIS' || activeSubTab === 'PERECÍVEIS') && (
                         <div className="flex gap-2 bg-zinc-100 p-1.5 rounded-2xl border border-zinc-200 w-fit">
                             <button 
-                                onClick={() => activeSubTab === 'PPAIS' ? setPpaisSubTab('ITEMS') : setPereciveisSubTab('ITEMS')}
+                                onClick={() => {
+                                    if (activeSubTab === 'PPAIS') setPpaisSubTab('ITEMS');
+                                    else if (activeSubTab === 'PERECÍVEIS') setPereciveisSubTab('ITEMS');
+                                    else setPereciveisSubTab('ITEMS'); // Default for ESTOCÁVEIS
+                                }}
                                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                                     (activeSubTab === 'PPAIS' ? ppaisSubTab === 'ITEMS' : pereciveisSubTab === 'ITEMS')
                                     ? 'bg-white text-zinc-900 shadow-sm' 
@@ -1713,7 +1765,11 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 Itens de Aquisição
                             </button>
                             <button 
-                                onClick={() => activeSubTab === 'PPAIS' ? setPpaisSubTab('PRODUCERS') : setPereciveisSubTab('SUPPLIERS')}
+                                onClick={() => {
+                                    if (activeSubTab === 'PPAIS') setPpaisSubTab('PRODUCERS');
+                                    else if (activeSubTab === 'PERECÍVEIS') setPereciveisSubTab('SUPPLIERS');
+                                    else setPereciveisSubTab('SUPPLIERS');
+                                }}
                                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                                     (activeSubTab === 'PPAIS' ? ppaisSubTab === 'PRODUCERS' : pereciveisSubTab === 'SUPPLIERS')
                                     ? 'bg-white text-zinc-900 shadow-sm' 
@@ -1723,7 +1779,11 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 {activeSubTab === 'PPAIS' ? 'Cadastro de Produtores' : 'Cadastro de Fornecedores'}
                             </button>
                             <button 
-                                onClick={() => activeSubTab === 'PPAIS' ? setPpaisSubTab('CONTRACT') : setPereciveisSubTab('CONTRACT')}
+                                onClick={() => {
+                                    if (activeSubTab === 'PPAIS') setPpaisSubTab('CONTRACT');
+                                    else if (activeSubTab === 'PERECÍVEIS') setPereciveisSubTab('CONTRACT');
+                                    else setPereciveisSubTab('CONTRACT');
+                                }}
                                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                                     (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : pereciveisSubTab === 'CONTRACT')
                                     ? 'bg-white text-zinc-900 shadow-sm' 
@@ -1745,7 +1805,11 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 </button>
                             )}
                             <button 
-                                onClick={() => activeSubTab === 'PPAIS' ? setPpaisSubTab('SCHEDULE') : setPereciveisSubTab('SCHEDULE')}
+                                onClick={() => {
+                                    if (activeSubTab === 'PPAIS') setPpaisSubTab('SCHEDULE');
+                                    else if (activeSubTab === 'PERECÍVEIS') setPereciveisSubTab('SCHEDULE');
+                                    else setPereciveisSubTab('SCHEDULE');
+                                }}
                                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                                     (activeSubTab === 'PPAIS' ? ppaisSubTab === 'SCHEDULE' : pereciveisSubTab === 'SCHEDULE')
                                     ? 'bg-white text-zinc-900 shadow-sm' 
@@ -1773,19 +1837,27 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 type="FORNECEDOR"
                                 colorScheme="indigo"
                             />
-                        ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : pereciveisSubTab === 'CONTRACT') ? (
+                        ) : activeSubTab === 'ESTOCÁVEIS' && pereciveisSubTab === 'SUPPLIERS' ? (
+                            <AdminPerCapitaSuppliers 
+                                suppliers={estocaveisSuppliers}
+                                onUpdate={handleUpdateEstocaveisSuppliers}
+                                type="FORNECEDOR"
+                                colorScheme="blue"
+                            />
+                        ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS' || activeSubTab === 'ESTOCÁVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : pereciveisSubTab === 'CONTRACT') ? (
                             <div className="p-8 space-y-4">
                                 <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter">Selecione o Fornecedor para o Contrato</h3>
                                 <select 
                                     className="w-full p-4 bg-white border border-zinc-200 rounded-xl font-bold text-sm"
                                     value={selectedProducer?.id || ''}
                                     onChange={(e) => {
-                                        const selected = (activeSubTab === 'PPAIS' ? ppaisProducers : pereciveisSuppliers).find(p => p.id === e.target.value);
+                                        const source = activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers);
+                                        const selected = source.find(p => p.id === e.target.value);
                                         setSelectedProducer(selected || null);
                                     }}
                                 >
                                     <option value="">Selecione...</option>
-                                    {(activeSubTab === 'PPAIS' ? ppaisProducers : pereciveisSuppliers).map(p => (
+                                    {(activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers)).map(p => (
                                         <option key={p.id} value={p.id}>{p.name}</option>
                                     ))}
                                 </select>
@@ -1799,11 +1871,11 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                         ) : activeSubTab === 'PPAIS' && ppaisSubTab === 'ATA' ? (
                             <AdminAtaGenerator 
                                 producers={ppaisProducers}
-                                processNumber={seiProcessNumbers['PPAIS'] || ''}
-                                processDefinition={seiProcessDefinitions['PPAIS'] || ''}
+                                processNumber={getSeiValue(seiProcessNumbers, 'PPAIS')}
+                                processDefinition={getSeiValue(seiProcessDefinitions, 'PPAIS')}
                                 items={acquisitionItems.filter(item => item.category === 'PPAIS')}
                             />
-                        ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'SCHEDULE' : pereciveisSubTab === 'SCHEDULE') ? (
+                        ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS' || activeSubTab === 'ESTOCÁVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'SCHEDULE' : pereciveisSubTab === 'SCHEDULE') ? (
                             <div className="p-8 space-y-8">
                                 <div className="flex justify-end gap-3">
                                     {activeSubTab === 'PPAIS' && onSyncPPAISToAgenda && (
@@ -1857,7 +1929,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                     </h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {months.map(month => {
-                                            const currentSuppliers = activeSubTab === 'PPAIS' ? ppaisProducers : pereciveisSuppliers;
+                                            const currentSuppliers = activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers);
                                             const suppliersInMonth = currentSuppliers.filter(s => (s.monthlySchedule?.[month] || []).length > 0);
                                             if (suppliersInMonth.length === 0) return null;
 
@@ -1891,7 +1963,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 </div>
                             </div>
                         ) : (
-                            <AdminAcquisitionItems 
+                                <AdminAcquisitionItems 
                                 category={activeSubTab === 'AUDIT' ? 'PPAIS' : activeSubTab} 
                                 items={acquisitionItems} 
                                 onUpdate={onUpdateAcquisitionItem} 
@@ -1899,12 +1971,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 contractItems={
                                     activeSubTab === 'PPAIS' ? contractItemNamesByCategory['PPAIS'] :
                                     activeSubTab === 'PERECÍVEIS' ? contractItemNamesByCategory['PERECÍVEIS'] :
-                                    contractItemNamesByCategory['OTHERS']
+                                    (activeSubTab === 'ESTOCÁVEIS' ? contractItemNamesByCategory['ESTOCÁVEIS'] : contractItemNamesByCategory['OTHERS'])
                                 }
                                 suppliers={
                                     activeSubTab === 'PPAIS' ? ppaisAsSuppliers : 
                                     activeSubTab === 'PERECÍVEIS' ? pereciveisAsSuppliers : 
-                                    suppliers
+                                    (activeSubTab === 'ESTOCÁVEIS' ? estocaveisSuppliers.map(s => ({ ...s, cpf: s.cpfCnpj, allowedWeeks: [], deliveries: [] } as Supplier)) : suppliers)
                                 }
                                 onUpdateContractForItem={
                                     activeSubTab === 'PPAIS' ? handleUpdateContractForPpais : 

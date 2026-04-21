@@ -11,6 +11,7 @@ interface WarehouseMovementFormProps {
     onRegisterWithdrawal: (payload: any) => Promise<{ success: boolean; message: string }>;
     initialMode?: 'entrada' | 'saída';
     perCapitaConfig?: any;
+    acquisitionItems?: any[];
 }
 
 const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({ 
@@ -19,7 +20,8 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     onRegisterEntry, 
     onRegisterWithdrawal,
     initialMode = 'entrada',
-    perCapitaConfig
+    perCapitaConfig,
+    acquisitionItems = []
 }) => {
     const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -40,7 +42,20 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     const [manualPd, setManualPd] = useState('');
     const [manualValue, setManualValue] = useState('');
     const [manualWeight, setManualWeight] = useState('');
+    const [selectedPeriod, setSelectedPeriod] = useState<'1_QUAD' | '2_3_QUAD'>('1_QUAD');
     
+    const updateManualValue = (itemName: string, period: '1_QUAD' | '2_3_QUAD') => {
+        if (manualType === 'entrada' && itemName) {
+            const acqItem = acquisitionItems.find(ai => 
+                ai.name === itemName || ai.nickname === itemName
+            );
+            if (acqItem) {
+                const val = period === '1_QUAD' ? acqItem.unitValue : (acqItem.unitValue23 || acqItem.unitValue);
+                setManualValue(String(val || 0).replace('.', ','));
+            }
+        }
+    };
+
     // Lista de itens a serem processados
     const [items, setItems] = useState<{ 
         id: string; 
@@ -567,99 +582,101 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     };
 
     return (
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-fade-in mb-8">
-            <div className="p-3 md:p-4 border-b border-gray-100 bg-gradient-to-r from-white to-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden animate-fade-in mb-4">
+            <div className="p-2 md:p-3 border-b border-gray-100 bg-gradient-to-r from-white to-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                 <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-xl ${manualType === 'entrada' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'} transition-colors duration-500`}>
-                        <Package className="h-5 w-5" />
+                    <div className={`p-1.5 rounded-lg ${manualType === 'entrada' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'} transition-colors duration-500 shadow-sm`}>
+                        <Package className="h-4 w-4" />
                     </div>
                     <div>
-                        <h2 className="text-sm font-black text-gray-900 uppercase tracking-tighter leading-none italic">
+                        <h2 className="text-xs font-black text-gray-900 uppercase tracking-tighter leading-none italic">
                             {manualType === 'entrada' ? 'Entrada de Estoque' : 'Saída de Estoque'}
                         </h2>
-                        <p className="text-gray-400 font-bold text-[8px] uppercase tracking-widest mt-0.5">
+                        <p className="text-gray-400 font-bold text-[7px] uppercase tracking-widest mt-0.5">
                             {manualType === 'entrada' ? 'Registro de Recebimento' : 'Registro de Requisição (SAN)'}
                         </p>
                     </div>
                 </div>
 
-                <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner w-full md:w-auto opacity-0 pointer-events-none invisible">
+                <div className="flex bg-gray-100 p-0.5 rounded-lg shadow-inner w-full md:w-auto">
                     <button 
                         type="button" 
                         onClick={() => { setManualType('entrada'); setItems([]); setManualInboundNf(null); }} 
-                        className={`flex-1 md:flex-none px-4 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all duration-300 flex items-center justify-center gap-2 ${manualType === 'entrada' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                        className={`px-3 py-1 rounded-md text-[7px] font-black uppercase transition-all duration-300 flex items-center justify-center gap-1.5 ${manualType === 'entrada' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
                         Entrada
                     </button>
                     <button 
                         type="button" 
                         onClick={() => { setManualType('saída'); setItems([]); setManualInboundNf(null); }} 
-                        className={`flex-1 md:flex-none px-4 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all duration-300 flex items-center justify-center gap-2 ${manualType === 'saída' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                        className={`px-3 py-1 rounded-md text-[7px] font-black uppercase transition-all duration-300 flex items-center justify-center gap-1.5 ${manualType === 'saída' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
                         Saída
                     </button>
                 </div>
             </div>
 
-            <div className="p-2 md:p-3 space-y-4">
+            <div className="p-1.5 md:p-2 space-y-2">
                 {manualType === 'entrada' ? (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2 bg-gray-50/50 p-2 rounded-lg border border-gray-100">
-                        <div className="md:col-span-2 space-y-0.5">
-                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
-                                <FileText className="h-2 w-2" /> Fornecedor / Origem
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-1.5 bg-gray-50/50 p-1.5 rounded-lg border border-gray-100">
+                        <div className="md:col-span-5 space-y-0.5">
+                            <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
+                                <FileText className="h-2 w-2" /> Fornecedor
                             </label>
                             <select 
                                 value={selectedSupplierCpf} 
                                 onChange={e => { setSelectedSupplierCpf(e.target.value); setSelectedItemName(''); setItems([]); }} 
-                                className="w-full h-9 px-3 border border-gray-100 rounded-lg bg-white shadow-xs font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] uppercase">
-                                <option value="">-- SELECIONE --</option>
+                                className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-white shadow-xs font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] uppercase appearance-none cursor-pointer">
+                                <option value="">-- FORNECEDOR --</option>
                                 {suppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
                             </select>
                         </div>
-                        <div className="space-y-0.5">
-                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
+                        <div className="md:col-span-3 space-y-0.5">
+                            <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
                                 <Calendar className="h-2 w-2" /> Data
                             </label>
                             <input 
                                 type="date" 
                                 value={manualDate} 
                                 onChange={e => setManualDate(e.target.value)} 
-                                className="w-full h-9 px-3 border border-gray-100 rounded-lg bg-white shadow-xs font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px]" />
+                                className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-white shadow-xs font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px]" />
                         </div>
-                        <div className="space-y-0.5">
-                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
-                                <Barcode className="h-2 w-2" /> Nº Documento / REQ
+                        <div className="md:col-span-4 space-y-0.5">
+                            <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
+                                <Barcode className="h-2 w-2" /> Nº NF
                             </label>
                             <input 
                                 type="text" 
                                 value={manualNf} 
                                 onChange={e => setManualNf(e.target.value)} 
-                                placeholder="000.000" 
-                                className="w-full h-9 px-3 border border-gray-100 rounded-lg bg-white shadow-xs font-mono font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] placeholder:text-gray-300" />
+                                placeholder="Nº NOTA FISCAL" 
+                                className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-white shadow-xs font-mono font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] placeholder:text-gray-300 uppercase" />
                         </div>
                     </div>
                 ) : (
+                    /* Saída layout remains similar but more compact if needed */
                     <div className="space-y-4">
-                        <div className="bg-red-50/50 p-4 rounded-2xl border border-red-100 space-y-3 relative animate-fade-in shadow-sm">
+                        {/* No changes needed to Saída for now as per user request focus is Invoice entry */}
+                        <div className="bg-red-50/50 p-3 rounded-xl border border-red-100 space-y-2 relative animate-fade-in shadow-sm">
                             <div className="flex justify-between items-center">
-                                <label className="text-[10px] font-black text-red-600 uppercase flex items-center gap-2 italic">
-                                    <Barcode className="h-4 w-4" /> 1. BUSCAR PRODUTOR OU NOTA FISCAL
+                                <label className="text-[8px] font-black text-red-600 uppercase flex items-center gap-2 italic">
+                                    <Barcode className="h-3 w-3" /> 1. BUSCAR PRODUTOR OU NOTA FISCAL
                                 </label>
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
                                     <div className="flex flex-col items-end">
-                                        <label className="text-[7px] font-black text-gray-400 uppercase">Data da Saída</label>
+                                        <label className="text-[6px] font-black text-gray-400 uppercase">Data da Saída</label>
                                         <input 
                                             type="date" 
                                             value={manualDate} 
                                             onChange={e => setManualDate(e.target.value)} 
-                                            className="h-6 px-1 border-none bg-transparent font-black text-[10px] outline-none text-right text-red-600" />
+                                            className="h-5 px-1 border-none bg-transparent font-black text-[9px] outline-none text-right text-red-600" />
                                     </div>
-                                    <div className="flex flex-col items-end border-l pl-3 border-red-100">
-                                        <label className="text-[7px] font-black text-gray-400 uppercase">Nº REQ / Pedido</label>
+                                    <div className="flex flex-col items-end border-l pl-2 border-red-100">
+                                        <label className="text-[6px] font-black text-gray-400 uppercase">Nº REQ / Pedido</label>
                                         <input 
                                             type="text" 
                                             value={manualNf} 
                                             onChange={e => setManualNf(e.target.value)} 
                                             placeholder="REQ..." 
-                                            className="h-6 px-1 border-none bg-transparent font-black text-[10px] outline-none text-right text-gray-900 placeholder:text-gray-300 uppercase" />
+                                            className="h-5 px-1 border-none bg-transparent font-black text-[9px] outline-none text-right text-gray-900 placeholder:text-gray-300 uppercase" />
                                     </div>
                                 </div>
                             </div>
@@ -670,36 +687,36 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                     value={nfSearchTerm}
                                     onChange={e => setNfSearchTerm(e.target.value)}
                                     placeholder="🔍 Digite Produtor ou Nº da Nota Fiscal para selecionar o saldo..."
-                                    className="w-full h-10 px-4 pr-10 border-2 border-red-100 rounded-xl bg-white shadow-md font-black outline-none focus:ring-4 focus:ring-red-200 transition-all text-xs placeholder:text-gray-300 italic"
+                                    className="w-full h-8 px-3 pr-10 border-2 border-red-100 rounded-lg bg-white shadow-md font-black outline-none focus:ring-4 focus:ring-red-200 transition-all text-[10px] placeholder:text-gray-300 italic"
                                 />
                                 {nfSearchTerm && (
                                     <button 
                                         onClick={() => setNfSearchTerm('')}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-600"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-600"
                                     >
-                                        <X className="h-5 w-5" />
+                                        <X className="h-4 w-4" />
                                     </button>
                                 )}
                             </div>
 
                             {filteredNfSearch.length > 0 && (
-                                <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-2xl z-[100] overflow-hidden divide-y divide-gray-100 animate-in fade-in zoom-in duration-200">
+                                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl z-[100] overflow-hidden divide-y divide-gray-100">
                                     {filteredNfSearch.map((nf, idx) => (
                                         <button
                                             key={idx}
                                             onClick={() => handleSelectSearchedNf(nf)}
-                                            className="w-full p-4 hover:bg-red-50 text-left transition-all flex justify-between items-center group cursor-pointer"
+                                            className="w-full p-2.5 hover:bg-red-50 text-left transition-all flex justify-between items-center group cursor-pointer"
                                         >
                                             <div className="flex flex-col">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-[12px] font-black text-gray-900 leading-none group-hover:text-red-700 uppercase tracking-tighter">NF {nf.nfNumber}</span>
-                                                    <span className="text-[12px] font-black text-red-600 italic tracking-tighter">• {nf.itemName}</span>
+                                                    <span className="text-[10px] font-black text-gray-900 leading-none group-hover:text-red-700 uppercase">NF {nf.nfNumber}</span>
+                                                    <span className="text-[10px] font-black text-red-600 italic">• {nf.itemName}</span>
                                                 </div>
-                                                <span className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-tight">{nf.supplierName}</span>
+                                                <span className="text-[8px] font-bold text-gray-400 mt-0.5 uppercase">{nf.supplierName}</span>
                                             </div>
                                             <div className="flex flex-col items-end">
-                                                <span className="text-base font-black text-emerald-600 italic tracking-tighter pointer-events-none">{nf.balance.toFixed(2)} KG DISP.</span>
-                                                <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">Lote: {nf.lot || '-'}</span>
+                                                <span className="text-xs font-black text-emerald-600 italic leading-none">{nf.balance.toFixed(2)} KG DISP.</span>
+                                                <span className="text-[7px] font-black text-gray-300 uppercase mt-0.5">Lote: {nf.lot || '-'}</span>
                                             </div>
                                         </button>
                                     ))}
@@ -709,166 +726,193 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                     </div>
                 )}
 
-                <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4 shadow-sm italic">
+                <div className="bg-white border border-gray-100 rounded-lg p-2 space-y-2 shadow-inner">
                     {manualType === 'saída' && manualInboundNf ? (
-                        /* BRANCH 1: Saída simplificada com item selecionado */
-                        <div className="bg-indigo-50/50 p-3 rounded-xl border-2 border-indigo-100 animate-in slide-in-from-top-4 shadow-inner">
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-white rounded-xl shadow-md border border-indigo-100">
-                                        <Package className="h-5 w-5 text-indigo-600" />
+                        /* Saída logic remains compact */
+                        <div className="bg-indigo-50/50 p-2 rounded-lg border border-indigo-100 shadow-sm">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                                <div className="flex items-center gap-2">
+                                    <div className="p-1.5 bg-white rounded-lg shadow-sm border border-indigo-100">
+                                        <Package className="h-4 w-4 text-indigo-600" />
                                     </div>
                                     <div>
-                                        <h3 className="text-[12px] font-black text-gray-900 uppercase italic leading-none">{selectedItemName}</h3>
-                                        <p className="text-[9px] text-gray-500 font-bold uppercase mt-0.5 tracking-tight">
-                                            NF: {manualInboundNf.number} • PRODUTOR: {selectedSupplier?.name}
+                                        <h3 className="text-[10px] font-black text-gray-900 uppercase italic leading-none">{selectedItemName}</h3>
+                                        <p className="text-[8px] text-gray-500 font-bold uppercase mt-0.5 tracking-tight">
+                                            NF: {manualInboundNf.number} • FORN: {selectedSupplier?.name}
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-6">
+                                <div className="flex items-center gap-4">
                                     <div className="text-right">
-                                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">SALDO</p>
-                                        <p className="text-lg font-black text-emerald-600 italic leading-none">{manualInboundNf.availableQuantity.toFixed(2)} kg</p>
+                                        <p className="text-[6px] font-black text-gray-400 uppercase">SALDO</p>
+                                        <p className="text-sm font-black text-emerald-600 italic leading-none">{manualInboundNf.availableQuantity.toFixed(2)} kg</p>
                                     </div>
                                     
-                                    <div className="w-px h-10 bg-indigo-200 hidden md:block"></div>
+                                    <div className="w-px h-6 bg-indigo-100 hidden md:block"></div>
 
-                                    <div className="space-y-1">
-                                        <div className="flex justify-between items-center px-1">
-                                            <label className="text-[8px] font-black text-indigo-600 uppercase italic">PESO (KG)</label>
-                                            <button 
-                                                type="button"
-                                                onClick={() => setManualQuantity(manualInboundNf.availableQuantity.toFixed(2).replace('.', ','))}
-                                                className="text-[7px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-lg border border-amber-200 hover:bg-amber-100 transition-all shadow-sm"
-                                            >
-                                                TUDO
-                                            </button>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="relative">
+                                            <input 
+                                                type="text" 
+                                                autoFocus
+                                                value={manualQuantity} 
+                                                onChange={e => setManualQuantity(e.target.value.replace(/[^0-9,.]/g, ''))} 
+                                                placeholder="0,00" 
+                                                className="w-16 h-7 px-2 border-2 border-indigo-600 rounded-lg bg-gray-900 text-white font-black text-center text-[10px] outline-none shadow-sm font-mono" 
+                                            />
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="relative">
-                                                <input 
-                                                    type="text" 
-                                                    autoFocus
-                                                    value={manualQuantity} 
-                                                    onChange={e => setManualQuantity(e.target.value.replace(/[^0-9,.]/g, ''))} 
-                                                    placeholder="0,00" 
-                                                    className="w-24 h-9 px-3 border-2 border-indigo-600 rounded-xl bg-gray-900 text-white font-black text-center text-sm outline-none shadow-lg focus:ring-4 focus:ring-indigo-100 transition-all font-mono" 
-                                                />
-                                            </div>
-                                            <button 
-                                                type="button" 
-                                                onClick={handleAddItem}
-                                                disabled={!manualQuantity || parseFloat(manualQuantity.replace(',', '.')) <= 0}
-                                                className="h-9 px-5 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg transition-all active:scale-95 disabled:bg-gray-200 disabled:text-gray-400 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1"
-                                            >
-                                                <Plus className="h-4 w-4" /> BAIXAR
-                                            </button>
-                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={handleAddItem}
+                                            disabled={!manualQuantity || parseFloat(manualQuantity.replace(',', '.')) <= 0}
+                                            className="h-7 px-3 rounded-lg font-black uppercase text-[8px] shadow-sm transition-all active:scale-95 disabled:bg-gray-200 disabled:text-gray-400 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1"
+                                        >
+                                            <Plus className="h-3 w-3" /> BAIXAR
+                                        </button>
                                     </div>
                                     
                                     <button 
                                         onClick={() => { setManualInboundNf(null); setSelectedItemName(''); setSelectedSupplierCpf(''); setNfSearchTerm(''); }}
-                                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                        title="Trocar"
+                                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                                     >
-                                        <X className="h-5 w-5" />
+                                        <X className="h-4 w-4" />
                                     </button>
                                 </div>
                             </div>
                         </div>
                     ) : manualType === 'saída' ? (
-                        /* BRANCH 2: Saída aguardando busca */
-                        <div className="py-12 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-                             <Package className="h-8 w-8 text-gray-300 mx-auto mb-3" />
-                             <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">Use a busca acima para encontrar o produtor e a nota fiscal com saldo</p>
+                        <div className="py-6 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                             <Package className="h-6 w-6 text-gray-300 mx-auto mb-1 opacity-50" />
+                             <p className="text-[8px] text-gray-400 font-black uppercase tracking-[0.15em]">Selecione o saldo acima para realizar a baixa</p>
                         </div>
                     ) : (
-                        /* BRANCH 3: Entrada (manualType === 'entrada') */
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
-                             <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-6 gap-2">
-                                <div className="md:col-span-2 space-y-0.5">
-                                    <label className="text-[8px] font-black text-indigo-600 uppercase ml-1 italic">Produto</label>
-                                    <select 
-                                        value={selectedItemName} 
-                                        onChange={e => {
-                                            const val = e.target.value;
-                                            if (!selectedSupplierCpf) {
-                                                const [itemName, supplierCpf] = val.split('|');
-                                                setSelectedSupplierCpf(supplierCpf);
-                                                setSelectedItemName(itemName);
-                                            } else {
-                                                setSelectedItemName(val);
-                                            }
-                                        }} 
-                                        className="w-full h-8 px-2 border border-indigo-50 rounded-lg bg-white font-black outline-none focus:ring-1 focus:ring-indigo-100 transition-all text-[10px] disabled:opacity-50 shadow-xs uppercase italic" 
-                                    >
-                                        <option value="">-- PRODUTO --</option>
-                                        {!selectedSupplierCpf ? (
-                                            (availableItems as any[]).map((it, idx) => (
-                                                <option key={`${it.name}-${it.supplierCpf}-${idx}`} value={`${it.name}|${it.supplierCpf}`}>
-                                                    {it.displayName || it.name} ({it.supplierName})
-                                                </option>
-                                            ))
-                                        ) : (
-                                            (availableItems as any[]).map(ci => <option key={ci.name} value={ci.name}>{ci.displayName || ci.name}</option>)
-                                        )}
-                                    </select>
-                                </div>
-                                
-                                <div className="space-y-0.5 md:col-span-1">
-                                    <label className="text-[8px] font-black text-rose-600 uppercase ml-1 italic">Parecer Despesa (PD)</label>
-                                    <input type="text" value={manualPd} onChange={e => setManualPd(e.target.value.toUpperCase())} placeholder="PD..." className="w-full h-8 px-2 border border-rose-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-rose-100 transition-all text-[9px] shadow-xs uppercase italic" />
+                        /* ENTRADA DE NOTA FISCAL - REDESIGN */
+                        <div className="space-y-3 p-1">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                                {/* Item Selection and Period */}
+                                <div className="md:col-span-8 flex flex-col gap-2">
+                                    <div className="flex-1 space-y-0.5">
+                                        <label className="text-[8px] font-black text-indigo-600 uppercase ml-1 italic tracking-widest flex items-center gap-2">
+                                            <Package className="h-2.5 w-2.5" /> 1. Produto / Item
+                                        </label>
+                                        <select 
+                                            value={selectedItemName} 
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                if (!selectedSupplierCpf) {
+                                                    const [itemName, supplierCpf] = val.split('|');
+                                                    setSelectedSupplierCpf(supplierCpf);
+                                                    setSelectedItemName(itemName);
+                                                    updateManualValue(itemName, selectedPeriod);
+                                                } else {
+                                                    setSelectedItemName(val);
+                                                    updateManualValue(val, selectedPeriod);
+                                                }
+                                            }} 
+                                            className="w-full h-9 px-3 border-2 border-indigo-100 rounded-xl bg-white font-black outline-none focus:ring-4 focus:ring-indigo-50 transition-all text-[11px] uppercase italic appearance-none cursor-pointer" 
+                                        >
+                                            <option value="">-- SELECIONE O PRODUTO --</option>
+                                            {!selectedSupplierCpf ? (
+                                                (availableItems as any[]).map((it, idx) => (
+                                                    <option key={`${it.name}-${it.supplierCpf}-${idx}`} value={`${it.name}|${it.supplierCpf}`}>
+                                                        {it.displayName || it.name} ({it.supplierName})
+                                                    </option>
+                                                ))
+                                            ) : (
+                                                (availableItems as any[]).map(ci => <option key={ci.name} value={ci.name}>{ci.displayName || ci.name}</option>)
+                                            )}
+                                        </select>
+                                    </div>
+
+                                    {/* Period Selection moved here for better visibility */}
+                                    <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
+                                        <button 
+                                            type="button"
+                                            onClick={() => { setSelectedPeriod('1_QUAD'); updateManualValue(selectedItemName, '1_QUAD'); }}
+                                            className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all flex items-center justify-center gap-2 ${selectedPeriod === '1_QUAD' ? 'bg-indigo-600 text-white shadow-md' : 'bg-transparent text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            1º Quadrimestre
+                                            {selectedItemName && (
+                                                <span className="bg-white/20 px-1.5 py-0.5 rounded text-[7px]">
+                                                    R$ {String((acquisitionItems.find(ai => ai.name === selectedItemName || ai.nickname === selectedItemName)?.unitValue || 0)).replace('.', ',')}
+                                                </span>
+                                            )}
+                                        </button>
+                                        <button 
+                                            type="button"
+                                            onClick={() => { setSelectedPeriod('2_3_QUAD'); updateManualValue(selectedItemName, '2_3_QUAD'); }}
+                                            className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all flex items-center justify-center gap-2 ${selectedPeriod === '2_3_QUAD' ? 'bg-indigo-600 text-white shadow-md' : 'bg-transparent text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            2º e 3º Quadrimestre
+                                            {selectedItemName && (
+                                                <span className="bg-white/20 px-1.5 py-0.5 rounded text-[7px]">
+                                                     R$ {String((acquisitionItems.find(ai => ai.name === selectedItemName || ai.nickname === selectedItemName)?.unitValue23 || acquisitionItems.find(ai => ai.name === selectedItemName || ai.nickname === selectedItemName)?.unitValue || 0)).replace('.', ',')}
+                                                </span>
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
 
-                                <div className="space-y-0.5 md:col-span-1">
-                                    <label className="text-[8px] font-black text-emerald-600 uppercase ml-1 italic">Valor Un/Tot</label>
-                                    <input type="text" value={manualValue} onChange={e => setManualValue(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="R$ 0,00" className="w-full h-8 px-2 border border-emerald-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-emerald-100 transition-all text-[9px] shadow-xs font-mono" />
-                                </div>
-
-                                <div className="space-y-0.5 md:col-span-1">
-                                    <label className="text-[8px] font-black text-amber-600 uppercase ml-1 italic">Peso Bruto</label>
-                                    <input type="text" value={manualWeight} onChange={e => setManualWeight(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="0,00 kg" className="w-full h-8 px-2 border border-amber-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-amber-100 transition-all text-[9px] shadow-xs font-mono" />
+                                {/* Financial Info Card */}
+                                <div className="md:col-span-4 bg-emerald-50 border-2 border-emerald-100 p-3 rounded-2xl flex flex-col justify-center items-center shadow-sm relative overflow-hidden">
+                                     <div className="absolute top-0 right-0 w-8 h-8 bg-emerald-200/20 rounded-full -mr-4 -mt-4"></div>
+                                     <label className="text-[8px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Total deste Item</label>
+                                     <div className="text-xl font-black text-emerald-900 font-mono tracking-tighter leading-none">
+                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                                             (parseFloat(manualQuantity.replace(',', '.')) || 0) * (parseFloat(manualValue.replace(',', '.')) || 0)
+                                         )}
+                                     </div>
                                 </div>
                             </div>
 
-                            <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
-                                <div className="md:col-span-2 space-y-0.5">
-                                    <label className="text-[8px] font-black text-blue-600 uppercase ml-1">Barras</label>
+                            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+                                <div className="space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-rose-600 uppercase ml-1 italic tracking-widest">Parecer (PD)</label>
+                                    <input type="text" value={manualPd} onChange={e => setManualPd(e.target.value.toUpperCase())} placeholder="PD..." className="w-full h-8 px-2 border-2 border-rose-100 rounded-lg bg-white font-black outline-none focus:ring-4 focus:ring-rose-50 transition-all text-[10px] uppercase italic" />
+                                </div>
+
+                                <div className="space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-emerald-600 uppercase ml-1 italic tracking-widest">Vlr. Unitário</label>
+                                    <input type="text" value={manualValue} onChange={e => setManualValue(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="R$ 0,00" className="w-full h-8 px-2 border-2 border-emerald-100 rounded-lg bg-white font-black outline-none focus:ring-4 focus:ring-emerald-50 transition-all text-[10px] font-mono text-emerald-700" title="Altere se desejar um valor diferente do contrato" />
+                                </div>
+
+                                <div className="space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-blue-600 uppercase ml-1 italic tracking-widest">Barras (Bipar)</label>
                                     <input 
                                         ref={barcodeInputRef} 
                                         type="text" 
                                         value={manualBarcode} 
                                         onChange={e => setManualBarcode(e.target.value)} 
                                         placeholder="Bipar..." 
-                                        className="w-full h-8 px-2 border border-blue-100 rounded-lg bg-white font-mono font-bold focus:ring-1 focus:ring-blue-50 outline-none text-[9px] placeholder:text-blue-200 transition-all shadow-xs" />
+                                        className="w-full h-8 px-2 border-2 border-blue-100 rounded-lg bg-white font-mono font-bold focus:ring-4 focus:ring-blue-50 outline-none text-[9px] placeholder:text-blue-200" />
                                 </div>
 
-                                <div className="md:col-span-2 space-y-0.5">
-                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Qtd (KG)</label>
+                                <div className="space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-gray-950 uppercase ml-1 italic tracking-widest">Quantidade (Unit/KG)</label>
                                     <input 
                                         type="text" 
                                         value={manualQuantity} 
                                         onChange={e => setManualQuantity(e.target.value.replace(/[^0-9,.]/g, ''))} 
                                         placeholder="0,00" 
-                                        className="w-full h-8 px-2 border border-gray-900 rounded-lg bg-gray-900 text-white font-black text-center text-[10px] outline-none shadow-sm font-mono" 
+                                        className="w-full h-8 px-2 border-2 border-gray-900 rounded-lg bg-gray-950 text-white font-black text-center text-[11px] outline-none shadow-md font-mono" 
                                     />
                                 </div>
 
-                                <div className="md:col-span-5 space-y-0.5">
-                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Lote / Val</label>
+                                <div className="space-y-0.5 md:col-span-1">
+                                    <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1 italic tracking-widest">Lote / Val</label>
                                     <div className="grid grid-cols-2 gap-1">
-                                        <input type="text" value={manualLot} onChange={e => setManualLot(e.target.value.toUpperCase())} placeholder="LOTE" className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-white font-mono font-bold outline-none text-[8px]" />
-                                        <input type="date" value={manualExp} onChange={e => setManualExp(e.target.value)} className="w-full h-8 px-1 border border-gray-100 rounded-lg bg-white font-bold outline-none text-[8px]" />
+                                        <input type="text" value={manualLot} onChange={e => setManualLot(e.target.value.toUpperCase())} placeholder="LOTE" className="w-full h-8 px-1.5 border-2 border-gray-100 rounded-lg bg-white font-mono font-bold outline-none text-[8px] focus:ring-2 focus:ring-gray-100" />
+                                        <input type="date" value={manualExp} onChange={e => setManualExp(e.target.value)} className="w-full h-8 px-0.5 border-2 border-gray-100 rounded-lg bg-white font-bold outline-none text-[8px] focus:ring-2 focus:ring-gray-100" />
                                     </div>
                                 </div>
 
-                                <div className="md:col-span-3">
+                                <div className="flex items-end">
                                     <button 
                                         type="button" 
                                         onClick={handleAddItem}
                                         disabled={!selectedItemName || !manualQuantity}
-                                        className="w-full h-8 rounded-lg font-black uppercase text-[9px] tracking-tight shadow-sm transition-all active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-1.5">
-                                        <Plus className="h-3 w-3" /> Adicionar
+                                        className="w-full h-8 rounded-lg font-black uppercase text-[9px] tracking-widest shadow-lg transition-all active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-1.5">
+                                        <Plus className="h-4 w-4" /> Adicionar
                                     </button>
                                 </div>
                             </div>
@@ -876,67 +920,67 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                     )}
 
                     {items.length > 0 && (
-                        <div className="pt-2 border-t border-gray-50">
-                            <div className="flex flex-wrap gap-2 mb-4">
+                        <div className="pt-3 border-t border-gray-100 mt-2">
+                            <div className="flex flex-wrap gap-1.5 mb-3">
                                 {items.map((item) => (
-                                    <div key={item.id} className="bg-slate-50 px-3 py-1.5 rounded-xl border border-gray-100 flex items-center gap-3 shadow-xs animate-in slide-in-from-left-2 transition-all group">
+                                    <div key={item.id} className="bg-slate-50 px-2 py-1 rounded-xl border border-gray-100 flex items-center gap-2 shadow-xs animate-in slide-in-from-left-2 transition-all group">
                                         <div className="flex flex-col">
                                             <span className="text-[9px] font-black text-gray-900 leading-none">{item.itemName}</span>
-                                            <div className="flex flex-col mt-0.5">
-                                                <span className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">
-                                                    {item.quantity} kg • LOTE: {item.lot || '-'}
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-[7px] text-gray-400 font-bold uppercase tracking-tighter">
+                                                    {item.quantity} kg • R$ {String(item.value || 0).replace('.', ',')}
                                                 </span>
-                                                <span className="text-[7px] text-indigo-400 font-black uppercase">
-                                                    VAL: {item.exp ? item.exp.split('-').reverse().join('/') : '-'}
+                                                <div className="w-1 h-1 rounded-full bg-gray-200"></div>
+                                                <span className="text-[7px] text-indigo-500 font-black uppercase">
+                                                    Tot: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((item.quantity || 0) * (item.value || 0))}
                                                 </span>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-1.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button 
                                                 type="button"
                                                 onClick={() => handleDuplicateItem(item)}
-                                                className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                                                title="Duplicar / Copiar dados"
+                                                className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-indigo-100"
                                             >
-                                                <Copy className="h-3.5 w-3.5" />
-                                            </button>
-                                            <button 
-                                                type="button"
-                                                onClick={() => handlePrintItemLabel(item)}
-                                                className="flex items-center gap-1 py-1 px-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-600 hover:text-white transition-all shadow-sm border border-amber-100"
-                                                title="Imprimir Etiqueta"
-                                            >
-                                                <Barcode className="h-3 w-3" />
-                                                <span className="text-[8px] font-black uppercase">Etiqueta</span>
+                                                <Copy className="h-3 w-3" />
                                             </button>
                                             <button 
                                                 onClick={() => handleRemoveItem(item.id)} 
-                                                className="p-1 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                                                title="Remover"
+                                                className="p-1 text-gray-400 hover:text-rose-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-rose-100"
                                             >
-                                                <X className="h-3.5 w-3.5" />
+                                                <X className="h-3 w-3" />
                                             </button>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                             
-                            <button 
-                                type="button" 
-                                onClick={handleRegisterAll}
-                                disabled={isSubmitting || items.length === 0} 
-                                className={`w-full h-11 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg transition-all active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 text-white flex items-center justify-center gap-2 ${manualType === 'entrada' ? 'bg-green-600 hover:bg-green-700 shadow-green-100' : 'bg-red-600 hover:bg-red-700 shadow-red-100'}`}>
-                                {isSubmitting ? (
-                                    <>
-                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                        Processando...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Plus className="h-4 w-4" /> Confirmar Lançamento Total ({items.length} itens)
-                                    </>
-                                )}
-                            </button>
+                            <div className="flex justify-between items-center bg-gray-900 p-3 rounded-2xl shadow-xl border-t-4 border-indigo-500 mb-2">
+                                <div className="flex flex-col">
+                                    <span className="text-[8px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-1">Total da Nota Fiscal</span>
+                                    <div className="text-xl font-black text-white font-mono tracking-tighter">
+                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                                            items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.value || 0)), 0)
+                                        )}
+                                    </div>
+                                </div>
+                                <button 
+                                    type="button" 
+                                    onClick={handleRegisterAll}
+                                    disabled={isSubmitting || items.length === 0} 
+                                    className={`h-11 px-8 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl transition-all active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 text-white flex items-center justify-center gap-2 ${manualType === 'entrada' ? 'bg-green-600 hover:bg-green-700 shadow-green-900/20' : 'bg-red-600 hover:bg-red-700 shadow-red-900/20'}`}>
+                                    {isSubmitting ? (
+                                        <>
+                                            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                            Processando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Plus className="h-4 w-4" /> Confirmar NF ({items.length} itens)
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

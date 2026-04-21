@@ -25,6 +25,7 @@ interface AlmoxarifadoDashboardProps {
     onUpdateWarehouseEntry?: (updatedEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
     thirdPartyEntries: ThirdPartyEntryLog[];
     perCapitaConfig?: any;
+    acquisitionItems?: AcquisitionItem[];
     onRegisterThirdPartyEntry: (log: Omit<ThirdPartyEntryLog, 'id'>) => Promise<{ success: boolean; message: string }>;
     onUpdateThirdPartyEntry: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message: string }>;
     onDeleteThirdPartyEntry: (id: string) => Promise<void>;
@@ -84,7 +85,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     onDeleteWarehouseEntry,
     onUpdateWarehouseEntry,
     thirdPartyEntries,
-    perCapitaConfig
+    perCapitaConfig,
+    acquisitionItems = []
 }) => {
     const [activeTab, setActiveTab] = useState<string>('history');
     const [selectedAgendaDate] = useState(new Date().toISOString().split('T')[0]);
@@ -96,7 +98,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS_PT[new Date().getMonth()]);
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [cronogramaType, setCronogramaType] = useState<'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS'>('PPAIS');
-    const [selectedCronogramaSupplier, setSelectedCronogramaSupplier] = useState<string>('');
+    const [selectedCronogramaSupplier, setSelectedCronogramaSupplier] = useState('');
 
     const weeklyDeliveries = useMemo(() => {
         const list: { date: string; supplierName: string; time: string; status: 'AGENDADO' | 'CONCLUÍDO' | 'TERCEIRO' | 'CANCELADO'; id: string; type: 'FORNECEDOR' | 'TERCEIRO'; itemName?: string }[] = [];
@@ -736,6 +738,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             onRegisterWithdrawal={onRegisterWithdrawal}
                             initialMode="entrada"
                             perCapitaConfig={perCapitaConfig}
+                            acquisitionItems={acquisitionItems}
                         />
 
                         <div className="border-t border-gray-100 pt-8">
@@ -782,6 +785,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             onRegisterWithdrawal={onRegisterWithdrawal}
                             initialMode="saída"
                             perCapitaConfig={perCapitaConfig}
+                            acquisitionItems={acquisitionItems}
                         />
 
                         {onDeleteWarehouseEntry && onUpdateWarehouseEntry && (
@@ -804,168 +808,217 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         embedded={true} 
                     />
                 ) : activeTab === 'cronograma' ? (
-                    <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in">
-                        <div className="p-6 md:p-8 border-b border-gray-100 bg-gradient-to-r from-white to-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-2xl bg-indigo-100 text-indigo-600">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in mb-8">
+                        <div className="p-4 md:p-6 border-b border-gray-100 bg-zinc-900 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 italic shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl bg-white/10 text-white">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter leading-none">Cronograma de Entrega</h2>
-                                    <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mt-1 italic">Gestão de Calendário de Recebimento</p>
+                                    <h2 className="text-lg font-black uppercase tracking-tighter leading-none">Cronograma de Entrega</h2>
+                                    <p className="text-zinc-400 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Gestão e Impressão de Calendário</p>
                                 </div>
                             </div>
-                            <button 
-                                type="button"
-                                onClick={handlePrintCronograma}
-                                disabled={!selectedCronogramaSupplier}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 px-10 rounded-2xl transition-all shadow-xl shadow-indigo-100 active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 uppercase tracking-[0.2em] text-[10px] flex items-center gap-3"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                                Imprimir Cronograma
-                            </button>
+                            <div className="flex gap-2">
+                                <button 
+                                    type="button"
+                                    onClick={handlePrintCronograma}
+                                    disabled={!selectedCronogramaSupplier}
+                                    className="bg-white text-zinc-900 hover:bg-gray-100 font-black py-2 px-6 rounded-xl transition-all active:scale-95 disabled:opacity-50 uppercase tracking-widest text-[9px] flex items-center gap-2"
+                                >
+                                    <Printer className="h-3 w-3" />
+                                    Imprimir
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="p-6 md:p-8 space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50/50 p-6 rounded-[2.5rem] border border-gray-100">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Tipo de Processo</label>
+                        <div className="p-4 md:p-6 space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Processo</label>
                                     <select 
                                         value={cronogramaType} 
                                         onChange={e => { setCronogramaType(e.target.value as any); setSelectedCronogramaSupplier(''); }}
-                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all text-xs"
+                                        className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase"
                                     >
                                         <option value="PPAIS">PPAIS</option>
                                         <option value="ESTOCÁVEIS">ESTOCÁVEIS</option>
                                         <option value="PERECÍVEIS">PERECÍVEIS</option>
                                     </select>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Fornecedor / Produtor</label>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Fornecedor / Produtor</label>
                                     <select 
                                         value={selectedCronogramaSupplier} 
                                         onChange={e => setSelectedCronogramaSupplier(e.target.value)}
-                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all text-xs"
+                                        className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase"
                                     >
                                         <option value="">-- SELECIONE --</option>
-                                        {(cronogramaType === 'PPAIS' ? (perCapitaConfig?.ppaisProducers || []) : (perCapitaConfig?.pereciveisSuppliers || [])).map((s: any) => (
+                                        {(cronogramaType === 'PPAIS' ? (perCapitaConfig?.ppaisProducers || []) : 
+                                          cronogramaType === 'PERECÍVEIS' ? (perCapitaConfig?.pereciveisSuppliers || []) : 
+                                          (perCapitaConfig?.estocaveisSuppliers || [])).map((s: any) => (
                                             <option key={s.cpfCnpj} value={s.cpfCnpj}>{s.name.toUpperCase()}</option>
                                         ))}
-                                        {cronogramaType === 'ESTOCÁVEIS' && suppliers.filter(s => !(perCapitaConfig?.pereciveisSuppliers || []).some((p: any) => p.cpfCnpj === s.cpf)).map(s => (
+                                        {cronogramaType === 'ESTOCÁVEIS' && suppliers.filter(s => !(perCapitaConfig?.estocaveisSuppliers || []).some((p: any) => p.cpfCnpj === s.cpf)).map(s => (
                                             <option key={s.cpf} value={s.cpf}>{s.name.toUpperCase()}</option>
                                         ))}
                                     </select>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Mês</label>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Mês Ref.</label>
                                     <select 
                                         value={selectedMonth} 
                                         onChange={e => setSelectedMonth(e.target.value)}
-                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all text-xs"
+                                        className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase"
                                     >
                                         {MONTHS_PT.map(m => <option key={m} value={m}>{m}</option>)}
                                     </select>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Ano</label>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Ano Ref.</label>
                                     <select 
                                         value={selectedYear} 
                                         onChange={e => setSelectedYear(Number(e.target.value))}
-                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all text-xs"
+                                        className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase"
                                     >
                                         {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
                                     </select>
                                 </div>
                             </div>
+                            
+                            {selectedCronogramaSupplier ? (
+                                <div className="animate-fade-in space-y-4">
+                                    <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex flex-col md:flex-row justify-between gap-4 italic font-bold text-[10px] uppercase">
+                                        <div>
+                                            <span className="text-indigo-400 mr-2">Processo SEI:</span>
+                                            <span className="text-zinc-900">{perCapitaConfig?.seiProcessNumbers?.[cronogramaType] || 'Indefinido'}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-indigo-400 mr-2">Data do Documento:</span>
+                                            <span className="text-zinc-900">{getFirstBusinessDayOfMonth(MONTHS_PT.indexOf(selectedMonth), selectedYear).toLocaleDateString('pt-BR')} (1º Dia Útil)</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                        {/* Grade de visualização dos agendamentos do mês */}
+                                        {Array.from({ length: 4 }, (_, i) => i + 1).map(week => {
+                                            const supplier = (cronogramaType === 'PPAIS' ? (perCapitaConfig?.ppaisProducers || []) : 
+                                                             cronogramaType === 'PERECÍVEIS' ? (perCapitaConfig?.pereciveisSuppliers || []) : 
+                                                             (perCapitaConfig?.estocaveisSuppliers || [])).find((s: any) => s.cpfCnpj === selectedCronogramaSupplier) || 
+                                                             suppliers.find(s => s.cpf === selectedCronogramaSupplier);
+                                            
+                                            const isScheduled = supplier?.monthlySchedule?.[selectedMonth]?.includes(week);
+                                            
+                                            return (
+                                                <div key={week} className={`p-4 rounded-2xl border-2 transition-all ${isScheduled ? 'bg-white border-indigo-500 shadow-md' : 'bg-gray-50 border-gray-100 opacity-50'}`}>
+                                                    <div className="flex justify-between items-center mb-3">
+                                                        <h4 className="text-[10px] font-black uppercase text-zinc-900 tracking-tighter">Semana {week}</h4>
+                                                        {isScheduled ? (
+                                                            <span className="bg-indigo-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase">Agendado</span>
+                                                        ) : (
+                                                            <span className="bg-gray-200 text-gray-500 text-[8px] font-bold px-2 py-0.5 rounded-full uppercase">Livre</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        {(Object.values(supplier?.contractItems || {}) as any[]).map((ci, idx) => (
+                                                            <div key={idx} className="flex justify-between items-center text-[9px] font-bold uppercase italic">
+                                                                <span className="text-zinc-500">{ci.name}</span>
+                                                                <span className="text-zinc-900">{isScheduled ? `${(ci.totalKg / 4).toFixed(1)}Kg` : '-'}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="py-20 text-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-200">
+                                    <p className="text-zinc-400 font-bold uppercase tracking-[0.2em] text-[10px]">Selecione um processo e fornecedor para visualizar o cronograma</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ) : activeTab === 'receipt' ? (
-                    <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in">
-                        <div className="p-6 md:p-8 border-b border-gray-100 bg-gradient-to-r from-white to-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-2xl bg-teal-100 text-teal-600">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in mb-8">
+                        <div className="p-4 md:p-6 border-b border-gray-100 bg-zinc-900 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 italic shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl bg-white/10 text-white">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter leading-none">Termo de Recebimento</h2>
-                                    <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mt-1 italic">Geração de Documento Oficial de Conferência</p>
+                                    <h2 className="text-lg font-black uppercase tracking-tighter leading-none">Termo de Recebimento</h2>
+                                    <p className="text-zinc-400 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Consolidação de Documentos de Conferência</p>
                                 </div>
                             </div>
-                            <button 
-                                type="button"
-                                onClick={handlePrintReceipt}
-                                disabled={!receiptData}
-                                className="bg-teal-600 hover:bg-teal-700 text-white font-black py-4 px-10 rounded-2xl transition-all shadow-xl shadow-teal-100 active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 uppercase tracking-[0.2em] text-[10px] flex items-center gap-3"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                                Imprimir Termo
-                            </button>
+                            <div className="flex gap-2">
+                                <button 
+                                    type="button"
+                                    onClick={handlePrintReceipt}
+                                    disabled={!receiptData}
+                                    className="bg-teal-600 hover:bg-teal-700 text-white font-black py-2 px-6 rounded-xl transition-all shadow-xl shadow-teal-100 active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 uppercase tracking-widest text-[9px] flex items-center gap-2 shadow-inner"
+                                >
+                                    <Printer className="h-3 w-3" />
+                                    Imprimir
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="p-6 md:p-8 space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50/50 p-6 rounded-[2.5rem] border border-gray-100">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Filtro por Mês</label>
+                        <div className="p-4 md:p-6 space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 text-teal-600">Mês Ref.</label>
                                     <select 
                                         value={selectedMonth} 
                                         onChange={e => { setSelectedMonth(e.target.value); setReceiptInvoice(''); }}
-                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-teal-100 transition-all text-xs"
+                                        className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-teal-400 transition-all text-[10px] uppercase"
                                     >
                                         {MONTHS_PT.map(m => <option key={m} value={m}>{m}</option>)}
                                     </select>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Ano</label>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 text-teal-600">Ano Ref.</label>
                                     <select 
                                         value={selectedYear} 
                                         onChange={e => { setSelectedYear(Number(e.target.value)); setReceiptInvoice(''); }}
-                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-teal-100 transition-all text-xs"
+                                        className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-teal-400 transition-all text-[10px] uppercase"
                                     >
                                         {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
                                     </select>
                                 </div>
-                                <div className="space-y-2 md:col-span-2">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1 flex items-center gap-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                                        1. Selecionar Fornecedor
-                                    </label>
+                                <div className="space-y-1 md:col-span-1">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 text-teal-600">1. Fornecedor</label>
                                     <select 
                                         value={receiptSupplierCpf} 
                                         onChange={e => { setReceiptSupplierCpf(e.target.value); setReceiptInvoice(''); }} 
-                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-teal-100 transition-all text-xs appearance-none cursor-pointer"
+                                        className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-teal-400 transition-all text-[10px] uppercase cursor-pointer"
                                     >
-                                        <option value="">-- SELECIONE O FORNECEDOR --</option>
+                                        <option value="">-- SELECIONE --</option>
                                         {suppliers.sort((a, b) => a.name.localeCompare(b.name)).map(s => <option key={s.cpf} value={s.cpf}>{s.name.toUpperCase()}</option>)}
                                     </select>
                                 </div>
-                                <div className="space-y-2 md:col-span-2">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1 flex items-center gap-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
-                                        2. Selecionar Nota Fiscal
-                                    </label>
+                                <div className="space-y-1 md:col-span-1">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 text-teal-600">2. Nota Fiscal</label>
                                     <select 
                                         value={receiptInvoice} 
                                         onChange={e => handleInvoiceChange(e.target.value)} 
-                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-teal-100 transition-all text-xs disabled:opacity-50 appearance-none cursor-pointer" 
+                                        className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-teal-400 transition-all text-[10px] uppercase disabled:opacity-50 cursor-pointer" 
                                         disabled={!receiptSupplierCpf}
                                     >
-                                        <option value="">-- SELECIONE A NF (${selectedMonth}/${selectedYear}) --</option>
+                                        <option value="">-- SELECIONE --</option>
                                         {supplierInvoices.map(nf => <option key={nf} value={nf}>NF {nf}</option>)}
                                     </select>
                                 </div>
-                                <div className="space-y-2 md:col-span-2">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1 flex items-center gap-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                        3. Processo SEI
-                                    </label>
-                                    <input 
-                                        type="text" 
-                                        value={receiptProcessoSei} 
-                                        onChange={e => setReceiptProcessoSei(e.target.value)} 
-                                        placeholder="Nº do Processo SEI"
-                                        className="w-full h-12 px-4 border-2 border-white rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-4 focus:ring-teal-100 transition-all text-xs" 
-                                    />
-                                </div>
+                            </div>
+                            <div className="bg-slate-50 border-2 border-dashed border-gray-200 p-4 rounded-2xl space-y-1">
+                                <label className="text-[9px] font-black text-teal-600 uppercase tracking-[0.2em] ml-1">3. Processo SEI (Auto-Preenchimento)</label>
+                                <input 
+                                    type="text" 
+                                    value={receiptProcessoSei} 
+                                    onChange={e => setReceiptProcessoSei(e.target.value)} 
+                                    placeholder="Nº do Processo SEI"
+                                    className="w-full h-10 px-4 border border-gray-200 rounded-xl bg-white shadow-inner font-black text-zinc-900 outline-none focus:ring-4 focus:ring-teal-50 transition-all text-xs" 
+                                />
                             </div>
                         </div>
 

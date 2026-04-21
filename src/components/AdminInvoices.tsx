@@ -22,7 +22,6 @@ interface AdminInvoicesProps {
     newDate?: string, 
     receiptTermNumber?: string, 
     invoiceDate?: string, 
-    nl?: string, 
     pd?: string
   ) => Promise<{ success: boolean; message?: string }>;
   onUpdateInvoiceUrl: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => Promise<{ success: boolean; message?: string }>;
@@ -34,7 +33,6 @@ interface AdminInvoicesProps {
     barcode?: string, 
     receiptTermNumber?: string, 
     invoiceDate?: string, 
-    nl?: string, 
     pd?: string,
     type?: 'entrada' | 'saída'
   ) => Promise<{ success: boolean; message?: string }>;
@@ -66,7 +64,6 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     supplierCpf: '', 
     date: '', 
     invoiceNumber: '', 
-    nl: '', 
     pd: '', 
     type: mode === 'warehouse_exit' ? 'saída' : 'entrada',
     items: [] as { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[]
@@ -174,6 +171,13 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
         });
     }, [allInvoices, activeMonthTab, statusFilter, searchTerm]);
 
+    const globalTotal = useMemo(() => {
+        return filteredInvoices.reduce((total, inv) => {
+            const invTotal = inv.items.reduce((sum: number, it: any) => sum + ((it.value || 0) * (it.kg || it.quantity || 0)), 0);
+            return total + invTotal;
+        }, 0);
+    }, [filteredInvoices]);
+
   const handleOpenPdf = async (url: string) => {
     if (!url) return;
     let finalUrl = url;
@@ -250,8 +254,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             lotNumber: it.lotNumber || 'MANUAL',
             expirationDate: it.expirationDate
         })), 
-        '', '', '', 
-        manualEntryData.nl, 
+        '', '', 
         manualEntryData.pd,
         manualEntryData.type as any
     );
@@ -314,35 +317,44 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           </div>
         </div>
 
-        <div className="bg-slate-50 px-2 py-1.5 overflow-x-auto whitespace-nowrap scrollbar-hide flex gap-1 border-b border-gray-100">
-          {availableMonths.length > 0 ? availableMonths.map((key) => {
-            const [y, m] = key.split('-').map(Number);
-            return (
-              <button
-                key={key}
-                onClick={() => setActiveMonthTab(key)}
-                className={`px-3 py-1 rounded-md text-[8px] font-black uppercase tracking-widest transition-all ${
-                  activeMonthTab === key 
-                    ? 'bg-indigo-600 text-white shadow-sm' 
-                    : 'text-gray-400 hover:bg-white hover:text-indigo-600'
-                }`}
-              >
-                {MONTHS[m].substring(0,3)}/{y}
-              </button>
-            );
-          }) : (
-            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest px-2 py-1">Sem NFs</p>
-          )}
+        <div className="bg-slate-50 px-2 py-1.5 overflow-x-auto whitespace-nowrap scrollbar-hide flex gap-1 border-b border-gray-100 items-center justify-between">
+          <div className="flex gap-1">
+            {availableMonths.length > 0 ? availableMonths.map((key) => {
+              const [y, m] = key.split('-').map(Number);
+              return (
+                <button
+                  key={key}
+                  onClick={() => setActiveMonthTab(key)}
+                  className={`px-3 py-1 rounded-md text-[8px] font-black uppercase tracking-widest transition-all ${
+                    activeMonthTab === key 
+                      ? 'bg-indigo-600 text-white shadow-sm' 
+                      : 'text-gray-400 hover:bg-white hover:text-indigo-600'
+                  }`}
+                >
+                  {MONTHS[m].substring(0,3)}/{y}
+                </button>
+              );
+            }) : (
+              <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest px-2 py-1">Sem NFs</p>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-3 bg-white px-3 py-1 rounded-lg border border-gray-100 shadow-xs">
+              <div className="flex flex-col items-end">
+                  <span className="text-[6px] font-black text-gray-400 uppercase leading-none mb-0.5">Total do Mês</span>
+                  <span className="text-[11px] font-black text-indigo-700 leading-none">{formatCurrency(globalTotal)}</span>
+              </div>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse table-fixed min-w-[1000px]">
             <thead>
               <tr className="bg-slate-50 border-b border-gray-100">
+                <th className="w-[12%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">STATUS PD</th>
                 <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">NF # / Data</th>
                 <th className="w-[18%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Fornecedor</th>
                 <th className="w-[30%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Itens / Etiquetas</th>
-                <th className="w-[12%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">NL / PD</th>
                 <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Valor Total</th>
                 <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
                 <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Ações</th>
@@ -350,11 +362,16 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             </thead>
             <tbody>
               {filteredInvoices.length > 0 ? filteredInvoices.map((inv, idx) => {
-                const hasMissingInfo = !inv.nl || !inv.pd;
+                const hasPd = !!inv.pd;
                 return (
-                <tr key={`${inv.supplierCpf}-${inv.invoiceNumber}`} className={`border-b border-gray-50 transition-colors group ${hasMissingInfo ? 'bg-red-50/70 hover:bg-red-50' : 'hover:bg-slate-50'}`}>
+                <tr key={`${inv.supplierCpf}-${inv.invoiceNumber}`} className={`border-b border-gray-50 transition-colors group ${hasPd ? 'bg-green-50/50 hover:bg-green-50' : 'bg-red-50/70 hover:bg-red-50'}`}>
+                  <td className="px-3 py-1.5 text-center">
+                    <span className={`text-[9px] font-black uppercase tracking-tighter px-2 py-1 rounded shadow-sm ${inv.pd ? 'bg-green-600 text-white' : 'bg-red-600 text-white animate-pulse'}`}>
+                      {inv.pd ? `C/PD - ${inv.pd}` : 'S/PD'}
+                    </span>
+                  </td>
                   <td className="px-3 py-1.5">
-                    <div className={`font-black tracking-tighter text-[11px] ${hasMissingInfo ? 'text-red-700' : 'text-indigo-900'}`}>#{inv.invoiceNumber}</div>
+                    <div className={`font-black tracking-tighter text-[11px] ${!hasPd ? 'text-red-700' : 'text-green-900'}`}>#{inv.invoiceNumber}</div>
                     <div className="text-[8px] text-gray-400 font-bold uppercase tracking-tight">{new Date(inv.date + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
                   </td>
                   <td className="px-3 py-1.5">
@@ -420,19 +437,9 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                       ))}
                     </div>
                   </td>
-                  <td className="px-3 py-1.5 text-center">
-                    <div className="flex flex-col gap-0.5 items-center">
-                      <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${inv.nl ? 'bg-green-100 text-green-700' : 'bg-red-500 text-white animate-pulse'}`}>
-                        NL: {inv.nl || 'PENDENTE'}
-                      </span>
-                      <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${inv.pd ? 'bg-blue-100 text-blue-700' : 'bg-red-500 text-white animate-pulse'}`}>
-                        PD: {inv.pd || 'PENDENTE'}
-                      </span>
-                    </div>
-                  </td>
                   <td className="px-3 py-1.5">
-                    <div className={`text-[10px] font-black ${hasMissingInfo ? 'text-red-600' : 'text-green-700'}`}>
-                        {formatCurrency(inv.items.reduce((sum: number, it: any) => sum + (it.value || 0), 0))}
+                    <div className={`text-[10px] font-black ${!hasPd ? 'text-red-600' : 'text-green-700'}`}>
+                        {formatCurrency(inv.items.reduce((sum: number, it: any) => sum + ((it.value || 0) * (it.kg || it.quantity || 0)), 0))}
                     </div>
                   </td>
                   <td className="px-3 py-1.5">
@@ -504,11 +511,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                               <input type="text" value={manualEntryData.invoiceNumber} onChange={e => setManualEntryData({...manualEntryData, invoiceNumber: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">NL (Opcional)</label>
-                              <input type="text" value={manualEntryData.nl} onChange={e => setManualEntryData({...manualEntryData, nl: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
-                          </div>
+                        <div className="grid grid-cols-1 gap-3">
                           <div className="space-y-1">
                               <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">PD (Opcional)</label>
                               <input type="text" value={manualEntryData.pd} onChange={e => setManualEntryData({...manualEntryData, pd: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
