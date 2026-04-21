@@ -581,13 +581,13 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                 <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Validade</th>
                                 <th className="p-3 text-right font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Quantidade</th>
                                 <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">NF / REQ</th>
-                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">NL / PD</th>
+                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Situação PD</th>
                                 <th className="p-3 text-center font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Ações</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {filteredLog.map(log => (
-                                <tr key={log.id} className={`hover:bg-indigo-50/30 transition-colors group ${(!log.nlNumber || !log.pdNumber) ? 'bg-red-50/40' : ''}`}>
+                                <tr key={log.id} className={`hover:bg-indigo-50/30 transition-colors group ${!log.pdNumber ? 'bg-red-100' : 'bg-green-100'}`}>
                                     <td className="p-2 pl-3">
                                         <span className={`text-[8px] font-black px-2 py-0.5 rounded-lg uppercase italic ${log.type === 'entrada' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{log.type}</span>
                                     </td>
@@ -605,8 +605,8 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                         {(log.quantity || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg
                                     </td>
                                     <td className="p-2 font-mono text-[10px] text-gray-400 font-bold italic">{log.inboundInvoice || log.outboundInvoice || '-'}</td>
-                                    <td className={`p-2 font-mono text-[10px] font-black italic ${(!log.nlNumber || !log.pdNumber) ? 'text-red-600 bg-red-50' : 'text-gray-400'}`}>
-                                        {log.nlNumber || 'S/ NL'} / {log.pdNumber || 'S/ PD'}
+                                    <td className={`p-2 font-mono text-[10px] font-black italic ${!log.pdNumber ? 'text-red-700' : 'text-green-700'}`}>
+                                        PD - {log.pdNumber ? 'C/ PD' : 'S/ PD'}
                                     </td>
                                     <td className="p-2 text-center">
                                         <div className="flex justify-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
@@ -756,7 +756,6 @@ const EditWarehouseMovementModal: React.FC<EditWarehouseMovementModalProps> = ({
     const [documentNumber, setDocumentNumber] = useState(logEntry.inboundInvoice || logEntry.outboundInvoice || '');
     const [date, setDate] = useState(logEntry.date || '');
     const [expirationDate, setExpirationDate] = useState(logEntry.expirationDate || '');
-    const [nlNumber, setNlNumber] = useState(logEntry.nlNumber || '');
     const [pdNumber, setPdNumber] = useState(logEntry.pdNumber || '');
     const [value, setValue] = useState(String(logEntry.value || 0).replace('.', ','));
     const [weight, setWeight] = useState(String(logEntry.weight || 0).replace('.', ','));
@@ -786,7 +785,6 @@ const EditWarehouseMovementModal: React.FC<EditWarehouseMovementModalProps> = ({
             inboundInvoice: type === 'entrada' ? documentNumber : '',
             outboundInvoice: type === 'saída' ? documentNumber : '',
             expirationDate,
-            nlNumber,
             pdNumber,
             value: parseFloat(value.replace(',', '.')) || 0,
             weight: parseFloat(weight.replace(',', '.')) || qtyVal
@@ -854,10 +852,6 @@ const EditWarehouseMovementModal: React.FC<EditWarehouseMovementModalProps> = ({
                         </div>
 
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-rose-600 uppercase ml-1">NL (Nota Lançamento)</label>
-                            <input type="text" value={nlNumber} onChange={e => setNlNumber(e.target.value.toUpperCase())} className="w-full p-2 border-2 border-rose-100 rounded-xl outline-none focus:ring-2 focus:ring-rose-400" />
-                        </div>
-                        <div className="space-y-1">
                             <label className="text-[10px] font-black text-rose-600 uppercase ml-1">PD (Parecer Despesa)</label>
                             <input type="text" value={pdNumber} onChange={e => setPdNumber(e.target.value.toUpperCase())} className="w-full p-2 border-2 border-rose-100 rounded-xl outline-none focus:ring-2 focus:ring-rose-400" />
                         </div>
@@ -914,7 +908,6 @@ const ManualWarehouseMovementModal: React.FC<ManualWarehouseMovementModalProps> 
     const [documentNumber, setDocumentNumber] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [expirationDate, setExpirationDate] = useState('');
-    const [nlNumber, setNlNumber] = useState('');
     const [pdNumber, setPdNumber] = useState('');
     const [value, setValue] = useState('');
     const [weight, setWeight] = useState('');
@@ -960,7 +953,6 @@ const ManualWarehouseMovementModal: React.FC<ManualWarehouseMovementModalProps> 
             barcode: barcode,
             quantity: qtyVal,
             expirationDate: expirationDate,
-            nlNumber,
             pdNumber,
             value: val,
             weight: wgt
@@ -973,7 +965,6 @@ const ManualWarehouseMovementModal: React.FC<ManualWarehouseMovementModalProps> 
             outboundInvoice: documentNumber,
             expirationDate: expirationDate,
             date: date,
-            nlNumber,
             pdNumber,
             value: val,
             weight: wgt
@@ -1053,10 +1044,6 @@ const ManualWarehouseMovementModal: React.FC<ManualWarehouseMovementModalProps> 
                             <input type="date" value={expirationDate} onChange={e => setExpirationDate(e.target.value)} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400" />
                         </div>
 
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-rose-600 uppercase ml-1">Nota de Lançamento (NL)</label>
-                            <input type="text" value={nlNumber} onChange={e => setNlNumber(e.target.value.toUpperCase())} placeholder="NL 000" className="w-full p-2 border-2 border-rose-100 rounded-xl outline-none focus:ring-2 focus:ring-rose-400" />
-                        </div>
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-rose-600 uppercase ml-1">Parecer de Despesa (PD)</label>
                             <input type="text" value={pdNumber} onChange={e => setPdNumber(e.target.value.toUpperCase())} placeholder="PD 000" className="w-full p-2 border-2 border-rose-100 rounded-xl outline-none focus:ring-2 focus:ring-rose-400" />

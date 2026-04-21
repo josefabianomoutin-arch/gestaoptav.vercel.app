@@ -33,11 +33,10 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     const [selectedItemName, setSelectedItemName] = useState('');
     const [manualBarcode, setManualBarcode] = useState('');
     const [manualQuantity, setManualQuantity] = useState('');
-    const [manualInboundNf, setManualInboundNf] = useState<{ number: string, availableQuantity: number, lot: string, exp: string } | null>(null);
-    
+    const [manualInboundNf, setManualInboundNf] = useState<{ number: string, availableQuantity: number, lot: string, exp: string, timestamp?: number } | null>(null);
+
     const [manualLot, setManualLot] = useState('');
     const [manualExp, setManualExp] = useState('');
-    const [manualNl, setManualNl] = useState('');
     const [manualPd, setManualPd] = useState('');
     const [manualValue, setManualValue] = useState('');
     const [manualWeight, setManualWeight] = useState('');
@@ -51,7 +50,6 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         exp: string; 
         barcode: string; 
         inboundInvoice?: string;
-        nlNumber?: string;
         pdNumber?: string;
         value?: number;
         weight?: number;
@@ -71,12 +69,14 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             totalIn: number, 
             totalOut: number,
             lot: string,
-            exp: string
+            exp: string,
+            timestamp: number
         } } = {};
 
         warehouseLog.forEach(log => {
             const key = `${log.invoiceNumber || log.inboundInvoice}|${log.supplierName}|${log.itemName}`;
             if (!stockMap[key]) {
+                const ts = log.timestamp || (log.date ? new Date(log.date + 'T12:00:00').getTime() : 0);
                 stockMap[key] = { 
                     nfNumber: log.invoiceNumber || log.inboundInvoice || '', 
                     supplierName: log.supplierName, 
@@ -84,15 +84,19 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                     totalIn: 0, 
                     totalOut: 0,
                     lot: log.lotNumber || '',
-                    exp: log.expirationDate || ''
+                    exp: log.expirationDate || '',
+                    timestamp: ts
                 };
             }
             if (log.type === 'entrada') {
-                stockMap[key].totalIn += log.quantity;
+                stockMap[key].totalIn += (log.quantity || log.kg || 0);
                 if (log.lotNumber) stockMap[key].lot = log.lotNumber;
                 if (log.expirationDate) stockMap[key].exp = log.expirationDate;
+                // Mantém o timestamp mais antigo para a NF se houver múltiplas entradas
+                const currentTs = log.timestamp || (log.date ? new Date(log.date + 'T12:00:00').getTime() : 0);
+                if (currentTs < stockMap[key].timestamp) stockMap[key].timestamp = currentTs;
             } else {
-                stockMap[key].totalOut += log.quantity;
+                stockMap[key].totalOut += (log.quantity || log.kg || 0);
             }
         });
 
@@ -102,7 +106,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                 ...s,
                 balance: s.totalIn - s.totalOut
             }))
-            .sort((a, b) => a.nfNumber.localeCompare(b.nfNumber));
+            .sort((a, b) => a.timestamp - b.timestamp || a.nfNumber.localeCompare(b.nfNumber));
     }, [warehouseLog, manualType]);
 
     const filteredNfSearch = useMemo(() => {
@@ -115,7 +119,23 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         ).slice(0, 5); // Limita a 5 resultados para o dropdown
     }, [registeredInvoicesWithStock, nfSearchTerm]);
 
-    const handleSelectSearchedNf = (nf: any) => {
+    const validateAndSelectNf = React.useCallback((nf: any) => {
+        // Encontra se existe algum outro lote do MESMO ITEM e MESMO FORNECEDOR que seja mais antigo
+        const olderLot = registeredInvoicesWithStock.find(item => 
+            item.itemName === nf.itemName && 
+            item.supplierName === nf.supplierName && 
+            item.timestamp < nf.timestamp &&
+            item.nfNumber !== nf.nfNumber
+        );
+
+        if (olderLot) {
+            toast.error(`EXISTE LOTE MAIS ANTIGO - PEPS! (NF: ${olderLot.nfNumber})`, {
+                duration: 5000,
+                description: "Por favor, utilize o estoque mais antigo primeiro."
+            });
+            return false;
+        }
+
         const supplier = suppliers.find(s => s.name === nf.supplierName);
         if (supplier) setSelectedSupplierCpf(supplier.cpf);
         setSelectedItemName(nf.itemName);
@@ -123,12 +143,19 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             number: nf.nfNumber,
             availableQuantity: nf.balance,
             lot: nf.lot,
-            exp: nf.exp
+            exp: nf.exp,
+            timestamp: nf.timestamp
         });
         setManualLot(nf.lot);
         setManualExp(nf.exp);
         setNfSearchTerm(''); // Limpa a busca
-        toast.success(`NF ${nf.nfNumber} selecionada: ${nf.itemName}`);
+        return true;
+    }, [registeredInvoicesWithStock, suppliers]);
+
+    const handleSelectSearchedNf = (nf: any) => {
+        if (validateAndSelectNf(nf)) {
+            toast.success(`NF ${nf.nfNumber} selecionada: ${nf.itemName}`);
+        }
     };
 
     useEffect(() => {
@@ -145,25 +172,37 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         const entries = warehouseLog.filter(l => l.supplierName === selectedSupplier.name && l.itemName === selectedItemName && l.type === 'entrada');
         
         // Agrupa por NF para saber o saldo disponível
-        const invoiceBalances: { [key: string]: { total: number, lot: string, exp: string } } = {};
+        const invoiceBalances: { [key: string]: { total: number, lot: string, exp: string, timestamp: number } } = {};
         
         entries.forEach(e => {
-            if (!invoiceBalances[e.invoiceNumber]) {
-                invoiceBalances[e.invoiceNumber] = { total: 0, lot: e.lotNumber || 'UNICO', exp: e.expirationDate || '' };
+            const num = e.invoiceNumber || e.inboundInvoice || '';
+            if (!invoiceBalances[num]) {
+                const ts = e.timestamp || (e.date ? new Date(e.date + 'T12:00:00').getTime() : 0);
+                invoiceBalances[num] = { 
+                    total: 0, 
+                    lot: e.lotNumber || 'UNICO', 
+                    exp: e.expirationDate || '',
+                    timestamp: ts
+                };
             }
-            invoiceBalances[e.invoiceNumber].total += e.quantity;
+            invoiceBalances[num].total += (e.quantity || e.kg || 0);
+            
+            // Mantém o timestamp mais antigo para a NF se houver múltiplas entradas
+            const currentTs = e.timestamp || (e.date ? new Date(e.date + 'T12:00:00').getTime() : 0);
+            if (currentTs < invoiceBalances[num].timestamp) invoiceBalances[num].timestamp = currentTs;
         });
 
         // Subtrai as saídas dessa NF
         warehouseLog.filter(l => l.supplierName === selectedSupplier.name && l.inboundInvoice && l.type === 'saída').forEach(e => {
             if (invoiceBalances[e.inboundInvoice!]) {
-                invoiceBalances[e.inboundInvoice!].total -= e.quantity;
+                invoiceBalances[e.inboundInvoice!].total -= (e.quantity || e.kg || 0);
             }
         });
 
         return Object.entries(invoiceBalances)
             .filter(([_, data]) => data.total > 0)
-            .map(([number, data]) => ({ number, availableQuantity: data.total, lot: data.lot, exp: data.exp }));
+            .map(([number, data]) => ({ number, availableQuantity: data.total, lot: data.lot, exp: data.exp, timestamp: data.timestamp }))
+            .sort((a, b) => a.timestamp - b.timestamp);
     }, [selectedSupplier, selectedItemName, warehouseLog]);
 
     const availableItems = useMemo(() => {
@@ -231,7 +270,10 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                         }
                         if (manualType === 'saída' && !manualInboundNf) {
                             const invNum = deliveries[0].invoiceNumber || '';
-                            if (invNum) setManualInboundNf(invNum);
+                            const itName = deliveries[0].item || '';
+                            const supplierName = s.name;
+                            const foundInStock = registeredInvoicesWithStock.find(st => st.nfNumber === invNum && st.itemName === itName && st.supplierName === supplierName);
+                            if (foundInStock) validateAndSelectNf(foundInStock);
                         }
                         if (deliveries.length === 1) {
                             const itName = deliveries[0].item || '';
@@ -264,7 +306,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             }, 50);
             return () => clearTimeout(timer);
         }
-    }, [manualBarcode, suppliers, warehouseLog, manualType, selectedSupplierCpf, manualInboundNf]);
+    }, [manualBarcode, suppliers, warehouseLog, manualType, selectedSupplierCpf, manualInboundNf, manualSupplierInvoices, registeredInvoicesWithStock, validateAndSelectNf]);
 
     const handleAddItem = () => {
         const qtyVal = parseFloat(manualQuantity.replace(',', '.'));
@@ -279,8 +321,25 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         }
 
         if (manualType === 'saída' && manualInboundNf && qtyVal > manualInboundNf.availableQuantity) {
-            alert(`Quantidade solicitada (${qtyVal}) maior que o saldo disponível na NF (${manualInboundNf.availableQuantity}).`);
+            alert(`Quantidade solicitada (${qtyVal}) maior que o saldo disponível na NF (${manualInboundNf.availableQuantity.toFixed(2)}).`);
             return;
+        }
+
+        if (manualType === 'saída' && manualInboundNf) {
+             const olderLot = registeredInvoicesWithStock.find(item => 
+                item.itemName === selectedItemName && 
+                item.supplierName === selectedSupplier?.name && 
+                item.timestamp < (manualInboundNf.timestamp || 0) &&
+                item.nfNumber !== manualInboundNf.number
+            );
+
+            if (olderLot) {
+                toast.error(`EXISTE LOTE MAIS ANTIGO - PEPS! (NF: ${olderLot.nfNumber})`, {
+                    duration: 5000,
+                    description: "Por favor, utilize o estoque mais antigo primeiro."
+                });
+                return;
+            }
         }
 
         setItems(prev => [...prev, {
@@ -292,7 +351,6 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             barcode: manualBarcode || Math.random().toString(36).substr(2, 9).toUpperCase(),
             inboundInvoice: manualInboundNf?.number,
             availableBefore: manualInboundNf?.availableQuantity || 0,
-            nlNumber: manualNl,
             pdNumber: manualPd,
             value: parseFloat(manualValue.replace(',', '.')) || 0,
             weight: parseFloat(manualWeight.replace(',', '.')) || qtyVal
@@ -403,7 +461,6 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             }
         }
         
-        setManualNl(item.nlNumber || '');
         setManualPd(item.pdNumber || '');
         setManualValue(item.value?.toString() || '');
         setManualWeight(item.weight?.toString() || '');
@@ -435,7 +492,6 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                 lotNumber: item.lot || 'UNICO',
                 expirationDate: item.exp,
                 inboundInvoice: item.inboundInvoice,
-                nlNumber: item.nlNumber,
                 pdNumber: item.pdNumber,
                 value: item.value,
                 weight: item.weight,
@@ -466,7 +522,6 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                         quantity: item.quantity,
                         expirationDate: item.exp,
                         barcode: item.barcode,
-                        nlNumber: item.nlNumber,
                         pdNumber: item.pdNumber,
                         value: item.value,
                         weight: item.weight
@@ -481,7 +536,6 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                         expirationDate: item.exp,
                         date: manualDate,
                         barcode: item.barcode,
-                        nlNumber: item.nlNumber,
                         pdNumber: item.pdNumber,
                         value: item.value,
                         weight: item.weight
@@ -616,14 +670,14 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                     value={nfSearchTerm}
                                     onChange={e => setNfSearchTerm(e.target.value)}
                                     placeholder="🔍 Digite Produtor ou Nº da Nota Fiscal para selecionar o saldo..."
-                                    className="w-full h-14 px-6 pr-12 border-2 border-red-100 rounded-2xl bg-white shadow-lg font-black outline-none focus:ring-4 focus:ring-red-200 transition-all text-sm placeholder:text-gray-300 italic"
+                                    className="w-full h-10 px-4 pr-10 border-2 border-red-100 rounded-xl bg-white shadow-md font-black outline-none focus:ring-4 focus:ring-red-200 transition-all text-xs placeholder:text-gray-300 italic"
                                 />
                                 {nfSearchTerm && (
                                     <button 
                                         onClick={() => setNfSearchTerm('')}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-600"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-600"
                                     >
-                                        <X className="h-6 w-6" />
+                                        <X className="h-5 w-5" />
                                     </button>
                                 )}
                             </div>
@@ -658,39 +712,39 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                 <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4 shadow-sm italic">
                     {manualType === 'saída' && manualInboundNf ? (
                         /* BRANCH 1: Saída simplificada com item selecionado */
-                        <div className="bg-indigo-50/50 p-5 rounded-2xl border-2 border-indigo-100 animate-in slide-in-from-top-4 shadow-inner">
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-white rounded-2xl shadow-md border border-indigo-100">
-                                        <Package className="h-6 w-6 text-indigo-600" />
+                        <div className="bg-indigo-50/50 p-3 rounded-xl border-2 border-indigo-100 animate-in slide-in-from-top-4 shadow-inner">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-white rounded-xl shadow-md border border-indigo-100">
+                                        <Package className="h-5 w-5 text-indigo-600" />
                                     </div>
                                     <div>
-                                        <h3 className="text-sm font-black text-gray-900 uppercase italic leading-none">{selectedItemName}</h3>
-                                        <p className="text-[10px] text-gray-500 font-bold uppercase mt-1 tracking-tight">
-                                            NF ORIGEM: {manualInboundNf.number} • PRODUTOR: {selectedSupplier?.name}
+                                        <h3 className="text-[12px] font-black text-gray-900 uppercase italic leading-none">{selectedItemName}</h3>
+                                        <p className="text-[9px] text-gray-500 font-bold uppercase mt-0.5 tracking-tight">
+                                            NF: {manualInboundNf.number} • PRODUTOR: {selectedSupplier?.name}
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-8">
+                                <div className="flex items-center gap-6">
                                     <div className="text-right">
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">SALDO EM ESTOQUE</p>
-                                        <p className="text-xl font-black text-emerald-600 italic leading-none">{manualInboundNf.availableQuantity.toFixed(2)} kg</p>
+                                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">SALDO</p>
+                                        <p className="text-lg font-black text-emerald-600 italic leading-none">{manualInboundNf.availableQuantity.toFixed(2)} kg</p>
                                     </div>
                                     
-                                    <div className="w-px h-12 bg-indigo-200 hidden md:block"></div>
+                                    <div className="w-px h-10 bg-indigo-200 hidden md:block"></div>
 
-                                    <div className="space-y-1.5">
+                                    <div className="space-y-1">
                                         <div className="flex justify-between items-center px-1">
-                                            <label className="text-[9px] font-black text-indigo-600 uppercase italic">PESO DA SAÍDA (KG)</label>
+                                            <label className="text-[8px] font-black text-indigo-600 uppercase italic">PESO (KG)</label>
                                             <button 
                                                 type="button"
                                                 onClick={() => setManualQuantity(manualInboundNf.availableQuantity.toFixed(2).replace('.', ','))}
-                                                className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 hover:bg-amber-100 transition-all shadow-sm"
+                                                className="text-[7px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-lg border border-amber-200 hover:bg-amber-100 transition-all shadow-sm"
                                             >
-                                                BAIXAR TUDO
+                                                TUDO
                                             </button>
                                         </div>
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2">
                                             <div className="relative">
                                                 <input 
                                                     type="text" 
@@ -698,26 +752,26 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                                     value={manualQuantity} 
                                                     onChange={e => setManualQuantity(e.target.value.replace(/[^0-9,.]/g, ''))} 
                                                     placeholder="0,00" 
-                                                    className="w-32 h-12 px-4 border-2 border-indigo-600 rounded-2xl bg-gray-900 text-white font-black text-center text-lg outline-none shadow-xl focus:ring-4 focus:ring-indigo-100 transition-all font-mono" 
+                                                    className="w-24 h-9 px-3 border-2 border-indigo-600 rounded-xl bg-gray-900 text-white font-black text-center text-sm outline-none shadow-lg focus:ring-4 focus:ring-indigo-100 transition-all font-mono" 
                                                 />
                                             </div>
                                             <button 
                                                 type="button" 
                                                 onClick={handleAddItem}
                                                 disabled={!manualQuantity || parseFloat(manualQuantity.replace(',', '.')) <= 0}
-                                                className="h-12 px-8 rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl transition-all active:scale-95 disabled:bg-gray-200 disabled:text-gray-400 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2"
+                                                className="h-9 px-5 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg transition-all active:scale-95 disabled:bg-gray-200 disabled:text-gray-400 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1"
                                             >
-                                                <Plus className="h-5 w-5" /> LANÇAR BAIXA
+                                                <Plus className="h-4 w-4" /> BAIXAR
                                             </button>
                                         </div>
                                     </div>
                                     
                                     <button 
                                         onClick={() => { setManualInboundNf(null); setSelectedItemName(''); setSelectedSupplierCpf(''); setNfSearchTerm(''); }}
-                                        className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all border border-transparent hover:border-red-100"
-                                        title="Trocar Nota/Produto"
+                                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                        title="Trocar"
                                     >
-                                        <X className="h-6 w-6" />
+                                        <X className="h-5 w-5" />
                                     </button>
                                 </div>
                             </div>
@@ -730,8 +784,8 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                         </div>
                     ) : (
                         /* BRANCH 3: Entrada (manualType === 'entrada') */
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                             <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+                             <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-6 gap-2">
                                 <div className="md:col-span-2 space-y-0.5">
                                     <label className="text-[8px] font-black text-indigo-600 uppercase ml-1 italic">Produto</label>
                                     <select 
@@ -746,9 +800,9 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                                 setSelectedItemName(val);
                                             }
                                         }} 
-                                        className="w-full h-9 px-3 border border-indigo-50 rounded-lg bg-white font-black outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] disabled:opacity-50 shadow-xs uppercase italic" 
+                                        className="w-full h-8 px-2 border border-indigo-50 rounded-lg bg-white font-black outline-none focus:ring-1 focus:ring-indigo-100 transition-all text-[10px] disabled:opacity-50 shadow-xs uppercase italic" 
                                     >
-                                        <option value="">-- BUSCAR PRODUTO (GERAL) --</option>
+                                        <option value="">-- PRODUTO --</option>
                                         {!selectedSupplierCpf ? (
                                             (availableItems as any[]).map((it, idx) => (
                                                 <option key={`${it.name}-${it.supplierCpf}-${idx}`} value={`${it.name}|${it.supplierCpf}`}>
@@ -761,65 +815,62 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                     </select>
                                 </div>
                                 
-                                <div className="space-y-0.5">
-                                    <label className="text-[8px] font-black text-rose-600 uppercase ml-1 italic">Nota de Lançamento (NL)</label>
-                                    <input type="text" value={manualNl} onChange={e => setManualNl(e.target.value.toUpperCase())} placeholder="NL..." className="w-full h-8 px-2 border border-rose-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-rose-100 transition-all text-[9px] shadow-xs uppercase italic" />
-                                </div>
-
-                                <div className="space-y-0.5">
-                                    <label className="text-[8px] font-black text-rose-600 uppercase ml-1 italic">Parecer de Despesa (PD)</label>
+                                <div className="space-y-0.5 md:col-span-1">
+                                    <label className="text-[8px] font-black text-rose-600 uppercase ml-1 italic">Parecer Despesa (PD)</label>
                                     <input type="text" value={manualPd} onChange={e => setManualPd(e.target.value.toUpperCase())} placeholder="PD..." className="w-full h-8 px-2 border border-rose-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-rose-100 transition-all text-[9px] shadow-xs uppercase italic" />
                                 </div>
 
-                                <div className="space-y-0.5">
-                                    <label className="text-[8px] font-black text-emerald-600 uppercase ml-1 italic">Valor Total/Unit.</label>
+                                <div className="space-y-0.5 md:col-span-1">
+                                    <label className="text-[8px] font-black text-emerald-600 uppercase ml-1 italic">Valor Un/Tot</label>
                                     <input type="text" value={manualValue} onChange={e => setManualValue(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="R$ 0,00" className="w-full h-8 px-2 border border-emerald-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-emerald-100 transition-all text-[9px] shadow-xs font-mono" />
                                 </div>
 
-                                <div className="space-y-0.5">
+                                <div className="space-y-0.5 md:col-span-1">
                                     <label className="text-[8px] font-black text-amber-600 uppercase ml-1 italic">Peso Bruto</label>
                                     <input type="text" value={manualWeight} onChange={e => setManualWeight(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="0,00 kg" className="w-full h-8 px-2 border border-amber-50 rounded-md bg-white font-bold outline-none focus:ring-1 focus:ring-amber-100 transition-all text-[9px] shadow-xs font-mono" />
                                 </div>
                             </div>
 
-                            <div className="md:col-span-4 space-y-0.5">
-                                <label className="text-[8px] font-black text-blue-600 uppercase ml-1">Cód. Barras</label>
-                                <input 
-                                    ref={barcodeInputRef} 
-                                    type="text" 
-                                    value={manualBarcode} 
-                                    onChange={e => setManualBarcode(e.target.value)} 
-                                    placeholder="Bipar..." 
-                                    className="w-full h-9 px-3 border border-blue-100 rounded-lg bg-white font-mono font-bold focus:ring-2 focus:ring-blue-50 outline-none text-[10px] placeholder:text-blue-200 transition-all shadow-xs" />
-                            </div>
-
-                            <div className="md:col-span-2 space-y-0.5">
-                                <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Quantidade</label>
-                                <input 
-                                    type="text" 
-                                    value={manualQuantity} 
-                                    onChange={e => setManualQuantity(e.target.value.replace(/[^0-9,.]/g, ''))} 
-                                    placeholder="0,00" 
-                                    className="w-full h-9 px-3 border border-gray-900 rounded-lg bg-gray-900 text-white font-black text-center text-sm outline-none shadow-sm font-mono" 
-                                />
-                            </div>
-
-                            <div className="md:col-span-3 space-y-0.5">
-                                <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Lote / Validade</label>
-                                <div className="grid grid-cols-2 gap-1">
-                                    <input type="text" value={manualLot} onChange={e => setManualLot(e.target.value.toUpperCase())} placeholder="LOTE" className="w-full h-9 px-2 border border-gray-100 rounded-lg bg-white font-mono font-bold outline-none text-[9px]" />
-                                    <input type="date" value={manualExp} onChange={e => setManualExp(e.target.value)} className="w-full h-9 px-1 border border-gray-100 rounded-lg bg-white font-bold outline-none text-[9px]" />
+                            <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+                                <div className="md:col-span-2 space-y-0.5">
+                                    <label className="text-[8px] font-black text-blue-600 uppercase ml-1">Barras</label>
+                                    <input 
+                                        ref={barcodeInputRef} 
+                                        type="text" 
+                                        value={manualBarcode} 
+                                        onChange={e => setManualBarcode(e.target.value)} 
+                                        placeholder="Bipar..." 
+                                        className="w-full h-8 px-2 border border-blue-100 rounded-lg bg-white font-mono font-bold focus:ring-1 focus:ring-blue-50 outline-none text-[9px] placeholder:text-blue-200 transition-all shadow-xs" />
                                 </div>
-                            </div>
 
-                            <div className="md:col-span-3">
-                                <button 
-                                    type="button" 
-                                    onClick={handleAddItem}
-                                    disabled={!selectedItemName || !manualQuantity}
-                                    className="w-full h-9 rounded-lg font-black uppercase text-[9px] tracking-tight shadow-sm transition-all active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-1.5">
-                                    <Plus className="h-3 w-3" /> Adicionar Item
-                                </button>
+                                <div className="md:col-span-2 space-y-0.5">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Qtd (KG)</label>
+                                    <input 
+                                        type="text" 
+                                        value={manualQuantity} 
+                                        onChange={e => setManualQuantity(e.target.value.replace(/[^0-9,.]/g, ''))} 
+                                        placeholder="0,00" 
+                                        className="w-full h-8 px-2 border border-gray-900 rounded-lg bg-gray-900 text-white font-black text-center text-[10px] outline-none shadow-sm font-mono" 
+                                    />
+                                </div>
+
+                                <div className="md:col-span-5 space-y-0.5">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Lote / Val</label>
+                                    <div className="grid grid-cols-2 gap-1">
+                                        <input type="text" value={manualLot} onChange={e => setManualLot(e.target.value.toUpperCase())} placeholder="LOTE" className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-white font-mono font-bold outline-none text-[8px]" />
+                                        <input type="date" value={manualExp} onChange={e => setManualExp(e.target.value)} className="w-full h-8 px-1 border border-gray-100 rounded-lg bg-white font-bold outline-none text-[8px]" />
+                                    </div>
+                                </div>
+
+                                <div className="md:col-span-3">
+                                    <button 
+                                        type="button" 
+                                        onClick={handleAddItem}
+                                        disabled={!selectedItemName || !manualQuantity}
+                                        className="w-full h-8 rounded-lg font-black uppercase text-[9px] tracking-tight shadow-sm transition-all active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-1.5">
+                                        <Plus className="h-3 w-3" /> Adicionar
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
