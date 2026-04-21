@@ -115,7 +115,16 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
               pd: d.pd
             };
           }
-          acc[d.invoiceNumber].items.push(d);
+          
+          // Tentar buscar o valor registrado no warehouseLog para este item específico desta nota
+          const itemMovement = warehouseLog.find(log => 
+            (log.inboundInvoice === d.invoiceNumber || log.outboundInvoice === d.invoiceNumber) &&
+            (log.item === d.item || log.itemName === d.item) &&
+            log.supplierCpf === supplier.cpf
+          );
+
+          const itemValue = itemMovement?.value || d.value || 0;
+          acc[d.invoiceNumber].items.push({ ...d, value: itemValue });
           
           if (new Date(d.date) < new Date(acc[d.invoiceNumber].date)) {
             acc[d.invoiceNumber].date = d.date;

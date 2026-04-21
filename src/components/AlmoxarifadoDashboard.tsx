@@ -188,10 +188,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             return;
         }
 
-        const deliveries = (supplier.deliveries || []).filter((d: any) => {
-            const delDate = new Date(d.date + 'T12:00:00');
-            return delDate.getMonth() === monthIndex && delDate.getFullYear() === selectedYear;
-        });
+        const deliveries = warehouseLog.filter(l => 
+            l.supplierCpf === selectedCronogramaSupplier &&
+            l.type === 'entrada' &&
+            new Date(l.date + 'T12:00:00').getMonth() === monthIndex &&
+            new Date(l.date + 'T12:00:00').getFullYear() === selectedYear
+        );
 
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
@@ -264,13 +266,13 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 <td class="text-center font-bold">${d.date.split('-').reverse().join('/')}</td>
                                 <td>
                                     <div class="item-badge">
-                                        <span class="font-bold">${d.item.toUpperCase()}:</span> 
+                                        <span class="font-bold">${(d.item || d.itemName || 'N/A').toUpperCase()}:</span> 
                                         ${(d.kg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}Kg - 
                                         R$ ${(d.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                     </div>
                                 </td>
                                 <td class="text-center font-bold">${(d.kg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</td>
-                                <td class="text-right font-bold">R$ ${(d.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                <td class="text-right font-bold">R$ ${((d.kg || 0) * (d.value || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                             </tr>
                         `).join('') : `<tr><td colspan="4" class="text-center italic">Nenhum agendamento para este período</td></tr>`}
                     </tbody>
@@ -278,7 +280,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         <tr class="font-bold uppercase">
                             <td colspan="2" class="text-right">TOTAIS DO PERÍODO</td>
                             <td class="text-center">${deliveries.reduce((acc: number, curr: any) => acc + (curr.kg || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
-                            <td class="text-right">R$ ${deliveries.reduce((acc: number, curr: any) => acc + (curr.value || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            <td class="text-right">R$ ${deliveries.reduce((acc: number, curr: any) => acc + ((curr.kg || 0) * (curr.value || 0)), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -424,15 +426,19 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
     const receiptData = useMemo(() => {
         if (!receiptSupplier || !receiptInvoice) return null;
-        const deliveries = Object.values((receiptSupplier.deliveries as any) || {}).filter((d: any) => 
-            d.invoiceNumber === receiptInvoice && d.item !== 'AGENDAMENTO PENDENTE'
+        
+        // Buscar movimentos desta nota fiscal no warehouseLog para obter os valores REAIS registrados
+        const movements = warehouseLog.filter(l => 
+            (l.inboundInvoice === receiptInvoice || l.outboundInvoice === receiptInvoice) &&
+            l.supplierCpf === receiptSupplier.cpf
         );
-        if (deliveries.length === 0) return null;
 
-        const items = deliveries.map(d => {
-            const contractItem = (Object.values(receiptSupplier.contractItems || {}) as any[]).find((ci: any) => ci.name === (d as any).item);
-            const unitPrice = contractItem?.valuePerKg || 0;
-            const totalValue = ((d as any).kg || 0) * unitPrice;
+        if (movements.length === 0) return null;
+
+        const items = movements.map(m => {
+            const contractItem = (Object.values(receiptSupplier.contractItems || {}) as any[]).find((ci: any) => ci.name === (m.item || m.itemName));
+            const unitPrice = m.value || 0;
+            const totalValue = (m.kg || 0) * unitPrice;
             
             // Determinar unidade de exibição
             let unit = 'Kg';
@@ -446,8 +452,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             }
 
             return {
-                name: (d as any).item || 'N/A',
-                quantity: (d as any).kg || 0,
+                name: m.item || m.itemName || 'N/A',
+                quantity: m.kg || 0,
                 unit,
                 unitPrice,
                 totalValue,
@@ -456,10 +462,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         });
 
         const totalInvoiceValue = items.reduce((sum, it) => sum + it.totalValue, 0);
-        const invoiceDate = (deliveries as any[]).find(d => d.invoiceDate)?.invoiceDate || (deliveries[0] as any)?.date || ''; 
-        const receiptDate = (deliveries[0] as any)?.date || ''; // Data de chegada
-        const barcode = (deliveries as any[]).find(d => d.barcode)?.barcode || '';
-        const receiptTermNumber = (deliveries as any[]).find(d => d.receiptTermNumber)?.receiptTermNumber || '';
+        const invoiceDate = movements.find(m => m.date)?.date || ''; 
+        const receiptDate = movements[0]?.date || '';
+        const barcode = movements.find(m => m.barcode)?.barcode || '';
+        
+        // Pegar número de empenho/parecer se disponível no movimento
+        const receiptTermNumber = movements.find(m => (m as any).receiptTermNumber)?.receiptTermNumber || '';
 
         return {
             supplierName: receiptSupplier.name,
@@ -498,6 +506,17 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     autoSei = perCapitaConfig.seiProcessNumbers[cat];
                     break;
                 }
+            }
+
+            if (!autoSei) {
+                // Tenta fallback baseado na lista de produtores/fornecedores per capita
+                const isPpais = (perCapitaConfig.ppaisProducers || []).some((p: any) => p.cpfCnpj === receiptSupplier.cpf);
+                const isPereciveis = (perCapitaConfig.pereciveisSuppliers || []).some((p: any) => p.cpfCnpj === receiptSupplier.cpf);
+                const isEstocaveis = (perCapitaConfig.estocaveisSuppliers || []).some((p: any) => p.cpfCnpj === receiptSupplier.cpf);
+                
+                if (isPpais) autoSei = perCapitaConfig.seiProcessNumbers?.['PPAIS'] || '';
+                else if (isPereciveis) autoSei = perCapitaConfig.seiProcessNumbers?.['PERECÍVEIS'] || perCapitaConfig.seiProcessNumbers?.['PERECIVEIS'] || '';
+                else if (isEstocaveis) autoSei = perCapitaConfig.seiProcessNumbers?.['ESTOCÁVEIS'] || perCapitaConfig.seiProcessNumbers?.['ESTOCAVEIS'] || '';
             }
 
             if (!autoSei) {
