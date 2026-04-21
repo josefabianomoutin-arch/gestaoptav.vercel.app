@@ -248,7 +248,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             <head>
                 <title>Cronograma de Entrega - ${selectedMonth} de ${selectedYear}</title>
                 <style>
-                    @page { size: A4 landscape; margin: 10mm; }
+                    @page { size: A4 portrait; margin: 15mm; }
                     body { font-family: Arial, sans-serif; font-size: 10pt; line-height: 1.4; color: #000; }
                     .header-title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
                     
