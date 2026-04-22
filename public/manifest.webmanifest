@@ -1,0 +1,17 @@
+{
+  "name": "Gestão de Dados P Taiuva",
+  "short_name": "Gestão Taiuva",
+  "description": "Sistema Profissional de Gestão de Dados P Taiuva",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e40af",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2897/2897785.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

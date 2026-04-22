@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Upload, Download, RefreshCw, Database, Package, Trash2, TrendingUp, BarChart as BarChartIcon } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Upload, Download, RefreshCw, Database, Package, Trash2, TrendingUp, BarChart as BarChartIcon, Monitor, HelpCircle, FileText as FileTextIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -13,10 +13,78 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
         return saved ? JSON.parse(saved) : [];
     });
     const [isProcessing, setIsProcessing] = useState(false);
+    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
     const [networkPath, setNetworkPath] = useState(() => 
         localStorage.getItem('warehouse_network_path') || ''
     );
+
+    useEffect(() => {
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+        });
+    }, []);
+
+    const handleInstallApp = async () => {
+        if (!deferredPrompt) {
+            toast.info("O aplicativo já está instalado ou seu navegador não suporta a instalação direta. Use o menu do navegador (Instalar Aplicativo) ou exporte o código para uso local.");
+            return;
+        }
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            setDeferredPrompt(null);
+        }
+    };
+
+    const handleDownloadGuide = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const html = `
+            <html>
+                <head>
+                    <title>Guia de Uso Offline - Gestão Taiuva</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 40px; color: #1e293b; line-height: 1.6; }
+                        h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 10px; }
+                        h2 { margin-top: 30px; color: #334155; }
+                        li { margin-bottom: 15px; }
+                        .code { background: #f1f5f9; padding: 10px; border-radius: 5px; font-family: monospace; }
+                        .note { background: #fef3c7; border-left: 5px solid #f59e0b; padding: 15px; margin: 20px 0; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Guia de Instalação e Uso Offline</h1>
+                    <p>Este sistema é uma aplicação web de alta performance que pode ser executada como um programa desktop comum em seu computador.</p>
+                    
+                    <h2>Opção 1: Instalação como Aplicativo (Recomendado)</h2>
+                    <ol>
+                        <li>Abra o sistema no <strong>Google Chrome</strong> ou <strong>Microsoft Edge</strong>.</li>
+                        <li>Na barra de endereços, clique no ícone de "Instalar Aplicativo" (ao lado da estrela de favoritos).</li>
+                        <li>O programa será "baixado" e um ícone será criado em sua área de trabalho.</li>
+                        <li>Agora você pode abrir o sistema mesmo sem internet para realizar lançamentos de estoque.</li>
+                    </ol>
+
+                    <h2>Opção 2: Exportação Completa (Para Servidores Locais)</h2>
+                    <ol>
+                        <li>No ambiente do AI Studio, vá no menu de <strong>Configurações (ícone de engrenagem)</strong>.</li>
+                        <li>Selecione <strong>"Export to ZIP"</strong> ou <strong>"Export to GitHub"</strong>.</li>
+                        <li>Siga as instruções do arquivo <code>README.md</code> para rodar o servidor em sua rede local.</li>
+                    </ol>
+
+                    <div class="note">
+                        <strong>Nota sobre o "Executável":</strong> O sistema funciona através de rotinas de sincronização offline. Quando estiver sem internet, os dados são salvos no armazenamento local do navegador (Local Storage) e posteriormente exportados via arquivo JSON para sincronização.
+                    </div>
+
+                    <button onclick="window.print()">Imprimir este Guia</button>
+                </body>
+            </html>
+        `;
+        printWindow.document.write(html);
+        printWindow.document.close();
+    };
 
     const metrics = useMemo(() => {
         const totalItems = pendingEntries.length;
@@ -188,6 +256,30 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
                             <RefreshCw className="h-4 w-4 text-indigo-600" /> Sincronização
                         </h3>
                         <div className="space-y-4">
+                            <div className="bg-indigo-600 p-6 rounded-[2rem] shadow-xl text-white">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className="bg-white/20 p-3 rounded-xl">
+                                        <Monitor className="h-6 w-6 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xs font-black uppercase italic leading-none">Instalar Aplicativo</h3>
+                                        <p className="text-[9px] text-indigo-100 font-bold uppercase tracking-tight mt-1">Uso Offline Profissional</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={handleInstallApp}
+                                    className="w-full bg-white text-indigo-700 font-black py-4 rounded-xl text-[10px] uppercase shadow-lg hover:bg-slate-50 transition-all active:scale-95"
+                                >
+                                    {deferredPrompt ? 'Baixar e Instalar agora!' : 'App Disponível no Navegador'}
+                                </button>
+                                <button 
+                                    onClick={handleDownloadGuide}
+                                    className="w-full mt-2 bg-indigo-500/30 text-white font-black py-3 rounded-xl text-[9px] uppercase border border-white/20 hover:bg-indigo-500/50 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <HelpCircle className="h-3 w-3" /> Guia de Instalação
+                                </button>
+                            </div>
+
                             <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 flex flex-col items-center text-center">
                                 <Download className="h-8 w-8 text-amber-500 mb-3" />
                                 <h3 className="text-[10px] font-black text-amber-900 uppercase italic">Exportar Lançamentos</h3>
