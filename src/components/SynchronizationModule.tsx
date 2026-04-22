@@ -47,19 +47,28 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
     };
 
     const handleExport = () => {
-        if (pendingEntries.length === 0) {
+        if (pendingEntries.length === 0 && !networkPath) {
             toast.error("Nenhum lançamento pendente para exportar!");
             return;
         }
 
-        const dataStr = JSON.stringify(pendingEntries, null, 2);
+        const exportData = {
+            metadata: {
+                exportDate: new Date().toISOString(),
+                networkPath: networkPath || 'C:\\GestaoDadosTaiuva\\bin',
+                systemVersion: '2026.1.Q'
+            },
+            entries: pendingEntries
+        };
+
+        const dataStr = JSON.stringify(exportData, null, 2);
         const blob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `lancamentos_pendentes_${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `sincronizacao_estoque_${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
-        toast.success("Arquivo de sincronização gerado!");
+        toast.success("Arquivo de sincronização gerado com sucesso!");
     };
 
     const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,18 +78,27 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
         const reader = new FileReader();
         reader.onload = async (event) => {
             try {
-                const data = JSON.parse(event.target?.result as string);
+                const rawData = JSON.parse(event.target?.result as string);
+                
+                // Suporte tanto para o novo formato com metadata quanto para o formato antigo (array direto)
+                const data = Array.isArray(rawData) ? rawData : (rawData.entries || []);
+                
+                if (data.length === 0) {
+                    toast.info("Nenhum dado novo encontrado no arquivo.");
+                    return;
+                }
+
                 setIsProcessing(true);
                 const success = await onSyncWithFirebase(data);
                 if (success) {
-                    toast.success("Dados sincronizados com o servidor com sucesso!");
+                    toast.success(`${data.length} registros sincronizados com sucesso!`);
                     localStorage.removeItem('offline_warehouse_entries');
                     setPendingEntries([]);
                 } else {
-                    toast.error("Erro ao sincronizar com o servidor.");
+                    toast.error("Erro na sincronização. Verifique os dados.");
                 }
             } catch (err) {
-                toast.error("Erro ao ler arquivo de sincronização.");
+                toast.error("Arquivo de sincronização inválido.");
             } finally {
                 setIsProcessing(false);
             }
@@ -189,6 +207,31 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
                                     Enviar para Nuvem
                                     <input type="file" className="hidden" accept=".json" onChange={handleImport} />
                                 </label>
+                            </div>
+
+                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 flex flex-col items-center text-center">
+                                <RefreshCw className="h-8 w-8 text-slate-400 mb-3" />
+                                <h3 className="text-[10px] font-black text-slate-900 uppercase italic">Caminho do Executável</h3>
+                                <div className="mt-4 w-full space-y-2">
+                                    <input 
+                                        type="text" 
+                                        value={networkPath}
+                                        onChange={(e) => setNetworkPath(e.target.value)}
+                                        placeholder="Ex: C:\GestaoDadosTaiuva\bin"
+                                        className="w-full h-10 px-4 bg-white border border-slate-200 rounded-xl text-[10px] font-bold outline-none focus:ring-2 focus:ring-indigo-400"
+                                    />
+                                    <button 
+                                        onClick={savePath}
+                                        className="w-full bg-slate-800 text-white font-black py-3 rounded-xl text-[10px] uppercase shadow-md hover:bg-slate-900 transition-all"
+                                    >
+                                        Salvar Caminho
+                                    </button>
+                                    {networkPath && (
+                                        <p className="text-[8px] text-slate-400 font-bold uppercase mt-2">
+                                            Destino: <span className="text-indigo-600">{networkPath}</span>
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
