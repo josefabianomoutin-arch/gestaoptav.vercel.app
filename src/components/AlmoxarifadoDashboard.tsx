@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
-import { Printer } from 'lucide-react';
+import { Printer, Plus, Trash2, FileText } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo } from '../types';
 import InfobarTicker from './InfobarTicker';
@@ -98,6 +98,19 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [receiptSupplierCpf, setReceiptSupplierCpf] = useState('');
     const [receiptInvoice, setReceiptInvoice] = useState('');
     const [receiptProcessoSei, setReceiptProcessoSei] = useState('');
+    
+    // Manual Receipt State
+    const [manualReceipt, setManualReceipt] = useState<any>({
+        supplierName: '',
+        supplierCpf: '',
+        processoSei: '',
+        invoiceNumber: '',
+        receiptTermNumber: '',
+        invoiceDate: '',
+        receiptDate: '',
+        barcode: '',
+        items: [{ name: '', quantity: 0, unit: 'UN', totalValue: 0 }]
+    });
     
     // New states for month filtering and Cronograma
     const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS_PT[new Date().getMonth()]);
@@ -796,6 +809,142 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         printWindow.document.close();
     };
 
+    const handlePrintManualReceipt = () => {
+        if (!manualReceipt) return;
+        
+        const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+        const formatDate = (dateStr: string) => (dateStr || '').split('-').reverse().join('/') || 'N/A';
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Por favor, permita popups para imprimir o termo.');
+            return;
+        }
+
+        const totalValue = manualReceipt.items.reduce((sum: number, it: any) => sum + Number(it.totalValue || 0), 0);
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Termo Manual - NF ${manualReceipt.invoiceNumber}</title>
+                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <style>
+                    @page { size: A4; margin: 0; }
+                    body { font-family: Arial, sans-serif; padding: 0; margin: 0; background: white; }
+                    .page { width: 210mm; min-height: 297mm; padding: 15mm; margin: 0 auto; box-sizing: border-box; background: white; }
+                    .header { text-align: center; font-weight: bold; text-transform: uppercase; margin-bottom: 25px; border-bottom: 2px solid #000; padding-bottom: 15px; font-size: 13pt; }
+                    .info-section { margin-bottom: 20px; font-size: 11pt; }
+                    .info-row { margin-bottom: 8px; display: flex; align-items: flex-start; }
+                    .label { font-weight: bold; width: 180px; text-transform: uppercase; }
+                    .value { flex: 1; text-transform: uppercase; }
+                    table { width: 100%; border-collapse: collapse; margin: 25px 0; font-size: 9pt; }
+                    th, td { border: 1px solid #000; padding: 6px; text-align: left; }
+                    th { background-color: #f2f2f2; font-weight: bold; text-transform: uppercase; }
+                    .footer-text { font-size: 9pt; text-align: justify; line-height: 1.5; margin-bottom: 30px; }
+                    .sig-section { text-align: center; margin-top: 50px; font-size: 10pt; }
+                    .sig-line { width: 300px; border-top: 1px solid #000; margin: 30px auto 10px; }
+                </style>
+            </head>
+            <body>
+                <div class="page">
+                    <div class="header italic">
+                        Atestamos o recebimento dos materiais/serviços relacionados, entrega pela empresa:
+                    </div>
+                    <div class="info-section">
+                        <div class="info-row"><span class="label">Fornecedor:</span> <span class="value">${manualReceipt.supplierName || 'N/A'}</span></div>
+                        <div class="info-row"><span class="label">C.N.P.J.:</span> <span class="value">${manualReceipt.supplierCpf || 'N/A'}</span></div>
+                        <div class="info-row"><span class="label">Processo SEI:</span> <span class="value">${manualReceipt.processoSei || 'N/A'}</span></div>
+                        <div class="info-row"><span class="label">Nota Fiscal Nº:</span> <span class="value">${manualReceipt.invoiceNumber || 'N/A'}</span></div>
+                        <div class="info-row"><span class="label">Nota de Empenho:</span> <span class="value">${manualReceipt.receiptTermNumber || 'N/A'}</span></div>
+                        <div class="info-row"><span class="label">Data Nota Fiscal:</span> <span class="value">${formatDate(manualReceipt.invoiceDate)}</span></div>
+                        <div class="info-row"><span class="label">Data Recebimento:</span> <span class="value">${formatDate(manualReceipt.receiptDate)}</span></div>
+                        <div class="info-row"><span class="label">Valor Total NF:</span> <span class="value">${formatCurrency(totalValue)}</span></div>
+                        <div class="info-row">
+                            <span class="label">Cód. Barras NF:</span> 
+                            <div class="barcode">
+                                ${manualReceipt.barcode ? `<svg id="barcode-manual"></svg>` : 'N/A'}
+                            </div>
+                        </div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th style="text-align: right">Quant.</th>
+                                <th>Unid.</th>
+                                <th>Descrição</th>
+                                <th style="text-align: right">Vr. Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${manualReceipt.items.map((it: any, idx: number) => `
+                                <tr>
+                                    <td style="text-align: center">${idx + 1}</td>
+                                    <td style="text-align: right">${(Number(it.quantity) || 0).toFixed(2)}</td>
+                                    <td style="text-align: center">${it.unit || 'N/A'}</td>
+                                    <td>${it.name || 'N/A'}</td>
+                                    <td style="text-align: right">${formatCurrency(it.totalValue || 0)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr style="font-weight: bold; background-color: #f2f2f2;">
+                                <td colspan="4" style="text-align: right">TOTAL GERAL:</td>
+                                <td style="text-align: right">${formatCurrency(totalValue)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <div class="footer-text">
+                        Recebemos em ordem e na quantidade devida os materiais/serviços acima discriminados, os quais foram inspecionados pela comissão de recepção materiais, foi considerado de acordo com solicitado, satisfazendo as especificações e demais exigências do empenho conforme determina o inciso II do artigo 140 da lei nº 14.133/21.
+                    </div>
+                    <div class="sig-section">
+                        <p class="font-bold uppercase">TAIÚVA, ${manualReceipt.receiptDate ? new Date(manualReceipt.receiptDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase() : 'DATA NÃO INFORMADA'}</p>
+                        <p style="font-weight: bold; margin-top: 30px;">COMISSÃO DE RECEPÇÃO DE MATERIAIS/SERVIÇOS</p>
+                        <div class="sig-line"></div>
+                        <p style="font-weight: bold">FERNANDO RODRIGUES SOARES</p>
+                        <p>CPF: 347.810.448-32</p>
+                        <p>PRESIDENTE</p>
+                    </div>
+                </div>
+                <script>
+                    if (document.getElementById('barcode-manual') && "${manualReceipt.barcode}") {
+                        JsBarcode("#barcode-manual", "${manualReceipt.barcode}", {
+                            format: "CODE128",
+                            width: 1.5,
+                            height: 35,
+                            displayValue: true
+                        });
+                    }
+                    window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };
+                </script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
+    const addManualItem = () => {
+        setManualReceipt({
+            ...manualReceipt,
+            items: [...manualReceipt.items, { name: '', quantity: 0, unit: 'UN', totalValue: 0 }]
+        });
+    };
+
+    const removeManualItem = (index: number) => {
+        const newItems = manualReceipt.items.filter((_: any, i: number) => i !== index);
+        setManualReceipt({ ...manualReceipt, items: newItems });
+    };
+
+    const updateManualItem = (index: number, field: string, value: any) => {
+        const newItems = manualReceipt.items.map((it: any, i: number) => {
+            if (i === index) return { ...it, [field]: value };
+            return it;
+        });
+        setManualReceipt({ ...manualReceipt, items: newItems });
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 text-slate-800 pb-20 font-sans selection:bg-indigo-500/30 overflow-x-hidden">
             {/* Infobar */}
@@ -821,12 +970,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         </div>
                     )}
                     <div className="flex bg-slate-100 p-1 rounded-2xl">
-                        {['history', 'agenda', 'cronograma', 'receipt', 'sync'].map(tab => (
+                        {['history', 'agenda', 'cronograma', 'receipt', 'manual_receipt', 'sync'].map(tab => (
                             <button 
                                 key={tab}
                                 onClick={() => setActiveTab(tab)} 
                                 className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                                {tab === 'history' ? 'Histórico Geral' : tab === 'agenda' ? 'Agenda' : tab === 'cronograma' ? 'Cronograma' : tab === 'receipt' ? 'Termo' : 'Sincronização'}
+                                {tab === 'history' ? 'Histórico Geral' : tab === 'agenda' ? 'Agenda' : tab === 'cronograma' ? 'Cronograma' : tab === 'receipt' ? 'Termo' : tab === 'manual_receipt' ? 'Termo Manual' : 'Sincronização'}
                             </button>
                         ))}
                     </div>
@@ -883,6 +1032,257 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 mode="warehouse_entry"
                                 perCapitaConfig={perCapitaConfig}
                             />
+                        </div>
+                    </div>
+                ) : activeTab === 'manual_receipt' ? (
+                    <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in relative">
+                        <div className="p-4 md:p-6 border-b border-gray-100 bg-amber-600 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 italic shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl bg-white/10 text-white">
+                                    <FileText className="h-6 w-6" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-black uppercase tracking-tighter leading-none">Termo Manual</h2>
+                                    <p className="text-amber-100 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Preenchimento Manual de Termo de Recebimento</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <button 
+                                    type="button"
+                                    onClick={handlePrintManualReceipt}
+                                    className="bg-white text-amber-600 hover:bg-gray-100 font-black py-2 px-6 rounded-xl transition-all shadow-xl active:scale-95 uppercase tracking-widest text-[9px] flex items-center gap-2"
+                                >
+                                    <Printer className="h-3 w-3" />
+                                    Imprimir Termo
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-4 md:p-8 space-y-8">
+                            {/* Form Section */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-amber-50/50 p-6 rounded-[2.5rem] border border-amber-100">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-amber-700 uppercase tracking-widest ml-1">Fornecedor / Produtor</label>
+                                    <input 
+                                        type="text" 
+                                        value={manualReceipt.supplierName} 
+                                        onChange={e => setManualReceipt({...manualReceipt, supplierName: e.target.value})}
+                                        placeholder="NOME DO FORNECEDOR"
+                                        className="w-full h-12 px-4 border border-amber-200 rounded-2xl bg-white shadow-sm font-bold text-zinc-900 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all text-xs" 
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-amber-700 uppercase tracking-widest ml-1">CNPJ / CPF</label>
+                                    <input 
+                                        type="text" 
+                                        value={manualReceipt.supplierCpf} 
+                                        onChange={e => setManualReceipt({...manualReceipt, supplierCpf: e.target.value})}
+                                        placeholder="00.000.000/0001-00"
+                                        className="w-full h-12 px-4 border border-amber-200 rounded-2xl bg-white shadow-sm font-bold text-zinc-900 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all text-xs" 
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-amber-700 uppercase tracking-widest ml-1">Processo SEI</label>
+                                    <input 
+                                        type="text" 
+                                        value={manualReceipt.processoSei} 
+                                        onChange={e => setManualReceipt({...manualReceipt, processoSei: e.target.value})}
+                                        placeholder="Nº DO PROCESSO SEI"
+                                        className="w-full h-12 px-4 border border-amber-200 rounded-2xl bg-white shadow-sm font-bold text-zinc-900 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all text-xs" 
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-amber-700 uppercase tracking-widest ml-1">Nota Fiscal Nº</label>
+                                    <input 
+                                        type="text" 
+                                        value={manualReceipt.invoiceNumber} 
+                                        onChange={e => setManualReceipt({...manualReceipt, invoiceNumber: e.target.value})}
+                                        placeholder="Nº DA NOTA FISCAL"
+                                        className="w-full h-12 px-4 border border-amber-200 rounded-2xl bg-white shadow-sm font-bold text-zinc-900 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all text-xs" 
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-amber-700 uppercase tracking-widest ml-1">Nota de Empenho</label>
+                                    <input 
+                                        type="text" 
+                                        value={manualReceipt.receiptTermNumber} 
+                                        onChange={e => setManualReceipt({...manualReceipt, receiptTermNumber: e.target.value})}
+                                        placeholder="Nº DO EMPENHO"
+                                        className="w-full h-12 px-4 border border-amber-200 rounded-2xl bg-white shadow-sm font-bold text-zinc-900 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all text-xs" 
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-amber-700 uppercase tracking-widest ml-1">Cód. Barras NF</label>
+                                    <input 
+                                        type="text" 
+                                        value={manualReceipt.barcode} 
+                                        onChange={e => setManualReceipt({...manualReceipt, barcode: e.target.value})}
+                                        placeholder="CÓDIGO DE BARRAS"
+                                        className="w-full h-12 px-4 border border-amber-200 rounded-2xl bg-white shadow-sm font-bold text-zinc-900 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all text-xs" 
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-amber-700 uppercase tracking-widest ml-1">Data Nota Fiscal</label>
+                                    <input 
+                                        type="date" 
+                                        value={manualReceipt.invoiceDate} 
+                                        onChange={e => setManualReceipt({...manualReceipt, invoiceDate: e.target.value})}
+                                        className="w-full h-12 px-4 border border-amber-200 rounded-2xl bg-white shadow-sm font-bold text-zinc-900 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all text-xs" 
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-amber-700 uppercase tracking-widest ml-1">Data Recebimento</label>
+                                    <input 
+                                        type="date" 
+                                        value={manualReceipt.receiptDate} 
+                                        onChange={e => setManualReceipt({...manualReceipt, receiptDate: e.target.value})}
+                                        className="w-full h-12 px-4 border border-amber-200 rounded-2xl bg-white shadow-sm font-bold text-zinc-900 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all text-xs" 
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Items Section */}
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center px-4">
+                                    <h3 className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">Itens da Nota</h3>
+                                    <button 
+                                        onClick={addManualItem}
+                                        className="flex items-center gap-2 bg-amber-100 text-amber-700 hover:bg-amber-200 font-bold py-2 px-4 rounded-xl transition-all text-[10px] uppercase"
+                                    >
+                                        <Plus className="h-3 w-3" />
+                                        Add Item
+                                    </button>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {manualReceipt.items.map((it: any, idx: number) => (
+                                        <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm animate-fade-in group">
+                                            <div className="md:col-span-1 flex items-center justify-center font-black text-slate-300">
+                                                {idx + 1}
+                                            </div>
+                                            <div className="md:col-span-5 space-y-1">
+                                                <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Descrição do Item</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={it.name} 
+                                                    onChange={e => updateManualItem(idx, 'name', e.target.value)}
+                                                    className="w-full h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-500 transition-all text-[10px] uppercase" 
+                                                />
+                                            </div>
+                                            <div className="md:col-span-2 space-y-1">
+                                                <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Quantidade</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={it.quantity} 
+                                                    onChange={e => updateManualItem(idx, 'quantity', e.target.value)}
+                                                    className="w-full h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-500 transition-all text-[10px]" 
+                                                />
+                                            </div>
+                                            <div className="md:col-span-1 space-y-1">
+                                                <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Unid.</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={it.unit} 
+                                                    onChange={e => updateManualItem(idx, 'unit', e.target.value)}
+                                                    className="w-full h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-500 transition-all text-[10px] uppercase" 
+                                                />
+                                            </div>
+                                            <div className="md:col-span-2 space-y-1">
+                                                <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Valor Total</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={it.totalValue} 
+                                                    onChange={e => updateManualItem(idx, 'totalValue', e.target.value)}
+                                                    className="w-full h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-500 transition-all text-[10px]" 
+                                                />
+                                            </div>
+                                            <div className="md:col-span-1 flex items-end pb-1 justify-center">
+                                                <button 
+                                                    onClick={() => removeManualItem(idx)}
+                                                    disabled={manualReceipt.items.length === 1}
+                                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-0"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Preview Display */}
+                            <div className="border-t border-slate-100 pt-8">
+                                <h3 className="text-xs font-black uppercase text-slate-400 tracking-[0.2em] mb-6 px-4">Pré-visualização do Documento</h3>
+                                <div className="border-2 border-dashed border-slate-200 rounded-3xl p-8 bg-white shadow-inner max-h-[500px] overflow-y-auto custom-scrollbar">
+                                    <div className="max-w-3xl mx-auto space-y-8 text-black font-serif">
+                                        <div className="text-center font-bold uppercase border-b-2 border-black pb-4">
+                                            ATESTAMOS O RECEBIMENTO DOS MATERIAIS/SERVIÇOS RELACIONADOS, ENTREGA PELA EMPRESA:
+                                        </div>
+
+                                        <div className="space-y-2 uppercase text-sm">
+                                            <p><span className="font-bold inline-block w-48">FORNECEDOR:</span> {manualReceipt.supplierName || 'N/A'}</p>
+                                            <p><span className="font-bold inline-block w-48">C.N.P.J.:</span> {manualReceipt.supplierCpf || 'N/A'}</p>
+                                            <p><span className="font-bold inline-block w-48">PROCESSO SEI:</span> {manualReceipt.processoSei || 'N/A'}</p>
+                                            <p><span className="font-bold inline-block w-48">NOTA FISCAL Nº:</span> {manualReceipt.invoiceNumber || 'N/A'}</p>
+                                            <p><span className="font-bold inline-block w-48">NOTA DE EMPENHO:</span> {manualReceipt.receiptTermNumber || 'N/A'}</p>
+                                            <p><span className="font-bold inline-block w-48">DATA NOTA FISCAL:</span> {(manualReceipt.invoiceDate || '').split('-').reverse().join('/') || 'N/A'}</p>
+                                            <p><span className="font-bold inline-block w-48">DATA RECEBIMENTO:</span> {(manualReceipt.receiptDate || '').split('-').reverse().join('/') || 'N/A'}</p>
+                                            <p><span className="font-bold inline-block w-48">VALOR TOTAL NF:</span> {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(manualReceipt.items.reduce((sum: number, it: any) => sum + (Number(it.totalValue) || 0), 0))}</p>
+                                            <p className="flex items-center gap-2">
+                                                <span className="font-bold inline-block w-48">CÓD. BARRAS NF:</span> 
+                                                {manualReceipt.barcode ? <Barcode value={manualReceipt.barcode} /> : 'N/A'}
+                                            </p>
+                                        </div>
+
+                                        <table className="w-full border-collapse border border-black text-[10px]">
+                                            <thead>
+                                                <tr className="bg-gray-100 uppercase font-bold">
+                                                    <th className="border border-black p-1">ITEM</th>
+                                                    <th className="border border-black p-1">QUANT.</th>
+                                                    <th className="border border-black p-1">UNID.</th>
+                                                    <th className="border border-black p-1">DESCRIÇÃO</th>
+                                                    <th className="border border-black p-1">VR. TOTAL</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {manualReceipt.items.map((it: any, idx: number) => (
+                                                    <tr key={idx}>
+                                                        <td className="border border-black p-1 text-center">{idx + 1}</td>
+                                                        <td className="border border-black p-1 text-right">{(Number(it.quantity) || 0).toFixed(2)}</td>
+                                                        <td className="border border-black p-1 text-center">{it.unit || 'N/A'}</td>
+                                                        <td className="border border-black p-1 uppercase">{it.name || 'N/A'}</td>
+                                                        <td className="border border-black p-1 text-right">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(it.totalValue) || 0)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                            <tfoot>
+                                                <tr className="font-bold">
+                                                    <td colSpan={4} className="border border-black p-1 text-right">TOTAL GERAL:</td>
+                                                    <td className="border border-black p-1 text-right">
+                                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(manualReceipt.items.reduce((sum: number, it: any) => sum + (Number(it.totalValue) || 0), 0))}
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+
+                                        <div className="text-xs text-justify leading-relaxed">
+                                            Recebemos em ordem e na quantidade devida os materiais/serviços acima discriminados, os quais foram inspecionados pela comissão de recepção materiais, foi considerado de acordo com solicitado, satisfazendo as especificações e demais exigências do empenho conforme determina o inciso II do artigo 140 da lei nº 14.133/21.
+                                        </div>
+
+                                        <div className="text-center font-bold pt-4 uppercase">
+                                            TAIÚVA, {manualReceipt.receiptDate ? new Date(manualReceipt.receiptDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase() : 'DATA NÃO INFORMADA'}
+                                        </div>
+
+                                        <div className="text-center space-y-1 pt-8">
+                                            <p className="font-bold uppercase">COMISSÃO DE RECEPÇÃO DE MATERIAIS/SERVIÇOS</p>
+                                            <div className="w-64 h-px bg-black mx-auto mt-8 mb-2"></div>
+                                            <p className="font-bold">FERNANDO RODRIGUES SOARES</p>
+                                            <p>CPF: 347.810.448-32</p>
+                                            <p>PRESIDENTE</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 ) : activeTab === 'sync' ? (
