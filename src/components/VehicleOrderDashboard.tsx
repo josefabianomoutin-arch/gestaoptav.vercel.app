@@ -85,7 +85,7 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
                     animate={{ x: ["100%", "-100%"] }}
                     transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
                 >
-                    {publicInfoList.map(info => (
+                    {publicInfoList.filter(info => role === 'ordem_saida' ? true : !info.isConfidential).map(info => (
                         <p key={info.id} className="text-xs font-bold text-blue-900">
                              <span className="uppercase text-blue-600">{info.sector}:</span> {info.title}
                         </p>

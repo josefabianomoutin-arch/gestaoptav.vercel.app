@@ -2157,6 +2157,7 @@ const App: React.FC = () => {
           thirdPartyEntries={thirdPartyEntries}
           maintenanceSchedules={maintenanceSchedules}
           serviceOrders={serviceOrders}
+          publicInfoList={publicInfo}
           onUpdateMaintenanceSchedule={async (id, updates) => {
             return await handleUpdateMaintenanceSchedule(id, updates);
           }}

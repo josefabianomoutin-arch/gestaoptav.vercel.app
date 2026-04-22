@@ -796,7 +796,27 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
+        <div className="min-h-screen bg-slate-50 text-slate-800 pb-20 font-sans selection:bg-indigo-500/30 overflow-x-hidden">
+            {/* Infobar */}
+            <div className="bg-blue-50 border-b border-blue-100 overflow-hidden py-2">
+                <div className="max-w-7xl mx-auto px-4 flex items-center gap-4">
+                    <span className="text-[10px] whitespace-nowrap font-black uppercase text-blue-800 bg-blue-100 px-3 py-1 rounded-full">Comunicados:</span>
+                    <div className="w-full overflow-hidden">
+                        <motion.div 
+                            className="flex gap-8 whitespace-nowrap"
+                            animate={{ x: ["100%", "-100%"] }}
+                            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+                        >
+                            {publicInfoList.filter(info => !info.isConfidential).map(info => (
+                                <p key={info.id} className="text-xs font-bold text-blue-900">
+                                    <span className="uppercase text-blue-600">{info.sector}:</span> {info.title}
+                                </p>
+                            ))}
+                        </motion.div>
+                    </div>
+                </div>
+            </div>
+
             <header className="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-20 border-b border-slate-200">
                 <div>
                     <h1 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Módulo de Estoque</h1>

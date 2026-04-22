@@ -138,7 +138,7 @@ const PublicInfoPortal: React.FC<PublicInfoPortalProps> = ({ isOpen, onClose, in
                       <h1 className="text-[15vw] font-black rotate-[-5deg]">COMUNICADOS</h1>
                     </div>
 
-                    {infoList.length === 0 ? (
+                    {infoList.filter(info => !info.isConfidential).length === 0 ? (
                       <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-6 py-20 relative z-10">
                         <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center animate-pulse">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -151,7 +151,7 @@ const PublicInfoPortal: React.FC<PublicInfoPortalProps> = ({ isOpen, onClose, in
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-                        {infoList.map((info, index) => (
+                        {infoList.filter(info => !info.isConfidential).map((info, index) => (
                           <motion.div
                             key={info.id}
                             initial={{ opacity: 0, y: 30, rotate: index % 2 === 0 ? -1 : 1 }}

@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import PublicInfoPortal from './PublicInfoPortal';
 import { PublicInfo } from '../types';
 
@@ -38,13 +39,39 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList }) =>
 
   const isAbrilVerde = new Date().getMonth() === 3; // April is index 3
 
+  const displayInfo = useMemo(() => publicInfoList.filter(info => !info.isConfidential), [publicInfoList]);
+
   return (
-    <div className={`min-h-screen flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden`}>
-      {/* Background Decor */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-900/40 blur-[120px] rounded-full"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-900/40 blur-[120px] rounded-full"></div>
-      
-      <div className="w-full max-w-md p-8 pt-10 space-y-8 bg-white/[0.03] backdrop-blur-xl rounded-[2.5rem] border border-white/10 shadow-2xl relative overflow-hidden">
+    <div className={`min-h-screen flex flex-col bg-slate-950 relative overflow-hidden`}>
+      {/* Infobar Ticker - Top */}
+      <div className="bg-indigo-600/10 border-b border-indigo-500/20 overflow-hidden py-3 backdrop-blur-sm z-50">
+          <div className="max-w-full px-4 flex items-center gap-4">
+              <span className="text-[9px] whitespace-nowrap font-black uppercase text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">Avisos Gerais:</span>
+              <div className="w-full overflow-hidden">
+                  <motion.div 
+                      className="flex gap-12 whitespace-nowrap"
+                      animate={{ x: ["50%", "-100%"] }}
+                      transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+                  >
+                      {displayInfo.length > 0 ? displayInfo.map(info => (
+                          <p key={info.id} className="text-[11px] font-bold text-slate-300 flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
+                              <span className="uppercase text-indigo-400 tracking-wider">[{info.sector}]</span> {info.title}
+                          </p>
+                      )) : (
+                          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em]">Gestão de Dados P Taiuva • Transparência e Eficiência em Tempo Real • 2026</p>
+                      )}
+                  </motion.div>
+              </div>
+          </div>
+      </div>
+
+      <div className="flex-grow flex items-center justify-center p-4 relative">
+        {/* Background Decor */}
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-900/40 blur-[120px] rounded-full"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-900/40 blur-[120px] rounded-full"></div>
+        
+        <div className="w-full max-w-md p-8 pt-10 space-y-8 bg-white/[0.03] backdrop-blur-xl rounded-[2.5rem] border border-white/10 shadow-2xl relative overflow-hidden">
         
         {/* Portal Button */}
         <div className="relative">
@@ -107,6 +134,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList }) =>
             </p>
         </div>
       </div>
+    </div>
 
       <PublicInfoPortal 
         isOpen={isPortalOpen} 

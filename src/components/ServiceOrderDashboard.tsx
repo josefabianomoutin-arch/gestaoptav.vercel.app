@@ -1,8 +1,9 @@
 
 import React, { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import { ClipboardList, Plus, Clock, CheckCircle2, AlertCircle, XCircle, Calendar, User, Users, FileText, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { ServiceOrder, MaintenanceSchedule } from '../types';
+import { ServiceOrder, MaintenanceSchedule, PublicInfo } from '../types';
 
 interface ServiceOrderDashboardProps {
   serviceOrders: ServiceOrder[];

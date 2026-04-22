@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
-import type { Supplier, Delivery, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, MaintenanceSchedule, ServiceOrder } from '../types';
+import type { Supplier, Delivery, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, MaintenanceSchedule, ServiceOrder, PublicInfo } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 import { Camera, CheckCircle, XCircle, RefreshCw, UserCheck, AlertTriangle, Play, CheckCircle2, LogIn, LogOut, ClipboardList, Clock, Wrench, Calendar, FileText, ExternalLink, User, Users } from 'lucide-react';
 
@@ -10,6 +11,7 @@ interface SubportariaDashboardProps {
   thirdPartyEntries: ThirdPartyEntryLog[];
   maintenanceSchedules: MaintenanceSchedule[];
   serviceOrders: ServiceOrder[];
+  publicInfoList: PublicInfo[];
   onUpdateMaintenanceSchedule: (id: string, updates: Partial<MaintenanceSchedule>) => Promise<{ success: boolean; message: string }>;
   onUpdateThirdPartyEntry: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message: string }>;
   onDeleteThirdPartyEntry: (id: string) => Promise<{ success: boolean; message: string }>;
@@ -32,6 +34,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     thirdPartyEntries, 
     maintenanceSchedules,
     serviceOrders,
+    publicInfoList = [],
     onUpdateMaintenanceSchedule,
     onUpdateThirdPartyEntry, 
     onDeleteThirdPartyEntry,
@@ -513,7 +516,27 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     };
 
     return (
-        <div className={`min-h-screen text-slate-900 font-sans pb-10 ${isAbrilVerde ? 'bg-emerald-50' : 'bg-slate-100'}`}>
+        <div className={`min-h-screen text-slate-900 font-sans pb-10 ${isAbrilVerde ? 'bg-emerald-50' : 'bg-slate-100'} selection:bg-indigo-500/30 overflow-x-hidden`}>
+            {/* Infobar */}
+            <div className="bg-blue-50 border-b border-blue-100 overflow-hidden py-2">
+                <div className="max-w-7xl mx-auto px-4 flex items-center gap-4">
+                    <span className="text-[10px] whitespace-nowrap font-black uppercase text-blue-800 bg-blue-100 px-3 py-1 rounded-full">Comunicados:</span>
+                    <div className="w-full overflow-hidden">
+                        <motion.div 
+                            className="flex gap-8 whitespace-nowrap"
+                            animate={{ x: ["100%", "-100%"] }}
+                            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+                        >
+                            {publicInfoList.filter(info => !info.isConfidential).map(info => (
+                                <p key={info.id} className="text-xs font-bold text-blue-900">
+                                    <span className="uppercase text-blue-600">{info.sector}:</span> {info.title}
+                                </p>
+                            ))}
+                        </motion.div>
+                    </div>
+                </div>
+            </div>
+
             {/* Header Compacto para Mobile */}
             <header className={`p-4 shadow-xl flex justify-between items-center sticky top-0 z-50 border-b ${isAbrilVerde ? 'bg-emerald-950 border-emerald-800' : 'bg-indigo-950 border-indigo-800'} text-white`}>
                 <div className="flex items-center gap-3">
