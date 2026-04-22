@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Upload, Download, RefreshCw, Database, Package, Trash2, TrendingUp, BarChart as BarChartIcon, Monitor, HelpCircle, FileText as FileTextIcon } from 'lucide-react';
+import { Upload, Download, RefreshCw, Database, Package, Trash2, TrendingUp, BarChart as BarChartIcon, Monitor, HelpCircle, FileText as FileTextIcon, FolderSearch, Loader2, PlayCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -59,20 +59,21 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
                     <h1>Guia de Instalação e Uso Offline</h1>
                     <p>Este sistema é uma aplicação web de alta performance que pode ser executada como um programa desktop comum em seu computador.</p>
                     
-                    <h2>Opção 1: Instalação como Aplicativo (Recomendado)</h2>
+                    <h2>Opção 1: Uso com Pasta Compartilhada (Workstation Offline)</h2>
+                    <p>Ideal para Computador 1 (Sem Internet) e Computador 2 (Com Internet).</p>
                     <ol>
-                        <li>Abra o sistema no <strong>Google Chrome</strong> ou <strong>Microsoft Edge</strong>.</li>
-                        <li>Na barra de endereços, clique no ícone de "Instalar Aplicativo" (ao lado da estrela de favoritos).</li>
-                        <li>O programa será "baixado" e um ícone será criado em sua área de trabalho.</li>
-                        <li>Agora você pode abrir o sistema mesmo sem internet para realizar lançamentos de estoque.</li>
+                        <li><strong>No Computador 1:</strong> Abra o sistema uma vez com internet e clique em "Instalar Aplicativo". Ele passará a abrir offline através do ícone da área de trabalho.</li>
+                        <li>Realize seus lançamentos normalmente. Eles ficarão salvos no banco local.</li>
+                        <li>Ao final do turno, clique em <strong>"Gerar Arquivo"</strong> e salve-o diretamente na <strong>Pasta Compartilhada</strong> (ex: Unidade Z:\\ ou Pasta de Rede).</li>
+                        <li><strong>No Computador 2:</strong> Clique em <strong>"Sincronizar Pasta de Rede"</strong>, aponte para a mesma pasta e o sistema enviará tudo para a nuvem automaticamente.</li>
                     </ol>
 
-                    <h2>Opção 2: Exportação Completa (Para Servidores Locais)</h2>
-                    <ol>
-                        <li>No ambiente do AI Studio, vá no menu de <strong>Configurações (ícone de engrenagem)</strong>.</li>
-                        <li>Selecione <strong>"Export to ZIP"</strong> ou <strong>"Export to GitHub"</strong>.</li>
-                        <li>Siga as instruções do arquivo <code>README.md</code> para rodar o servidor em sua rede local.</li>
-                    </ol>
+                    <h2>Dica PWA: Como abrir sem internet</h2>
+                    <p>O navegador Chrome só abre páginas web se tiver sinal. Para rodar offline, você <strong>DEVE</strong> instalar o sistema como um App:</p>
+                    <ul>
+                        <li>Clique nos 3 pontos do Chrome (Canto superior direito)</li>
+                        <li>Selecione <strong>"Salvar e Compartilhar"</strong> > <strong>"Instalar esta página como um aplicativo"</strong>.</li>
+                    </ul>
 
                     <div class="note">
                         <strong>Nota sobre o "Executável":</strong> O sistema funciona através de rotinas de sincronização offline. Quando estiver sem internet, os dados são salvos no armazenamento local do navegador (Local Storage) e posteriormente exportados via arquivo JSON para sincronização.
@@ -86,6 +87,9 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
         printWindow.document.close();
     };
 
+    const [isScanning, setIsScanning] = useState(false);
+    const [directoryHandle, setDirectoryHandle] = useState<any>(null);
+
     const metrics = useMemo(() => {
         const totalItems = pendingEntries.length;
         const totalWeight = pendingEntries.reduce((acc, curr) => acc + (parseFloat(curr.quantity) || 0), 0);
@@ -94,7 +98,6 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
             return acc;
         }, {} as Record<string, number>);
 
-        // Agrupar por item para o gráfico
         const itemGroups = pendingEntries.reduce((acc, curr) => {
             const key = curr.itemName;
             acc[key] = (acc[key] || 0) + (parseFloat(curr.quantity) || 0);
@@ -114,8 +117,69 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
         toast.info("Caminho da pasta de rede salvo!");
     };
 
-    const handleExport = () => {
-        if (pendingEntries.length === 0 && !networkPath) {
+    // New: Handle Directory Selection for PC2 Sync
+    const handlePickDirectory = async () => {
+        try {
+            // @ts-ignore
+            const handle = await window.showDirectoryPicker();
+            setDirectoryHandle(handle);
+            toast.success("Pasta selecionada com sucesso! Clique em 'Escanear Pasta' para sincronizar.");
+        } catch (err) {
+            console.error(err);
+            toast.error("Seu navegador não suporta a seleção direta de pastas ou a permissão foi negada.");
+        }
+    };
+
+    const handleScanDirectory = async () => {
+        if (!directoryHandle) {
+            toast.error("Selecione a pasta compartilhada primeiro.");
+            return;
+        }
+
+        setIsScanning(true);
+        try {
+            let filesFound = 0;
+            let totalSynced = 0;
+
+            // @ts-ignore
+            for await (const entry of directoryHandle.values()) {
+                if (entry.kind === 'file' && entry.name.startsWith('sincronizacao_') && entry.name.endsWith('.json')) {
+                    filesFound++;
+                    const file = await entry.getFile();
+                    const content = await file.text();
+                    try {
+                        const rawData = JSON.parse(content);
+                        const data = Array.isArray(rawData) ? rawData : (rawData.entries || []);
+                        
+                        if (data.length > 0) {
+                            const success = await onSyncWithFirebase(data);
+                            if (success) {
+                                totalSynced += data.length;
+                                // Ideally we would delete or move the file, but browsers can't easily move files between directories without creating new ones
+                                // We'll just inform the user to archive them
+                            }
+                        }
+                    } catch (e) {
+                        console.error(`Erro ao ler arquivo ${entry.name}:`, e);
+                    }
+                }
+            }
+
+            if (filesFound === 0) {
+                toast.info("Nenhum arquivo de sincronização novo encontrado na pasta.");
+            } else {
+                toast.success(`Escaneamento concluído: ${filesFound} arquivos processados, ${totalSynced} registros sincronizados.`);
+                toast.info("Lembre-se de mover ou deletar os arquivos processados da pasta para evitar duplicidade.");
+            }
+        } catch (err) {
+            toast.error("Erro ao escanear a pasta.");
+        } finally {
+            setIsScanning(false);
+        }
+    };
+
+    const handleExport = async () => {
+        if (pendingEntries.length === 0) {
             toast.error("Nenhum lançamento pendente para exportar!");
             return;
         }
@@ -123,20 +187,44 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
         const exportData = {
             metadata: {
                 exportDate: new Date().toISOString(),
-                networkPath: networkPath || 'C:\\GestaoDadosTaiuva\\bin',
                 systemVersion: '2026.1.Q'
             },
             entries: pendingEntries
         };
 
+        const fileName = `sincronizacao_estoque_${new Date().toISOString().slice(0, 10)}.json`;
         const dataStr = JSON.stringify(exportData, null, 2);
+
+        // Try to use File System Access API for a better Save experience
+        // @ts-ignore
+        if (window.showSaveFilePicker) {
+            try {
+                // @ts-ignore
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: fileName,
+                    types: [{
+                        description: 'JSON Sincronização',
+                        accept: { 'application/json': ['.json'] },
+                    }],
+                });
+                const writable = await handle.createWritable();
+                await writable.write(dataStr);
+                await writable.close();
+                toast.success("Arquivo salvo diretamente na pasta selecionada!");
+                return;
+            } catch (err) {
+                console.log("Usuário cancelou ou erro no picker:", err);
+            }
+        }
+
+        // Fallback to traditional download
         const blob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `sincronizacao_estoque_${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = fileName;
         a.click();
-        toast.success("Arquivo de sincronização gerado com sucesso!");
+        toast.success("Arquivo de sincronização gerado! Salve-o na pasta compartilhada.");
     };
 
     const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -302,27 +390,42 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
                             </div>
 
                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 flex flex-col items-center text-center">
-                                <RefreshCw className="h-8 w-8 text-slate-400 mb-3" />
-                                <h3 className="text-[10px] font-black text-slate-900 uppercase italic">Caminho do Executável</h3>
-                                <div className="mt-4 w-full space-y-2">
-                                    <input 
-                                        type="text" 
-                                        value={networkPath}
-                                        onChange={(e) => setNetworkPath(e.target.value)}
-                                        placeholder="Ex: C:\GestaoDadosTaiuva\bin"
-                                        className="w-full h-10 px-4 bg-white border border-slate-200 rounded-xl text-[10px] font-bold outline-none focus:ring-2 focus:ring-indigo-400"
-                                    />
-                                    <button 
-                                        onClick={savePath}
-                                        className="w-full bg-slate-800 text-white font-black py-3 rounded-xl text-[10px] uppercase shadow-md hover:bg-slate-900 transition-all"
-                                    >
-                                        Salvar Caminho
-                                    </button>
-                                    {networkPath && (
-                                        <p className="text-[8px] text-slate-400 font-bold uppercase mt-2">
-                                            Destino: <span className="text-indigo-600">{networkPath}</span>
-                                        </p>
+                                <FolderSearch className="h-8 w-8 text-indigo-500 mb-3" />
+                                <h3 className="text-[10px] font-black text-slate-900 uppercase italic">Sincronizador de Pasta de Rede</h3>
+                                <div className="mt-4 w-full space-y-3">
+                                    {!directoryHandle ? (
+                                        <button 
+                                            onClick={handlePickDirectory}
+                                            className="w-full bg-slate-800 text-white font-black py-4 rounded-xl text-[9px] uppercase shadow-md hover:bg-slate-900 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <PlayCircle className="h-4 w-4" /> Selecionar Pasta Compartilhada
+                                        </button>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200">
+                                                <span className="text-[9px] font-black text-slate-500 uppercase truncate max-w-[150px]">
+                                                    {directoryHandle.name}
+                                                </span>
+                                                <button onClick={() => setDirectoryHandle(null)} className="text-[8px] font-black text-red-500 uppercase">Trocar</button>
+                                            </div>
+                                            <button 
+                                                onClick={handleScanDirectory}
+                                                disabled={isScanning}
+                                                className="w-full bg-indigo-600 text-white font-black py-4 rounded-xl text-[9px] uppercase shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                            >
+                                                {isScanning ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <RefreshCw className="h-4 w-4" />
+                                                )}
+                                                Escanear Pasta e Sincronizar
+                                            </button>
+                                        </div>
                                     )}
+                                    
+                                    <p className="text-[7px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">
+                                        Use esta função no <strong className="text-emerald-600">Computador 2</strong> para ler os arquivos gerados pelo <strong className="text-amber-600">Computador 1</strong> que foram salvos na rede.
+                                    </p>
                                 </div>
                             </div>
                         </div>
