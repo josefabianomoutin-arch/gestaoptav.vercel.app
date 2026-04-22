@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { ClipboardList, Plus, Clock, CheckCircle2, AlertCircle, XCircle, Calendar, User, Users, FileText, ExternalLink } from 'lucide-react';
 import InfobarTicker from './InfobarTicker';
 import { toast } from 'sonner';

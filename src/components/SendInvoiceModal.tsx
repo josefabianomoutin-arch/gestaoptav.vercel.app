@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Send, Plus, Trash2, FileText, Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Delivery, ContractItem } from '../types';
 
 interface SendInvoiceModalProps {

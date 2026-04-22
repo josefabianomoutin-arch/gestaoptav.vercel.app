@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 
 interface InfobarTickerProps {
     items: { id: string; sector?: string; title: string; content?: string }[];
@@ -67,7 +67,7 @@ const InfobarTicker: React.FC<InfobarTickerProps> = ({
                         initial={{ x: 0 }}
                         animate={{ x: "-50%" }}
                         transition={{ 
-                            duration: items.length > 3 ? 60 : 35, 
+                            duration: (items?.length || 0) > 3 ? 60 : 35, 
                             repeat: Infinity, 
                             ease: "linear" 
                         }}

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { GoogleGenAI } from "@google/genai";
 import InfobarTicker from './InfobarTicker';
 import type { Supplier, Delivery, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, MaintenanceSchedule, ServiceOrder, PublicInfo } from '../types';

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import type { Supplier, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, UserRole, ServiceOrder, VehicleInspection, MaintenanceSchedule, PublicInfo } from '../types';
 import AdminAnalytics from './AdminAnalytics';

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import InfobarTicker from './InfobarTicker';
 import type { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, ServiceOrder, VehicleInspection, MaintenanceSchedule, PublicInfo } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';

@@ -1,6 +1,6 @@
 
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import { toast } from 'sonner';
 import html2pdf from 'html2pdf.js';
 import type { Supplier, PerCapitaConfig, WarehouseMovement, AcquisitionItem, Delivery } from '../types';
@@ -98,7 +98,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [comparisonFilter, setComparisonFilter] = useState<'TODOS' | 'SEM_ENTREGA' | 'ATENCAO' | 'AVANCADO' | 'CONCLUIDO' | 'COM_EMPENHO'>('TODOS');
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (!perCapitaConfig) return;
         
         console.log("AdminPerCapita: Sincronizando estados com perCapitaConfig", perCapitaConfig);

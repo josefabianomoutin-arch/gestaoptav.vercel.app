@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import type { Supplier, Delivery, WarehouseMovement } from '../types';
 import { Download, Search, FileCheck, AlertCircle, Trash2, RotateCcw, Eye, Plus, X, Edit2, Printer, Barcode as BarcodeIcon } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import PublicInfoPortal from './PublicInfoPortal';
 import InfobarTicker from './InfobarTicker';
 import { PublicInfo } from '../types';
