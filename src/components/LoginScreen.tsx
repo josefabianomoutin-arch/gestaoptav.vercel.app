@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import PublicInfoPortal from './PublicInfoPortal';
+import InfobarTicker from './InfobarTicker';
 import { PublicInfo } from '../types';
 
 interface LoginScreenProps {
@@ -44,27 +45,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList }) =>
   return (
     <div className={`min-h-screen flex flex-col bg-slate-950 relative overflow-hidden`}>
       {/* Infobar Ticker - Top */}
-      <div className="bg-indigo-600/10 border-b border-indigo-500/20 overflow-hidden py-3 backdrop-blur-sm z-50">
-          <div className="max-w-full px-4 flex items-center gap-4">
-              <span className="text-[9px] whitespace-nowrap font-black uppercase text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">Avisos Gerais:</span>
-              <div className="w-full overflow-hidden">
-                  <motion.div 
-                      className="flex gap-12 whitespace-nowrap"
-                      animate={{ x: ["50%", "-100%"] }}
-                      transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-                  >
-                      {displayInfo.length > 0 ? displayInfo.map(info => (
-                          <p key={info.id} className="text-[11px] font-bold text-slate-300 flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
-                              <span className="uppercase text-indigo-400 tracking-wider">[{info.sector}]</span> {info.title}
-                          </p>
-                      )) : (
-                          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em]">Gestão de Dados P Taiuva • Transparência e Eficiência em Tempo Real • 2026</p>
-                      )}
-                  </motion.div>
-              </div>
-          </div>
-      </div>
+      <InfobarTicker 
+        items={displayInfo} 
+        variant="dark" 
+        label="Avisos Gerais:" 
+      />
 
       <div className="flex-grow flex items-center justify-center p-4 relative">
         {/* Background Decor */}
