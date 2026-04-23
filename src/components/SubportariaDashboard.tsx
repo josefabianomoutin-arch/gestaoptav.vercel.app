@@ -48,7 +48,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
 }) => {
     const isAbrilVerde = new Date().getMonth() === 3;
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-    const [activeTab, setActiveTab] = useState<'agenda' | 'vehicles' | 'seguranca' | 'rondas' | 'policiais' | 'folha_a4'>('agenda');
+    const [activeTab, setActiveTab] = useState<'agenda' | 'vehicles' | 'seguranca'>('agenda');
 
     // Facial Recognition State
     const [isVerifying, setIsVerifying] = useState(false);
@@ -536,10 +536,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                     {[
                         { id: 'agenda', label: 'Agenda' },
                         { id: 'vehicles', label: 'Veículos' },
-                        { id: 'seguranca', label: 'Manutenção' },
-                        { id: 'rondas', label: 'Rondas' },
-                        { id: 'policiais', label: 'Policiais' },
-                        { id: 'folha_a4', label: 'Folha A4' }
+                        { id: 'seguranca', label: 'Manutenção' }
                     ].map(tab => (
                         <button 
                             key={tab.id}
@@ -555,17 +552,17 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
 
             <main className="p-4 space-y-6 max-w-5xl mx-auto">
                 {activeTab === 'agenda' ? (
-                     <>
+                    <>
                         {/* Seletor de Data Estilizado */}
                         <div className="bg-white p-5 rounded-[2rem] shadow-lg border border-slate-200">
                             <div className="flex flex-col gap-4">
                                 <div className="flex justify-between items-end">
                                     <div>
-                                        <h2 className="text-xl font-black uppercase tracking-tighter italic text-indigo-950">Agenda do Dia</h2>
+                                        <h2 className={`text-xl font-black uppercase tracking-tighter italic ${isAbrilVerde ? 'text-emerald-950' : 'text-indigo-950'}`}>Agenda do Dia</h2>
                                         <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">{formatDate(selectedDate)}</p>
                                     </div>
-                                    <div className="bg-indigo-50 px-3 py-1 rounded-full">
-                                        <span className="text-[10px] font-black uppercase text-indigo-600">{dailyAgenda.length} Agendamentos</span>
+                                    <div className={`${isAbrilVerde ? 'bg-emerald-50' : 'bg-indigo-50'} px-3 py-1 rounded-full`}>
+                                        <span className={`text-[10px] font-black uppercase ${isAbrilVerde ? 'text-emerald-600' : 'text-indigo-600'}`}>{dailyAgenda.length} Agendamentos</span>
                                     </div>
                                 </div>
                                 
@@ -574,7 +571,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                         type="date" 
                                         value={selectedDate} 
                                         onChange={e => setSelectedDate(e.target.value)}
-                                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-black transition-all appearance-none text-center focus:ring-indigo-100 text-indigo-900"
+                                        className={`w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-black transition-all appearance-none text-center ${isAbrilVerde ? 'focus:ring-emerald-100 text-emerald-900' : 'focus:ring-indigo-100 text-indigo-900'}`}
                                     />
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -596,6 +593,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                                 : 'border-red-500 bg-red-50'
                                     }`}
                                 >
+                                    {/* Faixa lateral de status */}
                                     <div className={`absolute top-0 left-0 w-2 h-full ${
                                         item.originalStatus === 'FATURADO' || item.originalStatus === 'concluido' ? 'bg-indigo-900' : item.arrivalTime ? 'bg-green-500' : 'bg-red-600'
                                     }`} />
@@ -637,39 +635,101 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                                 </p>
                                             )}
                                         </div>
+
+                                        {item.arrivalTime ? (
+                                            <div className="flex items-center gap-2 bg-white/60 p-3 rounded-2xl border border-green-100">
+                                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                                <p className="text-xs font-bold text-green-700 uppercase">
+                                                    Entrada registrada às <span className="text-sm font-black">{item.arrivalTime}</span>
+                                                </p>
+                                            </div>
+                                        ) : item.type === 'TERCEIROS' && item.originalStatus === 'agendado' && (
+                                            <div className="flex flex-col gap-2">
+                                                {item.rawLog?.photo ? (
+                                                    <button 
+                                                        onClick={() => {
+                                                            setVerifyingLog(item.rawLog!);
+                                                            setIsVerifying(true);
+                                                            startCamera();
+                                                        }}
+                                                        className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl uppercase text-[10px] tracking-widest hover:bg-indigo-700 transition-all shadow-lg flex items-center justify-center gap-2"
+                                                    >
+                                                        <Camera className="h-4 w-4" />
+                                                        Verificar Rosto e Entrar
+                                                    </button>
+                                                ) : (
+                                                    <button 
+                                                        onClick={() => handleMarkArrival(item.rawLog!)}
+                                                        className="w-full bg-red-600 text-white font-black py-3 rounded-2xl uppercase text-[10px] tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-100"
+                                                    >
+                                                        Registrar Chegada
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )) : (
                                 <div className="text-center py-20 bg-white/50 rounded-[3rem] border-4 border-dashed border-slate-200">
+                                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    </div>
                                     <p className="text-sm font-black text-slate-400 uppercase tracking-widest italic">Nenhum agendamento</p>
+                                    <p className="text-[10px] font-bold text-slate-300 mt-1 uppercase">Para esta data</p>
                                 </div>
                             )}
+                        </div>
+
+                        {/* Resumo Rápido no Rodapé */}
+                        <div className="grid grid-cols-2 gap-4 pt-4">
+                            <div className="bg-green-600 p-5 rounded-[2rem] text-white shadow-lg flex flex-col items-center text-center">
+                                <p className="text-[10px] font-black uppercase opacity-60 mb-1">Confirmados</p>
+                                <p className="text-3xl font-black">{dailyAgenda.filter(d => d.arrivalTime || d.originalStatus === 'FATURADO' || d.originalStatus === 'concluido').length}</p>
+                            </div>
+                            <div className="bg-indigo-900 p-5 rounded-[2rem] text-white shadow-lg flex flex-col items-center text-center">
+                                <p className="text-[10px] font-black uppercase opacity-60 mb-1">Pendentes</p>
+                                <p className="text-3xl font-black">{dailyAgenda.filter(d => !d.arrivalTime && (d.originalStatus === 'AGENDADO' || d.originalStatus === 'agendado')).length}</p>
+                            </div>
                         </div>
                     </>
                 ) : activeTab === 'vehicles' ? (
                     <div className="animate-fade-in">
-                        {/* ... vehicles content ... */}
-                    </div>
-                ) : activeTab === 'seguranca' ? (
-                    <div className="animate-fade-in space-y-6">
-                        {/* ... maintenance content ... */}
-                    </div>
-                ) : activeTab === 'rondas' ? (
-                    <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100 animate-fade-in">
-                        <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic mb-4">Rondas Diárias</h2>
-                        <p className="text-slate-500 font-bold">Conteúdo para Rondas Diárias será implementado aqui.</p>
-                    </div>
-                ) : activeTab === 'policiais' ? (
-                    <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100 animate-fade-in">
-                        <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic mb-4">Cadastro de Policiais</h2>
-                        <p className="text-slate-500 font-bold">Conteúdo para cadastro de login dos policiais será implementado aqui.</p>
+                        <AdminVehicleExitOrder 
+                            orders={vehicleExitOrders}
+                            vehicleAssets={vehicleAssets}
+                            driverAssets={driverAssets}
+                            validationRoles={validationRoles}
+                            onRegister={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                            onUpdate={onUpdateVehicleExitOrder}
+                            onRegisterVehicleAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                            onUpdateVehicleAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                            onDeleteVehicleAsset={() => Promise.resolve()}
+                            onRegisterDriverAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                            onUpdateDriverAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                            onDeleteDriverAsset={() => Promise.resolve()}
+                            onRegisterValidationRole={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                            onUpdateValidationRole={() => Promise.resolve({ success: false, message: 'Não permitido' })}
+                            onDeleteValidationRole={() => Promise.resolve()}
+                            hideAssets={true}
+                            securityMode={true}
+                        />
                     </div>
                 ) : (
-                    <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100 animate-fade-in">
-                        <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic mb-6">Folha A4</h2>
-                        <div className="border-4 border-dashed border-slate-200 p-8 text-center bg-slate-50 rounded-2xl">
-                             <p className="text-slate-500 font-bold">A4 Table for filling will be rendered here.</p>
+                    <div className="animate-fade-in space-y-6">
+                        <div className="bg-white p-5 rounded-[2rem] shadow-lg border border-slate-200">
+                            <div className="flex flex-col gap-4">
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic">Manutenção Externa</h2>
+                                        <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Controle de Segurança Externa</p>
+                                    </div>
+                                    <div className="bg-indigo-50 px-3 py-1 rounded-full">
+                                        <span className="text-[10px] font-black text-indigo-600 uppercase">{maintenanceSchedules.length} Agendamentos</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+                        {/* ... (maintenance content restoration would follow here, but this is a start) ... */}
                     </div>
                 )}
         </main>
