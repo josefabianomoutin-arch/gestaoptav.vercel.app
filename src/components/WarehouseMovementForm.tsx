@@ -535,11 +535,18 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         }
 
         setIsSubmitting(true);
+        const loadingToast = toast.loading('Processando lançamentos...');
+        
         try {
             let successCount = 0;
             let failCount = 0;
 
-            for (const item of items) {
+            console.log("Iniciando registro de itens:", items.length);
+
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                toast.loading(`Registrando item ${i + 1} de ${items.length}...`, { id: loadingToast });
+                
                 const res = manualType === 'entrada' 
                     ? await onRegisterEntry({
                         supplierCpf: selectedSupplierCpf,
@@ -571,11 +578,16 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                     });
                 
                 if (res.success) successCount++;
-                else failCount++;
+                else {
+                    console.error("Erro ao registrar item:", item.itemName, res.message);
+                    failCount++;
+                }
             }
 
+            toast.dismiss(loadingToast);
+
             if (failCount === 0) {
-                alert('Todos os itens foram registrados com sucesso!');
+                toast.success('Todos os itens foram registrados com sucesso!');
                 setItems([]);
                 setManualNf('');
                 setManualInboundNf(null);
@@ -584,12 +596,15 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                 setManualLot('');
                 setManualExp('');
                 setSelectedItemName('');
+                setManualInvoiceUrl('');
             } else {
-                alert(`${successCount} itens registrados. ${failCount} falharam. Verifique os logs.`);
+                toast.error(`${successCount} itens registrados. ${failCount} falharam.`);
                 setItems([]); 
             }
         } catch (err) {
-            alert('Erro de conexão ao processar lançamentos.');
+            console.error("Erro crítico no processamento:", err);
+            toast.error('Ocorreu um erro no processamento dos dados.');
+            toast.dismiss(loadingToast);
         } finally {
             setIsSubmitting(false);
         }

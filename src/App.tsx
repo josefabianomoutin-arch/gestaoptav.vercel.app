@@ -1635,29 +1635,41 @@ const App: React.FC = () => {
   };
 
   const handleRegisterWarehouseEntry = async (payload: any) => {
+    console.log("Iniciando registro de entrada:", payload.itemName);
     try {
         const newRef = push(warehouseLogRef);
         
         let finalInvoiceUrl = payload.invoiceUrl || '';
         if (finalInvoiceUrl.startsWith('data:application/pdf')) {
+            console.log("Detectado PDF base64, iniciando upload para Storage...");
             try {
                 const invoiceId = `inv_entry_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.pdf`;
                 const fileRef = storageRef(storage, `invoices/${invoiceId}`);
-                const base64Data = finalInvoiceUrl.split(',')[1];
-                const contentType = finalInvoiceUrl.split(',')[0].split(':')[1].split(';')[0];
-                const byteCharacters = atob(base64Data);
-                const byteNumbers = new Array(byteCharacters.length);
-                for (let i = 0; i < byteCharacters.length; i++) {
-                    byteNumbers[i] = byteCharacters.charCodeAt(i);
-                }
-                const byteArray = new Uint8Array(byteNumbers);
-                const blob = new Blob([byteArray], { type: contentType });
-                await uploadBytes(fileRef, blob);
+                
+                // Converte base64 para Blob de forma mais eficiente
+                const res = await fetch(finalInvoiceUrl);
+                const blob = await res.blob();
+                
+                console.log("Blob criado, tamanho:", blob.size, "Enviando para storage...");
+                
+                // Adiciona um timeout de 60 segundos para o upload
+                const uploadPromise = uploadBytes(fileRef, blob);
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error("Timeout no upload do PDF para o Storage")), 60000)
+                );
+                
+                await Promise.race([uploadPromise, timeoutPromise]);
                 finalInvoiceUrl = await getDownloadURL(fileRef);
+                console.log("Upload concluído com sucesso:", finalInvoiceUrl);
             } catch (storageError) {
                 console.error("Storage upload failed for entry attachment:", storageError);
                 // Keep as base64 if it's small, otherwise clear to avoid RTDB limits
-                if (finalInvoiceUrl.length > 500000) finalInvoiceUrl = '';
+                if (finalInvoiceUrl.length > 500000) {
+                    console.warn("PDF muito grande para o RTDB (>500KB), removendo anexo para permitir salvamento.");
+                    finalInvoiceUrl = '';
+                } else {
+                    console.log("Mantendo anexo em base64 no RTDB (menor que 500KB)");
+                }
             }
         }
 
@@ -1724,29 +1736,35 @@ const App: React.FC = () => {
                     return currentData;
                 });
             } else {
-                // If it's a Per Capita supplier, we update perCapitaConfig
-                await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
-                    if (currentData) {
-                        const updateInList = (list: any[] | undefined) => {
-                            if (!list) return false;
-                            const idx = list.findIndex(p => p.cpfCnpj === payload.supplierCpf);
-                            if (idx !== -1) {
-                                const deliveries = list[idx].deliveries || [];
-                                deliveries.push(newDelivery);
-                                list[idx].deliveries = deliveries;
-                                return true;
-                            }
-                            return false;
-                        };
-                        
-                        if (!updateInList(currentData.ppaisProducers)) {
-                            if (!updateInList(currentData.pereciveisSuppliers)) {
-                                updateInList(currentData.estocaveisSuppliers);
-                            }
+                // Determine which list and index the producer belongs to
+                let listKey: 'ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers' | null = null;
+                let producerIdx = -1;
+
+                if (perCapitaConfig.ppaisProducers) {
+                    producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => p.cpfCnpj === payload.supplierCpf);
+                    if (producerIdx !== -1) listKey = 'ppaisProducers';
+                }
+                if (listKey === null && perCapitaConfig.pereciveisSuppliers) {
+                    producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => p.cpfCnpj === payload.supplierCpf);
+                    if (producerIdx !== -1) listKey = 'pereciveisSuppliers';
+                }
+                if (listKey === null && perCapitaConfig.estocaveisSuppliers) {
+                    producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => p.cpfCnpj === payload.supplierCpf);
+                    if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
+                }
+
+                if (listKey && producerIdx !== -1) {
+                    // Update only the specific producer to avoid locking the entire config
+                    const producerRef = child(perCapitaConfigRef, `${listKey}/${producerIdx}`);
+                    await runTransaction(producerRef, (currentProducer) => {
+                        if (currentProducer) {
+                            const deliveries = currentProducer.deliveries || [];
+                            deliveries.push(newDelivery);
+                            currentProducer.deliveries = deliveries;
                         }
-                    }
-                    return currentData;
-                });
+                        return currentProducer;
+                    });
+                }
             }
         }
 
