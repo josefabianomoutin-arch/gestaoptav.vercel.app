@@ -1638,6 +1638,29 @@ const App: React.FC = () => {
     try {
         const newRef = push(warehouseLogRef);
         
+        let finalInvoiceUrl = payload.invoiceUrl || '';
+        if (finalInvoiceUrl.startsWith('data:application/pdf')) {
+            try {
+                const invoiceId = `inv_entry_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.pdf`;
+                const fileRef = storageRef(storage, `invoices/${invoiceId}`);
+                const base64Data = finalInvoiceUrl.split(',')[1];
+                const contentType = finalInvoiceUrl.split(',')[0].split(':')[1].split(';')[0];
+                const byteCharacters = atob(base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: contentType });
+                await uploadBytes(fileRef, blob);
+                finalInvoiceUrl = await getDownloadURL(fileRef);
+            } catch (storageError) {
+                console.error("Storage upload failed for entry attachment:", storageError);
+                // Keep as base64 if it's small, otherwise clear to avoid RTDB limits
+                if (finalInvoiceUrl.length > 500000) finalInvoiceUrl = '';
+            }
+        }
+
         // Find supplier in both main list and perCapitaConfig
         const ppaisProducer = perCapitaConfig.ppaisProducers?.find(p => p.cpfCnpj === payload.supplierCpf);
         const pereciveisSupplier = perCapitaConfig.pereciveisSuppliers?.find(p => p.cpfCnpj === payload.supplierCpf);
@@ -1660,7 +1683,8 @@ const App: React.FC = () => {
             value: payload.value || 0,
             barcode: payload.barcode || '',
             lotId: lotId,
-            deliveryId: ''
+            deliveryId: '',
+            invoiceUrl: finalInvoiceUrl
         };
         if (payload.invoiceNumber !== undefined) entry.inboundInvoice = payload.invoiceNumber;
         if (payload.expirationDate !== undefined) entry.expirationDate = payload.expirationDate;
@@ -1676,9 +1700,10 @@ const App: React.FC = () => {
                 item: payload.itemName,
                 kg: payload.quantity,
                 value: payload.value || 0,
-                invoiceUploaded: true,
+                invoiceUploaded: !!finalInvoiceUrl,
                 invoiceNumber: String(payload.invoiceNumber || '').trim(),
                 barcode: payload.barcode || '',
+                invoiceUrl: finalInvoiceUrl,
                 lots: [{
                     id: lotId,
                     lotNumber: payload.lotNumber,

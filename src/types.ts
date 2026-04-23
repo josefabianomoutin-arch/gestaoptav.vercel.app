@@ -77,6 +77,7 @@ export interface WarehouseMovement {
     pdNumber?: string;
     value?: number;
     weight?: number;
+    invoiceUrl?: string;
 }
 
 export interface PerCapitaConfig {

@@ -617,6 +617,17 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                             >
                                                 <Printer className="h-4 w-4" />
                                             </button>
+                                            {log.invoiceUrl && (
+                                                <a 
+                                                    href={log.invoiceUrl} 
+                                                    target="_blank" 
+                                                    rel="noreferrer"
+                                                    className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all flex items-center justify-center shadow-sm"
+                                                    title="Ver PDF Anexado"
+                                                >
+                                                    <FileIcon className="h-4 w-4" />
+                                                </a>
+                                            )}
                                             <button 
                                                 onClick={() => setEditingLog(log)}
                                                 className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all"

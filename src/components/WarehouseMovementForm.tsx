@@ -30,6 +30,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     const [selectedSupplierCpf, setSelectedSupplierCpf] = useState('');
     const [manualNf, setManualNf] = useState('');
     const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
+    const [manualInvoiceUrl, setManualInvoiceUrl] = useState<string>('');
 
     // Estados para o item sendo adicionado
     const [selectedItemName, setSelectedItemName] = useState('');
@@ -314,6 +315,27 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         }
     }, [manualBarcode, suppliers, warehouseLog, manualType, selectedSupplierCpf, manualInboundNf, manualSupplierInvoices, registeredInvoicesWithStock, validateAndSelectNf]);
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.type !== 'application/pdf') {
+                toast.error('Por favor, selecione apenas arquivos PDF.');
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error('O arquivo é muito grande (máx 5MB).');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setManualInvoiceUrl(event.target?.result as string);
+                toast.success('PDF anexado com sucesso!');
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleAddItem = () => {
         const qtyVal = parseFloat(manualQuantity.replace(',', '.'));
         if (!selectedItemName || isNaN(qtyVal) || qtyVal <= 0) {
@@ -530,7 +552,8 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                         barcode: item.barcode,
                         pdNumber: item.pdNumber,
                         value: item.value,
-                        weight: item.weight
+                        weight: item.weight,
+                        invoiceUrl: manualInvoiceUrl
                     })
                     : await onRegisterWithdrawal({
                         supplierCpf: selectedSupplierCpf,
@@ -640,6 +663,33 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                 onChange={e => setManualNf(e.target.value)} 
                                 placeholder="Nº NOTA FISCAL" 
                                 className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-white shadow-xs font-mono font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] placeholder:text-gray-300 uppercase" />
+                        </div>
+                        <div className="md:col-span-12 space-y-0.5">
+                            <label className="text-[7.5px] font-black text-indigo-600 uppercase ml-1 flex items-center gap-1 italic">
+                                <FileText className="h-2 w-2" /> Anexo em PDF (NF)
+                            </label>
+                            <div className="relative group">
+                                <input 
+                                    type="file" 
+                                    accept="application/pdf"
+                                    onChange={handleFileChange}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                                />
+                                <div className={`w-full h-8 px-3 border border-dashed rounded-lg flex items-center gap-2 transition-all ${manualInvoiceUrl ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-gray-200 text-gray-400 group-hover:border-indigo-300'}`}>
+                                    <FileText className={`h-3 w-3 ${manualInvoiceUrl ? 'text-indigo-600' : 'text-gray-300'}`} />
+                                    <span className="text-[9px] font-bold uppercase truncate">
+                                        {manualInvoiceUrl ? 'PDF Anexado ✓' : 'Clique ou arraste a NF em PDF aqui'}
+                                    </span>
+                                    {manualInvoiceUrl && (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); setManualInvoiceUrl(''); }}
+                                            className="ml-auto p-1 bg-white hover:bg-red-50 text-red-400 hover:text-red-600 rounded-md shadow-sm border border-red-50 transition-all z-20"
+                                        >
+                                            <X className="h-2 w-2" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 ) : (
