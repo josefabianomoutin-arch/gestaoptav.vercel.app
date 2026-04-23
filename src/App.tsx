@@ -13,6 +13,7 @@ import MenuDashboard from './components/MenuDashboard';
 import VehicleOrderDashboard from './components/VehicleOrderDashboard';
 import JulioDashboard from './components/JulioDashboard';
 import ServiceOrderDashboard from './components/ServiceOrderDashboard';
+import InfobarTicker from './components/InfobarTicker';
 import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
 import { ref as storageRef, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { app, storage } from './firebaseConfig';
@@ -2433,9 +2434,18 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Toaster position="top-right" richColors />
-      {renderContent()}
+      {user && (
+        <InfobarTicker 
+          items={publicInfo.filter(info => !info.isConfidential)} 
+          variant="light"
+          label="Comunicados:"
+        />
+      )}
+      <div className="flex-1 overflow-auto">
+        {renderContent()}
+      </div>
     </div>
   );
 };

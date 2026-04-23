@@ -68,15 +68,15 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
                         <li><strong>No Computador 2:</strong> Clique em <strong>"Sincronizar Pasta de Rede"</strong>, aponte para a mesma pasta e o sistema enviará tudo para a nuvem automaticamente.</li>
                     </ol>
 
-                    <h2>Dica PWA: Como abrir sem internet</h2>
-                    <p>O navegador Chrome só abre páginas web se tiver sinal. Para rodar offline, você <strong>DEVE</strong> instalar o sistema como um App:</p>
-                    <ul>
-                        <li>Clique nos 3 pontos do Chrome (Canto superior direito)</li>
-                        <li>Selecione <strong>"Salvar e Compartilhar"</strong> > <strong>"Instalar esta página como um aplicativo"</strong>.</li>
-                    </ul>
+                    <h2>Solução para Tela Branca (Computador Sem Internet)</h2>
+                    <p>Se ao abrir o arquivo <code>index.html</code> a tela ficar branca, é porque o navegador bloqueia scripts locais por segurança. Siga um destes métodos:</p>
+                    <ol>
+                        <li><strong>Método App Instalado (Recomendado):</strong> Antes de levar o computador para o local sem internet, abra o sistema <u>com internet uma vez</u>, clique nos 3 pontos do Chrome > Salvar e Compartilhar > <strong>Instalar página como Aplicativo</strong>. O ícone criado na área de trabalho funcionará 100% offline.</li>
+                        <li><strong>Método Servidor Portátil:</strong> Se precisar rodar de um pendrive ou pasta na rede, baixe um servidor portátil (como o <i>Mongoose Binary</i> ou <i>Baby Web Server</i> - são apenas um arquivo .exe). Coloque esse .exe na mesma pasta dos arquivos do sistema e execute-o. Ele criará um link (ex: http://localhost:8080) que abrirá o sistema corretamente.</li>
+                    </ol>
 
                     <div class="note">
-                        <strong>Nota sobre o "Executável":</strong> O sistema funciona através de rotinas de sincronização offline. Quando estiver sem internet, os dados são salvos no armazenamento local do navegador (Local Storage) e posteriormente exportados via arquivo JSON para sincronização.
+                        <strong>Pasta Compartilhada:</strong> O sistema busca arquivos de sincronização na pasta que você configurar. Sincronize o Computador 1 (Offline) salvando os arquivos JSON lá, e no Computador 2 (Online) use a opção "Escanear Pasta de Rede" para subir os dados para a nuvem.
                     </div>
 
                     <button onclick="window.print()">Imprimir este Guia</button>
