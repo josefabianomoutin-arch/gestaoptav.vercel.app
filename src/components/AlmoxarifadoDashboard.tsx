@@ -1109,6 +1109,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 onMarkInvoiceAsOpened={onMarkInvoiceAsOpened}
                                 mode="warehouse_entry"
                                 perCapitaConfig={perCapitaConfig}
+                                acquisitionItems={acquisitionItems}
                             />
                         </div>
                     </div>

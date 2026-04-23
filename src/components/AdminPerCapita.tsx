@@ -102,18 +102,18 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         if (!perCapitaConfig) return;
         
         console.log("AdminPerCapita: Sincronizando estados com perCapitaConfig", perCapitaConfig);
-        setStaffCount(perCapitaConfig.staffCount || 0);
-        setInmateCount(perCapitaConfig.inmateCount || 0);
-        setCustomPerCapita(perCapitaConfig.customValues || {});
-        setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
-        setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
-        setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
-        setMonthlyResource(perCapitaConfig.monthlyResource || {});
-        setPtresResources(perCapitaConfig.ptresResources || {});
-        setPpaisProducers(perCapitaConfig.ppaisProducers || []);
-        setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
-        setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
-        setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
+        if (perCapitaConfig.staffCount !== staffCount) setStaffCount(perCapitaConfig.staffCount || 0);
+        if (perCapitaConfig.inmateCount !== inmateCount) setInmateCount(perCapitaConfig.inmateCount || 0);
+        if (JSON.stringify(perCapitaConfig.customValues) !== JSON.stringify(customPerCapita)) setCustomPerCapita(perCapitaConfig.customValues || {});
+        if (JSON.stringify(perCapitaConfig.seiProcessNumbers) !== JSON.stringify(seiProcessNumbers)) setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
+        if (JSON.stringify(perCapitaConfig.seiProcessDefinitions) !== JSON.stringify(seiProcessDefinitions)) setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
+        if (JSON.stringify(perCapitaConfig.monthlyQuota) !== JSON.stringify(monthlyQuota)) setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
+        if (JSON.stringify(perCapitaConfig.monthlyResource) !== JSON.stringify(monthlyResource)) setMonthlyResource(perCapitaConfig.monthlyResource || {});
+        if (JSON.stringify(perCapitaConfig.ptresResources) !== JSON.stringify(ptresResources)) setPtresResources(perCapitaConfig.ptresResources || {});
+        if (JSON.stringify(perCapitaConfig.ppaisProducers) !== JSON.stringify(ppaisProducers)) setPpaisProducers(perCapitaConfig.ppaisProducers || []);
+        if (JSON.stringify(perCapitaConfig.pereciveisSuppliers) !== JSON.stringify(pereciveisSuppliers)) setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
+        if (JSON.stringify(perCapitaConfig.estocaveisSuppliers) !== JSON.stringify(estocaveisSuppliers)) setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
+        if (JSON.stringify(perCapitaConfig.monthlyAdvances) !== JSON.stringify(monthlyAdvances)) setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
         setIsDirty(false);
     }, [perCapitaConfig]);
 

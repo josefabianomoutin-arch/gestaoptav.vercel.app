@@ -944,8 +944,10 @@ const App: React.FC = () => {
 
             // Insere novos itens editados
             items.forEach((item, idx) => {
+              const deliveryId = `inv-edit-${Date.now()}-${idx}`;
+              const lotId = `lot-edit-${Date.now()}-${idx}`;
               const newDelivery: any = {
-                id: `inv-edit-${Date.now()}-${idx}`,
+                id: deliveryId,
                 date: baseDate,
                 time: baseTime,
                 item: item.name,
@@ -954,7 +956,7 @@ const App: React.FC = () => {
                 invoiceUploaded: true,
                 invoiceNumber: String(finalInvoiceNumber || '').trim(),
                 lots: [{
-                  id: `lot-edit-${Date.now()}-${idx}`,
+                  id: lotId,
                   lotNumber: item.lotNumber || 'EDITADO',
                   initialQuantity: item.kg,
                   remainingQuantity: item.kg
@@ -973,6 +975,46 @@ const App: React.FC = () => {
           }
           return currentData;
         });
+
+        // --- NOVO: Limpar e Sincronizar com warehouseLog ---
+        const logSnapshot = await get(warehouseLogRef);
+        const allLogs = logSnapshot.val() || {};
+        const logKeysToDelete = Object.keys(allLogs).filter(key => {
+            const entry = allLogs[key];
+            return entry.supplierCpf === supplierCpf && String(entry.inboundInvoice) === String(invoiceNumber);
+        });
+        
+        if (logKeysToDelete.length > 0) {
+            await Promise.all(logKeysToDelete.map(key => remove(child(warehouseLogRef, key))));
+        }
+
+        // Adiciona novos itens ao Log
+        for (let idx = 0; idx < items.length; idx++) {
+            const item = items[idx];
+            const deliveryId = `inv-edit-${Date.now()}-${idx}`;
+            const lotId = `lot-edit-${Date.now()}-${idx}`;
+            const newLogRef = push(warehouseLogRef);
+            const entry: any = {
+                id: newLogRef.key || `ent-upd-${Date.now()}-${idx}`,
+                type: 'entrada',
+                timestamp: new Date().toISOString(),
+                date: invoiceDate || newDate || new Date().toISOString().split('T')[0],
+                itemName: item.name,
+                supplierName: suppliers.find(s => s.cpf === supplierCpf)?.name || 'Fornecedor',
+                supplierCpf: supplierCpf,
+                lotNumber: item.lotNumber || 'EDITADO',
+                quantity: item.kg,
+                value: item.value,
+                barcode: barcode || '',
+                lotId: lotId,
+                deliveryId: deliveryId,
+                inboundInvoice: String(newInvoiceNumber || invoiceNumber).trim(),
+                invoiceUrl: '' // URL será atualizada se existir
+            };
+            if (item.expirationDate !== undefined) entry.expirationDate = item.expirationDate;
+            await set(newLogRef, entry);
+        }
+
         return { success: true };
       } catch (e) {
         console.error('Erro detalhado ao gravar no banco de dados (MainSupplier):', e);
@@ -1000,8 +1042,10 @@ const App: React.FC = () => {
               s.deliveries = s.deliveries.filter((d: any) => d.invoiceNumber !== invoiceNumber);
 
               items.forEach((item, idx) => {
+                const deliveryId = `inv-edit-${Date.now()}-${idx}`;
+                const lotId = `lot-edit-${Date.now()}-${idx}`;
                 const newDelivery: any = {
-                  id: `inv-edit-${Date.now()}-${idx}`,
+                  id: deliveryId,
                   date: baseDate,
                   time: baseTime,
                   item: item.name,
@@ -1010,7 +1054,7 @@ const App: React.FC = () => {
                   invoiceUploaded: true,
                   invoiceNumber: String(finalInvoiceNumber || '').trim(),
                   lots: [{
-                    id: `lot-edit-${Date.now()}-${idx}`,
+                    id: lotId,
                     lotNumber: item.lotNumber || 'EDITADO',
                     initialQuantity: item.kg,
                     remainingQuantity: item.kg
@@ -1036,6 +1080,44 @@ const App: React.FC = () => {
         }
         return currentData;
       });
+
+      // --- NOVO: Limpar e Sincronizar com warehouseLog (PerCapita) ---
+      const logSnapshot = await get(warehouseLogRef);
+      const allLogs = logSnapshot.val() || {};
+      const logKeysToDelete = Object.keys(allLogs).filter(key => {
+          const entry = allLogs[key];
+          return entry.supplierCpf === supplierCpf && String(entry.inboundInvoice) === String(invoiceNumber);
+      });
+      
+      if (logKeysToDelete.length > 0) {
+          await Promise.all(logKeysToDelete.map(key => remove(child(warehouseLogRef, key))));
+      }
+
+      // Adiciona novos itens ao Log
+      for (let idx = 0; idx < items.length; idx++) {
+          const item = items[idx];
+          const newLogRef = push(warehouseLogRef);
+          const configSnapshot = await get(perCapitaConfigRef);
+          const pcData = configSnapshot.val();
+          const supplierName = pcData.ppaisProducers?.find((p: any) => p.cpfCnpj === supplierCpf)?.name || 
+                               pcData.pereciveisSuppliers?.find((s: any) => s.cpfCnpj === supplierCpf)?.name || 'Fornecedor';
+          const entry = {
+              id: newLogRef.key,
+              type: 'entrada',
+              timestamp: new Date().toISOString(),
+              date: invoiceDate || newDate || new Date().toISOString().split('T')[0],
+              itemName: item.name,
+              supplierName: supplierName,
+              supplierCpf: supplierCpf,
+              lotNumber: item.lotNumber || 'EDITADO',
+              quantity: item.kg,
+              value: item.value,
+              barcode: barcode || '',
+              inboundInvoice: String(newInvoiceNumber || invoiceNumber).trim()
+          };
+          if (item.expirationDate !== undefined) (entry as any).expirationDate = item.expirationDate;
+          await set(newLogRef, entry);
+      }
       return { success: true };
     } catch (e) {
       console.error('Erro detalhado ao gravar no banco de dados (PerCapita):', e);
@@ -1268,6 +1350,21 @@ const App: React.FC = () => {
     for (let i = 0; i < retries; i++) {
       try {
         const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+        
+        // --- NOVO: Deletar também do log do almoxarifado ---
+        const logSnapshot = await get(warehouseLogRef);
+        const allLogs = logSnapshot.val() || {};
+        const logKeysToDelete = Object.keys(allLogs).filter(key => {
+            const entry = allLogs[key];
+            return entry.supplierCpf === supplierCpf && 
+                   (String(entry.inboundInvoice) === String(invoiceNumber) || String(entry.outboundInvoice) === String(invoiceNumber));
+        });
+
+        if (logKeysToDelete.length > 0) {
+            console.log(`Deletando ${logKeysToDelete.length} itens do warehouseLog correspondentes à NF ${invoiceNumber}`);
+            await Promise.all(logKeysToDelete.map(key => remove(child(warehouseLogRef, key))));
+        }
+
         if (isMainSupplier) {
           const supplierRef = child(suppliersRef, supplierCpf);
           console.log(`Iniciando transação MainSupplier (tentativa ${i + 1}):`, supplierCpf);
@@ -2026,6 +2123,60 @@ const App: React.FC = () => {
 
   const handleUpdateWarehouseEntry = async (l: WarehouseMovement) => {
       await set(child(warehouseLogRef, l.id), l);
+      
+      // --- NOVO: Sincronizar com as entregas do fornecedor ---
+      if (l.type === 'entrada') {
+          const mainSupplier = suppliers.find(s => s.cpf === l.supplierCpf);
+          if (mainSupplier) {
+              const sRef = child(suppliersRef, mainSupplier.cpf);
+              await runTransaction(sRef, (currentData: Supplier) => {
+                  if (currentData && currentData.deliveries) {
+                      currentData.deliveries = currentData.deliveries.map(d => {
+                          // Tenta encontrar a entrega correspondente. 
+                          // Como o ID pode não bater (sync- vs manual-), usamos critérios
+                          if (String(d.invoiceNumber) === String(l.inboundInvoice) && d.item === l.itemName && d.barcode === l.barcode) {
+                              return {
+                                  ...d,
+                                  kg: l.quantity,
+                                  value: l.value,
+                                  lots: d.lots.map(lot => lot.id === (l as any).lotId ? { ...lot, initialQuantity: l.quantity, lotNumber: l.lotNumber } : lot)
+                              };
+                          }
+                          return d;
+                      });
+                  }
+                  return currentData;
+              });
+          } else {
+              await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+                  if (currentData) {
+                      const updateList = (list: any[] | undefined) => {
+                          const s = list?.find(p => p.cpfCnpj === l.supplierCpf);
+                          if (s && s.deliveries) {
+                              s.deliveries = s.deliveries.map((d: any) => {
+                                  if (String(d.invoiceNumber) === String(l.inboundInvoice) && d.item === l.itemName && d.barcode === l.barcode) {
+                                      return {
+                                          ...d,
+                                          kg: l.quantity,
+                                          value: l.value,
+                                          lots: d.lots.map((lot: any) => lot.id === (l as any).lotId ? { ...lot, initialQuantity: l.quantity, lotNumber: l.lotNumber } : lot)
+                                      };
+                                  }
+                                  return d;
+                              });
+                              return true;
+                          }
+                          return false;
+                      };
+                      if (!updateList(currentData.ppaisProducers)) {
+                          updateList(currentData.pereciveisSuppliers);
+                      }
+                  }
+                  return currentData;
+              });
+          }
+      }
+
       return { success: true, message: 'Atualizado' };
   };
 

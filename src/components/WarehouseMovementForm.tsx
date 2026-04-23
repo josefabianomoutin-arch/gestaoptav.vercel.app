@@ -50,14 +50,18 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         return parseFloat(manualValue.replace(',', '.')) || 0;
     }, [manualValue]);
 
-    const updateManualValue = (itemName: string, period: '1_QUAD' | '2_3_QUAD') => {
+    const updateManualValue = (itemName: string, period: '1_QUAD' | '2_3_QUAD', quantity?: string) => {
         if (manualType === 'entrada' && itemName) {
             const acqItem = acquisitionItems.find(ai => 
                 ai.name === itemName || ai.nickname === itemName
             );
             if (acqItem) {
-                const val = period === '1_QUAD' ? acqItem.unitValue : (acqItem.unitValue23 || acqItem.unitValue);
-                setManualValue(String(val || 0).replace('.', ','));
+                const unitPrice = period === '1_QUAD' ? acqItem.unitValue : (acqItem.unitValue23 || acqItem.unitValue);
+                const currentQty = parseFloat((quantity !== undefined ? quantity : manualQuantity).replace(',', '.')) || 0;
+                
+                // Sugere o valor TOTAL (Preço Unitário x Quantidade)
+                const suggestedTotal = unitPrice ? unitPrice * currentQty : 0;
+                setManualValue(String(suggestedTotal.toFixed(2)).replace('.', ','));
             }
         }
     };
@@ -917,7 +921,13 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                     <input 
                                         type="text" 
                                         value={manualQuantity} 
-                                        onChange={e => setManualQuantity(e.target.value.replace(/[^0-9,.]/g, ''))} 
+                                        onChange={e => {
+                                            const val = e.target.value.replace(/[^0-9,.]/g, '');
+                                            setManualQuantity(val);
+                                            if (selectedItemName) {
+                                                updateManualValue(selectedItemName, selectedPeriod, val);
+                                            }
+                                        }} 
                                         placeholder="0,00"
                                         className="w-full h-8 px-2 border-2 border-emerald-100 rounded-lg bg-white font-black outline-none focus:ring-2 focus:ring-emerald-200 transition-all text-[11px] text-center" 
                                     />

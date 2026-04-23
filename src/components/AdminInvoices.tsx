@@ -40,6 +40,7 @@ interface AdminInvoicesProps {
   mode?: 'admin' | 'warehouse_entry' | 'warehouse_exit';
   onRegisterExit?: (payload: any) => Promise<{ success: boolean; message: string }>;
   perCapitaConfig?: any;
+  acquisitionItems?: any[];
 }
 
 const MONTHS = [
@@ -55,7 +56,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   onUpdateInvoiceItems,
   onManualInvoiceEntry,
   mode = 'admin',
-  perCapitaConfig
+  perCapitaConfig,
+  acquisitionItems = []
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter] = useState<'all' | 'pending' | 'opened'>('all');
@@ -266,7 +268,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
         manualEntryData.items.map(it => ({
             name: it.name,
             kg: it.kg,
-            value: it.value * it.kg,
+            value: it.value,
             lotNumber: it.lotNumber || 'MANUAL',
             expirationDate: it.expirationDate
         })), 
@@ -296,6 +298,21 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   };
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+
+  const updateNewItemValue = (name: string, kg: number) => {
+    if (!acquisitionItems) {
+        setNewItem(prev => ({ ...prev, name, kg }));
+        return;
+    }
+    const acqItem = acquisitionItems.find(ai => ai.name === name || ai.nickname === name);
+    if (acqItem) {
+        const price = acqItem.unitValue23 || acqItem.unitValue || 0;
+        const total = price * kg;
+        setNewItem(prev => ({ ...prev, name, kg, value: Number(total.toFixed(2)) }));
+    } else {
+        setNewItem(prev => ({ ...prev, name, kg }));
+    }
+  };
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -547,7 +564,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Item (Contrato)</label>
                                     <select 
                                         value={newItem.name} 
-                                        onChange={e => setNewItem({...newItem, name: e.target.value})}
+                                        onChange={e => updateNewItemValue(e.target.value, newItem.kg)}
                                         disabled={!manualEntryData.supplierCpf}
                                         className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px] uppercase"
                                     >
@@ -595,12 +612,12 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     <input 
                                         type="number" 
                                         value={newItem.kg || ''} 
-                                        onChange={e => setNewItem({...newItem, kg: Number(e.target.value)})}
+                                        onChange={e => updateNewItemValue(newItem.name, Number(e.target.value))}
                                         className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px]" 
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[8px] font-black text-emerald-600 uppercase tracking-widest ml-0.5">Valor Unit (R$)</label>
+                                    <label className="text-[8px] font-black text-emerald-600 uppercase tracking-widest ml-0.5">Valor Total Item na NF (R$)</label>
                                     <input 
                                         type="number" 
                                         value={newItem.value || ''} 
@@ -614,7 +631,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                 <div className="bg-emerald-50 p-2 rounded-lg border border-emerald-100 flex justify-between items-center px-4">
                                     <span className="text-[8px] font-black text-emerald-900 uppercase">Total do Item</span>
                                     <span className="text-[11px] font-black text-emerald-700 font-mono tracking-tighter">
-                                        {formatCurrency(newItem.kg * newItem.value)}
+                                        {formatCurrency(newItem.value)}
                                     </span>
                                 </div>
                             )}
@@ -644,7 +661,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                         <div className="flex flex-col">
                                             <span className="text-[9px] font-black text-indigo-900 uppercase leading-none">{it.name}</span>
                                             <span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                                                {it.kg.toLocaleString('pt-BR')} Kg • {formatCurrency(it.value * it.kg)}
+                                                {it.kg.toLocaleString('pt-BR')} Kg • {formatCurrency(it.value)}
                                             </span>
                                             <div className="flex gap-2 mt-0.5">
                                                 {it.lotNumber && <span className="text-[7px] font-black text-indigo-400 uppercase italic">Lote: {it.lotNumber}</span>}
@@ -726,22 +743,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                       />
                                   </div>
                                   <div className="space-y-0.5">
-                                      <label className="text-[8px] font-black text-emerald-600 uppercase tracking-widest ml-0.5">Preço Unit. (R$)</label>
-                                      <input 
-                                          type="number" 
-                                          value={unitPrice.toFixed(2)} 
-                                          step="0.01"
-                                          onChange={e => {
-                                              const newUnitPrice = Number(e.target.value);
-                                              const newItems = [...editingInvoice.items];
-                                              newItems[idx] = { ...item, value: newUnitPrice * item.kg };
-                                              setEditingInvoice({ ...editingInvoice, items: newItems });
-                                          }}
-                                          className="w-full h-9 px-3 rounded-lg border-2 border-emerald-50 outline-none focus:border-emerald-400 font-bold text-[10px] bg-emerald-50/30" 
-                                      />
-                                  </div>
-                                  <div className="space-y-0.5">
-                                      <label className="text-[8px] font-black text-indigo-600 uppercase tracking-widest ml-0.5">Total Item (R$)</label>
+                                      <label className="text-[8px] font-black text-indigo-600 uppercase tracking-widest ml-0.5">Valor Total Item na NF (R$)</label>
                                       <input 
                                           type="number" 
                                           value={totalPrice.toFixed(2)} 

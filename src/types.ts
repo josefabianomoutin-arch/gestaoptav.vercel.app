@@ -78,6 +78,8 @@ export interface WarehouseMovement {
     value?: number;
     weight?: number;
     invoiceUrl?: string;
+    lotId?: string;
+    deliveryId?: string;
 }
 
 export interface PerCapitaConfig {
