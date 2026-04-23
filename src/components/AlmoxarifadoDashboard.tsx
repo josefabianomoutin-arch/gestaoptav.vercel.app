@@ -582,7 +582,13 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
         if (deliveries.length === 0) return null;
 
-        const items = deliveries.map(d => {
+        // Group items by name to avoid duplicates in the receipt term
+        const groupedItemsMap = new Map<string, any>();
+
+        deliveries.forEach(d => {
+            const itemName = d.item || 'N/A';
+            const quantity = Number(d.kg || d.quantity || 0);
+            
             // Tentar buscar o valor registrado no warehouseLog para este item específico
             const itemMovement = warehouseLog.find(log => {
                 const lInbound = String(log.inboundInvoice || '').trim().replace(/^0+/, '');
@@ -590,14 +596,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 const lInv = String(log.invoiceNumber || '').trim().replace(/^0+/, '');
                 
                 return (lInbound === cleanTargetInvoice || lOutbound === cleanTargetInvoice || lInv === cleanTargetInvoice) &&
-                       (log.item === d.item || log.itemName === d.item) &&
-                       (log.supplierCpf === receiptSupplier.cpf || log.supplierName === receiptSupplier.name);
+                       (log.item === itemName || log.itemName === itemName) &&
+                       (String(log.supplierCpf || '').replace(/\D/g, '') === String(receiptSupplier.cpf || '').replace(/\D/g, ''));
             });
 
-            const contractItem = (Object.values(receiptSupplier.contractItems || {}) as any[]).find((ci: any) => ci.name === d.item);
-            const unitPrice = itemMovement?.value || d.value || 0;
-            const quantity = d.kg || d.quantity || 0;
-            const totalValue = quantity * unitPrice;
+            const contractItem = (Object.values(receiptSupplier.contractItems || {}) as any[]).find((ci: any) => ci.name === itemName);
+            const unitPrice = Number(itemMovement?.value || d.value || 0);
             
             let unit = 'Kg';
             if (contractItem?.unit) {
@@ -609,16 +613,24 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 unit = unitMap[unitType] || 'Un';
             }
 
-            return {
-                name: d.item || 'N/A',
-                quantity,
-                unit,
-                unitPrice,
-                totalValue,
-                category: contractItem?.category,
-                barcode: itemMovement?.barcode || d.barcode || ''
-            };
+            if (groupedItemsMap.has(itemName)) {
+                const existing = groupedItemsMap.get(itemName);
+                existing.quantity += quantity;
+                existing.totalValue = existing.quantity * unitPrice;
+            } else {
+                groupedItemsMap.set(itemName, {
+                    name: itemName,
+                    quantity,
+                    unit,
+                    unitPrice,
+                    totalValue: quantity * unitPrice,
+                    category: contractItem?.category,
+                    barcode: itemMovement?.barcode || d.barcode || ''
+                });
+            }
         });
+
+        const items = Array.from(groupedItemsMap.values());
 
         const totalInvoiceValue = items.reduce((sum, it) => sum + it.totalValue, 0);
         const firstDelivery = deliveries[0];
@@ -1221,10 +1233,19 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                 <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Descrição do Item</label>
                                                 <input 
                                                     type="text" 
+                                                    list="available-items-manual"
                                                     value={it.name} 
                                                     onChange={e => updateManualItem(idx, 'name', e.target.value)}
                                                     className="w-full h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-500 transition-all text-[10px] uppercase" 
                                                 />
+                                                <datalist id="available-items-manual">
+                                                    {Array.from(new Set([
+                                                        ...(receiptSupplier?.contractItems?.map((ci: any) => ci.name) || []),
+                                                        ...acquisitionItems.map(ai => ai.name)
+                                                    ])).sort().map(name => (
+                                                        <option key={name} value={name} />
+                                                    ))}
+                                                </datalist>
                                             </div>
                                             <div className="md:col-span-2 space-y-1">
                                                 <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Quantidade</label>

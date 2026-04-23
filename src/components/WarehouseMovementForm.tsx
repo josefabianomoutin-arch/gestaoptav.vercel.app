@@ -227,56 +227,41 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     }, [selectedSupplier, selectedItemName, warehouseLog]);
 
     const availableItems = useMemo(() => {
-        const itemsList: any[] = [];
+        const itemsList: { name: string; displayName: string }[] = [];
         const seen = new Set<string>();
 
-        const addItemsFromSupplier = (s: any) => {
-            if (!s) return;
-            (Object.values(s.contractItems || {}) as any[]).forEach((ci: any) => {
-                const key = `${s.cpf}-${ci.name}`;
-                if (!seen.has(key)) {
-                    // Tenta buscar o nickname do mapeamento de itens de aquisição
-                    // Nota: Precisa garantir que o nickname esteja disponível, caso contrário usa o nome
+        const processSupplier = (s: Supplier) => {
+            if (!s.contractItems) return;
+            const items = Array.isArray(s.contractItems) ? s.contractItems : Object.values(s.contractItems);
+            items.forEach((ci: any) => {
+                if (!ci.name) return;
+                if (!seen.has(ci.name)) {
                     const displayName = ci.nickname ? `${ci.nickname} (${ci.name})` : ci.name;
-                    itemsList.push({ name: ci.name, displayName, supplierName: s.name, supplierCpf: s.cpf });
-                    seen.add(key);
+                    itemsList.push({ name: ci.name, displayName });
+                    seen.add(ci.name);
                 }
             });
         };
 
         if (selectedSupplier) {
-            addItemsFromSupplier(selectedSupplier);
-            
-            // Also check this supplier in perCapitaConfig
-            if (perCapitaConfig) {
-                const pEntry = perCapitaConfig.ppaisProducers?.find((p: any) => p.cpfCnpj === selectedSupplier.cpf);
-                const fEntry = perCapitaConfig.pereciveisSuppliers?.find((f: any) => f.cpfCnpj === selectedSupplier.cpf);
-                addItemsFromSupplier(pEntry);
-                addItemsFromSupplier(fEntry);
-            }
+            processSupplier(selectedSupplier);
         } else {
-            // Se nenhum fornecedor selecionado, mostra TUDO (conforme pedido: busca em todos os itens)
-            suppliers.forEach(addItemsFromSupplier);
-            if (perCapitaConfig) {
-                perCapitaConfig.ppaisProducers?.forEach(addItemsFromSupplier);
-                perCapitaConfig.pereciveisSuppliers?.forEach(addItemsFromSupplier);
-            }
+            // Se nenhum fornecedor selecionado, busca em todos os fornecedores (PPAIS, Perecíveis, Estocáveis)
+            suppliers.forEach(processSupplier);
         }
 
         // Em modo saída, garante que itens com estoque apareçam mesmo que não estejam no contrato explicitamente
         if (manualType === 'saída') {
             registeredInvoicesWithStock.forEach(s => {
-                const key = `${s.supplierName}-${s.itemName}`;
-                const supplier = suppliers.find(sup => sup.name === s.supplierName);
-                if (!seen.has(key) && supplier) {
-                    itemsList.push({ name: s.itemName, displayName: `[EM ESTOQUE] ${s.itemName}`, supplierName: s.supplierName, supplierCpf: supplier.cpf });
-                    seen.add(key);
+                if (!seen.has(s.itemName)) {
+                    itemsList.push({ name: s.itemName, displayName: `[EM ESTOQUE] ${s.itemName}` });
+                    seen.add(s.itemName);
                 }
             });
         }
 
         return itemsList.sort((a, b) => a.name.localeCompare(b.name));
-    }, [selectedSupplier, manualType, suppliers, perCapitaConfig, registeredInvoicesWithStock]);
+    }, [selectedSupplier, manualType, suppliers, registeredInvoicesWithStock]);
 
     useEffect(() => {
         const barcode = manualBarcode.trim();
@@ -797,36 +782,39 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
                                 {/* Row 1: Item Selection */}
                                 <div className="md:col-span-12 space-y-0.5">
-                                    <label className="text-[7.5px] font-black text-indigo-600 uppercase ml-1 italic tracking-widest flex items-center gap-1.5">
-                                        <Package className="h-2 w-2" /> 1. Produto / Item
+                                    <label className="text-[7.5px] font-black text-indigo-600 uppercase ml-1 italic tracking-widest flex items-center justify-between gap-1.5">
+                                        <span className="flex items-center gap-1.5"><Package className="h-2 w-2" /> 1. Produto / Item</span>
+                                        <span className="text-[6px] text-gray-400 font-bold lowercase">Busca em todos os contratos cadastrados</span>
                                     </label>
-                                    <select 
+                                    <input 
+                                        list="items-datalist"
                                         value={selectedItemName} 
                                         onChange={e => {
                                             const val = e.target.value;
+                                            setSelectedItemName(val);
+                                            updateManualValue(val, selectedPeriod);
+                                            
+                                            // Tenta auto-selecionar fornecedor se o item for exclusivo de um
                                             if (!selectedSupplierCpf) {
-                                                const [itemName, supplierCpf] = val.split('|');
-                                                setSelectedSupplierCpf(supplierCpf);
-                                                setSelectedItemName(itemName);
-                                                updateManualValue(itemName, selectedPeriod);
-                                            } else {
-                                                setSelectedItemName(val);
-                                                updateManualValue(val, selectedPeriod);
+                                                const suppliersWithItem = suppliers.filter(s => {
+                                                    const items = Array.isArray(s.contractItems) ? s.contractItems : Object.values(s.contractItems || {});
+                                                    return items.some((ci: any) => ci.name === val);
+                                                });
+                                                if (suppliersWithItem.length === 1) {
+                                                    setSelectedSupplierCpf(suppliersWithItem[0].cpf);
+                                                }
                                             }
                                         }} 
-                                        className="w-full h-8 px-2 border border-gray-200 rounded-lg bg-white font-black outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] uppercase italic cursor-pointer" 
-                                    >
-                                        <option value="">-- SELECIONE O PRODUTO --</option>
-                                        {!selectedSupplierCpf ? (
-                                            (availableItems as any[]).map((it, idx) => (
-                                                <option key={`${it.name}-${it.supplierCpf}-${idx}`} value={`${it.name}|${it.supplierCpf}`}>
-                                                    {it.displayName || it.name} ({it.supplierName})
-                                                </option>
-                                            ))
-                                        ) : (
-                                            (availableItems as any[]).map(ci => <option key={ci.name} value={ci.name}>{ci.displayName || ci.name}</option>)
-                                        )}
-                                    </select>
+                                        placeholder="QUAL O PRODUTO? (DIGITE OU SELECIONE)"
+                                        className="w-full h-8 px-3 border border-gray-200 rounded-lg bg-white font-black outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] uppercase italic placeholder:text-gray-300" 
+                                    />
+                                    <datalist id="items-datalist">
+                                        {availableItems.map((it, idx) => (
+                                            <option key={idx} value={it.name}>
+                                                {it.displayName}
+                                            </option>
+                                        ))}
+                                    </datalist>
                                 </div>
 
                                 {/* Row 2: Barcode and Lote */}

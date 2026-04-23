@@ -240,6 +240,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   const combinedSuppliers = useMemo(() => {
     const producers = perCapitaConfig.ppaisProducers || [];
     const pereciveis = perCapitaConfig.pereciveisSuppliers || [];
+    const estocaveis = perCapitaConfig.estocaveisSuppliers || [];
 
     const mapToSupplier = (p: any) => {
         const weeks: number[] = [];
@@ -274,8 +275,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
 
     const mappedProducers = producers.map(mapToSupplier);
     const mappedPereciveis = pereciveis.map(mapToSupplier);
+    const mappedEstocaveis = estocaveis.map(mapToSupplier);
 
-    const all = [...suppliers, ...mappedProducers, ...mappedPereciveis];
+    const all = [...suppliers, ...mappedProducers, ...mappedPereciveis, ...mappedEstocaveis];
     const uniqueMap = new Map<string, Supplier>();
     all.forEach(s => {
         if (s.cpf) {
@@ -306,7 +308,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     });
 
     return Array.from(uniqueMap.values());
-  }, [suppliers, perCapitaConfig.ppaisProducers, perCapitaConfig.pereciveisSuppliers]);
+  }, [suppliers, perCapitaConfig.ppaisProducers, perCapitaConfig.pereciveisSuppliers, perCapitaConfig.estocaveisSuppliers]);
 
   const filteredSuppliers = useMemo(() => {
     return combinedSuppliers.filter(s => (s.name || '').toLowerCase().includes(supplierSearch.toLowerCase()));

@@ -1637,7 +1637,15 @@ const App: React.FC = () => {
   const handleRegisterWarehouseEntry = async (payload: any) => {
     try {
         const newRef = push(warehouseLogRef);
-        const supplier = suppliers.find(s => s.cpf === payload.supplierCpf);
+        
+        // Find supplier in both main list and perCapitaConfig
+        const ppaisProducer = perCapitaConfig.ppaisProducers?.find(p => p.cpfCnpj === payload.supplierCpf);
+        const pereciveisSupplier = perCapitaConfig.pereciveisSuppliers?.find(p => p.cpfCnpj === payload.supplierCpf);
+        const estocavelSupplier = perCapitaConfig.estocaveisSuppliers?.find(p => p.cpfCnpj === payload.supplierCpf);
+        const mainSupplier = suppliers.find(s => s.cpf === payload.supplierCpf);
+        
+        const supplier = mainSupplier || ppaisProducer || pereciveisSupplier || estocavelSupplier;
+
         const lotId = `lot-${Date.now()}`;
         const entry: any = {
             id: newRef.key || `ent-${Date.now()}`,
@@ -1661,36 +1669,60 @@ const App: React.FC = () => {
 
         // Sincronizar com as entregas do fornecedor para aparecer na Consulta de Notas Fiscais
         if (supplier) {
-            const sRef = child(suppliersRef, supplier.cpf);
-            await runTransaction(sRef, (currentData: Supplier) => {
-                if (currentData) {
-                    const deliveries = currentData.deliveries || [];
-                    const contract = currentData.contractItems.find(ci => ci.name === payload.itemName);
-                    // Use a unidade de valor do payload se disponível, senão do contrato
-                    const unitValue = payload.value || (contract ? contract.valuePerKg : 0);
-                    
-                    deliveries.push({
-                        id: `sync-${Date.now()}`,
-                        date: payload.invoiceDate || new Date().toISOString().split('T')[0],
-                        time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-                        item: payload.itemName,
-                        kg: payload.quantity,
-                        value: unitValue,
-                        invoiceUploaded: true,
-                        invoiceNumber: String(payload.invoiceNumber || '').trim(),
-                        barcode: payload.barcode || '',
-                        lots: [{
-                            id: lotId,
-                            lotNumber: payload.lotNumber,
-                            initialQuantity: payload.quantity,
-                            remainingQuantity: payload.quantity,
-                            expirationDate: payload.expirationDate
-                        }]
-                    });
-                    currentData.deliveries = deliveries;
-                }
-                return currentData;
-            });
+            const newDelivery = {
+                id: `sync-${Date.now()}`,
+                date: payload.invoiceDate || new Date().toISOString().split('T')[0],
+                time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                item: payload.itemName,
+                kg: payload.quantity,
+                value: payload.value || 0,
+                invoiceUploaded: true,
+                invoiceNumber: String(payload.invoiceNumber || '').trim(),
+                barcode: payload.barcode || '',
+                lots: [{
+                    id: lotId,
+                    lotNumber: payload.lotNumber,
+                    initialQuantity: payload.quantity,
+                    remainingQuantity: payload.quantity,
+                    expirationDate: payload.expirationDate
+                }]
+            };
+
+            if (mainSupplier) {
+                const sRef = child(suppliersRef, mainSupplier.cpf);
+                await runTransaction(sRef, (currentData: Supplier) => {
+                    if (currentData) {
+                        const deliveries = currentData.deliveries || [];
+                        deliveries.push(newDelivery as any);
+                        currentData.deliveries = deliveries;
+                    }
+                    return currentData;
+                });
+            } else {
+                // If it's a Per Capita supplier, we update perCapitaConfig
+                await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+                    if (currentData) {
+                        const updateInList = (list: any[] | undefined) => {
+                            if (!list) return false;
+                            const idx = list.findIndex(p => p.cpfCnpj === payload.supplierCpf);
+                            if (idx !== -1) {
+                                const deliveries = list[idx].deliveries || [];
+                                deliveries.push(newDelivery);
+                                list[idx].deliveries = deliveries;
+                                return true;
+                            }
+                            return false;
+                        };
+                        
+                        if (!updateInList(currentData.ppaisProducers)) {
+                            if (!updateInList(currentData.pereciveisSuppliers)) {
+                                updateInList(currentData.estocaveisSuppliers);
+                            }
+                        }
+                    }
+                    return currentData;
+                });
+            }
         }
 
         return { success: true, message: 'Entrada registrada' };
@@ -1703,31 +1735,76 @@ const App: React.FC = () => {
   const handleRegisterWarehouseWithdrawal = async (payload: any) => {
     try {
         const newRef = push(warehouseLogRef);
-        const supplier = suppliers.find(s => s.cpf === payload.supplierCpf);
+        
+        // Find supplier in both lists
+        const ppaisProducer = perCapitaConfig.ppaisProducers?.find(p => p.cpfCnpj === payload.supplierCpf);
+        const pereciveisSupplier = perCapitaConfig.pereciveisSuppliers?.find(p => p.cpfCnpj === payload.supplierCpf);
+        const estocavelSupplier = perCapitaConfig.estocaveisSuppliers?.find(p => p.cpfCnpj === payload.supplierCpf);
+        const mainSupplier = suppliers.find(s => s.cpf === payload.supplierCpf);
+        
+        const supplier = mainSupplier || ppaisProducer || pereciveisSupplier || estocavelSupplier;
         
         // --- Atualiza o saldo no lote do fornecedor ---
         if (supplier) {
-            const sRef = child(suppliersRef, supplier.cpf);
             let updatedLotQty = 0;
-            const transactionResult = await runTransaction(sRef, (currentData: Supplier) => {
-                if (currentData && currentData.deliveries) {
-                    const delivery = (currentData.deliveries as any[]).find((d: any) => 
-                        d.item === payload.itemName && 
-                        d.invoiceNumber === payload.inboundInvoice
-                    );
-                    if (delivery && delivery.lots) {
-                        const lot = delivery.lots.find((l: any) => l.lotNumber === payload.lotNumber);
-                        if (lot) {
-                            updatedLotQty = (lot.remainingQuantity || 0) - payload.quantity;
-                            lot.remainingQuantity = updatedLotQty;
+            let transactionCommitted = false;
+
+            if (mainSupplier) {
+                const sRef = child(suppliersRef, mainSupplier.cpf);
+                const transactionResult = await runTransaction(sRef, (currentData: Supplier) => {
+                    if (currentData && currentData.deliveries) {
+                        const delivery = (currentData.deliveries as any[]).find((d: any) => 
+                            d.item === payload.itemName && 
+                            d.invoiceNumber === payload.inboundInvoice
+                        );
+                        if (delivery && delivery.lots) {
+                            const lot = delivery.lots.find((l: any) => l.lotNumber === payload.lotNumber);
+                            if (lot) {
+                                updatedLotQty = (lot.remainingQuantity || 0) - payload.quantity;
+                                lot.remainingQuantity = updatedLotQty;
+                                return currentData;
+                            }
+                        }
+                    }
+                    return; // Abort
+                });
+                transactionCommitted = transactionResult.committed;
+            } else {
+                // Per Capita supplier
+                const transactionResult = await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+                    if (currentData) {
+                        const updateInList = (list: any[] | undefined) => {
+                            if (!list) return false;
+                            const s = list.find(p => p.cpfCnpj === payload.supplierCpf);
+                            if (s && s.deliveries) {
+                                const delivery = s.deliveries.find((d: any) => 
+                                    d.item === payload.itemName && 
+                                    (String(d.invoiceNumber) === String(payload.inboundInvoice))
+                                );
+                                if (delivery && delivery.lots) {
+                                    const lot = delivery.lots.find((l: any) => l.lotNumber === payload.lotNumber);
+                                    if (lot) {
+                                        updatedLotQty = (lot.remainingQuantity || 0) - payload.quantity;
+                                        lot.remainingQuantity = updatedLotQty;
+                                        return true;
+                                    }
+                                }
+                            }
+                            return false;
+                        };
+                        
+                        if (updateInList(currentData.ppaisProducers) || 
+                            updateInList(currentData.pereciveisSuppliers) || 
+                            updateInList(currentData.estocaveisSuppliers)) {
                             return currentData;
                         }
                     }
-                }
-                return; // Abort
-            });
+                    return;
+                });
+                transactionCommitted = transactionResult.committed;
+            }
             
-            if (!transactionResult.committed) return { success: false, message: 'Falha ao processar a baixa no estoque.' };
+            if (!transactionCommitted) return { success: false, message: 'Falha ao processar a baixa no estoque.' };
             payload.remainingQuantity = updatedLotQty;
         }
 
@@ -1778,14 +1855,18 @@ const App: React.FC = () => {
   const handleDeleteWarehouseEntry = async (l: WarehouseMovement) => {
       // Se for saída, devolve a quantidade para o saldo do lote
       if (l.type === 'saída' || l.type === 'saida') {
-          const supplier = suppliers.find(s => s.name === l.supplierName);
-          if (supplier) {
-              const sRef = child(suppliersRef, supplier.cpf);
+          const mainSupplier = suppliers.find(s => s.name === l.supplierName);
+          const ppaisProducer = perCapitaConfig.ppaisProducers?.find(p => p.name === l.supplierName);
+          const pereciveisSupplier = perCapitaConfig.pereciveisSuppliers?.find(p => p.name === l.supplierName);
+          const estocavelSupplier = perCapitaConfig.estocaveisSuppliers?.find(p => p.name === l.supplierName);
+          
+          if (mainSupplier) {
+              const sRef = child(suppliersRef, mainSupplier.cpf);
               await runTransaction(sRef, (currentData: Supplier) => {
                   if (currentData && currentData.deliveries) {
                       const delivery = currentData.deliveries.find(d => 
                           d.item === l.itemName && 
-                          d.invoiceNumber === l.inboundInvoice
+                          String(d.invoiceNumber) === String(l.inboundInvoice)
                       );
                       if (delivery && delivery.lots) {
                           const lot = delivery.lots.find(lotItem => lotItem.lotNumber === l.lotNumber);
@@ -1796,19 +1877,76 @@ const App: React.FC = () => {
                   }
                   return currentData;
               });
+          } else if (ppaisProducer || pereciveisSupplier || estocavelSupplier) {
+              const targetCpf = (ppaisProducer || pereciveisSupplier || estocavelSupplier)!.cpfCnpj;
+              await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+                  if (currentData) {
+                      const updateInList = (list: any[] | undefined) => {
+                          if (!list) return false;
+                          const s = list.find(p => p.cpfCnpj === targetCpf);
+                          if (s && s.deliveries) {
+                              const delivery = s.deliveries.find((d: any) => 
+                                  d.item === l.itemName && 
+                                  String(d.invoiceNumber) === String(l.inboundInvoice)
+                              );
+                              if (delivery && delivery.lots) {
+                                  const lot = delivery.lots.find((lotItem: any) => lotItem.lotNumber === l.lotNumber);
+                                  if (lot) {
+                                      lot.remainingQuantity = (lot.remainingQuantity || 0) + l.quantity;
+                                      return true;
+                                  }
+                              }
+                          }
+                          return false;
+                      };
+                      if (updateInList(currentData.ppaisProducers) || 
+                          updateInList(currentData.pereciveisSuppliers) || 
+                          updateInList(currentData.estocaveisSuppliers)) {
+                          return currentData;
+                      }
+                  }
+                  return;
+              });
           }
       } else if (l.type === 'entrada') {
           // Se for entrada, remove a entrega correspondente do fornecedor
-          const supplier = suppliers.find(s => s.name === l.supplierName);
-          if (supplier) {
-              const sRef = child(suppliersRef, supplier.cpf);
+          const mainSupplier = suppliers.find(s => s.name === l.supplierName);
+          const ppaisProducer = perCapitaConfig.ppaisProducers?.find(p => p.name === l.supplierName);
+          const pereciveisSupplier = perCapitaConfig.pereciveisSuppliers?.find(p => p.name === l.supplierName);
+          const estocavelSupplier = perCapitaConfig.estocaveisSuppliers?.find(p => p.name === l.supplierName);
+
+          if (mainSupplier) {
+              const sRef = child(suppliersRef, mainSupplier.cpf);
               await runTransaction(sRef, (currentData: Supplier) => {
                   if (currentData && currentData.deliveries) {
                       currentData.deliveries = currentData.deliveries.filter(d => 
-                          !(d.item === l.itemName && d.invoiceNumber === l.inboundInvoice && d.barcode === l.barcode)
+                          !(d.item === l.itemName && String(d.invoiceNumber) === String(l.inboundInvoice) && d.barcode === l.barcode)
                       );
                   }
                   return currentData;
+              });
+          } else if (ppaisProducer || pereciveisSupplier || estocavelSupplier) {
+              const targetCpf = (ppaisProducer || pereciveisSupplier || estocavelSupplier)!.cpfCnpj;
+              await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+                  if (currentData) {
+                      const updateInList = (list: any[] | undefined) => {
+                          if (!list) return false;
+                          const s = list.find(p => p.cpfCnpj === targetCpf);
+                          if (s && s.deliveries) {
+                              s.deliveries = s.deliveries.filter((d: any) => 
+                                  !(d.item === l.itemName && String(d.invoiceNumber) === String(l.inboundInvoice) && d.barcode === l.barcode)
+                              );
+                              return true;
+                          }
+                          return false;
+                      };
+                      if (updateInList(currentData.ppaisProducers) || 
+                          updateInList(currentData.pereciveisSuppliers) || 
+                          updateInList(currentData.estocaveisSuppliers)) {
+                          return currentData;
+                      }
+                  }
+                  return;
               });
           }
       }
