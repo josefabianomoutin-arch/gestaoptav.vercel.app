@@ -518,12 +518,8 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
 
     return (
         <div className={`min-h-screen text-slate-900 font-sans pb-10 ${isAbrilVerde ? 'bg-emerald-50' : 'bg-slate-100'} selection:bg-indigo-500/30 overflow-x-hidden`}>
-            {/* Infobar */}
-            <InfobarTicker 
-                items={publicInfoList.filter(info => !info.isConfidential)} 
-                variant="light"
-                label="Comunicados:"
-            />
+            {/* Ticker global do App.tsx é suficiente */}
+
 
             {/* Header Compacto para Mobile */}
             <header className={`p-4 shadow-xl flex justify-between items-center sticky top-0 z-50 border-b ${isAbrilVerde ? 'bg-emerald-950 border-emerald-800' : 'bg-indigo-950 border-indigo-800'} text-white`}>

@@ -329,13 +329,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                 />
                 <Search className="h-3 w-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300" />
             </div>
-            <button 
-                onClick={() => setIsManualModalOpen(true)}
-                className="h-8 px-3 bg-indigo-600 text-white rounded-lg font-black text-[9px] uppercase tracking-wider shadow-sm hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-1.5"
-            >
-                <Plus className="h-3 w-3" /> 
-                {mode === 'warehouse_exit' ? 'Manual (Saída)' : 'Manual (Entrada)'}
-            </button>
+            {/* Manual entry button removed per request */}
+
           </div>
         </div>
 
