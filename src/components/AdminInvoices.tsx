@@ -300,18 +300,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
   const updateNewItemValue = (name: string, kg: number) => {
-    if (!acquisitionItems) {
-        setNewItem(prev => ({ ...prev, name, kg }));
-        return;
-    }
-    const acqItem = acquisitionItems.find(ai => ai.name === name || ai.nickname === name);
-    if (acqItem) {
-        const price = acqItem.unitValue23 || acqItem.unitValue || 0;
-        const total = price * kg;
-        setNewItem(prev => ({ ...prev, name, kg, value: Number(total.toFixed(2)) }));
-    } else {
-        setNewItem(prev => ({ ...prev, name, kg }));
-    }
+    setNewItem(prev => ({ ...prev, name, kg }));
   };
 
   return (

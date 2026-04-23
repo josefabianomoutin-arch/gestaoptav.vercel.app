@@ -51,19 +51,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     }, [manualValue]);
 
     const updateManualValue = (itemName: string, period: '1_QUAD' | '2_3_QUAD', quantity?: string) => {
-        if (manualType === 'entrada' && itemName) {
-            const acqItem = acquisitionItems.find(ai => 
-                ai.name === itemName || ai.nickname === itemName
-            );
-            if (acqItem) {
-                const unitPrice = period === '1_QUAD' ? acqItem.unitValue : (acqItem.unitValue23 || acqItem.unitValue);
-                const currentQty = parseFloat((quantity !== undefined ? quantity : manualQuantity).replace(',', '.')) || 0;
-                
-                // Sugere o valor TOTAL (Preço Unitário x Quantidade)
-                const suggestedTotal = unitPrice ? unitPrice * currentQty : 0;
-                setManualValue(String(suggestedTotal.toFixed(2)).replace('.', ','));
-            }
-        }
+        // Removed automatic total calculation as requested
     };
 
     // Lista de itens a serem processados
