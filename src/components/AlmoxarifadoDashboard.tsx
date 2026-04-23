@@ -3,13 +3,14 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
 import { Printer, Plus, Trash2, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
-import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo } from '../types';
+import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus } from '../types';
 import InfobarTicker from './InfobarTicker';
 import AdminInvoices from './AdminInvoices';
 import AgendaChegadas from './AgendaChegadas';
 import WarehouseMovementForm from './WarehouseMovementForm';
 import AdminWarehouseLog from './AdminWarehouseLog';
 import SynchronizationModule from './SynchronizationModule';
+import AdminStandardMenu from './AdminStandardMenu';
 
 interface AlmoxarifadoDashboardProps {
     suppliers: Supplier[];
@@ -33,6 +34,10 @@ interface AlmoxarifadoDashboardProps {
     onRegisterThirdPartyEntry: (log: Omit<ThirdPartyEntryLog, 'id'>) => Promise<{ success: boolean; message: string }>;
     onUpdateThirdPartyEntry: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message: string }>;
     onDeleteThirdPartyEntry: (id: string) => Promise<void>;
+    standardMenu: StandardMenu;
+    dailyMenus: DailyMenus;
+    onUpdateStandardMenu: (menu: StandardMenu) => Promise<void | { success: boolean; message: string }>;
+    onUpdateDailyMenu: (menus: DailyMenus) => Promise<void | { success: boolean; message: string }>;
     [key: string]: any;
 }
 
@@ -91,7 +96,11 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     thirdPartyEntries,
     perCapitaConfig,
     acquisitionItems = [],
-    publicInfoList = []
+    publicInfoList = [],
+    standardMenu,
+    dailyMenus,
+    onUpdateStandardMenu,
+    onUpdateDailyMenu
 }) => {
     const [activeTab, setActiveTab] = useState<string>('history');
     const [selectedAgendaDate] = useState(new Date().toISOString().split('T')[0]);
@@ -1039,12 +1048,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         </div>
                     )}
                     <div className="flex bg-slate-100 p-1 rounded-2xl">
-                        {['history', 'agenda', 'cronograma', 'receipt', 'manual_receipt', 'sync'].map(tab => (
+                        {['history', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'sync'].map(tab => (
                             <button 
                                 key={tab}
                                 onClick={() => setActiveTab(tab)} 
                                 className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                                {tab === 'history' ? 'Histórico Geral' : tab === 'agenda' ? 'Agenda' : tab === 'cronograma' ? 'Cronograma' : tab === 'receipt' ? 'Termo' : tab === 'manual_receipt' ? 'Termo Manual' : 'Sincronização'}
+                                {tab === 'history' ? 'Histórico Geral' : tab === 'agenda' ? 'Agenda' : tab === 'cronograma' ? 'Cronograma' : tab === 'menu' ? 'Cardápio' : tab === 'receipt' ? 'Termo' : tab === 'manual_receipt' ? 'Termo Manual' : 'Sincronização'}
                             </button>
                         ))}
                     </div>
@@ -1523,6 +1532,14 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             )}
                         </div>
                     </div>
+                ) : activeTab === 'menu' ? (
+                    <AdminStandardMenu 
+                        suppliers={combinedSuppliers} 
+                        template={standardMenu} 
+                        dailyMenus={dailyMenus} 
+                        onUpdateDailyMenus={onUpdateDailyMenu} 
+                        inmateCount={perCapitaConfig?.inmateCount || 0} 
+                    />
                 ) : activeTab === 'receipt' ? (
                     <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in mb-8">
                         <div className="p-4 md:p-6 border-b border-gray-100 bg-zinc-900 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 italic shrink-0">

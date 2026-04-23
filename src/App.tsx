@@ -2246,6 +2246,10 @@ const App: React.FC = () => {
                }}
                onDeleteDriverAsset={async (id) => remove(child(driverAssetsRef, id))}
                validationRoles={validationRoles}
+               standardMenu={standardMenu}
+               dailyMenus={dailyMenus}
+               onUpdateStandardMenu={async (m: any) => set(standardMenuRef, m)}
+               onUpdateDailyMenu={async (m: any) => set(dailyMenusRef, m)}
              />;
     }
 
