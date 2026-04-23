@@ -109,6 +109,26 @@ const App: React.FC = () => {
   console.log("App mounted, user:", user);
 
   useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => e.preventDefault();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Bloquear F12, Ctrl+Shift+I (Inspeção), Ctrl+Shift+J (Console), Ctrl+Shift+C (Elementos), Ctrl+U (Código-fonte)
+      if (
+        e.key === 'F12' || 
+        (e.ctrlKey && e.shiftKey && (e.key.toUpperCase() === 'I' || e.key.toUpperCase() === 'J' || e.key.toUpperCase() === 'C')) || 
+        (e.ctrlKey && e.key.toUpperCase() === 'U')
+      ) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!database) return;
 
     const connectedRef = ref(database, '.info/connected');

@@ -46,10 +46,9 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     const [selectedPeriod, setSelectedPeriod] = useState<'1_QUAD' | '2_3_QUAD'>('1_QUAD');
     
     const currentTotalValue = useMemo(() => {
-        const q = parseFloat(manualQuantity.replace(',', '.')) || 0;
-        const v = parseFloat(manualValue.replace(',', '.')) || 0;
-        return q * v;
-    }, [manualQuantity, manualValue]);
+        // Agora o manualValue representa o valor TOTAL do item na nota, não o unitário.
+        return parseFloat(manualValue.replace(',', '.')) || 0;
+    }, [manualValue]);
 
     const updateManualValue = (itemName: string, period: '1_QUAD' | '2_3_QUAD') => {
         if (manualType === 'entrada' && itemName) {
@@ -370,7 +369,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             }
         }
 
-        const unitPrice = parseFloat(manualValue.replace(',', '.')) || 0;
+        const totalValue = parseFloat(manualValue.replace(',', '.')) || 0;
         setItems(prev => [...prev, {
             id: `item-${Date.now()}`,
             itemName: selectedItemName,
@@ -381,7 +380,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             inboundInvoice: manualInboundNf?.number,
             availableBefore: manualInboundNf?.availableQuantity || 0,
             pdNumber: manualPd,
-            value: unitPrice * qtyVal,
+            value: totalValue,
             weight: parseFloat(manualWeight.replace(',', '.')) || qtyVal
         }]);
 
@@ -964,7 +963,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                     </div>
                                 </div>
                                 <div className="md:col-span-5 space-y-0.5">
-                                    <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1">Valor Unit. (R$)</label>
+                                    <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1">Valor Total na NF (R$)</label>
                                     <input 
                                         type="text" 
                                         value={manualValue} 
@@ -1003,11 +1002,11 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                             <span className="text-[9px] font-black text-gray-900 leading-none">{item.itemName}</span>
                                             <div className="flex items-center gap-2 mt-0.5">
                                                 <span className="text-[7px] text-gray-400 font-bold uppercase tracking-tighter">
-                                                    {item.quantity} kg • R$ {String(item.value || 0).replace('.', ',')}
+                                                    {item.quantity} kg • Unit: R$ {((item.value || 0) / (item.quantity || 1)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                                                 </span>
                                                 <div className="w-1 h-1 rounded-full bg-gray-200"></div>
                                                 <span className="text-[7px] text-indigo-500 font-black uppercase">
-                                                    Tot: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((item.quantity || 0) * (item.value || 0))}
+                                                    Tot: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.value || 0)}
                                                 </span>
                                             </div>
                                         </div>
@@ -1035,7 +1034,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                     <span className="text-[8px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-1">Total da Nota Fiscal</span>
                                     <div className="text-xl font-black text-white font-mono tracking-tighter">
                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                                            items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.value || 0)), 0)
+                                            items.reduce((acc, item) => acc + (item.value || 0), 0)
                                         )}
                                     </div>
                                 </div>

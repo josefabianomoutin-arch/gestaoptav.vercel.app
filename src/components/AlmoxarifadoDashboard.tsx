@@ -625,14 +625,14 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             if (groupedItemsMap.has(itemName)) {
                 const existing = groupedItemsMap.get(itemName);
                 existing.quantity += quantity;
-                existing.totalValue = existing.quantity * unitPrice;
+                existing.totalValue += unitPrice;
             } else {
                 groupedItemsMap.set(itemName, {
                     name: itemName,
                     quantity,
                     unit,
                     unitPrice,
-                    totalValue: quantity * unitPrice,
+                    totalValue: unitPrice,
                     category: contractItem?.category,
                     barcode: itemMovement?.barcode || d.barcode || ''
                 });

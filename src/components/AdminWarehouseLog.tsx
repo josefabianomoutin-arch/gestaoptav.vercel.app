@@ -867,7 +867,7 @@ const EditWarehouseMovementModal: React.FC<EditWarehouseMovementModalProps> = ({
                             <input type="text" value={pdNumber} onChange={e => setPdNumber(e.target.value.toUpperCase())} className="w-full p-2 border-2 border-rose-100 rounded-xl outline-none focus:ring-2 focus:ring-rose-400" />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-emerald-600 uppercase ml-1">Valor Unitário / Total</label>
+                            <label className="text-[10px] font-black text-emerald-600 uppercase ml-1">Valor Total Item na NF (R$)</label>
                             <input type="text" value={value} onChange={e => setValue(e.target.value.replace(/[^0-9,]/g, ''))} className="w-full p-2 border-2 border-emerald-100 rounded-xl outline-none focus:ring-2 focus:ring-emerald-400 font-mono" />
                         </div>
                         <div className="space-y-1">
@@ -1060,7 +1060,7 @@ const ManualWarehouseMovementModal: React.FC<ManualWarehouseMovementModalProps> 
                             <input type="text" value={pdNumber} onChange={e => setPdNumber(e.target.value.toUpperCase())} placeholder="PD 000" className="w-full p-2 border-2 border-rose-100 rounded-xl outline-none focus:ring-2 focus:ring-rose-400" />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-emerald-600 uppercase ml-1">Valor Unitário / Total</label>
+                            <label className="text-[10px] font-black text-emerald-600 uppercase ml-1">Valor Total Item na NF (R$)</label>
                             <input type="text" value={value} onChange={e => setValue(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="R$ 0,00" className="w-full p-2 border-2 border-emerald-100 rounded-xl outline-none focus:ring-2 focus:ring-emerald-400" />
                         </div>
                         <div className="space-y-1">
