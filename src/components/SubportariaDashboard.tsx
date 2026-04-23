@@ -48,7 +48,8 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
 }) => {
     const isAbrilVerde = new Date().getMonth() === 3;
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-    const [activeTab, setActiveTab] = useState<'agenda' | 'vehicles' | 'seguranca'>('agenda');
+    const [activeTab, setActiveTab] = useState<'agenda' | 'vehicles' | 'seguranca' | 'rondas'>('agenda');
+    const [activeSubTab, setActiveSubTab] = useState<'registro' | 'cadastro'>('registro');
 
     // Facial Recognition State
     const [isVerifying, setIsVerifying] = useState(false);
@@ -536,7 +537,8 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                     {[
                         { id: 'agenda', label: 'Agenda' },
                         { id: 'vehicles', label: 'Veículos' },
-                        { id: 'seguranca', label: 'Manutenção' }
+                        { id: 'seguranca', label: 'Manutenção' },
+                        { id: 'rondas', label: 'Rondas' }
                     ].map(tab => (
                         <button 
                             key={tab.id}
@@ -713,6 +715,65 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                             hideAssets={true}
                             securityMode={true}
                         />
+                    </div>
+                ) : activeTab === 'rondas' ? (
+                    <div className="animate-fade-in space-y-6">
+                        {/* Sub-abas de sub-seção */}
+                        <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-slate-200 w-max">
+                            <button onClick={() => setActiveSubTab('registro')} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${activeSubTab === 'registro' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-indigo-600'}`}>Registro de Rondas</button>
+                            <button onClick={() => setActiveSubTab('cadastro')} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${activeSubTab === 'cadastro' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-indigo-600'}`}>Cadastro de Senhas</button>
+                        </div>
+
+                        {activeSubTab === 'registro' ? (
+                            <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100">
+                                <div className="text-center font-bold text-xs uppercase border-b-2 border-indigo-900 pb-4 mb-4">
+                                    <p>SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA</p>
+                                    <p>COORDENADORIA DE EXECUÇÃO PENAL DA REGIÃO NORTE</p>
+                                    <p>DIVISÃO REGIONAL DE AÇÕES DE SEGURANÇA EXTERNA</p>
+                                    <p>PENITENCIÁRIA DE TAIÚVA - RSA</p>
+                                </div>
+                                
+                                <h2 className="text-center font-black text-indigo-950 uppercase mb-2">SEGURANÇA EXTERNA - CANIL</h2>
+                                <h3 className="text-center font-bold text-indigo-900 uppercase mb-6 underline">RONDA EXTERNA - PPLS EM TRABALHO EXTERNO - PREFEITURA DE TAIUVA OU EMPRESA TAL</h3>
+
+                                <div className="border border-slate-300 rounded-lg overflow-hidden">
+                                    <div className="grid grid-cols-3 bg-slate-100 p-2 border-b border-slate-300 font-black text-xs text-center uppercase">
+                                        <div>Data: ____________</div>
+                                        <div>Turno: ___________</div>
+                                        <div>RONDA EXTERNA / FCT Nº: _______/2026</div>
+                                    </div>
+                                    <div className="grid grid-cols-6 border-b border-slate-300 bg-slate-50 p-2 text-xs font-black uppercase text-center">
+                                        <div>Policial Penal</div>
+                                        <div>H. Início</div>
+                                        <div>KM Inicial</div>
+                                        <div>H. Final</div>
+                                        <div>KM Final</div>
+                                        <div>Ocorrências</div>
+                                    </div>
+                                    {[...Array(6)].map((_, i) => (
+                                         <div key={i} className="grid grid-cols-6 border-b border-slate-200 last:border-0 h-10">
+                                             <input type="text" className="border-r border-slate-200 w-full p-1" />
+                                             <input type="text" className="border-r border-slate-200 w-full p-1 text-center" placeholder=":" />
+                                             <input type="text" className="border-r border-slate-200 w-full p-1" />
+                                             <input type="text" className="border-r border-slate-200 w-full p-1 text-center" placeholder=":" />
+                                             <input type="text" className="border-r border-slate-200 w-full p-1" />
+                                             <input type="text" className="w-full p-1" />
+                                         </div>
+                                    ))}
+                                </div>
+                                <button className="mt-6 w-full bg-indigo-600 text-white font-black py-3 rounded-xl uppercase hover:bg-indigo-700">Imprimir Ronda</button>
+                            </div>
+                        ) : (
+                            <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100">
+                                <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic mb-6">Cadastro de senhas e Policiais</h2>
+                                <div className="space-y-4">
+                                    <input type="text" placeholder="Cargo" className="w-full p-4 bg-slate-50 rounded-xl" />
+                                    <input type="text" placeholder="Login" className="w-full p-4 bg-slate-50 rounded-xl" />
+                                    <input type="password" placeholder="Senha" className="w-full p-4 bg-slate-50 rounded-xl" />
+                                    <button className="w-full bg-indigo-600 text-white font-black py-4 rounded-xl uppercase">Salvar</button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="animate-fade-in space-y-6">
