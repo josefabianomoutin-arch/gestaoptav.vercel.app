@@ -700,41 +700,65 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                         </div>
                       </div>
 
-                      {editingInvoice.items.map((item: any, idx: number) => (
-                          <div key={idx} className="bg-slate-50 p-4 rounded-xl space-y-3 border border-gray-100 shadow-sm">
-                              <div className="font-black text-[10px] text-indigo-900 uppercase tracking-tight">Produto: {item.item}</div>
-                              <div className="grid grid-cols-2 gap-3">
+                      {editingInvoice.items.map((item: any, idx: number) => {
+                          const unitPrice = item.value && item.kg ? item.value / item.kg : item.value || 0;
+                          const totalPrice = item.value || 0;
+                          
+                          return (
+                          <div key={idx} className="bg-slate-50 p-4 rounded-xl space-y-3 border border-gray-100 shadow-sm relative group">
+                              <div className="font-black text-[10px] text-indigo-900 uppercase tracking-tight flex justify-between">
+                                  <span>Produto: {item.item}</span>
+                                  <span className="text-gray-400 font-bold">{idx + 1} de {editingInvoice.items.length}</span>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                   <div className="space-y-0.5">
                                       <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Peso/Qtd (Kg)</label>
                                       <input 
                                           type="number" 
                                           value={item.kg} 
                                           onChange={e => {
+                                              const newKg = Number(e.target.value);
                                               const newItems = [...editingInvoice.items];
-                                              newItems[idx] = { ...item, kg: Number(e.target.value) };
+                                              newItems[idx] = { ...item, kg: newKg };
                                               setEditingInvoice({ ...editingInvoice, items: newItems });
                                           }}
                                           className="w-full h-9 px-3 rounded-lg border-2 border-gray-100 outline-none focus:border-indigo-400 font-bold text-[10px]" 
                                       />
                                   </div>
                                   <div className="space-y-0.5">
-                                      <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Valor do Item (R$)</label>
+                                      <label className="text-[8px] font-black text-emerald-600 uppercase tracking-widest ml-0.5">Preço Unit. (R$)</label>
                                       <input 
                                           type="number" 
-                                          value={item.value || 0} 
+                                          value={unitPrice.toFixed(2)} 
                                           step="0.01"
                                           onChange={e => {
-                                              const newPrice = Number(e.target.value);
+                                              const newUnitPrice = Number(e.target.value);
                                               const newItems = [...editingInvoice.items];
-                                              newItems[idx] = { ...item, value: newPrice };
+                                              newItems[idx] = { ...item, value: newUnitPrice * item.kg };
                                               setEditingInvoice({ ...editingInvoice, items: newItems });
                                           }}
-                                          className="w-full h-9 px-3 rounded-lg border-2 border-gray-100 outline-none focus:border-indigo-400 font-bold text-[10px]" 
+                                          className="w-full h-9 px-3 rounded-lg border-2 border-emerald-50 outline-none focus:border-emerald-400 font-bold text-[10px] bg-emerald-50/30" 
+                                      />
+                                  </div>
+                                  <div className="space-y-0.5">
+                                      <label className="text-[8px] font-black text-indigo-600 uppercase tracking-widest ml-0.5">Total Item (R$)</label>
+                                      <input 
+                                          type="number" 
+                                          value={totalPrice.toFixed(2)} 
+                                          step="0.01"
+                                          onChange={e => {
+                                              const newTotal = Number(e.target.value);
+                                              const newItems = [...editingInvoice.items];
+                                              newItems[idx] = { ...item, value: newTotal };
+                                              setEditingInvoice({ ...editingInvoice, items: newItems });
+                                          }}
+                                          className="w-full h-9 px-3 rounded-lg border-2 border-indigo-100 outline-none focus:border-indigo-400 font-bold text-[10px] bg-indigo-50/20" 
                                       />
                                   </div>
                               </div>
                           </div>
-                      ))}
+                          );
+                      })}
                   </div>
                   <div className="p-6 bg-zinc-50 border-t border-gray-100 flex gap-2.5">
                       <button onClick={() => setEditingInvoice(null)} className="flex-1 bg-white border border-gray-200 h-12 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-gray-50 transition-all">Sair</button>

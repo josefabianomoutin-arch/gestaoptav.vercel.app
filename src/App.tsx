@@ -1643,16 +1643,21 @@ const App: React.FC = () => {
         if (finalInvoiceUrl.startsWith('data:application/pdf')) {
             console.log("Detectado PDF base64, iniciando upload para Storage...");
             try {
-                const invoiceId = `inv_entry_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.pdf`;
+                const invoiceId = `inv_entry_NF${payload.invoiceNumber || 'S-N'}_${Date.now()}_${Math.random().toString(36).substring(2, 5)}.pdf`;
                 const fileRef = storageRef(storage, `invoices/${invoiceId}`);
                 
-                // Converte base64 para Blob de forma mais eficiente
-                const res = await fetch(finalInvoiceUrl);
-                const blob = await res.blob();
+                const parts = finalInvoiceUrl.split(',');
+                const byteString = atob(parts[1]);
+                const mimeString = parts[0].split(':')[1].split(';')[0];
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) {
+                  ia[i] = byteString.charCodeAt(i);
+                }
+                const blob = new Blob([ab], { type: mimeString });
                 
                 console.log("Blob criado, tamanho:", blob.size, "Enviando para storage...");
                 
-                // Adiciona um timeout de 60 segundos para o upload
                 const uploadPromise = uploadBytes(fileRef, blob);
                 const timeoutPromise = new Promise((_, reject) => 
                     setTimeout(() => reject(new Error("Timeout no upload do PDF para o Storage")), 60000)
@@ -1663,7 +1668,6 @@ const App: React.FC = () => {
                 console.log("Upload concluído com sucesso:", finalInvoiceUrl);
             } catch (storageError) {
                 console.error("Storage upload failed for entry attachment:", storageError);
-                // Keep as base64 if it's small, otherwise clear to avoid RTDB limits
                 if (finalInvoiceUrl.length > 500000) {
                     console.warn("PDF muito grande para o RTDB (>500KB), removendo anexo para permitir salvamento.");
                     finalInvoiceUrl = '';
@@ -1671,6 +1675,9 @@ const App: React.FC = () => {
                     console.log("Mantendo anexo em base64 no RTDB (menor que 500KB)");
                 }
             }
+        } else if (finalInvoiceUrl && !finalInvoiceUrl.startsWith('http') && !finalInvoiceUrl.startsWith('rtdb://')) {
+            // Se não é base64 e não é URL, algo está errado, mas vamos manter o que veio
+            console.warn("Formato de URL de NF desconhecido:", finalInvoiceUrl.substring(0, 50));
         }
 
         // Find supplier in both main list and perCapitaConfig
@@ -1768,7 +1775,7 @@ const App: React.FC = () => {
             }
         }
 
-        return { success: true, message: 'Entrada registrada' };
+        return { success: true, message: 'Entrada registrada', invoiceUrl: finalInvoiceUrl };
     } catch (e) {
         console.error('Erro ao registrar entrada:', e);
         return { success: false, message: 'Falha na conexão: ' + (e instanceof Error ? e.message : String(e)) };

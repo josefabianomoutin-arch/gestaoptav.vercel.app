@@ -370,6 +370,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             }
         }
 
+        const unitPrice = parseFloat(manualValue.replace(',', '.')) || 0;
         setItems(prev => [...prev, {
             id: `item-${Date.now()}`,
             itemName: selectedItemName,
@@ -380,7 +381,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             inboundInvoice: manualInboundNf?.number,
             availableBefore: manualInboundNf?.availableQuantity || 0,
             pdNumber: manualPd,
-            value: parseFloat(manualValue.replace(',', '.')) || 0,
+            value: unitPrice * qtyVal,
             weight: parseFloat(manualWeight.replace(',', '.')) || qtyVal
         }]);
 
@@ -540,6 +541,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         try {
             let successCount = 0;
             let failCount = 0;
+            let currentInvoiceUrl = manualInvoiceUrl;
 
             console.log("Iniciando registro de itens:", items.length);
 
@@ -547,7 +549,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                 const item = items[i];
                 toast.loading(`Registrando item ${i + 1} de ${items.length}...`, { id: loadingToast });
                 
-                const res = manualType === 'entrada' 
+                const res = (manualType === 'entrada' 
                     ? await onRegisterEntry({
                         supplierCpf: selectedSupplierCpf,
                         itemName: item.itemName,
@@ -560,7 +562,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                         pdNumber: item.pdNumber,
                         value: item.value,
                         weight: item.weight,
-                        invoiceUrl: manualInvoiceUrl
+                        invoiceUrl: currentInvoiceUrl
                     })
                     : await onRegisterWithdrawal({
                         supplierCpf: selectedSupplierCpf,
@@ -575,10 +577,15 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                         pdNumber: item.pdNumber,
                         value: item.value,
                         weight: item.weight
-                    });
+                    })) as any;
                 
-                if (res.success) successCount++;
-                else {
+                if (res.success) {
+                    successCount++;
+                    // Se o App.tsx retornou uma URL permanente (ex: Firebase Storage), reutilizamos para os próximos itens
+                    if (res.invoiceUrl && res.invoiceUrl.startsWith('http')) {
+                        currentInvoiceUrl = res.invoiceUrl;
+                    }
+                } else {
                     console.error("Erro ao registrar item:", item.itemName, res.message);
                     failCount++;
                 }
