@@ -762,6 +762,79 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                     ))}
                                 </div>
                                 <button className="mt-6 w-full bg-indigo-600 text-white font-black py-3 rounded-xl uppercase hover:bg-indigo-700">Imprimir Ronda</button>
+
+                                {/* Checklist Section */}
+                                <div className="mt-8 space-y-4 border-t pt-6 border-slate-300">
+                                    <h4 className="font-black text-indigo-900 border-b border-slate-200 pb-2">CHECKLIST DE SEGURANÇA</h4>
+                                    
+                                    <div className="grid grid-cols-2 gap-4 text-xs">
+                                        <div className="flex items-center justify-between">
+                                            <span>Verificar Locais de Trabalho, Uniforme</span>
+                                            <div className="flex gap-2">
+                                                <button className="px-2 py-1 bg-slate-100 rounded text-[9px] font-bold">OK</button>
+                                                <button className="px-2 py-1 bg-slate-100 rounded text-[9px] font-bold">NÃO OK</button>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <span>Conduta:</span>
+                                            <input type="text" className="w-full border p-1 rounded" placeholder="Descrever..." />
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <span>Conferir Quantidade de Pessoas Privadas de Liberdade:</span>
+                                            <input type="number" className="w-full border p-1 rounded" placeholder="Qtd..." />
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <span>Verificar pendencia da ronda anterior:</span>
+                                            <input type="text" className="w-full border p-1 rounded" placeholder="Descrever..." />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span>Pessoas Privadas de Liberdade Presentes:</span>
+                                            <div className="flex gap-2 text-[9px]">
+                                                <label className="flex items-center gap-1"><input type="radio" name="ppl_presentes" /> SIM</label>
+                                                <label className="flex items-center gap-1"><input type="radio" name="ppl_presentes" /> NÃO</label>
+                                                <label className="flex items-center gap-1"><input type="radio" name="ppl_presentes" /> AUSENTE</label>
+                                            </div>
+                                        </div>
+                                        <input type="text" className="w-full border p-1 rounded" placeholder="Descrever ausência..." />
+                                        
+                                        <div className="flex items-center justify-between">
+                                            <span>Conduta adequada das PPL:</span>
+                                            <div className="flex gap-2 text-[9px]">
+                                                <label className="flex items-center gap-1"><input type="radio" name="conduta" /> SIM</label>
+                                                <label className="flex items-center gap-1"><input type="radio" name="conduta" /> NÃO</label>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex items-center justify-between">
+                                            <span>Notou embriaguez:</span>
+                                            <div className="flex gap-2 text-[9px]">
+                                                <label className="flex items-center gap-1"><input type="radio" name="embriaguez" /> SIM</label>
+                                                <label className="flex items-center gap-1"><input type="radio" name="embriaguez" /> NÃO</label>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span>Alterada/Agressiva:</span>
+                                            <div className="flex gap-2 text-[9px]">
+                                                <label className="flex items-center gap-1"><input type="radio" name="agressiva" /> SIM</label>
+                                                <label className="flex items-center gap-1"><input type="radio" name="agressiva" /> NÃO</label>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-1 col-span-2">
+                                            <span>Ocorreu a desobediência na abordagem:</span>
+                                            <input type="text" className="w-full border p-1 rounded" placeholder="Descrever..." />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Signature Section */}
+                                <div className="mt-12 flex justify-around text-center pt-8 border-t border-slate-400">
+                                    <div className="flex flex-col items-center">
+                                        <div className="w-40 border-b border-indigo-950 mb-1"></div>
+                                        <p className="font-black text-[10px] uppercase">Thiago Henrique Moreno</p>
+                                        <p className="font-bold text-[9px]">DCEVP</p>
+                                        <p className="font-bold text-[9px]">RG: 40.770.435-8</p>
+                                    </div>
+                                </div>
                             </div>
                         ) : (
                             <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100">
