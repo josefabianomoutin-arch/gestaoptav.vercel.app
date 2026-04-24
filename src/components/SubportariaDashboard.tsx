@@ -88,10 +88,27 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                         <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic">Manutenção e Segurança</h2>
                         {/* Add Maintenance Implementation here */}
                     </div>
-                ) : activeTab === 'rondas' ? (
+                )                 : activeTab === 'rondas' ? (
                     <div className="animate-fade-in space-y-6">
                         <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic">Registro de Rondas</h2>
-                        {/* Simplified Ronda Form */}
+                        
+                        <div className="flex gap-2">
+                             <button onClick={() => setActiveSubTab('registro')} className={`px-4 py-2 rounded-xl font-black uppercase text-[10px] ${activeSubTab === 'registro' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>Registro</button>
+                             <button onClick={() => setActiveSubTab('cadastro')} className={`px-4 py-2 rounded-xl font-black uppercase text-[10px] ${activeSubTab === 'cadastro' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>Cadastro</button>
+                        </div>
+
+                        {activeSubTab === 'registro' ? (
+                            <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100">
+                                 <h3 className="font-black text-lg text-indigo-950 mb-4">Formulário de Registro de Ronda</h3>
+                                 <p className="text-gray-500 text-xs">Preencha os dados da ronda aqui...</p>
+                                 {/* Add actual form implementation here */}
+                            </div>
+                        ) : (
+                            <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100">
+                                 <h3 className="font-black text-lg text-indigo-950 mb-4">Cadastro de Senhas</h3>
+                                 {/* Add actual registration form implementation here */}
+                            </div>
+                        )}
                     </div>
                 ) : null}
             </main>
