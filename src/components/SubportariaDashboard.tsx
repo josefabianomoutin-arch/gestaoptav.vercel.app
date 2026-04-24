@@ -60,7 +60,14 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                 {activeTab === 'agenda' ? (
                     <div className="bg-white p-5 rounded-[2rem] shadow-lg border border-slate-200">
                         <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic mb-4">Agenda de Chegadas e Entradas</h2>
-                        <div className="text-gray-500 text-sm">Dados da Agenda carregados: {vehicleExitOrders.length} ordens de saída.</div>
+                        <div className="space-y-2">
+                             {thirdPartyEntries.length === 0 ? <p className="text-xs text-gray-500">Nenhum registro encontrado.</p> : thirdPartyEntries.map(entry => (
+                                 <div key={entry.id} className="p-3 border-b border-slate-100 flex justify-between text-xs">
+                                     <span>{entry.driverName}</span>
+                                     <span className="font-bold">{entry.company}</span>
+                                 </div>
+                             ))}
+                        </div>
                     </div>
                 ) : activeTab === 'vehicles' ? (
                     <div className="animate-fade-in bg-white p-5 rounded-[2rem] shadow-lg border border-slate-200">
@@ -84,6 +91,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                 ) : activeTab === 'seguranca' ? (
                     <div className="animate-fade-in bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100">
                         <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic mb-6">Manutenção e Segurança</h2>
+                        <div className="text-xs text-gray-500 mb-4">{maintenanceSchedules.length} agendamentos de manutenção.</div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {maintenanceSchedules.map(m => (
                                 <div key={m.id} className="p-4 border rounded-xl bg-slate-50">
@@ -102,17 +110,10 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                              <button onClick={() => setActiveSubTab('cadastro')} className={`px-4 py-2 rounded-xl font-black uppercase text-[10px] ${activeSubTab === 'cadastro' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>Cadastro</button>
                         </div>
 
-                        {activeSubTab === 'registro' ? (
-                            <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100">
-                                 <h3 className="font-black text-lg text-indigo-950 mb-4">Formulário de Registro de Ronda</h3>
-                                 <p className="text-gray-500 text-xs">Dados das rondas aparecerão aqui.</p>
+                        <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100">
+                                 <h3 className="font-black text-lg text-indigo-950 mb-4">{activeSubTab === 'registro' ? 'Formulário de Registro de Ronda' : 'Cadastro de Senhas'}</h3>
+                                 <p className="text-gray-500 text-xs">Página de {activeSubTab} acessada.</p>
                             </div>
-                        ) : (
-                            <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100">
-                                 <h3 className="font-black text-lg text-indigo-950 mb-4">Cadastro de Senhas</h3>
-                                 <p className="text-gray-500 text-xs">Cadastro de senhas de ronda...</p>
-                            </div>
-                        )}
                     </div>
                 ) : null}
             </main>
