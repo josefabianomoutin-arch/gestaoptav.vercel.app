@@ -494,24 +494,11 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                          </div>
                                      </div>
                             </div>
-                        ) : (
-                            <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100">
-                                <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic mb-6">Cadastro de senhas e Policiais</h2>
-                                <div className="space-y-4">
-                                    <input type="text" placeholder="Cargo" className="w-full p-4 bg-slate-50 rounded-xl" />
-                                    <input type="text" placeholder="Login" className="w-full p-4 bg-slate-50 rounded-xl" />
-                                    <input type="password" placeholder="Senha" className="w-full p-4 bg-slate-50 rounded-xl" />
-                                    <button className="w-full bg-indigo-600 text-white font-black py-4 rounded-xl uppercase" onClick={() => {
-                                        const senhaInput = document.querySelector('input[type="password"]') as HTMLInputElement;
-                                        if (senhaInput) {
-                                            localStorage.setItem('subportaria_senha', senhaInput.value);
-                                        }
-                                    }}>Salvar</button>
-                                </div>
-                            </div>
-                        )}
+                        </div>
                     </div>
-                )}
+                </div>
+
+
             </main>
 
             {/* Modal de Verificação Facial */}
