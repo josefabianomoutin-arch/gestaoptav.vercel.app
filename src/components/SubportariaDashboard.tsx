@@ -726,113 +726,79 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
 
                         {activeSubTab === 'registro' ? (
                             <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100">
-                                <div className="text-center font-bold text-xs uppercase border-b-2 border-indigo-900 pb-4 mb-4">
-                                    <p>SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA</p>
-                                    <p>COORDENADORIA DE EXECUÇÃO PENAL DA REGIÃO NORTE</p>
-                                    <p>DIVISÃO REGIONAL DE AÇÕES DE SEGURANÇA EXTERNA</p>
-                                    <p>PENITENCIÁRIA DE TAIÚVA - RSA</p>
-                                </div>
-                                
-                                <h2 className="text-center font-black text-indigo-950 uppercase mb-2">SEGURANÇA EXTERNA - CANIL</h2>
-                                <h3 className="text-center font-bold text-indigo-900 uppercase mb-6 underline">RONDA EXTERNA - PPLS EM TRABALHO EXTERNO - PREFEITURA DE TAIUVA OU EMPRESA TAL</h3>
-
-                                <div className="border border-slate-300 rounded-lg overflow-hidden">
-                                    <div className="grid grid-cols-3 bg-slate-100 p-2 border-b border-slate-300 font-black text-xs text-center uppercase">
-                                        <div>Data: ____________</div>
-                                        <div>Turno: ___________</div>
-                                        <div>RONDA EXTERNA / FCT Nº: _______/2026</div>
+<div className="bg-white p-4 rounded-xl border border-slate-300 shadow-sm print:shadow-none">
+                                    <div className="text-center font-bold text-xs uppercase border-b-2 border-black pb-2 mb-2 print:hidden">
+                                        <p>SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA</p>
+                                        <p>PENITENCIÁRIA DE TAIÚVA - RSA - SEGURANÇA EXTERNA - CANIL</p>
                                     </div>
-                                    <div className="grid grid-cols-6 border-b border-slate-300 bg-slate-50 p-2 text-xs font-black uppercase text-center">
-                                        <div>Policial Penal</div>
-                                        <div>H. Início</div>
-                                        <div>KM Inicial</div>
-                                        <div>H. Final</div>
-                                        <div>KM Final</div>
-                                        <div>Ocorrências</div>
-                                    </div>
-                                    {[...Array(6)].map((_, i) => (
-                                         <div key={i} className="grid grid-cols-6 border-b border-slate-200 last:border-0 h-10">
-                                             <input type="text" className="border-r border-slate-200 w-full p-1" />
-                                             <input type="text" className="border-r border-slate-200 w-full p-1 text-center" placeholder=":" />
-                                             <input type="text" className="border-r border-slate-200 w-full p-1" />
-                                             <input type="text" className="border-r border-slate-200 w-full p-1 text-center" placeholder=":" />
-                                             <input type="text" className="border-r border-slate-200 w-full p-1" />
-                                             <input type="text" className="w-full p-1" />
-                                         </div>
+                                    
+                                    {[...Array(4)].map((_, tableIdx) => (
+                                        <div key={tableIdx} className="mb-6 border border-black rounded-lg overflow-hidden last:mb-0">
+                                            <div className="grid grid-cols-3 bg-slate-100 p-1 border-b border-black font-black text-[10px] text-center uppercase">
+                                                <div className="flex items-center gap-1">Data: <input type="date" defaultValue={new Date().toISOString().split('T')[0]} className="bg-transparent border-b border-black focus:outline-none w-28" /></div>
+                                                <div className="flex items-center gap-1">Turno: <input type="text" className="bg-transparent border-b border-black focus:outline-none w-20" /></div>
+                                                <div className="flex items-center gap-1">RONDA EXTERNA / FCT Nº: <input type="text" className="bg-transparent border-b border-black focus:outline-none w-10" />/2026</div>
+                                            </div>
+                                            <div className="grid grid-cols-6 border-b border-black bg-slate-50 p-1 text-[9px] font-black uppercase text-center">
+                                                <div>Policial Penal</div>
+                                                <div>H. Início</div>
+                                                <div>KM Inicial</div>
+                                                <div>H. Final</div>
+                                                <div>KM Final</div>
+                                                <div>Ocorrências</div>
+                                            </div>
+                                            {[...Array(6)].map((_, rowIndex) => (
+                                                <div key={rowIndex} className="grid grid-cols-6 border-b border-slate-300 last:border-0 h-6">
+                                                    <input type="text" className="border-r border-slate-300 w-full p-0.5 text-[10px]" />
+                                                    <input type="text" className="border-r border-slate-300 w-full p-0.5 text-center text-[10px]" placeholder=":" />
+                                                    <input type="text" className="border-r border-slate-300 w-full p-0.5 text-[10px]" />
+                                                    <input type="text" className="border-r border-slate-300 w-full p-0.5 text-center text-[10px]" placeholder=":" />
+                                                    <input className="border-r border-slate-300 w-full p-0.5 text-[10px]" />
+                                                    <input type="text" className="w-full p-0.5 text-[10px]" />
+                                                </div>
+                                            ))}
+                                        </div>
                                     ))}
+
+                                    <button className="mt-2 w-full bg-indigo-600 text-white font-black py-2 rounded-lg uppercase hover:bg-indigo-700 print:hidden text-xs">Imprimir Ronda</button>
                                 </div>
-                                <button className="mt-6 w-full bg-indigo-600 text-white font-black py-3 rounded-xl uppercase hover:bg-indigo-700">Imprimir Ronda</button>
 
                                 {/* Checklist Section */}
-                                <div className="mt-8 space-y-4 border-t pt-6 border-slate-300">
-                                    <h4 className="font-black text-indigo-900 border-b border-slate-200 pb-2">CHECKLIST DE SEGURANÇA</h4>
+                                <div className="mt-8 space-y-3 border-t pt-4 border-slate-300 text-black">
+                                    <h4 className="font-black text-xs border-b border-slate-200 pb-1">CHECKLIST DE SEGURANÇA</h4>
                                     
-                                    <div className="grid grid-cols-2 gap-4 text-xs">
-                                        <div className="flex items-center justify-between">
-                                            <span>Verificar Locais de Trabalho, Uniforme</span>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-[10px]">
+                                        <div className="flex items-center justify-between border-b pb-1">
+                                            <span className="font-bold">Verificar Locais de Trabalho, Uniforme</span>
                                             <div className="flex gap-2">
-                                                <button className="px-2 py-1 bg-slate-100 rounded text-[9px] font-bold">OK</button>
-                                                <button className="px-2 py-1 bg-slate-100 rounded text-[9px] font-bold">NÃO OK</button>
+                                                <label className="flex items-center gap-1 font-bold"><input type="radio" name="check1" /> OK</label>
+                                                <label className="flex items-center gap-1 font-bold"><input type="radio" name="check1" /> N OK</label>
                                             </div>
                                         </div>
-                                        <div className="flex flex-col gap-1">
-                                            <span>Conduta:</span>
-                                            <input type="text" className="w-full border p-1 rounded" placeholder="Descrever..." />
+                                        <div className="flex gap-2 items-center border-b pb-1">
+                                            <span className="font-bold">Conduta:</span>
+                                            <input type="text" className="flex-1 border-b border-black focus:outline-none" />
                                         </div>
-                                        <div className="flex flex-col gap-1">
-                                            <span>Conferir Quantidade de Pessoas Privadas de Liberdade:</span>
-                                            <input type="number" className="w-full border p-1 rounded" placeholder="Qtd..." />
+                                        <div className="flex gap-2 items-center border-b pb-1">
+                                            <span className="font-bold">Qtd PPLs:</span>
+                                            <input type="number" className="w-16 border-b border-black focus:outline-none" />
                                         </div>
-                                        <div className="flex flex-col gap-1">
-                                            <span>Verificar pendencia da ronda anterior:</span>
-                                            <input type="text" className="w-full border p-1 rounded" placeholder="Descrever..." />
+                                        <div className="flex gap-2 items-center border-b pb-1">
+                                            <span className="font-bold">Pendência Anterior:</span>
+                                            <input type="text" className="flex-1 border-b border-black focus:outline-none" />
                                         </div>
-                                        <div className="flex items-center justify-between">
-                                            <span>Pessoas Privadas de Liberdade Presentes:</span>
-                                            <div className="flex gap-2 text-[9px]">
+                                        <div className="flex items-center justify-between border-b pb-1">
+                                            <span className="font-bold">PPLs Presentes:</span>
+                                            <div className="flex gap-2 font-bold">
                                                 <label className="flex items-center gap-1"><input type="radio" name="ppl_presentes" /> SIM</label>
                                                 <label className="flex items-center gap-1"><input type="radio" name="ppl_presentes" /> NÃO</label>
                                                 <label className="flex items-center gap-1"><input type="radio" name="ppl_presentes" /> AUSENTE</label>
                                             </div>
                                         </div>
-                                        <input type="text" className="w-full border p-1 rounded" placeholder="Descrever ausência..." />
-                                        
-                                        <div className="flex items-center justify-between">
-                                            <span>Conduta adequada das PPL:</span>
-                                            <div className="flex gap-2 text-[9px]">
-                                                <label className="flex items-center gap-1"><input type="radio" name="conduta" /> SIM</label>
-                                                <label className="flex items-center gap-1"><input type="radio" name="conduta" /> NÃO</label>
-                                            </div>
+                                        <div className="flex gap-2 items-center border-b pb-1 col-span-2">
+                                            <span className="font-bold">Descrever Ausência/Outros:</span>
+                                            <input type="text" className="flex-1 border-b border-black focus:outline-none" />
                                         </div>
-                                        
-                                        <div className="flex items-center justify-between">
-                                            <span>Notou embriaguez:</span>
-                                            <div className="flex gap-2 text-[9px]">
-                                                <label className="flex items-center gap-1"><input type="radio" name="embriaguez" /> SIM</label>
-                                                <label className="flex items-center gap-1"><input type="radio" name="embriaguez" /> NÃO</label>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <span>Alterada/Agressiva:</span>
-                                            <div className="flex gap-2 text-[9px]">
-                                                <label className="flex items-center gap-1"><input type="radio" name="agressiva" /> SIM</label>
-                                                <label className="flex items-center gap-1"><input type="radio" name="agressiva" /> NÃO</label>
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col gap-1 col-span-2">
-                                            <span>Ocorreu a desobediência na abordagem:</span>
-                                            <input type="text" className="w-full border p-1 rounded" placeholder="Descrever..." />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Signature Section */}
-                                <div className="mt-12 flex justify-around text-center pt-8 border-t border-slate-400">
-                                    <div className="flex flex-col items-center">
-                                        <div className="w-40 border-b border-indigo-950 mb-1"></div>
-                                        <p className="font-black text-[10px] uppercase">Thiago Henrique Moreno</p>
-                                        <p className="font-bold text-[9px]">DCEVP</p>
-                                        <p className="font-bold text-[9px]">RG: 40.770.435-8</p>
                                     </div>
                                 </div>
                             </div>
