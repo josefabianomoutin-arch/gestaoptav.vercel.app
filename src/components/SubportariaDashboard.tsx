@@ -391,114 +391,108 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                     <div className="animate-fade-in space-y-6">
                         {/* ... */}
                     </div>
+                ) : activeSubTab === 'registro' ? (
+                    <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100">
+                         <div className="flex justify-between items-center mb-4 print:hidden">
+                             <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic">Registro de Rondas</h2>
+                             <button onClick={() => window.print()} className="bg-indigo-600 text-white font-black py-2 px-6 rounded-lg uppercase hover:bg-indigo-700 text-xs">Gerar PDF/Imprimir</button>
+                         </div>
+                         <div className="bg-white p-4 rounded-xl shadow-none print:shadow-none print:p-0">
+                             <div className="hidden print:block text-center font-bold text-xs uppercase border-b-2 border-black pb-2 mb-4">
+                                 <p>SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA</p>
+                                 <p>PENITENCIÁRIA DE TAIÚVA - RSA - SEGURANÇA EXTERNA - CANIL</p>
+                             </div>
+                             
+                             <div className="grid grid-cols-1 gap-y-6 print:grid-cols-1 print:gap-y-6">
+                             {[...Array(4)].map((_, tableIdx) => (
+                                 <div key={tableIdx} className="mb-2 border border-black rounded-lg overflow-hidden last:mb-0 break-inside-avoid">
+                                     <div className="grid grid-cols-3 bg-slate-100 p-1 border-b border-black font-black text-[9px] text-center uppercase">
+                                         <div className="flex items-center gap-1">Data: <input type="date" defaultValue={new Date().toISOString().split('T')[0]} className="bg-transparent border-b border-black focus:outline-none w-24" /></div>
+                                         <div className="flex items-center gap-1">Turno: <input type="text" className="bg-transparent border-b border-black focus:outline-none w-16" /></div>
+                                         <div className="flex items-center gap-1">RONDA: <input type="text" className="bg-transparent border-b border-black focus:outline-none w-16" /></div>
+                                     </div>
+                                     <div className="grid grid-cols-6 border-b border-black bg-slate-50 p-0.5 text-[8px] font-black uppercase text-center">
+                                         <div>POLICIAL PENAL</div>
+                                         <div>HORA INÍCIO</div>
+                                         <div>KM INICIAL</div>
+                                         <div>HORA FINAL</div>
+                                         <div>KM FINAL</div>
+                                         <div>OCORRÊNCIAS</div>
+                                     </div>
+                                     {[...Array(6)].map((_, rowIndex) => (
+                                         <div key={rowIndex} className="grid grid-cols-6 border-b border-slate-300 last:border-0 h-5">
+                                             <input type="text" className="border-r border-slate-300 w-full p-0.5 text-[9px]" />
+                                             <input type="text" className="border-r border-slate-300 w-full p-0.5 text-center text-[9px]" placeholder=":" />
+                                             <input type="text" className="border-r border-slate-300 w-full p-0.5 text-[9px]" />
+                                             <input type="text" className="border-r border-slate-300 w-full p-0.5 text-center text-[9px]" placeholder=":" />
+                                             <input type="text" className="border-r border-slate-300 w-full p-0.5 text-[9px]" />
+                                             <input type="text" className="w-full p-0.5 text-[9px]" />
+                                         </div>
+                                     ))}
+                                 </div>
+                             ))}
+                             </div>
+
+                             {/* Checklist Section */}
+                             <div className="mt-8 space-y-3 pt-4 border-t-2 border-black text-black print:mt-4 print:pt-2">
+                                 <h4 className="font-black text-xs border-b border-black pb-1 uppercase">Checklist de Segurança</h4>
+                                 
+                                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[9px]">
+                                     <div className="flex items-center justify-between border-b pb-0.5">
+                                         <span className="font-bold">Locais/Uniforme:</span>
+                                         <div className="flex gap-2 font-bold">
+                                             <label className="flex items-center gap-0.5"><input type="radio" name="check1" /> OK</label>
+                                             <label className="flex items-center gap-0.5"><input type="radio" name="check1" /> N OK</label>
+                                         </div>
+                                     </div>
+                                     <div className="flex gap-1 items-center border-b pb-0.5">
+                                         <span className="font-bold">Qtd PPLs:</span>
+                                         <input type="number" className="w-10 border-b border-black focus:outline-none" />
+                                     </div>
+                                     <div className="flex items-center justify-between border-b pb-0.5">
+                                         <span className="font-bold">PPLs Presentes:</span>
+                                         <div className="flex gap-2 font-bold">
+                                             <label className="flex items-center gap-0.5"><input type="radio" name="ppl_pr" /> SIM</label>
+                                             <label className="flex items-center gap-0.5"><input type="radio" name="ppl_pr" /> NÃO</label>
+                                             <label className="flex items-center gap-0.5"><input type="radio" name="ppl_pr" /> AUS</label>
+                                         </div>
+                                     </div>
+                                     <div className="flex items-center justify-between border-b pb-0.5">
+                                         <span className="font-bold">Desobediência Abordagem:</span>
+                                         <div className="flex gap-2 font-bold">
+                                             <label className="flex items-center gap-0.5"><input type="radio" name="desob" /> SIM</label>
+                                             <label className="flex items-center gap-0.5"><input type="radio" name="desob" /> NÃO</label>
+                                         </div>
+                                     </div>
+                                     <div className="col-span-2 flex gap-1 items-center border-b pb-0.5">
+                                         <span className="font-bold">Conduta:</span>
+                                         <div className="flex gap-2 font-bold">
+                                             <label className="flex items-center gap-0.5"><input type="radio" name="cond_ok" /> Adequada</label>
+                                             <label className="flex items-center gap-0.5"><input type="radio" name="cond_ok" /> Inadequada</label>
+                                         </div>
+                                     </div>
+                                     <div className="col-span-2 flex gap-1 items-center border-b pb-0.5">
+                                         <span className="font-bold">Descrever Conduta/Ausência/Pendências:</span>
+                                         <input type="text" className="flex-1 border-b border-black focus:outline-none" />
+                                     </div>
+                                 </div>
+                             </div>
+
+                             {/* Signature Section */}
+                             <div className="mt-12 flex justify-center print:mt-8">
+                                 <div className="w-64 text-center pt-8 border-t border-black">
+                                     <input type="text" placeholder="NOME DO RESPONSÁVEL" className="w-full font-black text-[9px] uppercase text-center border-none focus:outline-none"/>
+                                     <input type="text" placeholder="CARGO" className="w-full font-bold text-[8px] text-center border-none focus:outline-none"/>
+                                     <p className="font-black text-[9px] uppercase mt-2">ASSINATURA</p>
+                                 </div>
+                             </div>
+                    </div>
+                </div>
                 ) : (
                     <div className="animate-fade-in space-y-6">
                         {/* ... */}
                     </div>
                 )}
-            </main>
-
-                        {activeSubTab === 'registro' ? (
-                            <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-100">
-                                 <div className="flex justify-between items-center mb-4 print:hidden">
-                                     <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic">Registro de Rondas</h2>
-                                     <button onClick={() => window.print()} className="bg-indigo-600 text-white font-black py-2 px-6 rounded-lg uppercase hover:bg-indigo-700 text-xs">Gerar PDF/Imprimir</button>
-                                 </div>
-                                 <div className="bg-white p-4 rounded-xl shadow-none print:shadow-none print:p-0">
-                                     <div className="hidden print:block text-center font-bold text-xs uppercase border-b-2 border-black pb-2 mb-4">
-                                         <p>SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA</p>
-                                         <p>PENITENCIÁRIA DE TAIÚVA - RSA - SEGURANÇA EXTERNA - CANIL</p>
-                                     </div>
-                                     
-                                     <div className="grid grid-cols-1 gap-y-6 print:grid-cols-1 print:gap-y-6">
-                                     {[...Array(4)].map((_, tableIdx) => (
-                                         <div key={tableIdx} className="mb-2 border border-black rounded-lg overflow-hidden last:mb-0 break-inside-avoid">
-                                             <div className="grid grid-cols-3 bg-slate-100 p-1 border-b border-black font-black text-[9px] text-center uppercase">
-                                                 <div className="flex items-center gap-1">Data: <input type="date" defaultValue={new Date().toISOString().split('T')[0]} className="bg-transparent border-b border-black focus:outline-none w-24" /></div>
-                                                 <div className="flex items-center gap-1">Turno: <input type="text" className="bg-transparent border-b border-black focus:outline-none w-16" /></div>
-                                                 <div className="flex items-center gap-1">RONDA: <input type="text" className="bg-transparent border-b border-black focus:outline-none w-16" /></div>
-                                             </div>
-                                             <div className="grid grid-cols-6 border-b border-black bg-slate-50 p-0.5 text-[8px] font-black uppercase text-center">
-                                                 <div>POLICIAL PENAL</div>
-                                                 <div>HORA INÍCIO</div>
-                                                 <div>KM INICIAL</div>
-                                                 <div>HORA FINAL</div>
-                                                 <div>KM FINAL</div>
-                                                 <div>OCORRÊNCIAS</div>
-                                             </div>
-                                             {[...Array(6)].map((_, rowIndex) => (
-                                                 <div key={rowIndex} className="grid grid-cols-6 border-b border-slate-300 last:border-0 h-5">
-                                                     <input type="text" className="border-r border-slate-300 w-full p-0.5 text-[9px]" />
-                                                     <input type="text" className="border-r border-slate-300 w-full p-0.5 text-center text-[9px]" placeholder=":" />
-                                                     <input type="text" className="border-r border-slate-300 w-full p-0.5 text-[9px]" />
-                                                     <input type="text" className="border-r border-slate-300 w-full p-0.5 text-center text-[9px]" placeholder=":" />
-                                                     <input type="text" className="border-r border-slate-300 w-full p-0.5 text-[9px]" />
-                                                     <input type="text" className="w-full p-0.5 text-[9px]" />
-                                                 </div>
-                                             ))}
-                                         </div>
-                                     ))}
-                                     </div>
-
-                                     {/* Checklist Section */}
-                                     <div className="mt-8 space-y-3 pt-4 border-t-2 border-black text-black print:mt-4 print:pt-2">
-                                         <h4 className="font-black text-xs border-b border-black pb-1 uppercase">Checklist de Segurança</h4>
-                                         
-                                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[9px]">
-                                             <div className="flex items-center justify-between border-b pb-0.5">
-                                                 <span className="font-bold">Locais/Uniforme:</span>
-                                                 <div className="flex gap-2 font-bold">
-                                                     <label className="flex items-center gap-0.5"><input type="radio" name="check1" /> OK</label>
-                                                     <label className="flex items-center gap-0.5"><input type="radio" name="check1" /> N OK</label>
-                                                 </div>
-                                             </div>
-                                             <div className="flex gap-1 items-center border-b pb-0.5">
-                                                 <span className="font-bold">Qtd PPLs:</span>
-                                                 <input type="number" className="w-10 border-b border-black focus:outline-none" />
-                                             </div>
-                                             <div className="flex items-center justify-between border-b pb-0.5">
-                                                 <span className="font-bold">PPLs Presentes:</span>
-                                                 <div className="flex gap-2 font-bold">
-                                                     <label className="flex items-center gap-0.5"><input type="radio" name="ppl_pr" /> SIM</label>
-                                                     <label className="flex items-center gap-0.5"><input type="radio" name="ppl_pr" /> NÃO</label>
-                                                     <label className="flex items-center gap-0.5"><input type="radio" name="ppl_pr" /> AUS</label>
-                                                 </div>
-                                             </div>
-                                             <div className="flex items-center justify-between border-b pb-0.5">
-                                                 <span className="font-bold">Desobediência Abordagem:</span>
-                                                 <div className="flex gap-2 font-bold">
-                                                     <label className="flex items-center gap-0.5"><input type="radio" name="desob" /> SIM</label>
-                                                     <label className="flex items-center gap-0.5"><input type="radio" name="desob" /> NÃO</label>
-                                                 </div>
-                                             </div>
-                                             <div className="col-span-2 flex gap-1 items-center border-b pb-0.5">
-                                                 <span className="font-bold">Conduta:</span>
-                                                 <div className="flex gap-2 font-bold">
-                                                     <label className="flex items-center gap-0.5"><input type="radio" name="cond_ok" /> Adequada</label>
-                                                     <label className="flex items-center gap-0.5"><input type="radio" name="cond_ok" /> Inadequada</label>
-                                                 </div>
-                                             </div>
-                                             <div className="col-span-2 flex gap-1 items-center border-b pb-0.5">
-                                                 <span className="font-bold">Descrever Conduta/Ausência/Pendências:</span>
-                                                 <input type="text" className="flex-1 border-b border-black focus:outline-none" />
-                                             </div>
-                                         </div>
-                                     </div>
-
-                                     {/* Signature Section */}
-                                     <div className="mt-12 flex justify-center print:mt-8">
-                                         <div className="w-64 text-center pt-8 border-t border-black">
-                                             <input type="text" placeholder="NOME DO RESPONSÁVEL" className="w-full font-black text-[9px] uppercase text-center border-none focus:outline-none"/>
-                                             <input type="text" placeholder="CARGO" className="w-full font-bold text-[8px] text-center border-none focus:outline-none"/>
-                                             <p className="font-black text-[9px] uppercase mt-2">ASSINATURA</p>
-                                         </div>
-                                     </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-
             </main>
 
             {/* Modal de Verificação Facial */}
