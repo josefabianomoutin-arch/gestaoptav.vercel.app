@@ -369,15 +369,18 @@ const AdminFinancialManager: React.FC<AdminFinancialManagerProps> = ({ records, 
   };
 
   const linkedBalances = useMemo(() => {
+    // Dynamically get all unique naturezas from the records
+    const allNaturezas = Array.from(new Set(records.map(r => r.natureza).filter(Boolean))).sort();
+    
     return PTRES_OPTIONS.map(p => {
-      const naturezas = NATUREZA_OPTIONS.map(n => {
+      const naturezas = allNaturezas.map(n => {
         const rec = records.filter(r => r.ptres.trim() === p && r.natureza === n && r.tipo === 'RECURSO')
                            .reduce((acc, curr) => acc + (Number(curr.valorRecebido) || 0), 0);
         const gast = records.filter(r => r.ptres.trim() === p && r.natureza === n && r.tipo === 'DESPESA')
                             .reduce((acc, curr) => acc + Number(curr.valorUtilizado), 0);
         return { 
-            codigo: n, 
-            label: n === '339030' ? 'Peças / Materiais' : 'Outros Serviços', 
+            codigo: n!, 
+            label: n === '339030' ? 'Peças / Materiais' : n === '339039' ? 'Outros Serviços' : 'Outros', 
             recurso: rec, 
             gasto: gast, 
             saldo: rec - gast 
