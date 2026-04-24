@@ -21,12 +21,19 @@ interface SubportariaDashboardProps {
 }
 
 const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({ 
+    suppliers,
+    thirdPartyEntries,
+    maintenanceSchedules,
+    serviceOrders,
+    publicInfoList,
+    onUpdateMaintenanceSchedule,
+    onUpdateThirdPartyEntry,
+    onDeleteThirdPartyEntry,
     onLogout,
     vehicleExitOrders,
     vehicleAssets,
     driverAssets,
     validationRoles,
-    maintenanceSchedules,
     onUpdateVehicleExitOrder
 }) => {
     const [activeTab, setActiveTab] = useState<'agenda' | 'vehicles' | 'seguranca' | 'rondas'>('agenda');
@@ -64,7 +71,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                              {thirdPartyEntries.length === 0 ? <p className="text-xs text-gray-500">Nenhum registro encontrado.</p> : thirdPartyEntries.map(entry => (
                                  <div key={entry.id} className="p-3 border-b border-slate-100 flex justify-between text-xs">
                                      <span>{entry.driverName}</span>
-                                     <span className="font-bold">{entry.company}</span>
+                                     <span className="font-bold">{entry.companyName}</span>
                                  </div>
                              ))}
                         </div>
