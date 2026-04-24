@@ -745,12 +745,12 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                                  <div className="flex items-center gap-1">RONDA: <input type="text" className="bg-transparent border-b border-black focus:outline-none w-16" /></div>
                                              </div>
                                              <div className="grid grid-cols-6 border-b border-black bg-slate-50 p-0.5 text-[8px] font-black uppercase text-center">
-                                                 <div>PP</div>
-                                                 <div>H.In</div>
-                                                 <div>KM.In</div>
-                                                 <div>H.Fi</div>
-                                                 <div>KM.Fi</div>
-                                                 <div>OC.</div>
+                                                 <div>POLICIAL PENAL</div>
+                                                 <div>HORA INÍCIO</div>
+                                                 <div>KM INICIAL</div>
+                                                 <div>HORA FINAL</div>
+                                                 <div>KM FINAL</div>
+                                                 <div>OCORRÊNCIAS</div>
                                              </div>
                                              {[...Array(6)].map((_, rowIndex) => (
                                                  <div key={rowIndex} className="grid grid-cols-6 border-b border-slate-300 last:border-0 h-5">
@@ -814,12 +814,12 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                      {/* Signature Section */}
                                      <div className="mt-12 flex justify-between print:mt-8">
                                          <div className="w-48 text-center pt-8 border-t border-black">
-                                             <p className="font-black text-[9px] uppercase">Thiago Henrique Moreno</p>
-                                             <p className="font-bold text-[8px]">DCEVP - RG: 40.770.435-8</p>
+                                             <input type="text" placeholder="NOME DO RESPONSÁVEL" className="w-full font-black text-[9px] uppercase text-center border-none focus:outline-none"/>
+                                             <input type="text" placeholder="CARGO" className="w-full font-bold text-[8px] text-center border-none focus:outline-none"/>
                                          </div>
                                          <div className="w-48 text-center pt-8 border-t border-black">
-                                             <p className="font-black text-[9px] uppercase">Assinatura</p>
-                                             <p className="font-bold text-[8px]">Responsável</p>
+                                             <p className="font-black text-[9px] uppercase">ASSINATURA</p>
+                                             <p className="font-bold text-[8px]">RESPONSÁVEL</p>
                                          </div>
                                      </div>
                                  </div>
