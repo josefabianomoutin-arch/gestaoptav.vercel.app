@@ -521,7 +521,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
         <div className={`min-h-screen text-slate-900 font-sans pb-10 bg-slate-50 selection:bg-indigo-500/30 overflow-x-hidden`}>
 
             {/* Header Compacto para Mobile */}
-            <header className={`p-4 shadow-xl flex justify-between items-center sticky top-0 z-50 border-b bg-indigo-950 border-indigo-900 text-white`}>
+            <header className={`p-4 shadow-xl flex justify-between items-center sticky top-0 z-50 border-b bg-indigo-950 border-indigo-900 text-white print:hidden`}>
                 <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-xl shadow-inner bg-indigo-800`}>
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
@@ -719,7 +719,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                 ) : activeTab === 'rondas' ? (
                     <div className="animate-fade-in space-y-6">
                         {/* Sub-abas de sub-seção */}
-                        <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-slate-200 w-max">
+                        <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-slate-200 w-max print:hidden">
                             <button onClick={() => setActiveSubTab('registro')} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${activeSubTab === 'registro' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-indigo-600'}`}>Registro de Rondas</button>
                             <button onClick={() => setActiveSubTab('cadastro')} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${activeSubTab === 'cadastro' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-indigo-600'}`}>Cadastro de Senhas</button>
                         </div>
