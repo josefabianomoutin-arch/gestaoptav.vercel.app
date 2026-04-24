@@ -730,13 +730,13 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                      <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic">Registro de Rondas</h2>
                                      <button onClick={() => window.print()} className="bg-indigo-600 text-white font-black py-2 px-6 rounded-lg uppercase hover:bg-indigo-700 text-xs">Gerar PDF/Imprimir</button>
                                  </div>
-                                 <div className="bg-white p-4 rounded-xl border border-slate-300 shadow-sm print:shadow-none">
-                                     <div className="text-center font-bold text-xs uppercase border-b-2 border-black pb-2 mb-4 print:block">
+                                 <div className="bg-white p-4 rounded-xl shadow-none print:shadow-none print:p-0">
+                                     <div className="hidden print:block text-center font-bold text-xs uppercase border-b-2 border-black pb-2 mb-4">
                                          <p>SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA</p>
                                          <p>PENITENCIÁRIA DE TAIÚVA - RSA - SEGURANÇA EXTERNA - CANIL</p>
                                      </div>
                                      
-                                     <div className="grid grid-cols-2 gap-x-4 gap-y-6 print:grid-cols-2 print:gap-x-4 print:gap-y-6">
+                                     <div className="grid grid-cols-1 gap-y-6 print:grid-cols-1 print:gap-y-6">
                                      {[...Array(4)].map((_, tableIdx) => (
                                          <div key={tableIdx} className="mb-2 border border-black rounded-lg overflow-hidden last:mb-0 break-inside-avoid">
                                              <div className="grid grid-cols-3 bg-slate-100 p-1 border-b border-black font-black text-[9px] text-center uppercase">
@@ -758,7 +758,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                                      <input type="text" className="border-r border-slate-300 w-full p-0.5 text-center text-[9px]" placeholder=":" />
                                                      <input type="text" className="border-r border-slate-300 w-full p-0.5 text-[9px]" />
                                                      <input type="text" className="border-r border-slate-300 w-full p-0.5 text-center text-[9px]" placeholder=":" />
-                                                     <input className="border-r border-slate-300 w-full p-0.5 text-[9px]" />
+                                                     <input type="text" className="border-r border-slate-300 w-full p-0.5 text-[9px]" />
                                                      <input type="text" className="w-full p-0.5 text-[9px]" />
                                                  </div>
                                              ))}
