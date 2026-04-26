@@ -12,6 +12,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
     const [manualContractNumber, setManualContractNumber] = React.useState('');
 
     const totalValue = producer.contractItems?.reduce((acc, item) => acc + (item.totalKg * item.valuePerKg), 0) || 0;
+    const isCoopcresp = producer.name.trim().toUpperCase() === 'COOPCRESP';
 
     const handlePrint = () => {
         if (!contractRef.current) return;
@@ -107,7 +108,11 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                 </div>
 
                 <p className="text-justify mb-4">
-                    Aos <span className="text-black font-bold">{day === 8 ? 'oito(8)' : `${day}(${day})`}</span> dias do mês de <span className="text-black font-bold">{month.charAt(0).toUpperCase() + month.slice(1)}</span> do ano de <span className="text-black font-bold">{year}</span>, nesta cidade de Taiúva, comparecem de um lado o Estado de São Paulo, Secretaria de Administração Penitenciária, por intermédio da Penitenciária de Taiúva, inscrita no CNPJ sob o n.º 96.291.141/0152-92, neste ato representada pelo Senhor <strong>DOUGLAS FERNANDO SEMENZIN GALDINO</strong>, brasileiro, Chefe de Departamento, portador da CI/RG nº 32.518574-8-SSP/SP e inscrito no CPF/MF. nº 290.990.228-59, doravante designado simplesmente Contratante, e, de outro lado, <span className="text-black font-bold">{producer.name}</span> (Agricultor Familiar), com sede na <span className="text-black font-bold">{producer.city || 'CIDADE'}</span>, inscrito/a no CNPJ/MF ou CPF nº <span className="text-black font-bold">{producer.cpfCnpj}</span>, e pelos mesmos foi dito na presença das testemunhas ao final consignadas, que em face da autorização da inexigibilidade da licitação constante no Processo SEI <span className="text-black font-bold">{producer.processNumber || '006.00091368/2026-57'}</span>, nos termos do artigo 74, inciso IV, c.c. o artigo 79 da Lei Federal nº 14.133/2021, pelo presente instrumento avençam um contrato de aquisição de gêneros alimentícios da Agricultura Familiar para atender o Programa Paulista da Agricultura de Interesse Social – PPAIS, sujeitando-se às normas da Lei Federal nº 14.133/2021, Decreto Estadual nº 68.304/2024 e demais normas regulamentares à espécie, inclusive a Lei Estadual nº 14.591/2011, regulamentada pelo Decreto nº 57.755/2012, alterados pelo Decreto nº 60.055/2014, Decreto nº 62.282/2016, e Decreto nº 68.734/2024, e às seguintes cláusulas e condições que reciprocamente outorgam e aceitam:
+                    Aos <span className="text-black font-bold">{day === 8 ? 'oito(8)' : `${day}(${day})`}</span> dias do mês de <span className="text-black font-bold">{month.charAt(0).toUpperCase() + month.slice(1)}</span> do ano de <span className="text-black font-bold">{year}</span>, nesta cidade de Taiúva, comparecem de um lado o Estado de São Paulo, Secretaria de Administração Penitenciária, por intermédio da Penitenciária de Taiúva, inscrita no CNPJ sob o n.º 96.291.141/0152-92, neste ato representada pelo Senhor <strong>DOUGLAS FERNANDO SEMENZIN GALDINO</strong>, brasileiro, Chefe de Departamento, portador da CI/RG nº 32.518574-8-SSP/SP e inscrito no CPF/MF. nº 290.990.228-59, doravante designado simplesmente Contratante, e, de outro lado, {isCoopcresp ? (
+                        <><span className="text-black font-bold">{producer.representativeName || 'NOME DO REPRESENTANTE'}</span> e CPF <span className="text-black font-bold">{producer.representativeCpf || '000.000.000-00'}</span> representando a <span className="text-black font-bold">COOPCRESP</span> (cooperativa), com sede na <span className="text-black font-bold">RESTINGA</span>, inscrito/a no CNPJ/MF ou CPF nº <span className="text-black font-bold">24201681000114</span></>
+                    ) : (
+                        <><span className="text-black font-bold">{producer.name}</span> (Agricultor Familiar), com sede na <span className="text-black font-bold">{producer.city || 'CIDADE'}</span>, inscrito/a no CNPJ/MF ou CPF nº <span className="text-black font-bold">{producer.cpfCnpj}</span></>
+                    )}, e pelos mesmos foi dito na presença das testemunhas ao final consignadas, que em face da autorização da inexigibilidade da licitação constante no Processo SEI <span className="text-black font-bold">{producer.processNumber || '006.00091368/2026-57'}</span>, nos termos do artigo 74, inciso IV, c.c. o artigo 79 da Lei Federal nº 14.133/2021, pelo presente instrumento avençam um contrato de aquisição de gêneros alimentícios da Agricultura Familiar para atender o Programa Paulista da Agricultura de Interesse Social – PPAIS, sujeitando-se às normas da Lei Federal nº 14.133/2021, Decreto Estadual nº 68.304/2024 e demais normas regulamentares à espécie, inclusive a Lei Estadual nº 14.591/2011, regulamentada pelo Decreto nº 57.755/2012, alterados pelo Decreto nº 60.055/2014, Decreto nº 62.282/2016, e Decreto nº 68.734/2024, e às seguintes cláusulas e condições que reciprocamente outorgam e aceitam:
                 </p>
 
                 <div className="contract-section">
@@ -278,9 +283,19 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
 
                     <div className="mt-16 flex flex-col items-center signature-block">
                         <div className="w-2/3 border-t border-black pt-2">
-                            <p className="font-bold uppercase text-black">{producer.name}</p>
-                            <p>CPF/CNPJ: {producer.cpfCnpj}</p>
-                            <p className="text-black font-bold">Contratada: assinatura do representante legal</p>
+                          {isCoopcresp ? (
+                            <>
+                              <p className="font-bold uppercase text-black">COOPCRESP - {producer.representativeName || 'NOME DO REPRESENTANTE'}</p>
+                              <p>CPF: {producer.representativeCpf || '000.000.000-00'}</p>
+                              <p className="text-black font-bold">Contratada: assinatura do representante legal</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="font-bold uppercase text-black">{producer.name}</p>
+                              <p>CPF/CNPJ: {producer.cpfCnpj}</p>
+                              <p className="text-black font-bold">Contratada: assinatura do representante legal</p>
+                            </>
+                          )}
                         </div>
                     </div>
                 </div>
