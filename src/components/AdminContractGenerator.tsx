@@ -146,14 +146,14 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     <p className="mb-4">Constitui objeto do presente contrato a aquisição de:</p>
                 </div>
 
-                <table className="w-full mb-4 text-[4pt] table-fixed contract-table border-collapse border border-black">
+                <table className="w-full mb-4 text-[3.8pt] table-fixed contract-table border-collapse border border-black">
                     <thead>
                         <tr className="bg-zinc-50 font-bold uppercase text-center">
                             <th className="p-0.5 border border-black w-[15%]">Agricultor</th>
                             <th className="p-0.5 border border-black w-[12%]">CPF</th>
-                            <th className="p-0.5 border border-black w-[61%]">Item</th>
-                            <th className="p-0.5 border border-black w-[5%]">Qtd</th>
-                            <th className="p-0.5 border border-black w-[7%]">Valor</th>
+                            <th className="p-0.5 border border-black w-[63%]">Item</th>
+                            <th className="p-0.5 border border-black w-[4%]">Qtd</th>
+                            <th className="p-0.5 border border-black w-[6%]">Valor</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -161,7 +161,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             <tr key={idx}>
                                 <td className="px-0.5 py-[0.5px] border border-black align-middle text-center">{producer.name}</td>
                                 <td className="px-0.5 py-[0.5px] border border-black align-middle text-center">{producer.cpfCnpj}</td>
-                                <td className="px-0.5 py-[0.5px] border border-black align-middle text-justify leading-[0.85]">{item.name}</td>
+                                <td className="px-0.5 py-[0.5px] border border-black align-middle text-justify leading-[0.8]">{item.name}</td>
                                 <td className="px-0.5 py-[0.5px] text-center border border-black align-middle whitespace-nowrap">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
                                 <td className="px-0.5 py-[0.5px] text-right border border-black align-middle whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalKg * item.valuePerKg)}</td>
                             </tr>
