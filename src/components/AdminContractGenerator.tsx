@@ -22,7 +22,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
     const year = today.getFullYear();
 
     return (
-        <div className="p-8 space-y-8">
+        <div className="p-8 space-y-8 print:p-0 print:space-y-0">
             <div className="flex justify-between items-center print:hidden">
                 <div className="flex-1 max-w-xs">
                     <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Número do Contrato</label>
@@ -30,7 +30,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         type="text" 
                         value={manualContractNumber}
                         onChange={(e) => setManualContractNumber(e.target.value)}
-                        placeholder="Ex: 90003/2.026"
+                        placeholder="Ex: 73"
                         className="w-full p-3 bg-white border border-zinc-200 rounded-xl font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                     />
                 </div>
@@ -43,34 +43,27 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                 </button>
             </div>
 
-            <div className="shadow-2xl mx-auto w-fit rounded-xl overflow-hidden print:shadow-none">
-                <div ref={contractRef} className="bg-white text-black font-sans leading-relaxed text-[10pt] w-[180mm] contract-container relative">
-                    {/* Footer Info - Visible at the end of the document */}
-                <div className="mt-8 text-[6pt] text-right leading-tight hidden print:block">
-                    <p>Penitenciária de Taiúva</p>
-                    <p>Secretaria da Administração Penitenciária</p>
-                    <p>Polícia Penal - Penitenciária de Taiúva</p>
-                    <p>Rodovia Brigadeiro Faria Lima, SP 326, KM 359,6 Taiúva/SP – CEP: 14.720-000</p>
-                </div>
-                
-                {/* Header Info - Visible on screen only */}
-                <div className="text-[8pt] text-right mb-8 print:hidden">
-                    <p>Penitenciária de Taiúva</p>
-                    <p>Secretaria da Administração Penitenciária</p>
-                    <p>Polícia Penal - Penitenciária de Taiúva</p>
-                    <p>Rodovia Brigadeiro Faria Lima, SP 326, KM 359,6 Taiúva/SP – CEP: 14.720-000</p>
-                </div>
-
-                <div className="text-center font-bold mb-8">
-                    <h1 className="text-lg mb-4">CONTRATO</h1>
-                    <p className="text-black font-bold">CONTRATO N. {manualContractNumber || '_____'}/{year}</p>
-                </div>
-
-                <div className="flex justify-end mb-8">
-                    <div className="w-1/2 text-justify font-bold">
-                        Termo de Contrato que entre si celebram o Governo do Estado de São Paulo, <span className="text-black font-bold">SECRETARIA DE ADMINISTRAÇÃO PENITENCIÁRIA, POR INTERMÉDIO DA PENITENCIÁRIA DE TAIÚVA</span>, PARA A AQUISIÇÃO DE GÊNEROS ALIMENTÍCIOS DA AGRICULTURA FAMILIAR PARA ATENDER O PROGRAMA PAULISTA DA AGRICULTURA DE INTERESSE SOCIAL – PPAIS.
+            <div className="shadow-2xl mx-auto w-fit rounded-xl overflow-hidden print:shadow-none print:mx-0 print:w-full">
+                <div ref={contractRef} className="bg-white text-black font-sans leading-relaxed text-[10pt] w-[180mm] print:w-full contract-container relative p-[15mm]">
+                    <div className="text-right text-[8pt] mb-8">
+                        <p>Penitenciária de Taiúva</p>
+                        <p>Secretaria da Administração Penitenciária</p>
+                        <p>Polícia Penal - Penitenciária de Taiúva</p>
+                        <p>Rodovia Brigadeiro Faria Lima, SP 326, KM 359,6 Taiúva/SP – CEP: 14.720-000</p>
                     </div>
-                </div>
+
+                    <div className="text-center font-bold mb-8">
+                        <h1 className="text-xl uppercase">CONTRATO</h1>
+                    </div>
+
+                    <div className="flex justify-between mb-8 gap-4">
+                        <div className="w-1/2">
+                            <p className="font-bold">CONTRATO N. {manualContractNumber || '_____'}/{year}</p>
+                        </div>
+                        <div className="w-1/2 text-justify font-bold leading-tight">
+                            Termo de Contrato que entre si celebram o Governo do Estado de São Paulo, <span className="uppercase">SECRETARIA DE ADMINISTRAÇÃO PENITENCIÁRIA, POR INTERMÉDIO DA PENITENCIÁRIA DE TAIÚVA</span>, PARA A AQUISIÇÃO DE GÊNEROS ALIMENTÍCIOS DA AGRICULTURA FAMILIAR PARA ATENDER O PROGRAMA PAULISTA DA AGRICULTURA DE INTERESSE SOCIAL – PPAIS.
+                        </div>
+                    </div>
 
                 <p className="text-justify mb-4">
                     Aos <span className="text-black font-bold">{day === 8 ? 'oito(8)' : `${day}(${day})`}</span> dias do mês de <span className="text-black font-bold">{month.charAt(0).toUpperCase() + month.slice(1)}</span> do ano de <span className="text-black font-bold">{year}</span>, nesta cidade de Taiúva, comparecem de um lado o Estado de São Paulo, Secretaria de Administração Penitenciária, por intermédio da Penitenciária de Taiúva, inscrita no CNPJ sob o n.º 96.291.141/0152-92, neste ato representada pelo Senhor <strong>DOUGLAS FERNANDO SEMENZIN GALDINO</strong>, brasileiro, Chefe de Departamento, portador da CI/RG nº 32.518574-8-SSP/SP e inscrito no CPF/MF. nº 290.990.228-59, doravante designado simplesmente Contratante, e, de outro lado, {isCoopcresp ? (
