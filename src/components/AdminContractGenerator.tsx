@@ -41,14 +41,17 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
             }
         };
 
-        html2pdf()
-            .set(opt)
-            .from(contractRef.current)
-            .save()
-            .then(() => {
-                // Restore scroll position
-                window.scrollTo(0, scrollPos);
-            });
+        // Small delay to allow potential re-renders or layout shifts to settle
+        setTimeout(() => {
+            html2pdf()
+                .set(opt)
+                .from(contractRef.current)
+                .save()
+                .then(() => {
+                    // Restore scroll position
+                    window.scrollTo(0, scrollPos);
+                });
+        }, 300);
     };
 
     const today = new Date();
