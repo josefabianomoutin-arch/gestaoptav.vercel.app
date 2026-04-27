@@ -143,29 +143,29 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     <p className="mb-4">Constitui objeto do presente contrato a aquisição de:</p>
                 </div>
 
-                <table className="w-full mb-4 text-[8pt] table-fixed contract-table border-collapse border border-black">
+                <table className="w-full mb-4 text-[7pt] table-fixed contract-table border-collapse border border-black">
                     <thead>
                         <tr className="bg-zinc-50">
-                            <th className="p-1 text-left font-bold border border-black w-[20%]">NOME DO AGRICULTOR</th>
-                            <th className="p-1 text-left font-bold border border-black w-[15%]">CPF</th>
-                            <th className="p-1 text-left font-bold border border-black w-[38%]">ITEM</th>
-                            <th className="p-1 text-right font-bold border border-black w-[12%]">QUILOGRAMA</th>
-                            <th className="p-1 text-right font-bold border border-black w-[15%]">VALOR</th>
+                            <th className="p-1 text-center font-bold border border-black w-[15%] uppercase">Agricultor</th>
+                            <th className="p-1 text-center font-bold border border-black w-[12%] uppercase">CPF</th>
+                            <th className="p-1 text-center font-bold border border-black w-[53%] uppercase">Item</th>
+                            <th className="p-1 text-center font-bold border border-black w-[10%] uppercase">Quantidade</th>
+                            <th className="p-1 text-center font-bold border border-black w-[10%] uppercase">Valor Total</th>
                         </tr>
                     </thead>
                     <tbody>
                         {producer.contractItems?.map((item, idx) => (
                             <tr key={idx}>
-                                <td className="p-1 border border-black">{producer.name}</td>
-                                <td className="p-1 border border-black">{producer.cpfCnpj}</td>
-                                <td className="p-1 border border-black">{item.name}</td>
-                                <td className="p-1 text-right border border-black whitespace-nowrap">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
-                                <td className="p-1 text-right border border-black whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalKg * item.valuePerKg)}</td>
+                                <td className="p-1 border border-black align-middle text-center">{producer.name}</td>
+                                <td className="p-1 border border-black align-middle text-center">{producer.cpfCnpj}</td>
+                                <td className="p-1 border border-black align-middle text-justify leading-tight">{item.name}</td>
+                                <td className="p-1 text-center border border-black align-middle whitespace-nowrap">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
+                                <td className="p-1 text-right border border-black align-middle whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalKg * item.valuePerKg)}</td>
                             </tr>
                         ))}
                         <tr className="font-bold">
-                            <td colSpan={4} className="p-1 text-right border border-black">TOTAL</td>
-                            <td className="p-1 text-right border border-black whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}</td>
+                            <td colSpan={4} className="p-1 text-right border border-black uppercase text-[8pt]">Valor Total do Contrato</td>
+                            <td className="p-1 text-right border border-black whitespace-nowrap text-[8pt]">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -439,7 +439,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         break-inside: avoid !important;
                         word-wrap: break-word;
                         overflow-wrap: break-word;
-                        padding: 6px !important;
+                        padding: 3px !important;
                         border: 1px solid black !important;
                         vertical-align: middle;
                     }
