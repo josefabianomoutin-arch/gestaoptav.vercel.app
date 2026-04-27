@@ -26,3 +26,35 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #cbd5e1;
 }
+
+/* Print optimizations */
+@media print {
+  /* Hide all dashboard chrome */
+  nav, aside, header, footer, .print-hidden, [class*="sidebar"], [class*="Dashboard"], button, .no-print {
+    display: none !important;
+  }
+
+  body, #root {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .contract-container {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    visibility: visible !important;
+  }
+
+  /* Ensure the contract is the only thing visible */
+  #root > * {
+    display: none !important;
+  }
+  
+  /* This is a bit aggressive but works to isolate the print content if we use a specific portal or class */
+  /* For now let's hope the print:hidden on parent containers handles it */
+}

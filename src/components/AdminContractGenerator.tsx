@@ -26,26 +26,32 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
             window.scrollTo(0, 0);
             
             const element = contractRef.current;
-            const opt: any = {
-                margin: [10, 10, 10, 10] as [number, number, number, number],
-                filename: `Contrato_PPAIS_${producer.name.replace(/\s+/g, '_')}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
+            
+            // Format today's date for filename
+            const dateStr = new Date().toISOString().split('T')[0];
+            const safeName = producer.name.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_');
+            
+            const opt = {
+                margin: 10,
+                filename: `Contrato_${safeName}_${dateStr}.pdf`,
+                image: { type: 'jpeg' as const, quality: 0.98 },
                 html2canvas: { 
-                    scale: 1.2, 
+                    scale: 2, 
                     useCORS: true, 
                     logging: false,
                     scrollY: 0,
-                    windowWidth: 1024
+                    windowWidth: 1080
                 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
-                pagebreak: { mode: 'css' }
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const, compress: true },
+                pagebreak: { mode: ['css', 'legacy'] as any }
             };
 
             // Wait for scroll and potential layout shift
-            await new Promise(resolve => setTimeout(resolve, 400));
+            await new Promise(resolve => setTimeout(resolve, 800));
             
-            // Execute generation
-            await html2pdf().from(element).set(opt).save();
+            // Execute generation using the factory pattern
+            const worker = html2pdf().from(element).set(opt);
+            await worker.save();
 
             // Success
             window.scrollTo(0, scrollPos);
@@ -54,7 +60,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
             console.error('PDF Generation error:', err);
             window.scrollTo(0, scrollPos);
             setIsGenerating(false);
-            alert('Erro ao gerar PDF. Tente usar o navegador para imprimir (Ctrl+P) e salvar como PDF caso o erro persista.');
+            alert('Não foi possível gerar o PDF automaticamente. Por favor, use "Salvar como PDF" via Ctrl+P.');
         }
     };
 
@@ -140,29 +146,29 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     <p className="mb-4">Constitui objeto do presente contrato a aquisição de:</p>
                 </div>
 
-                <table className="w-full mb-4 text-[4.5pt] table-fixed contract-table border-collapse border border-black">
+                <table className="w-full mb-4 text-[4pt] table-fixed contract-table border-collapse border border-black">
                     <thead>
                         <tr className="bg-zinc-50 font-bold uppercase text-center">
                             <th className="p-0.5 border border-black w-[15%]">Agricultor</th>
                             <th className="p-0.5 border border-black w-[12%]">CPF</th>
-                            <th className="p-0.5 border border-black w-[60%]">Item</th>
-                            <th className="p-0.5 border border-black w-[6%]">Qtd</th>
+                            <th className="p-0.5 border border-black w-[61%]">Item</th>
+                            <th className="p-0.5 border border-black w-[5%]">Qtd</th>
                             <th className="p-0.5 border border-black w-[7%]">Valor</th>
                         </tr>
                     </thead>
                     <tbody>
                         {producer.contractItems?.map((item, idx) => (
                             <tr key={idx}>
-                                <td className="px-0.5 py-[1px] border border-black align-middle text-center">{producer.name}</td>
-                                <td className="px-0.5 py-[1px] border border-black align-middle text-center">{producer.cpfCnpj}</td>
-                                <td className="px-0.5 py-[1px] border border-black align-middle text-justify leading-[0.9]">{item.name}</td>
-                                <td className="px-0.5 py-[1px] text-center border border-black align-middle whitespace-nowrap">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
-                                <td className="px-0.5 py-[1px] text-right border border-black align-middle whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalKg * item.valuePerKg)}</td>
+                                <td className="px-0.5 py-[0.5px] border border-black align-middle text-center">{producer.name}</td>
+                                <td className="px-0.5 py-[0.5px] border border-black align-middle text-center">{producer.cpfCnpj}</td>
+                                <td className="px-0.5 py-[0.5px] border border-black align-middle text-justify leading-[0.85]">{item.name}</td>
+                                <td className="px-0.5 py-[0.5px] text-center border border-black align-middle whitespace-nowrap">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
+                                <td className="px-0.5 py-[0.5px] text-right border border-black align-middle whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalKg * item.valuePerKg)}</td>
                             </tr>
                         ))}
                         <tr className="font-bold">
-                            <td colSpan={4} className="px-0.5 py-[1px] text-right border border-black uppercase text-[5.5pt]">Valor Total do Contrato</td>
-                            <td className="px-0.5 py-[1px] text-right border border-black whitespace-nowrap text-[5.5pt]">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}</td>
+                            <td colSpan={4} className="px-0.5 py-[0.5px] text-right border border-black uppercase text-[5pt]">Valor Total do Contrato</td>
+                            <td className="px-0.5 py-[0.5px] text-right border border-black whitespace-nowrap text-[5pt]">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}</td>
                         </tr>
                     </tbody>
                 </table>
