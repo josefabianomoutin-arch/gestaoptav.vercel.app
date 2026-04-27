@@ -29,43 +29,57 @@ body {
 
 /* Print optimizations */
 @media print {
-  /* Strictly hide everything that isn't the contract */
-  nav, aside, header, footer, .print-hidden, [class*="sidebar"], [class*="Dashboard"], button, .no-print, [role="navigation"], [role="banner"], .bg-slate-50, .fixed {
+  /* Set document defaults */
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  /* Hide absolutely everything by default */
+  body * {
+    visibility: hidden !important;
     display: none !important;
   }
 
-  body, #root {
-    background: white !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
-    overflow: visible !important;
+  /* Reveal only the contract container and its content */
+  #root, main, .contract-container, .contract-container * {
+    visibility: visible !important;
     display: block !important;
   }
-
-  /* Make sure the main content doesn't truncate */
-  main {
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: visible !important;
+  
+  /* Reset layout for print */
+  #root, main {
+    position: static !important;
     display: block !important;
-    max-width: none !important;
     width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  /* Target the container specifically */
   .contract-container {
-    padding: 10mm 15mm !important;
-    margin: 0 auto !important;
-    width: 180mm !important; 
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 190mm !important; 
     max-width: none !important;
+    margin: 0 auto !important;
+    padding: 15mm !important;
     box-shadow: none !important;
     border: none !important;
-    visibility: visible !important;
-    position: relative !important;
-    display: block !important;
+    background: white !important;
     page-break-after: always;
   }
+
+  /* Tables need special care to keep their layout */
+  .contract-container table {
+    display: table !important;
+    width: 100% !important;
+  }
+  .contract-container tr { display: table-row !important; }
+  .contract-container td, .contract-container th { display: table-cell !important; }
 
   /* Reset transformations for print */
   * {
