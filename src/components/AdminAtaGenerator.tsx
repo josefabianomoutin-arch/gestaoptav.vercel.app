@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import type { PerCapitaSupplier, AcquisitionItem } from '../types';
-import html2pdf from 'html2pdf.js';
 
 interface AdminAtaGeneratorProps {
     producers: PerCapitaSupplier[];
@@ -50,34 +49,7 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
     }, [sessionDate]);
 
     const handlePrint = () => {
-        if (!containerRef.current) return;
-        
-        const scrollPos = window.scrollY;
-        window.scrollTo(0, 0);
-
-        const opt: any = {
-            margin:       [10, 10, 10, 10],
-            filename:     `Ata_Sessao_Publica_${sessionDate}.pdf`,
-            image:        { type: 'jpeg' as const, quality: 0.98 },
-            html2canvas:  { 
-                scale: 2, 
-                useCORS: true, 
-                logging: false,
-                letterRendering: false,
-                scrollY: 0,
-                windowWidth: containerRef.current.clientWidth || 800
-            },
-            jsPDF:        { unit: 'mm' as const, format: 'a4', orientation: 'portrait' as const },
-            pagebreak:    { mode: ['css', 'legacy'], avoid: '.avoid-break' }
-        };
-
-        html2pdf()
-            .set(opt)
-            .from(containerRef.current)
-            .save()
-            .then(() => {
-                window.scrollTo(0, scrollPos);
-            });
+        window.print();
     };
 
     const itemsWithAssignments = useMemo(() => {
@@ -122,7 +94,7 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
     };
 
     return (
-        <div className="p-8 space-y-8">
+        <div className="p-8 space-y-8 print:p-0 print:space-y-0 text-black">
             {/* Form for Session Details */}
             <div className="bg-zinc-50 p-6 rounded-2xl border border-zinc-200 space-y-6 print:hidden">
                 <h3 className="text-xs font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
@@ -246,7 +218,7 @@ const AdminAtaGenerator: React.FC<AdminAtaGeneratorProps> = ({ producers, proces
             {/* Document Preview */}
             <div 
                 ref={containerRef} 
-                className="bg-white border border-zinc-200 rounded-3xl p-12 shadow-sm w-full max-w-[800px] mx-auto font-serif text-zinc-800 leading-relaxed print:shadow-none print:border-none print:p-0"
+                className="bg-white border border-zinc-200 rounded-3xl p-12 shadow-sm w-full max-w-[800px] mx-auto font-serif text-zinc-800 leading-relaxed print:shadow-none print:border-none print:p-0 print:mx-0 print:w-full contract-container"
                 style={{ minHeight: '297mm' }}
             >
                 <style>{`
