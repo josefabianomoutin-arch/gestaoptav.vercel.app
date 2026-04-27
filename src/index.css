@@ -30,7 +30,7 @@ body {
 /* Print optimizations */
 @media print {
   /* Hide all dashboard chrome */
-  nav, aside, header, footer, .print-hidden, [class*="sidebar"], [class*="Dashboard"], button, .no-print {
+  nav, aside, header, footer, .print-hidden, [class*="sidebar"], [class*="Dashboard"], button, .no-print, [role="navigation"], [role="banner"] {
     display: none !important;
   }
 
@@ -39,22 +39,32 @@ body {
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
+    overflow: visible !important;
+  }
+
+  /* Target the main content area that might have scroll constraints */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
   }
 
   .contract-container {
     width: 100% !important;
+    max-width: none !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 10mm 15mm !important;
     box-shadow: none !important;
     border: none !important;
     visibility: visible !important;
+    position: relative !important;
+    left: 0 !important;
+    top: 0 !important;
   }
 
-  /* Ensure the contract is the only thing visible */
-  #root > * {
-    display: none !important;
+  /* Reset any transformations applied by framer-motion or similar */
+  * {
+    transform: none !important;
+    transition: none !important;
   }
-  
-  /* This is a bit aggressive but works to isolate the print content if we use a specific portal or class */
-  /* For now let's hope the print:hidden on parent containers handles it */
 }
