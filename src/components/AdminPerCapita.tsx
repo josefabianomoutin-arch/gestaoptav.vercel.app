@@ -1867,7 +1867,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 {selectedProducer && (
                                     <AdminContractGenerator 
                                         producer={selectedProducer}
-                                        type={activeSubTab === 'PPAIS' ? 'PRODUTOR' : 'FORNECEDOR'}
                                     />
                                 )}
                             </div>

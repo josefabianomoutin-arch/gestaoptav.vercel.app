@@ -4,10 +4,9 @@ import type { PerCapitaSupplier } from '../types';
 
 interface AdminContractGeneratorProps {
     producer: PerCapitaSupplier;
-    type: 'PRODUTOR' | 'FORNECEDOR';
 }
 
-const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ producer, type: _type }) => {
+const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ producer }) => {
     const contractRef = useRef<HTMLDivElement>(null);
     const [manualContractNumber, setManualContractNumber] = React.useState('');
 
@@ -20,10 +19,10 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
         if (!contractRef.current || isGenerating) return;
         setIsGenerating(true);
         
-        // Ensure we are at the top of the page for capture
         const scrollPos = window.scrollY;
         window.scrollTo(0, 0);
 
+        const element = contractRef.current;
         const opt = {
             margin: [10, 10, 10, 10] as [number, number, number, number],
             filename: `Contrato_PPAIS_${producer.name.replace(/\s+/g, '_')}.pdf`,
@@ -31,32 +30,36 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
             html2canvas: { 
                 scale: 1.5, 
                 useCORS: true, 
-                logging: false,
-                scrollY: 0,
-                windowWidth: 1024
+                logging: false
             },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
-            pagebreak: { 
-                mode: ['css', 'legacy'],
-                before: '.page-break-before',
-                avoid: ['.signature-block', '.contract-section-header']
-            }
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const, compress: true },
+            pagebreak: { mode: 'css' }
         };
 
-        // Small delay to allow potential re-renders or layout shifts to settle
         setTimeout(() => {
-            html2pdf()
+            const worker = html2pdf() as any;
+            worker.from(element)
                 .set(opt)
-                .from(contractRef.current)
+                .toPdf()
+                .get('pdf')
+                .then((pdfObj: any) => {
+                    const totalPages = pdfObj.internal.getNumberOfPages();
+                    for (let i = 1; i <= totalPages; i++) {
+                        pdfObj.setPage(i);
+                        pdfObj.setFontSize(7);
+                        pdfObj.setTextColor(100);
+                        pdfObj.text(`Página ${i} de ${totalPages}`, pdfObj.internal.pageSize.getWidth() - 25, pdfObj.internal.pageSize.getHeight() - 10);
+                    }
+                })
                 .save()
                 .then(() => {
-                    // Restore scroll position
                     window.scrollTo(0, scrollPos);
                     setIsGenerating(false);
                 })
                 .catch((err: any) => {
                     console.error('PDF Generation error:', err);
                     setIsGenerating(false);
+                    alert('Erro ao gerar PDF. Verifique o console.');
                 });
         }, 500);
     };
@@ -102,7 +105,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
             </div>
 
             <div className="shadow-2xl mx-auto w-fit rounded-xl overflow-hidden print:shadow-none">
-                <div ref={contractRef} className="bg-white text-black font-sans leading-relaxed text-[10.5pt] w-[180mm] contract-container relative">
+                <div ref={contractRef} className="bg-white text-black font-sans leading-relaxed text-[10pt] w-[180mm] contract-container relative">
                     {/* Footer Info - Visible at the end of the document */}
                 <div className="mt-8 text-[6pt] text-right leading-tight hidden print:block">
                     <p>Penitenciária de Taiúva</p>
@@ -143,14 +146,14 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     <p className="mb-4">Constitui objeto do presente contrato a aquisição de:</p>
                 </div>
 
-                <table className="w-full mb-4 text-[6pt] table-fixed contract-table border-collapse border border-black">
+                <table className="w-full mb-4 text-[5pt] table-fixed contract-table border-collapse border border-black">
                     <thead>
                         <tr className="bg-zinc-50 font-bold uppercase text-center">
-                            <th className="p-1 border border-black w-[15%]">Agricultor</th>
-                            <th className="p-1 border border-black w-[12%]">CPF</th>
-                            <th className="p-1 border border-black w-[58%]">Item</th>
-                            <th className="p-1 border border-black w-[7%]">Qtd</th>
-                            <th className="p-1 border border-black w-[8%]">Valor</th>
+                            <th className="p-0.5 border border-black w-[15%]">Agricultor</th>
+                            <th className="p-0.5 border border-black w-[12%]">CPF</th>
+                            <th className="p-0.5 border border-black w-[60%]">Item</th>
+                            <th className="p-0.5 border border-black w-[6%]">Qtd</th>
+                            <th className="p-0.5 border border-black w-[7%]">Valor</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -158,14 +161,14 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                             <tr key={idx}>
                                 <td className="p-0.5 border border-black align-middle text-center">{producer.name}</td>
                                 <td className="p-0.5 border border-black align-middle text-center">{producer.cpfCnpj}</td>
-                                <td className="p-0.5 border border-black align-middle text-justify leading-[1.1]">{item.name}</td>
+                                <td className="p-0.5 border border-black align-middle text-justify leading-[1]">{item.name}</td>
                                 <td className="p-0.5 text-center border border-black align-middle whitespace-nowrap">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
                                 <td className="p-0.5 text-right border border-black align-middle whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalKg * item.valuePerKg)}</td>
                             </tr>
                         ))}
                         <tr className="font-bold">
-                            <td colSpan={4} className="p-0.5 text-right border border-black uppercase text-[7pt]">Valor Total do Contrato</td>
-                            <td className="p-0.5 text-right border border-black whitespace-nowrap text-[7pt]">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}</td>
+                            <td colSpan={4} className="p-0.5 text-right border border-black uppercase text-[6pt]">Valor Total do Contrato</td>
+                            <td className="p-0.5 text-right border border-black whitespace-nowrap text-[6pt]">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}</td>
                         </tr>
                     </tbody>
                 </table>
