@@ -327,7 +327,11 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     <p className="mb-4 text-justify">- A CIÊNCIA DE QUE SERÁ OBSERVADO O LIMITE DE VENDA POR DCONP/ANO</p>
 
                     <p className="text-justify mb-8">
-                        Eu <span className="text-black font-bold">({producer.name})</span>, portador do CPF <span className="text-black font-bold">{producer.cpfCnpj}</span>, interessado em participar de Chamadas Públicas DURANTE O EXERCÍCIO DE 2026, DECLARO que atendo às normas relativas à saúde e segurança do trabalho, em virtude das disposições do parágrafo único do artigo 117, da Constituição do Estado de São Paulo.
+                        {isCoopcresp ? (
+                            <>Eu <span className="text-black font-bold">({producer.representativeName || 'NOME DO REPRESENTANTE'})</span>, CPF <span className="text-black font-bold">({producer.representativeCpf || '000.000.000-00'})</span> representando a cooperativa <span className="text-black font-bold">COOPCRESP</span>, portador do CNPJ <span className="text-black font-bold">24201681000114</span>, interessado em participar de Chamadas Públicas DURANTE O EXERCÍCIO DE 2026, DECLARO que atendo às normas relativas à saúde e segurança do trabalho, em virtude das disposições do parágrafo único do artigo 117, da Constituição do Estado de São Paulo.</>
+                        ) : (
+                            <>Eu <span className="text-black font-bold">({producer.name})</span>, portador do CPF <span className="text-black font-bold">{producer.cpfCnpj}</span>, interessado em participar de Chamadas Públicas DURANTE O EXERCÍCIO DE 2026, DECLARO que atendo às normas relativas à saúde e segurança do trabalho, em virtude das disposições do parágrafo único do artigo 117, da Constituição do Estado de São Paulo.</>
+                        )}
                     </p>
 
                     <p className="text-justify mb-8">
@@ -343,8 +347,17 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         <div className="mt-16 flex flex-col items-center signature-block">
                             <div className="w-2/3 border-t border-black pt-2">
                                 <p className="text-black font-bold">Assinatura – nome/RG</p>
-                                <p className="text-black uppercase font-bold">{producer.name}</p>
-                                <p className="text-black font-bold">NOME/RG/ASSINATURA</p>
+                                {isCoopcresp ? (
+                                    <>
+                                        <p className="text-black uppercase font-bold">COOPCRESP - {producer.representativeName || 'NOME DO REPRESENTANTE'}</p>
+                                        <p className="text-black font-bold">CPF: {producer.representativeCpf || '000.000.000-00'}</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="text-black uppercase font-bold">{producer.name}</p>
+                                        <p className="text-black font-bold">NOME/RG/ASSINATURA</p>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
