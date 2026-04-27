@@ -1,5 +1,4 @@
 import React, { useRef } from 'react';
-import html2pdf from 'html2pdf.js';
 import type { PerCapitaSupplier } from '../types';
 
 interface AdminContractGeneratorProps {
@@ -13,55 +12,8 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
     const totalValue = producer.contractItems?.reduce((acc, item) => acc + (item.totalKg * item.valuePerKg), 0) || 0;
     const isCoopcresp = producer.name.trim().toUpperCase() === 'COOPCRESP';
 
-    const [isGenerating, setIsGenerating] = React.useState(false);
-
-    const handlePrint = async () => {
-        if (!contractRef.current || isGenerating) return;
-        setIsGenerating(true);
-        
-        const scrollPos = window.scrollY;
-        
-        try {
-            // Ensure we are at the top for capture
-            window.scrollTo(0, 0);
-            
-            const element = contractRef.current;
-            
-            // Format today's date for filename
-            const dateStr = new Date().toISOString().split('T')[0];
-            const safeName = producer.name.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_');
-            
-            const opt = {
-                margin: 10,
-                filename: `Contrato_${safeName}_${dateStr}.pdf`,
-                image: { type: 'jpeg' as const, quality: 0.98 },
-                html2canvas: { 
-                    scale: 2, 
-                    useCORS: true, 
-                    logging: false,
-                    scrollY: 0,
-                    windowWidth: 1080
-                },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const, compress: true },
-                pagebreak: { mode: ['css', 'legacy'] as any }
-            };
-
-            // Wait for scroll and potential layout shift
-            await new Promise(resolve => setTimeout(resolve, 800));
-            
-            // Execute generation using the factory pattern
-            const worker = html2pdf().from(element).set(opt);
-            await worker.save();
-
-            // Success
-            window.scrollTo(0, scrollPos);
-            setIsGenerating(false);
-        } catch (err) {
-            console.error('PDF Generation error:', err);
-            window.scrollTo(0, scrollPos);
-            setIsGenerating(false);
-            alert('Não foi possível gerar o PDF automaticamente. Por favor, use "Salvar como PDF" via Ctrl+P.');
-        }
+    const handlePrint = () => {
+        window.print();
     };
 
     const today = new Date();
@@ -84,23 +36,10 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                 </div>
                 <button 
                     onClick={handlePrint}
-                    disabled={isGenerating}
-                    className={`px-8 py-3 ${isGenerating ? 'bg-zinc-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'} text-white font-black rounded-xl uppercase text-xs tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2`}
+                    className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl uppercase text-xs tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2"
                 >
-                    {isGenerating ? (
-                        <>
-                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Gerando...
-                        </>
-                    ) : (
-                        <>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                            Gerar Contrato PDF
-                        </>
-                    )}
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    Gerar Contrato PDF
                 </button>
             </div>
 
