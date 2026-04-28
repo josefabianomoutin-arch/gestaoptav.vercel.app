@@ -43,9 +43,30 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
     const [isManualModalOpen, setIsManualModalOpen] = useState(false);
     const [editingLog, setEditingLog] = useState<WarehouseMovement | null>(null);
 
+    // Persistence: Pending Offline Entries
+    const offlineEntries = useMemo(() => {
+        try {
+            const saved = localStorage.getItem('offline_warehouse_entries');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            console.error("Error loading offline entries:", e);
+            return [];
+        }
+    }, [isManualModalOpen]); // Refresh when modal closes as it might have added new ones
+
+    const combinedLog = useMemo(() => {
+        const mappedOffline = offlineEntries.map((off: any, idx: number) => ({
+            ...off,
+            id: `offline-${idx}-${off.timestamp}`,
+            isOffline: true,
+            supplierName: suppliers.find(s => s.cpf === off.supplierCpf)?.name || off.supplierName || 'FORNECEDOR OFFLINE'
+        }));
+        return [...warehouseLog, ...mappedOffline];
+    }, [warehouseLog, offlineEntries, suppliers]);
+
     const availableMonths = useMemo(() => {
         const months = new Set<string>();
-        warehouseLog.forEach(log => {
+        combinedLog.forEach(log => {
             const dateStr = log.date || (typeof log.timestamp === 'number' ? new Date(log.timestamp).toISOString().split('T')[0] : (log.timestamp as any)?.split?.('T')?.[0]);
             if (dateStr) {
                 const d = new Date(dateStr + 'T00:00:00');
@@ -117,7 +138,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
     }, []);
 
     const filteredLog = useMemo(() => {
-        return warehouseLog
+        return combinedLog
             .filter(log => {
                 const dateStr = log.date || (typeof log.timestamp === 'number' ? new Date(log.timestamp).toISOString().split('T')[0] : (log.timestamp as any)?.split?.('T')?.[0]);
                 const logDate = new Date(dateStr + 'T00:00:00');
@@ -233,7 +254,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
 
     // Lógica para o novo Painel de Validade (Shelf-Life)
     const validityAnalysis = useMemo(() => {
-        return warehouseLog
+        return combinedLog
             .filter(log => log.type === 'entrada' && log.date && log.expirationDate)
             .map(log => {
                 const start = new Date(log.date + 'T00:00:00');
@@ -587,9 +608,17 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {filteredLog.map(log => (
-                                <tr key={log.id} className={`hover:bg-indigo-50/30 transition-colors group ${!log.pdNumber ? 'bg-red-100' : 'bg-green-100'}`}>
+                                <tr key={log.id} className={`hover:bg-indigo-50/30 transition-colors group ${log.isOffline ? 'bg-amber-50/50' : (!log.pdNumber ? 'bg-red-100' : 'bg-green-100')}`}>
                                     <td className="p-2 pl-3">
-                                        <span className={`text-[8px] font-black px-2 py-0.5 rounded-lg uppercase italic ${log.type === 'entrada' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{log.type}</span>
+                                        <div className="flex flex-col gap-1">
+                                            <span className={`text-[8px] font-black px-2 py-0.5 rounded-lg uppercase italic ${log.type === 'entrada' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{log.type}</span>
+                                            {log.isOffline && (
+                                                <span className="text-[7px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded flex items-center gap-0.5 animate-pulse uppercase italic">
+                                                    <Clock className="h-2 w-2" />
+                                                    Pendente Sync
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="p-2 font-mono text-indigo-700 text-[10px] font-black">{(log.date || '').split('-').reverse().join('/')}</td>
                                     <td className="p-2">

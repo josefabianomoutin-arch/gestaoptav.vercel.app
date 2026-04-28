@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Upload, Download, RefreshCw, Database, Package, Trash2, TrendingUp, BarChart as BarChartIcon, Monitor, HelpCircle, FileText as FileTextIcon, FolderSearch, Loader2, PlayCircle } from 'lucide-react';
+import { Upload, Download, RefreshCw, Database, Package, Trash2, TrendingUp, BarChart as BarChartIcon, Monitor, HelpCircle, FileText as FileTextIcon, FolderSearch, Loader2, PlayCircle, Users, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -178,6 +178,116 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
         }
     };
 
+    const handleDirectSync = async () => {
+        if (pendingEntries.length === 0) {
+            toast.info("Nenhum lançamento pendente para sincronizar.");
+            return;
+        }
+        if (!navigator.onLine) {
+            toast.error("Sem conexão com a internet para sincronizar diretamente.");
+            return;
+        }
+
+        setIsProcessing(true);
+        const loadingToast = toast.loading('Sincronizando registros com o servidor...');
+        try {
+            const success = await onSyncWithFirebase(pendingEntries);
+            if (success) {
+                toast.success(`${pendingEntries.length} registros sincronizados com sucesso!`, { id: loadingToast });
+                localStorage.removeItem('offline_warehouse_entries');
+                setPendingEntries([]);
+            } else {
+                toast.error("Erro na sincronização automática. Tente novamente.", { id: loadingToast });
+            }
+        } catch (err: any) {
+            toast.error(`Falha: ${err.message}`, { id: loadingToast });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    useEffect(() => {
+        const handleOnline = () => {
+            if (pendingEntries.length > 0) {
+                toast.info("Conexão restaurada! Sincronizando dados pendentes...", {
+                    duration: 5000,
+                    action: {
+                        label: 'Sincronizar Agora',
+                        onClick: () => handleDirectSync()
+                    }
+                });
+            }
+        };
+
+        window.addEventListener('online', handleOnline);
+        return () => window.removeEventListener('online', handleOnline);
+    }, [pendingEntries]);
+
+    // --- New: Full Database State Export (for Offline Computer update) ---
+    const handleExportFullDatabase = () => {
+        try {
+            const suppliers = JSON.parse(localStorage.getItem('cached_suppliers') || '[]');
+            const items = JSON.parse(localStorage.getItem('cached_acquisitionItems') || '[]');
+            const config = JSON.parse(localStorage.getItem('cached_perCapitaConfig') || '{}');
+            const menu = JSON.parse(localStorage.getItem('cached_standardMenu') || '[]');
+
+            const fullData = {
+                type: 'FULL_DATABASE_UPDATE',
+                version: '1.0',
+                timestamp: new Date().toISOString(),
+                payload: {
+                    suppliers,
+                    items,
+                    config,
+                    menu
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(fullData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `BASE_DADOS_ATUALIZADA_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            toast.success("Base de dados exportada com sucesso! Leve este arquivo ao computador offline.");
+        } catch (err) {
+            console.error("Export failure:", err);
+            toast.error("Falha ao exportar base de dados.");
+        }
+    };
+
+    const handleImportFullDatabase = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target?.result as string);
+                if (data.type !== 'FULL_DATABASE_UPDATE') {
+                    throw new Error("Arquivo inválido. Use um arquivo de Base de Dados.");
+                }
+
+                const { suppliers, items, config, menu } = data.payload;
+                
+                // Save to local storage for offline use
+                localStorage.setItem('cached_suppliers', JSON.stringify(suppliers));
+                localStorage.setItem('cached_acquisitionItems', JSON.stringify(items));
+                localStorage.setItem('cached_perCapitaConfig', JSON.stringify(config));
+                localStorage.setItem('cached_standardMenu', JSON.stringify(menu));
+
+                toast.success("Base de dados local atualizada! Recarregue a página para aplicar.");
+                setTimeout(() => window.location.reload(), 1500);
+            } catch (err: any) {
+                toast.error(`Erro na importação: ${err.message}`);
+            }
+        };
+        reader.readAsText(file);
+    };
+
     const handleExport = async () => {
         if (pendingEntries.length === 0) {
             toast.error("Nenhum lançamento pendente para exportar!");
@@ -283,6 +393,16 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
                         <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-2 italic">
                             {metrics.totalItems} lançamentos aguardando sincronização
                         </p>
+                        {pendingEntries.length > 0 && navigator.onLine && (
+                            <button 
+                                onClick={handleDirectSync}
+                                disabled={isProcessing}
+                                className="mt-4 bg-amber-500 hover:bg-amber-600 text-white font-black py-2 px-6 rounded-xl transition-all shadow-lg shadow-amber-100 flex items-center gap-2 text-[10px] uppercase tracking-widest"
+                            >
+                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                Sincronizar Agora
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -339,94 +459,91 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
                         </div>
                     </div>
 
-                    <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-100">
-                        <h3 className="text-sm font-black text-gray-900 uppercase mb-4 italic flex items-center gap-2">
-                            <RefreshCw className="h-4 w-4 text-indigo-600" /> Sincronização
-                        </h3>
-                        <div className="space-y-4">
-                            <div className="bg-indigo-600 p-6 rounded-[2rem] shadow-xl text-white">
-                                <div className="flex items-center gap-4 mb-4">
-                                    <div className="bg-white/20 p-3 rounded-xl">
-                                        <Monitor className="h-6 w-6 text-white" />
+                    <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-100 italic">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className={`p-2 rounded-xl ${navigator.onLine ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                                {navigator.onLine ? <Users className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-black text-gray-900 uppercase italic leading-none">
+                                    {navigator.onLine ? 'Computador 2 (Online)' : 'Computador 1 (Offline)' }
+                                </h3>
+                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                                    Fluxo de Sincronização via Pasta/USB
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            {/* Workflow 1: Database Setup/Update (Online -> Offline) */}
+                            <div className="p-5 rounded-2xl border border-zinc-100 bg-zinc-50/30">
+                                <h4 className="text-[10px] font-black text-zinc-800 uppercase mb-3 flex items-center gap-2 tracking-widest">
+                                    <Settings className="h-3 w-3" /> 1. Atualizar Cadastros
+                                </h4>
+                                {navigator.onLine ? (
+                                    <div className="space-y-2">
+                                        <button
+                                            onClick={handleExportFullDatabase}
+                                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 px-4 rounded-xl text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <Download className="h-4 w-4" /> Exportar para PC Offline
+                                        </button>
+                                        <p className="text-[8px] text-zinc-400 font-bold uppercase italic leading-tight">Gere este arquivo no PC Online para atualizar Fornecedores e Itens no PC Offline via Pendrive.</p>
                                     </div>
-                                    <div>
-                                        <h3 className="text-xs font-black uppercase italic leading-none">Instalar Aplicativo</h3>
-                                        <p className="text-[9px] text-indigo-100 font-bold uppercase tracking-tight mt-1">Uso Offline Profissional</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <label className="flex flex-col items-center justify-center w-full p-4 border-2 border-dashed border-indigo-200 rounded-xl cursor-pointer hover:bg-indigo-50 transition-colors bg-white group">
+                                            <Upload className="h-5 w-5 text-indigo-400 group-hover:text-indigo-600 mb-2" />
+                                            <span className="text-[9px] font-black text-indigo-700 uppercase tracking-widest">Importar de Pendrive</span>
+                                            <input type="file" className="hidden" accept=".json" onChange={handleImportFullDatabase} />
+                                        </label>
+                                        <p className="text-[8px] text-zinc-400 font-bold uppercase italic leading-tight text-center">Use o arquivo gerado no PC Online para ver novos fornecedores e configurações aqui no Offline.</p>
                                     </div>
-                                </div>
+                                )}
+                            </div>
+
+                            {/* Workflow 2: Synchronize Logs (Offline -> Online) */}
+                            <div className="p-5 rounded-2xl border border-zinc-100 bg-zinc-50/30">
+                                <h4 className="text-[10px] font-black text-zinc-800 uppercase mb-3 flex items-center gap-2 tracking-widest">
+                                    <RefreshCw className="h-3 w-3" /> 2. Sincronizar Lançamentos
+                                </h4>
+                                {!navigator.onLine ? (
+                                    <div className="space-y-2">
+                                        <button 
+                                            onClick={handleExport}
+                                            disabled={pendingEntries.length === 0}
+                                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 px-4 rounded-xl text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                        >
+                                            <Download className="h-4 w-4" /> Exportar Lançamentos
+                                        </button>
+                                        <p className="text-[8px] text-zinc-400 font-bold uppercase italic leading-tight">Gere este arquivo no final do dia para levar ao PC Online via Pendrive.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <label className="flex flex-col items-center justify-center w-full p-4 border-2 border-dashed border-emerald-200 rounded-xl cursor-pointer hover:bg-emerald-50 transition-colors bg-white group">
+                                            <Upload className="h-5 w-5 text-emerald-400 group-hover:text-emerald-600 mb-2" />
+                                            <span className="text-[9px] font-black text-emerald-700 uppercase tracking-widest">Processar Sincronização</span>
+                                            <input type="file" className="hidden" accept=".json" onChange={handleImport} />
+                                        </label>
+                                        <p className="text-[8px] text-zinc-400 font-bold uppercase italic leading-tight text-center">Importe aqui o arquivo trazido do PC Offline para subir os dados para a Nuvem.</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* App Install Hook */}
+                            <div className="p-5 rounded-2xl border border-slate-100 bg-slate-50/50">
                                 <button 
                                     onClick={handleInstallApp}
-                                    className="w-full bg-white text-indigo-700 font-black py-4 rounded-xl text-[10px] uppercase shadow-lg hover:bg-slate-50 transition-all active:scale-95"
+                                    className="w-full bg-slate-800 text-white font-black py-3 px-4 rounded-xl text-[9px] uppercase tracking-widest mb-2 flex items-center justify-center gap-2"
                                 >
-                                    {deferredPrompt ? 'Baixar e Instalar agora!' : 'App Disponível no Navegador'}
+                                    <Monitor className="h-4 w-4" /> Instalar Aplicativo
                                 </button>
                                 <button 
                                     onClick={handleDownloadGuide}
-                                    className="w-full mt-2 bg-indigo-500/30 text-white font-black py-3 rounded-xl text-[9px] uppercase border border-white/20 hover:bg-indigo-500/50 transition-all flex items-center justify-center gap-2"
+                                    className="w-full text-zinc-400 font-bold py-1 text-[8px] uppercase tracking-widest hover:text-indigo-600 transition-colors underline"
                                 >
-                                    <HelpCircle className="h-3 w-3" /> Guia de Instalação
+                                    Guia de Instalação Offline
                                 </button>
-                            </div>
-
-                            <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 flex flex-col items-center text-center">
-                                <Download className="h-8 w-8 text-amber-500 mb-3" />
-                                <h3 className="text-[10px] font-black text-amber-900 uppercase italic">Exportar Lançamentos</h3>
-                                <button 
-                                    onClick={handleExport}
-                                    disabled={pendingEntries.length === 0}
-                                    className="mt-4 w-full bg-amber-500 text-white font-black py-3 rounded-xl text-[10px] uppercase shadow-md hover:bg-amber-600 transition-all disabled:opacity-50"
-                                >
-                                    Gerar Arquivo ({pendingEntries.length})
-                                </button>
-                            </div>
-
-                            <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 flex flex-col items-center text-center">
-                                <Upload className="h-8 w-8 text-emerald-500 mb-3" />
-                                <h3 className="text-[10px] font-black text-emerald-900 uppercase italic">Importar Lançamentos</h3>
-                                <label className="mt-4 w-full bg-emerald-600 text-white font-black py-3 rounded-xl text-[10px] uppercase shadow-md hover:bg-emerald-700 transition-all cursor-pointer flex justify-center items-center">
-                                    Enviar para Nuvem
-                                    <input type="file" className="hidden" accept=".json" onChange={handleImport} />
-                                </label>
-                            </div>
-
-                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 flex flex-col items-center text-center">
-                                <FolderSearch className="h-8 w-8 text-indigo-500 mb-3" />
-                                <h3 className="text-[10px] font-black text-slate-900 uppercase italic">Sincronizador de Pasta de Rede</h3>
-                                <div className="mt-4 w-full space-y-3">
-                                    {!directoryHandle ? (
-                                        <button 
-                                            onClick={handlePickDirectory}
-                                            className="w-full bg-slate-800 text-white font-black py-4 rounded-xl text-[9px] uppercase shadow-md hover:bg-slate-900 transition-all flex items-center justify-center gap-2"
-                                        >
-                                            <PlayCircle className="h-4 w-4" /> Selecionar Pasta Compartilhada
-                                        </button>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200">
-                                                <span className="text-[9px] font-black text-slate-500 uppercase truncate max-w-[150px]">
-                                                    {directoryHandle.name}
-                                                </span>
-                                                <button onClick={() => setDirectoryHandle(null)} className="text-[8px] font-black text-red-500 uppercase">Trocar</button>
-                                            </div>
-                                            <button 
-                                                onClick={handleScanDirectory}
-                                                disabled={isScanning}
-                                                className="w-full bg-indigo-600 text-white font-black py-4 rounded-xl text-[9px] uppercase shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                                            >
-                                                {isScanning ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <RefreshCw className="h-4 w-4" />
-                                                )}
-                                                Escanear Pasta e Sincronizar
-                                            </button>
-                                        </div>
-                                    )}
-                                    
-                                    <p className="text-[7px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">
-                                        Use esta função no <strong className="text-emerald-600">Computador 2</strong> para ler os arquivos gerados pelo <strong className="text-amber-600">Computador 1</strong> que foram salvos na rede.
-                                    </p>
-                                </div>
                             </div>
                         </div>
                     </div>

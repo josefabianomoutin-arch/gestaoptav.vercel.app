@@ -131,6 +131,30 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!database) return;
 
+    // --- Persistence: Load from Local Storage on Mount ---
+    const collectionsToPersist = [
+      { key: 'suppliers', setter: setSuppliers },
+      { key: 'warehouseLog', setter: setWarehouseLog },
+      { key: 'perCapitaConfig', setter: setPerCapitaConfig },
+      { key: 'thirdPartyEntries', setter: setThirdPartyEntries },
+      { key: 'acquisitionItems', setter: setAcquisitionItems },
+      { key: 'standardMenu', setter: setStandardMenu },
+      { key: 'dailyMenus', setter: setDailyMenus },
+      { key: 'publicInfo', setter: setPublicInfo }
+    ];
+
+    collectionsToPersist.forEach(({ key, setter }) => {
+      const saved = localStorage.getItem(`cached_${key}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed) setter(parsed);
+        } catch (e) {
+          console.error(`Error loading cached ${key}:`, e);
+        }
+      }
+    });
+
     const connectedRef = ref(database, '.info/connected');
     onValue(connectedRef, (snap) => {
       if (snap.val() === true) {
@@ -143,16 +167,30 @@ const App: React.FC = () => {
     onValue(suppliersRef, (snapshot) => {
       const data = snapshot.val();
       console.log("Firebase Suppliers Data:", data);
-      setSuppliers(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setSuppliers(list as Supplier[]);
+      try {
+        localStorage.setItem('cached_suppliers', JSON.stringify(list));
+      } catch (e) {
+        console.warn("Failed to cache suppliers:", e);
+      }
     });
     onValue(warehouseLogRef, (snapshot) => {
       const data = snapshot.val();
-      setWarehouseLog(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setWarehouseLog(list as WarehouseMovement[]);
+      try {
+        localStorage.setItem('cached_warehouseLog', JSON.stringify(list));
+      } catch (e) {
+        console.warn("Failed to cache warehouseLog:", e);
+      }
     });
     onValue(perCapitaConfigRef, (snapshot) => {
       const data = snapshot.val();
       console.log("Firebase PerCapitaConfig Data:", data);
-      setPerCapitaConfig(data || {});
+      const config = data || {};
+      setPerCapitaConfig(config);
+      localStorage.setItem('cached_perCapitaConfig', JSON.stringify(config));
     });
     onValue(cleaningLogsRef, (snapshot) => {
       const data = snapshot.val();
@@ -182,11 +220,15 @@ const App: React.FC = () => {
     });
     onValue(thirdPartyEntriesRef, (snapshot) => {
       const data = snapshot.val();
-      setThirdPartyEntries(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setThirdPartyEntries(list as ThirdPartyEntryLog[]);
+      localStorage.setItem('cached_thirdPartyEntries', JSON.stringify(list));
     });
     onValue(acquisitionItemsRef, (snapshot) => {
       const data = snapshot.val();
-      setAcquisitionItems(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setAcquisitionItems(list as AcquisitionItem[]);
+      localStorage.setItem('cached_acquisitionItems', JSON.stringify(list));
     });
     onValue(vehicleExitOrdersRef, (snapshot) => {
       const data = snapshot.val();
@@ -1894,8 +1936,25 @@ const App: React.FC = () => {
 
         return { success: true, message: 'Entrada registrada', invoiceUrl: finalInvoiceUrl };
     } catch (e) {
-        console.error('Erro ao registrar entrada:', e);
-        return { success: false, message: 'Falha na conexão: ' + (e instanceof Error ? e.message : String(e)) };
+        console.error('Erro ao registrar entrada (tentando modo offline):', e);
+        
+        const offlineEntry = {
+            ...payload,
+            id: `off-ent-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            date: payload.invoiceDate || new Date().toISOString().split('T')[0],
+            isOffline: true,
+            type: 'entrada'
+        };
+
+        try {
+            const currentOffline = JSON.parse(localStorage.getItem('offline_warehouse_entries') || '[]');
+            currentOffline.push(offlineEntry);
+            localStorage.setItem('offline_warehouse_entries', JSON.stringify(currentOffline));
+            return { success: true, message: 'Registrado offline com sucesso! Use o Módulo de Sincronização via Pendrive.' };
+        } catch (storageError) {
+            return { success: false, message: 'Erro ao salvar offline: ' + (storageError instanceof Error ? storageError.message : String(storageError)) };
+        }
     }
   };
 
@@ -1995,8 +2054,25 @@ const App: React.FC = () => {
         await set(newRef, exit);
         return { success: true, message: 'Saída registrada' };
     } catch (e) {
-        console.error('Erro ao registrar saída:', e);
-        return { success: false, message: 'Falha na conexão: ' + (e instanceof Error ? e.message : String(e)) };
+        console.error('Erro ao registrar saída (tentando modo offline):', e);
+
+        const offlineWithdrawal = {
+            ...payload,
+            id: `off-sai-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            date: payload.date || new Date().toISOString().split('T')[0],
+            isOffline: true,
+            type: 'saída'
+        };
+
+        try {
+            const currentOffline = JSON.parse(localStorage.getItem('offline_warehouse_entries') || '[]');
+            currentOffline.push(offlineWithdrawal);
+            localStorage.setItem('offline_warehouse_entries', JSON.stringify(currentOffline));
+            return { success: true, message: 'Registrado offline com sucesso! Use o Módulo de Sincronização via Pendrive.' };
+        } catch (storageError) {
+             return { success: false, message: 'Erro ao registrar offline: ' + (e instanceof Error ? e.message : String(e)) };
+        }
     }
   };
 
