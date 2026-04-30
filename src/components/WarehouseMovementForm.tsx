@@ -175,9 +175,25 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         barcodeInputRef.current?.focus();
     }, [manualType]);
 
+    const filteredSuppliers = useMemo(() => {
+        if (selectedPeriod === '1_QUAD') {
+            return suppliers;
+        } else {
+            const raw = [
+                ...(perCapitaConfig?.ppaisProducers || []),
+                ...(perCapitaConfig?.pereciveisSuppliers || []),
+                ...(perCapitaConfig?.estocaveisSuppliers || [])
+            ];
+            return raw.map((s: any) => ({
+                ...s,
+                cpf: s.cpfCnpj || s.cpf || ''
+            }));
+        }
+    }, [selectedPeriod, suppliers, perCapitaConfig]);
+
     const selectedSupplier = useMemo(() => 
-        suppliers.find(s => s.cpf === selectedSupplierCpf), 
-    [suppliers, selectedSupplierCpf]);
+        filteredSuppliers.find(s => s.cpf === selectedSupplierCpf), 
+    [filteredSuppliers, selectedSupplierCpf]);
 
     const manualSupplierInvoices = useMemo(() => {
         if (!selectedSupplier || !selectedItemName) return [];
@@ -239,7 +255,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             processSupplier(selectedSupplier);
         } else {
             // Se nenhum fornecedor selecionado, busca em todos os fornecedores (PPAIS, Perecíveis, Estocáveis)
-            suppliers.forEach(processSupplier);
+            filteredSuppliers.forEach(processSupplier);
         }
 
         // Em modo saída, garante que itens com estoque apareçam mesmo que não estejam no contrato explicitamente
@@ -253,7 +269,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         }
 
         return itemsList.sort((a, b) => a.name.localeCompare(b.name));
-    }, [selectedSupplier, manualType, suppliers, registeredInvoicesWithStock]);
+    }, [selectedSupplier, manualType, filteredSuppliers, registeredInvoicesWithStock]);
 
     useEffect(() => {
         const barcode = manualBarcode.trim();
@@ -653,7 +669,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                 onChange={e => { setSelectedSupplierCpf(e.target.value); setSelectedItemName(''); setItems([]); }} 
                                 className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-white shadow-xs font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] uppercase appearance-none cursor-pointer">
                                 <option value="">-- FORNECEDOR --</option>
-                                {suppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
+                                {filteredSuppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
                             </select>
                         </div>
                         <div className="md:col-span-3 space-y-0.5">
@@ -859,7 +875,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                             
                                             // Tenta auto-selecionar fornecedor se o item for exclusivo de um
                                             if (!selectedSupplierCpf) {
-                                                const suppliersWithItem = suppliers.filter(s => {
+                                            const suppliersWithItem = filteredSuppliers.filter(s => {
                                                     const items = Array.isArray(s.contractItems) ? s.contractItems : Object.values(s.contractItems || {});
                                                     return items.some((ci: any) => ci.name === val);
                                                 });
