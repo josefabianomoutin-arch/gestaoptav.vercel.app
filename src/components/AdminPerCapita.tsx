@@ -80,6 +80,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'ADIANTAMENTOS' | 'CONTROLE' | 'AUDIT'>('CALCULO');
     const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS' | 'CONTRACT' | 'ATA' | 'SCHEDULE'>('ITEMS');
     const [pereciveisSubTab, setPereciveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
+    const [estocaveisSubTab, setEstocaveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
     const [staffCount, setStaffCount] = useState<number>(() => parseInt(localStorage.getItem('perCapita_staffCount') || '0', 10));
     const [inmateCount, setInmateCount] = useState<number>(() => parseInt(localStorage.getItem('perCapita_inmateCount') || '0', 10));
     const [customPerCapita, setCustomPerCapita] = useState<Record<string, string>>({});
@@ -106,9 +107,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         if (!perCapitaConfig) return;
         
         console.log("AdminPerCapita: Sincronizando estados com perCapitaConfig", perCapitaConfig);
-        console.log("AdminPerCapita: ppaisProducers (config vs state):", perCapitaConfig.ppaisProducers, ppaisProducers);
-        console.log("AdminPerCapita: pereciveisSuppliers (config vs state):", perCapitaConfig.pereciveisSuppliers, pereciveisSuppliers);
-        console.log("AdminPerCapita: estocaveisSuppliers (config vs state):", perCapitaConfig.estocaveisSuppliers, estocaveisSuppliers);
+        console.log("AdminPerCapita: ppaisProducers:", perCapitaConfig.ppaisProducers);
+        console.log("AdminPerCapita: pereciveisSuppliers:", perCapitaConfig.pereciveisSuppliers);
+        console.log("AdminPerCapita: estocaveisSuppliers:", perCapitaConfig.estocaveisSuppliers);
         if (perCapitaConfig.staffCount !== staffCount) setStaffCount(perCapitaConfig.staffCount || 0);
         if (perCapitaConfig.inmateCount !== inmateCount) setInmateCount(perCapitaConfig.inmateCount || 0);
         if (JSON.stringify(perCapitaConfig.customValues) !== JSON.stringify(customPerCapita)) setCustomPerCapita(perCapitaConfig.customValues || {});
@@ -1771,10 +1772,10 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 onClick={() => {
                                     if (activeSubTab === 'PPAIS') setPpaisSubTab('ITEMS');
                                     else if (activeSubTab === 'PERECÍVEIS') setPereciveisSubTab('ITEMS');
-                                    else setPereciveisSubTab('ITEMS'); // Default for ESTOCÁVEIS
+                                    else if (activeSubTab === 'ESTOCÁVEIS') setEstocaveisSubTab('ITEMS');
                                 }}
                                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'ITEMS' : pereciveisSubTab === 'ITEMS')
+                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'ITEMS' : activeSubTab === 'PERECÍVEIS' ? pereciveisSubTab === 'ITEMS' : estocaveisSubTab === 'ITEMS')
                                     ? 'bg-white text-zinc-900 shadow-sm' 
                                     : 'text-zinc-500 hover:text-zinc-700'
                                 }`}
@@ -1785,10 +1786,10 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 onClick={() => {
                                     if (activeSubTab === 'PPAIS') setPpaisSubTab('PRODUCERS');
                                     else if (activeSubTab === 'PERECÍVEIS') setPereciveisSubTab('SUPPLIERS');
-                                    else setPereciveisSubTab('SUPPLIERS');
+                                    else if (activeSubTab === 'ESTOCÁVEIS') setEstocaveisSubTab('SUPPLIERS');
                                 }}
                                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'PRODUCERS' : pereciveisSubTab === 'SUPPLIERS')
+                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'PRODUCERS' : activeSubTab === 'PERECÍVEIS' ? pereciveisSubTab === 'SUPPLIERS' : estocaveisSubTab === 'SUPPLIERS')
                                     ? 'bg-white text-zinc-900 shadow-sm' 
                                     : 'text-zinc-500 hover:text-zinc-700'
                                 }`}
@@ -1799,10 +1800,10 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 onClick={() => {
                                     if (activeSubTab === 'PPAIS') setPpaisSubTab('CONTRACT');
                                     else if (activeSubTab === 'PERECÍVEIS') setPereciveisSubTab('CONTRACT');
-                                    else setPereciveisSubTab('CONTRACT');
+                                    else if (activeSubTab === 'ESTOCÁVEIS') setEstocaveisSubTab('CONTRACT');
                                 }}
                                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : pereciveisSubTab === 'CONTRACT')
+                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : activeSubTab === 'PERECÍVEIS' ? pereciveisSubTab === 'CONTRACT' : estocaveisSubTab === 'CONTRACT')
                                     ? 'bg-white text-zinc-900 shadow-sm' 
                                     : 'text-zinc-500 hover:text-zinc-700'
                                 }`}
@@ -1854,14 +1855,14 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 type="FORNECEDOR"
                                 colorScheme="indigo"
                             />
-                        ) : activeSubTab === 'ESTOCÁVEIS' && pereciveisSubTab === 'SUPPLIERS' ? (
+                        ) : activeSubTab === 'ESTOCÁVEIS' && estocaveisSubTab === 'SUPPLIERS' ? (
                             <AdminPerCapitaSuppliers 
                                 suppliers={estocaveisSuppliers}
                                 onUpdate={handleUpdateEstocaveisSuppliers}
                                 type="FORNECEDOR"
                                 colorScheme="indigo"
                             />
-                        ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS' || activeSubTab === 'ESTOCÁVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : pereciveisSubTab === 'CONTRACT') ? (
+                        ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS' || activeSubTab === 'ESTOCÁVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : activeSubTab === 'PERECÍVEIS' ? pereciveisSubTab === 'CONTRACT' : estocaveisSubTab === 'CONTRACT') ? (
                             <div className="p-8 space-y-4">
                                 <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter">Selecione o Fornecedor para o Contrato</h3>
                                 <select 
