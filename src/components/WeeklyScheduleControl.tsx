@@ -67,7 +67,21 @@ const WeeklyScheduleControl: React.FC<WeeklyScheduleControlProps> = ({
 
     const weeklyData = useMemo(() => {
         const supplierData = filteredSuppliers.map(supplier => {
-            const weekDeliveries = (Object.values(supplier.deliveries || {}) as any[]).filter((d: any) => {
+            // 1. Determine all unique NFs and their earliest week
+            const allDeliveries = (Object.values(supplier.deliveries || {}) as any[]);
+            const nfToEarliestWeek = allDeliveries
+                .filter(d => d.item !== 'AGENDAMENTO PENDENTE' && d.invoiceNumber)
+                .reduce((acc, d) => {
+                    const nf = d.invoiceNumber!;
+                    const dDate = new Date(d.date + 'T00:00:00');
+                    const week = getWeekNumber(dDate);
+                    if (acc[nf] === undefined || week < acc[nf]) {
+                        acc[nf] = week;
+                    }
+                    return acc;
+                }, {} as Record<string, number>);
+
+            const weekDeliveries = allDeliveries.filter((d: any) => {
                 const dDate = new Date(d.date + 'T00:00:00');
                 return getWeekNumber(dDate) === selectedWeek;
             });
@@ -80,8 +94,11 @@ const WeeklyScheduleControl: React.FC<WeeklyScheduleControlProps> = ({
                 .filter(d => d.item !== 'AGENDAMENTO PENDENTE' && d.invoiceNumber)
                 .reduce((acc, d) => {
                     const nf = d.invoiceNumber!;
-                    if (!acc.find(i => i.nf === nf)) {
-                        acc.push({ nf, date: d.date });
+                    // Only include in *this* week if this week is the earliest week for this NF
+                    if (nfToEarliestWeek[nf] === selectedWeek) {
+                        if (!acc.find(i => i.nf === nf)) {
+                            acc.push({ nf, date: d.date });
+                        }
                     }
                     return acc;
                 }, [] as { nf: string, date: string }[]);

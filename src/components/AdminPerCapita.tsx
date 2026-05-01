@@ -80,8 +80,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'ADIANTAMENTOS' | 'CONTROLE' | 'AUDIT'>('CALCULO');
     const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS' | 'CONTRACT' | 'ATA' | 'SCHEDULE'>('ITEMS');
     const [pereciveisSubTab, setPereciveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
-    const [staffCount, setStaffCount] = useState<number>(0);
-    const [inmateCount, setInmateCount] = useState<number>(0);
+    const [staffCount, setStaffCount] = useState<number>(() => parseInt(localStorage.getItem('perCapita_staffCount') || '0', 10));
+    const [inmateCount, setInmateCount] = useState<number>(() => parseInt(localStorage.getItem('perCapita_inmateCount') || '0', 10));
     const [customPerCapita, setCustomPerCapita] = useState<Record<string, string>>({});
     const [seiProcessNumbers, setSeiProcessNumbers] = useState<Record<string, string>>({});
     const [seiProcessDefinitions, setSeiProcessDefinitions] = useState<Record<string, string>>({});
@@ -98,6 +98,10 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [comparisonFilter, setComparisonFilter] = useState<'TODOS' | 'SEM_ENTREGA' | 'ATENCAO' | 'AVANCADO' | 'CONCLUIDO' | 'COM_EMPENHO'>('TODOS');
 
+    const totalCategoryValue = useMemo(() => {
+        return Object.values(monthlyQuota).reduce((a: number, b: number) => a + (b || 0), 0);
+    }, [monthlyQuota]);
+
     useLayoutEffect(() => {
         if (!perCapitaConfig) return;
         
@@ -113,9 +117,14 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         if (JSON.stringify(perCapitaConfig.ppaisProducers) !== JSON.stringify(ppaisProducers)) setPpaisProducers(perCapitaConfig.ppaisProducers || []);
         if (JSON.stringify(perCapitaConfig.pereciveisSuppliers) !== JSON.stringify(pereciveisSuppliers)) setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
         if (JSON.stringify(perCapitaConfig.estocaveisSuppliers) !== JSON.stringify(estocaveisSuppliers)) setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
-        if (JSON.stringify(perCapitaConfig.monthlyAdvances) !== JSON.stringify(monthlyAdvances)) setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
+        if (JSON.stringify(perCapitaConfig.monthlyAdvances) !== JSON.stringify(monthlyAdvances)) setMonthlyAdvances(perCapitaConfig.monthlyAdvances || []);
         setIsDirty(false);
     }, [perCapitaConfig]);
+
+    useEffect(() => {
+        localStorage.setItem('perCapita_staffCount', staffCount.toString());
+        localStorage.setItem('perCapita_inmateCount', inmateCount.toString());
+    }, [staffCount, inmateCount]);
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -138,6 +147,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             await onUpdatePerCapitaConfig(newConfig);
             setIsDirty(false);
             setSaveSuccess(true);
+            localStorage.removeItem('perCapita_staffCount');
+            localStorage.removeItem('perCapita_inmateCount');
             setTimeout(() => setSaveSuccess(false), 3000);
         } catch (error) {
             console.error("Failed to save per capita config:", error);
