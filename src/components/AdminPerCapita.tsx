@@ -103,21 +103,21 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [monthlyQuota]);
 
     useLayoutEffect(() => {
-        if (!perCapitaConfig) return;
+        if (!perCapitaConfig || Object.keys(perCapitaConfig).length === 0) return;
         
         console.log("AdminPerCapita: Sincronizando estados com perCapitaConfig", perCapitaConfig);
-        if (perCapitaConfig.staffCount !== staffCount) setStaffCount(perCapitaConfig.staffCount || 0);
-        if (perCapitaConfig.inmateCount !== inmateCount) setInmateCount(perCapitaConfig.inmateCount || 0);
-        if (JSON.stringify(perCapitaConfig.customValues) !== JSON.stringify(customPerCapita)) setCustomPerCapita(perCapitaConfig.customValues || {});
-        if (JSON.stringify(perCapitaConfig.seiProcessNumbers) !== JSON.stringify(seiProcessNumbers)) setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
-        if (JSON.stringify(perCapitaConfig.seiProcessDefinitions) !== JSON.stringify(seiProcessDefinitions)) setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
-        if (JSON.stringify(perCapitaConfig.monthlyQuota) !== JSON.stringify(monthlyQuota)) setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
-        if (JSON.stringify(perCapitaConfig.monthlyResource) !== JSON.stringify(monthlyResource)) setMonthlyResource(perCapitaConfig.monthlyResource || {});
-        if (JSON.stringify(perCapitaConfig.ptresResources) !== JSON.stringify(ptresResources)) setPtresResources(perCapitaConfig.ptresResources || {});
-        if (JSON.stringify(perCapitaConfig.ppaisProducers) !== JSON.stringify(ppaisProducers)) setPpaisProducers(perCapitaConfig.ppaisProducers || []);
-        if (JSON.stringify(perCapitaConfig.pereciveisSuppliers) !== JSON.stringify(pereciveisSuppliers)) setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
-        if (JSON.stringify(perCapitaConfig.estocaveisSuppliers) !== JSON.stringify(estocaveisSuppliers)) setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
-        if (JSON.stringify(perCapitaConfig.monthlyAdvances) !== JSON.stringify(monthlyAdvances)) setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
+        if (perCapitaConfig.staffCount !== undefined && perCapitaConfig.staffCount !== staffCount) setStaffCount(perCapitaConfig.staffCount);
+        if (perCapitaConfig.inmateCount !== undefined && perCapitaConfig.inmateCount !== inmateCount) setInmateCount(perCapitaConfig.inmateCount);
+        if (perCapitaConfig.customValues !== undefined && JSON.stringify(perCapitaConfig.customValues) !== JSON.stringify(customPerCapita)) setCustomPerCapita(perCapitaConfig.customValues);
+        if (perCapitaConfig.seiProcessNumbers !== undefined && JSON.stringify(perCapitaConfig.seiProcessNumbers) !== JSON.stringify(seiProcessNumbers)) setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers);
+        if (perCapitaConfig.seiProcessDefinitions !== undefined && JSON.stringify(perCapitaConfig.seiProcessDefinitions) !== JSON.stringify(seiProcessDefinitions)) setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions);
+        if (perCapitaConfig.monthlyQuota !== undefined && JSON.stringify(perCapitaConfig.monthlyQuota) !== JSON.stringify(monthlyQuota)) setMonthlyQuota(perCapitaConfig.monthlyQuota);
+        if (perCapitaConfig.monthlyResource !== undefined && JSON.stringify(perCapitaConfig.monthlyResource) !== JSON.stringify(monthlyResource)) setMonthlyResource(perCapitaConfig.monthlyResource);
+        if (perCapitaConfig.ptresResources !== undefined && JSON.stringify(perCapitaConfig.ptresResources) !== JSON.stringify(ptresResources)) setPtresResources(perCapitaConfig.ptresResources);
+        if (perCapitaConfig.ppaisProducers !== undefined && JSON.stringify(perCapitaConfig.ppaisProducers) !== JSON.stringify(ppaisProducers)) setPpaisProducers(perCapitaConfig.ppaisProducers);
+        if (perCapitaConfig.pereciveisSuppliers !== undefined && JSON.stringify(perCapitaConfig.pereciveisSuppliers) !== JSON.stringify(pereciveisSuppliers)) setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers);
+        if (perCapitaConfig.estocaveisSuppliers !== undefined && JSON.stringify(perCapitaConfig.estocaveisSuppliers) !== JSON.stringify(estocaveisSuppliers)) setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers);
+        if (perCapitaConfig.monthlyAdvances !== undefined && JSON.stringify(perCapitaConfig.monthlyAdvances) !== JSON.stringify(monthlyAdvances)) setMonthlyAdvances(perCapitaConfig.monthlyAdvances);
         setIsDirty(false);
     }, [perCapitaConfig]);
 
