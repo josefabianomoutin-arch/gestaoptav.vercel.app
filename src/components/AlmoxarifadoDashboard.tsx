@@ -9,6 +9,7 @@ import AdminInvoices from './AdminInvoices';
 import AgendaChegadas from './AgendaChegadas';
 import WarehouseMovementForm from './WarehouseMovementForm';
 import AdminWarehouseLog from './AdminWarehouseLog';
+import ValidityAnalysisPanel from './ValidityAnalysisPanel';
 import SynchronizationModule from './SynchronizationModule';
 import AdminStandardMenu from './AdminStandardMenu';
 
@@ -1048,12 +1049,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         </div>
                     )}
                     <div className="flex bg-slate-100 p-1 rounded-2xl">
-                        {['history', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'sync'].map(tab => (
+                        {['history', 'validity', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'sync'].map(tab => (
                             <button 
                                 key={tab}
                                 onClick={() => setActiveTab(tab)} 
                                 className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                                {tab === 'history' ? 'Histórico Geral' : tab === 'agenda' ? 'Agenda' : tab === 'cronograma' ? 'Cronograma' : tab === 'menu' ? 'Cardápio' : tab === 'receipt' ? 'Termo' : tab === 'manual_receipt' ? 'Termo Manual' : 'Sincronização'}
+                                {tab === 'history' ? 'Histórico Geral' : tab === 'validity' ? 'Validade' : tab === 'agenda' ? 'Agenda' : tab === 'cronograma' ? 'Cronograma' : tab === 'menu' ? 'Cardápio' : tab === 'receipt' ? 'Termo' : tab === 'manual_receipt' ? 'Termo Manual' : 'Sincronização'}
                             </button>
                         ))}
                     </div>
@@ -1113,6 +1114,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             />
                         </div>
                     </div>
+                ) : activeTab === 'validity' ? (
+                    <ValidityAnalysisPanel warehouseLog={warehouseLog} />
                 ) : activeTab === 'manual_receipt' ? (
                     <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in relative">
                         <div className="p-4 md:p-6 border-b border-gray-100 bg-amber-600 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 italic shrink-0">

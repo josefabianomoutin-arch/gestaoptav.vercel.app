@@ -117,7 +117,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         if (JSON.stringify(perCapitaConfig.ppaisProducers) !== JSON.stringify(ppaisProducers)) setPpaisProducers(perCapitaConfig.ppaisProducers || []);
         if (JSON.stringify(perCapitaConfig.pereciveisSuppliers) !== JSON.stringify(pereciveisSuppliers)) setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
         if (JSON.stringify(perCapitaConfig.estocaveisSuppliers) !== JSON.stringify(estocaveisSuppliers)) setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
-        if (JSON.stringify(perCapitaConfig.monthlyAdvances) !== JSON.stringify(monthlyAdvances)) setMonthlyAdvances(perCapitaConfig.monthlyAdvances || []);
+        if (JSON.stringify(perCapitaConfig.monthlyAdvances) !== JSON.stringify(monthlyAdvances)) setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
         setIsDirty(false);
     }, [perCapitaConfig]);
 

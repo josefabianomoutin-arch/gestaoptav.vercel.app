@@ -252,24 +252,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
         printWindow.document.close();
     };
 
-    // Lógica para o novo Painel de Validade (Shelf-Life)
-    const validityAnalysis = useMemo(() => {
-        return combinedLog
-            .filter(log => log.type === 'entrada' && log.date && log.expirationDate)
-            .map(log => {
-                const start = new Date(log.date + 'T00:00:00');
-                const end = new Date(log.expirationDate + 'T00:00:00');
-                const diffTime = end.getTime() - start.getTime();
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                
-                return {
-                    ...log,
-                    shelfLifeDays: diffDays
-                };
-            })
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .slice(0, 20); // Mostra os 20 mais recentes para análise
-    }, [warehouseLog]);
 
     const handlePrintLabels = (logs: WarehouseMovement[]) => {
         const printWindow = window.open('', '_blank', 'width=800,height=800');
@@ -685,54 +667,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                 </div>
             </div>
 
-            {/* MONITORAMENTO DE PRAZO DE VALIDADE */}
-            <div className="pt-8 border-t border-gray-50">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="bg-amber-50 text-amber-500 p-2 rounded-[1.2rem]">
-                        <Clock className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter italic leading-none">Análise de Shelf-Life</h3>
-                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1 italic">Monitoramento de Validade das Entradas</p>
-                    </div>
-                </div>
-
-                <div className="flex overflow-x-auto pb-4 gap-3 scrollbar-hide">
-                    {validityAnalysis.length > 0 ? validityAnalysis.map(item => (
-                        <div key={`shelf-${item.id}`} className="min-w-[200px] bg-white p-4 rounded-[1.5rem] border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-all group shrink-0 italic">
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[8px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-lg uppercase italic">Entrada</span>
-                                    <div className={`px-2 py-0.5 rounded-lg text-white font-black text-[8px] uppercase tracking-tighter italic ${
-                                        item.shelfLifeDays > 180 ? 'bg-green-900 border border-green-700' : 
-                                        item.shelfLifeDays > 30 ? 'bg-green-600' : 
-                                        item.shelfLifeDays > 15 ? 'bg-amber-500' : 
-                                        'bg-rose-600'
-                                    }`}>
-                                        Prazo: {item.shelfLifeDays} dias
-                                    </div>
-                                </div>
-                                <div>
-                                    <p className="font-black text-xs text-gray-900 leading-none truncate uppercase">{item.itemName}</p>
-                                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-1 truncate">{item.supplierName}</p>
-                                </div>
-                            </div>
-                            <div className="mt-4 pt-2 border-t border-gray-50 flex justify-between items-end">
-                                <div>
-                                    <p className="text-[7px] text-gray-400 font-black uppercase">Validade</p>
-                                    <p className="font-black text-[9px] text-gray-700">{(item.expirationDate || '').split('-').reverse().join('/')}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[7px] text-gray-400 font-black uppercase">Qtd</p>
-                                    <p className="font-black text-[9px] text-zinc-900">{(item.quantity || 0).toFixed(2)} kg</p>
-                                </div>
-                            </div>
-                        </div>
-                    )) : (
-                        <div className="w-full text-center py-8 text-gray-300 font-black uppercase text-[10px] italic tracking-widest">Aguardando dados de análise...</div>
-                    )}
-                </div>
-            </div>
 
             {isManualModalOpen && (
                 <ManualWarehouseMovementModal 

@@ -534,10 +534,15 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
         const perSupplier = total / currentAssignments.length;
         const perSupplierStr = perSupplier.toFixed(4).replace('.', ',');
         
-        return currentAssignments.map(a => ({
-            ...a,
-            totalKg: perSupplierStr
-        }));
+        return currentAssignments.map(a => {
+            const kg = perSupplier;
+            const price = parseFloat(a.valuePerKg.replace(',', '.')) || 0;
+            return {
+                ...a,
+                totalKg: perSupplierStr,
+                commitmentValue: (kg * price).toFixed(2).replace('.', ',')
+            };
+        });
     };
 
     const handleAddSupplier = () => {
@@ -576,7 +581,17 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
 
     const handleValueChange = (cpf: string, field: 'totalKg' | 'valuePerKg', value: string) => {
         const sanitizedValue = value.replace(/[^0-9,.]/g, '');
-        setAssignments(assignments.map(a => a.supplierCpf === cpf ? { ...a, [field]: sanitizedValue } : a));
+        setAssignments(assignments.map(a => {
+            if (a.supplierCpf !== cpf) return a;
+            
+            const updatedA = { ...a, [field]: sanitizedValue };
+            const kg = parseFloat(updatedA.totalKg.replace(',', '.')) || 0;
+            const price = parseFloat(updatedA.valuePerKg.replace(',', '.')) || 0;
+            return {
+                ...updatedA,
+                commitmentValue: (kg * price).toFixed(2).replace('.', ',')
+            };
+        }));
     };
 
     const handleTotalMetaChange = (value: string) => {
