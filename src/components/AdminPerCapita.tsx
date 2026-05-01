@@ -102,10 +102,13 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         return Object.values(monthlyQuota).reduce((a: number, b: number) => a + (b || 0), 0);
     }, [monthlyQuota]);
 
-    useLayoutEffect(() => {
+    useEffect(() => {
         if (!perCapitaConfig) return;
         
         console.log("AdminPerCapita: Sincronizando estados com perCapitaConfig", perCapitaConfig);
+        console.log("AdminPerCapita: ppaisProducers:", perCapitaConfig.ppaisProducers);
+        console.log("AdminPerCapita: pereciveisSuppliers:", perCapitaConfig.pereciveisSuppliers);
+        console.log("AdminPerCapita: estocaveisSuppliers:", perCapitaConfig.estocaveisSuppliers);
         if (perCapitaConfig.staffCount !== staffCount) setStaffCount(perCapitaConfig.staffCount || 0);
         if (perCapitaConfig.inmateCount !== inmateCount) setInmateCount(perCapitaConfig.inmateCount || 0);
         if (JSON.stringify(perCapitaConfig.customValues) !== JSON.stringify(customPerCapita)) setCustomPerCapita(perCapitaConfig.customValues || {});
