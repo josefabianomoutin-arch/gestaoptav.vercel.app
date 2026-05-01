@@ -411,38 +411,40 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                             </div>
                             <button 
                                 onClick={() => {
-                                    const printWindow = window.open('', '_blank');
+                                    const printWindow = window.open('', '_blank', 'width=800,height=800');
                                     if (!printWindow) return;
-                                    const htmlContent = `
+                                    printWindow.document.write(`
                                         <html>
                                         <head>
-                                            <title>Etiqueta - ${it.item}</title>
+                                            <title>Etiqueta - ${inv.invoiceNumber}</title>
                                             <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
                                             <style>
                                                 @page { size: 100mm 50mm; margin: 0; }
-                                                body { margin: 0; padding: 0; font-family: sans-serif; }
-                                                .label { width: 100mm; height: 50mm; padding: 5mm; box-sizing: border-box; display: flex; flex-direction: column; }
-                                                h1 { font-size: 14pt; margin: 0; }
-                                                p { font-size: 10pt; margin: 2pt 0; }
+                                                body { font-family: sans-serif; margin: 0; padding: 5mm; }
+                                                .label { width: 90mm; height: 40mm; border: 1px solid #000; padding: 2mm; display: flex; flex-direction: column; justify-content: space-between; }
+                                                h1 { font-size: 12pt; margin: 0; font-weight: 800; }
+                                                h2 { font-size: 10pt; margin: 0; }
+                                                p { font-size: 8pt; margin: 1pt 0; }
+                                                .barcode { width: 100%; height: 10mm; }
                                             </style>
                                         </head>
                                         <body>
                                             <div class="label">
-                                                <h1>${it.item}</h1>
-                                                <p>Fornecedor: ${inv.supplierName}</p>
-                                                <p>NF: ${inv.invoiceNumber} | Data: ${new Date(inv.date).toLocaleDateString()}</p>
-                                                <p>Qtd: ${it.kg}kg | Lote: ${it.lots?.[0]?.lotNumber || it.lotNumber || 'N/A'}</p>
-                                                <p>Validade: ${it.lots?.[0]?.expirationDate ? it.lots[0].expirationDate.split('-').reverse().join('/') : (it.expirationDate || 'N/A')}</p>
-                                                <svg id="barcode"></svg>
+                                                <div>
+                                                    <h1>${it.item}</h1>
+                                                    <h2>Fornecedor: ${inv.supplierName}</h2>
+                                                    <p>NF: ${inv.invoiceNumber} | Data: ${new Date(inv.date).toLocaleDateString()}</p>
+                                                    <p>Lote: ${it.lotNumber || 'N/A'} | Validade: ${it.expirationDate ? it.expirationDate.split('-').reverse().join('/') : 'N/A'}</p>
+                                                </div>
+                                                <svg id="barcode" class="barcode"></svg>
                                             </div>
                                             <script>
-                                                JsBarcode("#barcode", "${it.barcode || 'N/A'}", { height: 40, displayValue: true, fontSize: 14 });
+                                                JsBarcode("#barcode", "${it.barcode || 'N/A'}", { height: 40, width: 1.5, fontSize: 12, displayValue: true });
                                                 setTimeout(() => { window.print(); window.close(); }, 500);
                                             </script>
                                         </body>
                                         </html>
-                                    `;
-                                    printWindow.document.write(htmlContent);
+                                    `);
                                     printWindow.document.close();
                                 }}
                                 className="opacity-0 group-hover/item:opacity-100 p-1 bg-amber-50 text-amber-600 rounded hover:bg-amber-600 hover:text-white transition-all ml-auto"

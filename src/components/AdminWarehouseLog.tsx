@@ -253,200 +253,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
     };
 
 
-    const handlePrintLabels = (logs: WarehouseMovement[]) => {
-        const printWindow = window.open('', '_blank', 'width=800,height=800');
-        if (!printWindow) return;
-
-        const htmlContent = `
-            <html>
-            <head>
-                <title>Etiquetas de Estoque</title>
-                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-                <style>
-                    @page { 
-                        size: 100mm 50mm; 
-                        margin: 0; 
-                    }
-                    @media print {
-                        header, footer, .no-print { display: none !important; }
-                        body { margin: 0; padding: 0; width: 100mm; height: 50mm; }
-                        .label-card { border: none !important; box-shadow: none !important; page-break-after: always; }
-                    }
-                    body { 
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                        margin: 0; 
-                        padding: 0; 
-                        background: #f0f0f0; 
-                    }
-                    .no-print {
-                        background: #1e1b4b;
-                        color: white;
-                        padding: 10px 20px;
-                        text-align: center;
-                        position: sticky;
-                        top: 0;
-                        z-index: 100;
-                        display: flex;
-                        justify-content: center;
-                        gap: 10px;
-                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                    }
-                    .no-print button {
-                        background: #fbbf24;
-                        color: #1e1b4b;
-                        border: none;
-                        padding: 8px 16px;
-                        border-radius: 6px;
-                        font-weight: bold;
-                        cursor: pointer;
-                        text-transform: uppercase;
-                        font-size: 12px;
-                    }
-                    .page-container { 
-                        display: flex; 
-                        flex-direction: column; 
-                        align-items: center; 
-                        padding: 20px;
-                        gap: 20px;
-                    }
-                    @media print {
-                        .page-container { padding: 0; gap: 0; display: block; }
-                        body { background: white; }
-                    }
-                    .label-card {
-                        width: 100mm; 
-                        height: 50mm; 
-                        padding: 4mm;
-                        box-sizing: border-box; 
-                        background: white;
-                        border: 1px solid #ddd;
-                        border-radius: 4px;
-                        position: relative; 
-                        overflow: hidden;
-                        display: flex;
-                        flex-direction: column;
-                    }
-                    h1 { 
-                        font-size: 9pt; 
-                        font-weight: 800; 
-                        margin: 0 0 1mm 0; 
-                        text-transform: uppercase; 
-                        line-height: 1.1;
-                        color: #000;
-                        display: -webkit-box;
-                        -webkit-line-clamp: 2;
-                        -webkit-box-orient: vertical;
-                        overflow: hidden;
-                    }
-                    h2 { 
-                        font-size: 7.5pt; 
-                        margin: 0 0 1.5mm 0; 
-                        color: #333; 
-                        border-bottom: 1px solid #000; 
-                        padding-bottom: 1mm; 
-                        display: -webkit-box;
-                        -webkit-line-clamp: 2;
-                        -webkit-box-orient: vertical;
-                        overflow: hidden;
-                        font-weight: 600;
-                    }
-                    .info { 
-                        text-align: left; 
-                        font-size: 7.5pt; 
-                        flex: 1;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: flex-start;
-                    }
-                    .info p { 
-                        margin: 0.5mm 0; 
-                        display: flex; 
-                        justify-content: space-between; 
-                        border-bottom: 0.5px dashed #ccc; 
-                        line-height: 1.1;
-                    }
-                    .info strong { 
-                        font-size: 6.5pt; 
-                        color: #555; 
-                        text-transform: uppercase;
-                    }
-                    .info span {
-                        font-weight: 700;
-                        color: #000;
-                    }
-                    .barcode-container { 
-                        margin-top: auto; 
-                        display: flex; 
-                        flex-direction: column; 
-                        align-items: center; 
-                        justify-content: center;
-                    }
-                    .barcode-svg { 
-                        max-width: 90%; 
-                        height: 14mm !important; 
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="no-print">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="font-weight: bold; font-size: 14px;">Configuração de Impressão (100x50mm)</span>
-                        <button onclick="window.print()">Imprimir Etiquetas</button>
-                        <button onclick="window.close()" style="background: #ef4444; color: white;">Fechar</button>
-                    </div>
-                </div>
-                <div class="page-container">
-                    ${logs.map((log, index) => `
-                        <div class="label-card">
-                            <h1>${log.itemName}</h1>
-                            <h2>${log.supplierName || 'FORNECEDOR NÃO INFORMADO'}</h2>
-                            <div class="info">
-                                <p><strong>LOTE:</strong> <span>${log.lotNumber}</span></p>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4mm;">
-                                    <p><strong>VAL:</strong> <span>${log.expirationDate ? log.expirationDate.split('-').reverse().join('/') : 'N/A'}</span></p>
-                                    <p><strong>ENT:</strong> <span>${log.date ? log.date.split('-').reverse().join('/') : 'N/A'}</span></p>
-                                </div>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4mm;">
-                                    <p><strong>QTD:</strong> <span>${Number(log.quantity).toFixed(2).replace('.', ',')} kg</span></p>
-                                    <p><strong>NF:</strong> <span>${log.inboundInvoice || log.outboundInvoice || 'N/A'}</span></p>
-                                </div>
-                            </div>
-                            <div class="barcode-container">
-                                ${log.barcode ? `<svg id="barcode-${index}" class="barcode-svg"></svg>` : '<p style="font-size: 7pt; color: #999; margin: 0;">SEM CÓDIGO DE BARRAS</p>'}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-
-                <script>
-                    window.onload = function() {
-                        ${logs.map((log, index) => log.barcode ? `
-                            try {
-                                JsBarcode("#barcode-${index}", "${log.barcode}", {
-                                    format: "CODE128", 
-                                    width: 1.2, 
-                                    height: 40, 
-                                    displayValue: false, 
-                                    margin: 0,
-                                    background: "transparent"
-                                });
-                            } catch (e) { console.error(e); }
-                        ` : '').join('')}
-                        setTimeout(() => { window.print(); }, 1000);
-                    }
-                </script>
-            </body>
-            </html>
-        `;
-
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-    };
-
-    const handlePrintLabel = (log: WarehouseMovement) => {
-        handlePrintLabels([log]);
-    };
-
     const handleDelete = async (log: WarehouseMovement) => {
         const msg = log.type === 'entrada' 
             ? 'Excluir esta entrada? O lote será removido e o saldo voltará ao contrato.' 
@@ -486,14 +292,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         >
                             <Plus className="h-3 w-3" />
                             Novo Lançamento
-                        </button>
-                        <button 
-                            onClick={() => handlePrintLabels(filteredLog)}
-                            disabled={filteredLog.length === 0}
-                            className="bg-amber-500 hover:bg-amber-600 text-white font-black py-1.5 px-4 rounded-xl transition-all shadow-sm active:scale-95 uppercase tracking-tighter text-[9px] flex items-center gap-1.5 italic disabled:bg-gray-200"
-                        >
-                            <Printer className="h-3 w-3" />
-                            Imprimir Etiquetas
                         </button>
                         <button 
                             onClick={handlePrintPDF}
@@ -622,24 +420,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                     <td className="p-2 text-center">
                                         <div className="flex justify-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                                             <button 
-                                                onClick={() => handlePrintLabel(log)}
-                                                className="text-gray-400 hover:text-amber-500 hover:bg-amber-50 p-1.5 rounded-lg transition-all"
-                                                title="Imprimir Etiqueta"
-                                            >
-                                                <Printer className="h-4 w-4" />
-                                            </button>
-                                            {log.invoiceUrl && (
-                                                <a 
-                                                    href={log.invoiceUrl} 
-                                                    target="_blank" 
-                                                    rel="noreferrer"
-                                                    className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all flex items-center justify-center shadow-sm"
-                                                    title="Ver PDF Anexado"
-                                                >
-                                                    <FileIcon className="h-4 w-4" />
-                                                </a>
-                                            )}
-                                            <button 
                                                 onClick={() => setEditingLog(log)}
                                                 className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all"
                                                 title="Editar Registro"
@@ -685,7 +465,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     suppliers={suppliers} 
                     logEntry={editingLog}
                     onClose={() => setEditingLog(null)}
-                    onPrint={handlePrintLabel}
                     onSave={async (updated) => {
                         const res = await onUpdateWarehouseEntry(updated);
                         if (res.success) setEditingLog(null);
@@ -713,11 +492,10 @@ interface EditWarehouseMovementModalProps {
     suppliers: Supplier[];
     logEntry: WarehouseMovement;
     onClose: () => void;
-    onPrint: (log: WarehouseMovement) => void;
     onSave: (updated: WarehouseMovement) => Promise<void>;
 }
 
-const EditWarehouseMovementModal: React.FC<EditWarehouseMovementModalProps> = ({ suppliers, logEntry, onClose, onPrint, onSave }) => {
+const EditWarehouseMovementModal: React.FC<EditWarehouseMovementModalProps> = ({ suppliers, logEntry, onClose, onSave }) => {
     const [type, setType] = useState<'entrada' | 'saída'>((logEntry.type === 'saida' || logEntry.type === 'saída') ? 'saída' : 'entrada');
     const [selectedCpf, setSelectedCpf] = useState(() => {
         const found = suppliers.find(s => superNormalize(s.name) === superNormalize(logEntry.supplierName));
@@ -841,16 +619,6 @@ const EditWarehouseMovementModal: React.FC<EditWarehouseMovementModalProps> = ({
 
                     <div className="flex justify-end gap-3 pt-6 border-t">
                         <button type="button" onClick={onClose} className="bg-gray-200 text-gray-700 px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-xs transition-colors">Cancelar</button>
-                        <button 
-                            type="button"
-                            onClick={() => onPrint(logEntry)}
-                            className="bg-indigo-100 text-indigo-700 px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all hover:bg-indigo-200 flex items-center gap-2"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                            </svg>
-                            Imprimir Etiqueta
-                        </button>
                         <button 
                             type="submit" 
                             disabled={isSaving || !selectedCpf || !itemName} 
