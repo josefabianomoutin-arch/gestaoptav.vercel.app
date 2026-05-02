@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, X, Package, Calendar, FileText, Barcode, Copy } from 'lucide-react';
+import { Plus, X, Package, Calendar, FileText, Barcode, Copy, Printer } from 'lucide-react';
 import type { Supplier, WarehouseMovement } from '../types';
 import { toast } from 'sonner';
 
@@ -1025,6 +1025,14 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button 
+                                                type="button"
+                                                onClick={() => handlePrintItemLabel(item)}
+                                                className="p-1 text-gray-400 hover:text-emerald-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-emerald-100"
+                                                title="Imprimir Etiqueta"
+                                            >
+                                                <Printer className="h-3 w-3" />
+                                            </button>
                                             <button 
                                                 type="button"
                                                 onClick={() => handleDuplicateItem(item)}

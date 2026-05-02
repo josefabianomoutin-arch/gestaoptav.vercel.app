@@ -253,6 +253,65 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
     };
 
 
+    const handlePrintLabel = (item: WarehouseMovement) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Etiqueta - ${item.itemName}</title>
+                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <style>
+                    @page { size: 100mm 50mm; margin: 0; }
+                    body { margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: white; }
+                    .label-card {
+                        width: 100mm; height: 50mm;
+                        padding: 2mm 4mm; box-sizing: border-box;
+                        display: flex; flex-direction: column;
+                        border: 0.1mm solid #eee;
+                    }
+                    h1 { font-size: 11pt; margin: 0 0 1mm 0; font-weight: 900; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 0.3mm solid #000; padding-bottom: 0.5mm; }
+                    h2 { font-size: 7.5pt; margin: 0.5mm 0 1.5mm 0; font-weight: bold; text-transform: uppercase; color: #333; }
+                    .info { font-size: 7.5pt; line-height: 1.1; flex-grow: 1; }
+                    .info p { margin: 0.2mm 0; display: flex; justify-content: space-between; }
+                    .info strong { font-weight: 900; text-transform: uppercase; margin-right: 1mm; }
+                    .barcode-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+                    .barcode-svg { max-width: 90%; height: 14mm !important; }
+                </style>
+            </head>
+            <body>
+                <div class="label-card">
+                    <h1>${item.itemName}</h1>
+                    <h2>${item.supplierName}</h2>
+                    <div class="info">
+                        <p><strong>LOTE:</strong> <span>${item.lotNumber}</span></p>
+                        <p><strong>VAL:</strong> <span>${item.expirationDate ? item.expirationDate.split('-').reverse().join('/') : 'N/A'}</span></p>
+                        <p><strong>QUANT:</strong> <span>${item.quantity.toFixed(2)} kg</span> / <strong>DOC:</strong> <span>${item.inboundInvoice || item.outboundInvoice || 'N/A'}</span></p>
+                        <p><strong>DATA:</strong> <span>${(item.date || '').split('-').reverse().join('/')}</span></p>
+                    </div>
+                    <div class="barcode-container">
+                        <svg id="barcode-item" class="barcode-svg"></svg>
+                    </div>
+                </div>
+                <script>
+                    window.onload = function() {
+                        try {
+                            JsBarcode("#barcode-item", "${item.barcode || 'N/A'}", {
+                                format: "CODE128", width: 1.2, height: 40, displayValue: true, margin: 0
+                            });
+                        } catch (e) { console.error(e); }
+                        setTimeout(() => { window.print(); window.close(); }, 500);
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
+
     const handleDelete = async (log: WarehouseMovement) => {
         const msg = log.type === 'entrada' 
             ? 'Excluir esta entrada? O lote será removido e o saldo voltará ao contrato.' 
@@ -282,8 +341,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             <div className="space-y-4">
                 <div className="flex flex-col md:flex-row justify-between items-start gap-4 pb-4 border-b border-gray-50">
                     <div>
-                        <h2 className="text-xl font-black text-gray-900 uppercase tracking-tighter italic">Histórico de Estoque</h2>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest italic leading-none mt-1">Gerenciamento de movimentações e lançamentos</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <button 
@@ -419,6 +476,13 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                     </td>
                                     <td className="p-2 text-center">
                                         <div className="flex justify-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                            <button 
+                                                onClick={() => handlePrintLabel(log)}
+                                                className="text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-lg transition-all"
+                                                title="Imprimir Etiqueta"
+                                            >
+                                                <Printer className="h-3.5 w-3.5" />
+                                            </button>
                                             <button 
                                                 onClick={() => setEditingLog(log)}
                                                 className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all"

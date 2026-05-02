@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
-import { Printer, Plus, Trash2, FileText } from 'lucide-react';
+import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus } from '../types';
 import InfobarTicker from './InfobarTicker';
@@ -714,6 +714,71 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         }
     };
 
+    const handlePrintAllLabels = () => {
+        if (!receiptData) return;
+        
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Etiquetas - NF ${receiptData.invoiceNumber}</title>
+                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <style>
+                    @page { size: 100mm 50mm; margin: 0; }
+                    body { margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: white; }
+                    .label-card {
+                        width: 100mm; height: 50mm;
+                        padding: 2mm 4mm; box-sizing: border-box;
+                        display: flex; flex-direction: column;
+                        border: 0.1mm solid #eee;
+                        page-break-after: always;
+                    }
+                    h1 { font-size: 11pt; margin: 0 0 1mm 0; font-weight: 900; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 0.3mm solid #000; padding-bottom: 0.5mm; }
+                    h2 { font-size: 7.5pt; margin: 0.5mm 0 1.5mm 0; font-weight: bold; text-transform: uppercase; color: #333; }
+                    .info { font-size: 7.5pt; line-height: 1.1; flex-grow: 1; }
+                    .info p { margin: 0.2mm 0; display: flex; justify-content: space-between; }
+                    .info strong { font-weight: 900; text-transform: uppercase; margin-right: 1mm; }
+                    .barcode-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+                    .barcode-svg { max-width: 90%; height: 14mm !important; }
+                </style>
+            </head>
+            <body>
+                ${receiptData.items.map((item, idx) => `
+                    <div class="label-card">
+                        <h1>${item.name}</h1>
+                        <h2>${receiptData!.supplierName}</h2>
+                        <div class="info">
+                            <p><strong>LOTE:</strong> <span>${(receiptData as any).items[idx].lotNumber || 'UNICO'}</span></p>
+                            <p><strong>VAL:</strong> <span>${item.expiration ? item.expiration.split('-').reverse().join('/') : 'N/A'}</span></p>
+                            <p><strong>QUANT:</strong> <span>${(item.quantity || 0).toFixed(2)} ${item.unit || 'kg'}</span> / <strong>DOC:</strong> <span>${receiptData!.invoiceNumber}</span></p>
+                            <p><strong>PROCESSO:</strong> <span>${receiptData!.processoSei || 'N/A'}</span></p>
+                        </div>
+                        <div class="barcode-container">
+                            <svg id="barcode-${idx}" class="barcode-svg"></svg>
+                        </div>
+                    </div>
+                `).join('')}
+                <script>
+                    window.onload = function() {
+                        try {
+                            ${receiptData.items.map((item, idx) => `
+                                JsBarcode("#barcode-${idx}", "${(receiptData as any).items[idx].barcode || 'N/A'}", {
+                                    format: "CODE128", width: 1.2, height: 40, displayValue: true, margin: 0
+                                });
+                            `).join('')}
+                        } catch (e) { console.error(e); }
+                        setTimeout(() => { window.print(); window.close(); }, 500);
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
     const handlePrintReceipt = () => {
         if (!receiptData) return;
         
@@ -1054,7 +1119,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 key={tab}
                                 onClick={() => setActiveTab(tab)} 
                                 className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                                {tab === 'history' ? 'Histórico Geral' : tab === 'validity' ? 'Validade' : tab === 'agenda' ? 'Agenda' : tab === 'cronograma' ? 'Cronograma' : tab === 'menu' ? 'Cardápio' : tab === 'receipt' ? 'Termo' : tab === 'manual_receipt' ? 'Termo Manual' : 'Sincronização'}
+                                {tab === 'history' ? 'Consulta & Gestão' : tab === 'validity' ? 'Validade' : tab === 'agenda' ? 'Agenda' : tab === 'cronograma' ? 'Cronograma' : tab === 'menu' ? 'Cardápio' : tab === 'receipt' ? 'Controle Doc.' : tab === 'manual_receipt' ? 'Termo Manual' : 'Sincronização'}
                             </button>
                         ))}
                     </div>
@@ -1561,10 +1626,19 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     type="button"
                                     onClick={handlePrintReceipt}
                                     disabled={!receiptData}
-                                    className="bg-teal-600 hover:bg-teal-700 text-white font-black py-2 px-6 rounded-xl transition-all shadow-xl shadow-teal-100 active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 uppercase tracking-widest text-[9px] flex items-center gap-2 shadow-inner"
+                                    className="bg-zinc-800 hover:bg-black text-white font-black py-2 px-6 rounded-xl transition-all shadow-xl active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 uppercase tracking-widest text-[9px] flex items-center gap-2 shadow-inner"
                                 >
                                     <Printer className="h-3 w-3" />
-                                    Imprimir
+                                    Termo
+                                </button>
+                                <button 
+                                    type="button"
+                                    onClick={handlePrintAllLabels}
+                                    disabled={!receiptData}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2 px-6 rounded-xl transition-all shadow-xl active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 uppercase tracking-widest text-[9px] flex items-center gap-2 shadow-inner"
+                                >
+                                    <BarcodeIcon className="h-3 w-3" />
+                                    Etiquetas
                                 </button>
                             </div>
                         </div>
