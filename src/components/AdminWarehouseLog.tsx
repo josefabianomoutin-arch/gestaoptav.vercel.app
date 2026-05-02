@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
 import { 
-    Plus, 
     Printer, 
     FileIcon, 
     Search, 
@@ -22,8 +21,6 @@ interface AdminWarehouseLogProps {
     suppliers: Supplier[];
     onDeleteEntry: (logEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
     onUpdateWarehouseEntry: (updatedEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
-    onRegisterEntry: (payload: any) => Promise<{ success: boolean; message: string }>;
-    onRegisterWithdrawal: (payload: any) => Promise<{ success: boolean; message: string }>;
 }
 
 const superNormalize = (text: string) => {
@@ -36,11 +33,10 @@ const superNormalize = (text: string) => {
         .trim();
 };
 
-const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, suppliers, onDeleteEntry, onUpdateWarehouseEntry, onRegisterEntry, onRegisterWithdrawal }) => {
+const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, suppliers, onDeleteEntry, onUpdateWarehouseEntry }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<'all' | 'entrada' | 'saída'>('all');
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
-    const [isManualModalOpen, setIsManualModalOpen] = useState(false);
     const [editingLog, setEditingLog] = useState<WarehouseMovement | null>(null);
 
     // Persistence: Pending Offline Entries
@@ -52,7 +48,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             console.error("Error loading offline entries:", e);
             return [];
         }
-    }, [isManualModalOpen]); // Refresh when modal closes as it might have added new ones
+    }, []); // Refresh when modal closes as it might have added new ones
 
     const combinedLog = useMemo(() => {
         const mappedOffline = offlineEntries.map((off: any, idx: number) => ({
@@ -344,13 +340,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <button 
-                            onClick={() => setIsManualModalOpen(true)}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-1.5 px-4 rounded-xl transition-all shadow-sm active:scale-95 uppercase tracking-tighter text-[9px] flex items-center gap-1.5 italic"
-                        >
-                            <Plus className="h-3 w-3" />
-                            Novo Lançamento
-                        </button>
-                        <button 
                             onClick={handlePrintPDF}
                             className="bg-zinc-800 hover:bg-black text-white font-black py-1.5 px-4 rounded-xl transition-all shadow-sm active:scale-95 uppercase tracking-tighter text-[9px] flex items-center gap-1.5 italic"
                         >
@@ -511,18 +500,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                 </div>
             </div>
 
-
-            {isManualModalOpen && (
-                <ManualWarehouseMovementModal 
-                    suppliers={suppliers} 
-                    onClose={() => setIsManualModalOpen(false)} 
-                    onSave={async (type, payload) => {
-                        const res = type === 'entrada' ? await onRegisterEntry(payload) : await onRegisterWithdrawal(payload);
-                        if (res.success) setIsManualModalOpen(false);
-                        else alert(res.message);
-                    }}
-                />
-            )}
 
             {editingLog && (
                 <EditWarehouseMovementModal 
@@ -689,189 +666,6 @@ const EditWarehouseMovementModal: React.FC<EditWarehouseMovementModalProps> = ({
                             className="px-10 py-3 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg transition-all active:scale-95 bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-300"
                         >
                             {isSaving ? 'Salvando...' : 'Atualizar Registro'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-// --- Modal de Movimentação Manual ---
-interface ManualWarehouseMovementModalProps {
-    suppliers: Supplier[];
-    onClose: () => void;
-    onSave: (type: 'entrada' | 'saída', payload: any) => Promise<void>;
-}
-
-const ManualWarehouseMovementModal: React.FC<ManualWarehouseMovementModalProps> = ({ suppliers, onClose, onSave }) => {
-    const [type, setType] = useState<'entrada' | 'saída'>('entrada');
-    const [selectedCpf, setSelectedCpf] = useState('');
-    const [itemName, setItemName] = useState('');
-    const [lotNumber, setLotNumber] = useState('');
-    const [barcode, setBarcode] = useState('');
-    const [quantity, setQuantity] = useState('');
-    const [documentNumber, setDocumentNumber] = useState('');
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [expirationDate, setExpirationDate] = useState('');
-    const [pdNumber, setPdNumber] = useState('');
-    const [value, setValue] = useState('');
-    const [weight, setWeight] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
-
-    const selectedSupplier = useMemo(() => suppliers.find(s => s.cpf === selectedCpf), [suppliers, selectedCpf]);
-    const availableItems = useMemo(() => {
-        if (selectedSupplier) {
-            return (Object.values(selectedSupplier.contractItems || {}) as any[]).sort((a,b) => a.name.localeCompare(b.name));
-        }
-        // If no supplier selected, show all items from all suppliers
-        const allItems: any[] = [];
-        const seen = new Set<string>();
-        suppliers.forEach(s => {
-            (Object.values(s.contractItems || {}) as any[]).forEach(ci => {
-                if (!seen.has(ci.name)) {
-                    allItems.push(ci);
-                    seen.add(ci.name);
-                }
-            });
-        });
-        return allItems.sort((a,b) => a.name.localeCompare(b.name));
-    }, [selectedSupplier, suppliers]);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const qtyVal = parseFloat(quantity.replace(',', '.'));
-        if (!selectedCpf || !itemName || isNaN(qtyVal) || qtyVal <= 0) {
-            alert('Por favor, preencha todos os campos obrigatórios corretamente.');
-            return;
-        }
-
-        setIsSaving(true);
-        const val = parseFloat(value.replace(',', '.')) || 0;
-        const wgt = parseFloat(weight.replace(',', '.')) || qtyVal;
-
-        const payload = type === 'entrada' ? {
-            supplierCpf: selectedCpf,
-            itemName: itemName,
-            invoiceNumber: documentNumber,
-            invoiceDate: date,
-            lotNumber: lotNumber || 'MANUAL',
-            barcode: barcode,
-            quantity: qtyVal,
-            expirationDate: expirationDate,
-            pdNumber,
-            value: val,
-            weight: wgt
-        } : {
-            supplierCpf: selectedCpf,
-            itemName: itemName,
-            lotNumber: lotNumber || 'MANUAL',
-            barcode: barcode,
-            quantity: qtyVal,
-            outboundInvoice: documentNumber,
-            expirationDate: expirationDate,
-            date: date,
-            pdNumber,
-            value: val,
-            weight: wgt
-        };
-
-        await onSave(type, payload);
-        setIsSaving(false);
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 animate-fade-in-up">
-                <div className="flex justify-between items-center mb-6 border-b pb-4">
-                    <div>
-                        <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tighter">Movimentação Manual de Estoque</h2>
-                        <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">Registrar entrada ou saída retroativa</p>
-                    </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-3xl font-light">&times;</button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="flex p-1 bg-gray-100 rounded-xl">
-                        <button 
-                            type="button" 
-                            onClick={() => setType('entrada')}
-                            className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${type === 'entrada' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-400'}`}
-                        >
-                            Entrada de Estoque
-                        </button>
-                        <button 
-                            type="button" 
-                            onClick={() => setType('saída')}
-                            className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${type === 'saída' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-400'}`}
-                        >
-                            Saída de Estoque
-                        </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Fornecedor</label>
-                            <select value={selectedCpf} onChange={e => { setSelectedCpf(e.target.value); setItemName(''); }} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400 bg-white" required>
-                                <option value="">-- SELECIONE O FORNECEDOR --</option>
-                                {suppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
-                            </select>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Item do Contrato</label>
-                            <select value={itemName} onChange={e => setItemName(e.target.value)} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400 bg-white" required disabled={!selectedCpf}>
-                                <option value="">-- SELECIONE O ITEM --</option>
-                                {availableItems.map(ci => <option key={ci.name} value={ci.name}>{ci.name}</option>)}
-                            </select>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-blue-600 uppercase ml-1">Código de Barras (Bipar)</label>
-                            <input type="text" value={barcode} onChange={e => setBarcode(e.target.value)} placeholder="Bipar Código" className="w-full p-2 border-2 border-blue-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 font-mono" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-indigo-600 uppercase ml-1">Data do Documento</label>
-                            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full p-2 border-2 border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-400 font-bold bg-indigo-50/50" required />
-                        </div>
-
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Nº NF ou Documento</label>
-                            <input type="text" value={documentNumber} onChange={e => setDocumentNumber(e.target.value)} placeholder="000123" className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400" required />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Número do Lote</label>
-                            <input type="text" value={lotNumber} onChange={e => setLotNumber(e.target.value.toUpperCase())} placeholder="LOTE123" className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400 font-mono" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Quantidade (kg)</label>
-                            <input type="text" value={quantity} onChange={e => setQuantity(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="0,00" className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400 font-mono" required />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Data de Validade</label>
-                            <input type="date" value={expirationDate} onChange={e => setExpirationDate(e.target.value)} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400" />
-                        </div>
-
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-rose-600 uppercase ml-1">Parecer de Despesa (PD)</label>
-                            <input type="text" value={pdNumber} onChange={e => setPdNumber(e.target.value.toUpperCase())} placeholder="PD 000" className="w-full p-2 border-2 border-rose-100 rounded-xl outline-none focus:ring-2 focus:ring-rose-400" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-emerald-600 uppercase ml-1">Valor Total Item na NF (R$)</label>
-                            <input type="text" value={value} onChange={e => setValue(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="R$ 0,00" className="w-full p-2 border-2 border-emerald-100 rounded-xl outline-none focus:ring-2 focus:ring-emerald-400" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-amber-600 uppercase ml-1">Peso Bruto</label>
-                            <input type="text" value={weight} onChange={e => setWeight(e.target.value.replace(/[^0-9,.]/g, ''))} placeholder="0,00 kg" className="w-full p-2 border-2 border-amber-100 rounded-xl outline-none focus:ring-2 focus:ring-amber-400" />
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-6 border-t">
-                        <button type="button" onClick={onClose} className="bg-gray-200 text-gray-700 px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-xs transition-colors">Cancelar</button>
-                        <button 
-                            type="submit" 
-                            disabled={isSaving || !selectedCpf || !itemName} 
-                            className={`px-10 py-3 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg transition-all active:scale-95 disabled:bg-gray-300 text-white ${type === 'entrada' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
-                        >
-                            {isSaving ? 'Processando...' : `Confirmar ${type}`}
                         </button>
                     </div>
                 </form>

@@ -1114,12 +1114,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         </div>
                     )}
                     <div className="flex bg-slate-100 p-1 rounded-2xl">
-                        {['history', 'validity', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'sync'].map(tab => (
+                        {['history', 'movement_history', 'validity', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'sync'].map(tab => (
                             <button 
                                 key={tab}
                                 onClick={() => setActiveTab(tab)} 
                                 className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                                {tab === 'history' ? 'Consulta & Gestão' : tab === 'validity' ? 'Validade' : tab === 'agenda' ? 'Agenda' : tab === 'cronograma' ? 'Cronograma' : tab === 'menu' ? 'Cardápio' : tab === 'receipt' ? 'Controle Doc.' : tab === 'manual_receipt' ? 'Termo Manual' : 'Sincronização'}
+                                {tab === 'history' ? 'Consulta & Gestão' : tab === 'movement_history' ? 'Histórico' : tab === 'validity' ? 'Validade' : tab === 'agenda' ? 'Agenda' : tab === 'cronograma' ? 'Cronograma' : tab === 'menu' ? 'Cardápio' : tab === 'receipt' ? 'Controle Doc.' : tab === 'manual_receipt' ? 'Termo Manual' : 'Sincronização'}
                             </button>
                         ))}
                     </div>
@@ -1142,17 +1142,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         />
 
                         <div className="border-t border-gray-100 pt-8">
-                            <AdminWarehouseLog 
-                                warehouseLog={warehouseLog}
-                                suppliers={combinedSuppliers}
-                                onDeleteEntry={onDeleteWarehouseEntry!}
-                                onUpdateWarehouseEntry={onUpdateWarehouseEntry!}
-                                onRegisterEntry={onRegisterEntry}
-                                onRegisterWithdrawal={onRegisterWithdrawal}
-                            />
-                        </div>
-
-                        <div className="border-t border-gray-100 pt-8">
                             <AdminInvoices 
                                 suppliers={combinedSuppliers} 
                                 warehouseLog={warehouseLog}
@@ -1168,6 +1157,13 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             />
                         </div>
                     </div>
+                ) : activeTab === 'movement_history' ? (
+                    <AdminWarehouseLog 
+                        warehouseLog={warehouseLog}
+                        suppliers={combinedSuppliers}
+                        onDeleteEntry={onDeleteWarehouseEntry!}
+                        onUpdateWarehouseEntry={onUpdateWarehouseEntry!}
+                    />
                 ) : activeTab === 'validity' ? (
                     <ValidityAnalysisPanel warehouseLog={warehouseLog} />
                 ) : activeTab === 'manual_receipt' ? (
