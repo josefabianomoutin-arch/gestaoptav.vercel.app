@@ -1131,23 +1131,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 {activeTab === 'history' ? (
                     <div className="space-y-8">
                         <WarehouseMovementForm 
-                            key="warehouse-history-entry"
+                            key="warehouse-movement-form"
                             suppliers={combinedSuppliers} 
                             warehouseLog={warehouseLog} 
                             onRegisterEntry={onRegisterEntry}
                             onRegisterWithdrawal={onRegisterWithdrawal}
                             initialMode="entrada"
-                            perCapitaConfig={perCapitaConfig}
-                            acquisitionItems={acquisitionItems}
-                        />
-
-                        <WarehouseMovementForm 
-                            key="warehouse-exit"
-                            suppliers={combinedSuppliers} 
-                            warehouseLog={warehouseLog.filter(l => l.type === 'saída')} 
-                            onRegisterEntry={async (_) => { return { success: false, message: 'Not allowed here' } }}
-                            onRegisterWithdrawal={onRegisterWithdrawal}
-                            initialMode="saída"
                             perCapitaConfig={perCapitaConfig}
                             acquisitionItems={acquisitionItems}
                         />
