@@ -119,8 +119,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         if (JSON.stringify(perCapitaConfig.monthlyResource) !== JSON.stringify(monthlyResource)) setMonthlyResource(perCapitaConfig.monthlyResource || {});
         if (JSON.stringify(perCapitaConfig.ptresResources) !== JSON.stringify(ptresResources)) setPtresResources(perCapitaConfig.ptresResources || {});
         if (JSON.stringify(perCapitaConfig.ppaisProducers) !== JSON.stringify(ppaisProducers)) setPpaisProducers(perCapitaConfig.ppaisProducers || []);
-        if (JSON.stringify(perCapitaConfig.pereciveisSuppliers) !== JSON.stringify(pereciveisSuppliers)) setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
-        if (JSON.stringify(perCapitaConfig.estocaveisSuppliers) !== JSON.stringify(estocaveisSuppliers)) setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
+        if (JSON.stringify(perCapitaConfig.pereciveisSuppliers) !== JSON.stringify(pereciveisSuppliers)) {
+            setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
+        }
+        if (JSON.stringify(perCapitaConfig.estocaveisSuppliers) !== JSON.stringify(estocaveisSuppliers)) {
+            setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
+        }
         if (JSON.stringify(perCapitaConfig.monthlyAdvances) !== JSON.stringify(monthlyAdvances)) setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
         setIsDirty(false);
     }, [perCapitaConfig]);
@@ -931,13 +935,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     { id: 'ADIANTAMENTOS', label: 'Adiantamentos' },
                     { id: 'CONTROLE', label: 'Controle' },
                     { id: 'AUDIT', label: 'Auditoria' }
-                ].filter(tab => {
-                    const currentMonth = new Date().getMonth();
-                    if (currentMonth >= 4) {
-                        return tab.id !== 'ESTOCÁVEIS' && tab.id !== 'PERECÍVEIS';
-                    }
-                    return true;
-                }).map((tab) => (
+                ].map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveSubTab(tab.id as any)}
