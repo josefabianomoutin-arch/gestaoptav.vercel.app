@@ -323,13 +323,23 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         return { success: true, message: 'Contratos de produtores atualizados' };
     };
 
+    const updateAcquisitionItemPrice = async (itemName: string, assignments: any[]) => {
+        const totalKg = assignments.reduce((sum, a) => sum + parseFloat(String(a.totalKg || '0').replace(',', '.')), 0);
+        const totalValue = assignments.reduce((sum, a) => sum + parseFloat(String(a.totalKg || '0').replace(',', '.')) * parseFloat(String(a.valuePerKg || '0').replace(',', '.')), 0);
+        const weightedAvg = totalKg > 0 ? totalValue / totalKg : 0;
+        
+        const itemToUpdate = acquisitionItems.find(i => normalizeItemName(i.name) === normalizeItemName(itemName));
+        if (itemToUpdate) {
+            await onUpdateAcquisitionItem({ ...itemToUpdate, unitValue: weightedAvg });
+        }
+    };
+
     const handleUpdateContractForPereciveis = async (itemName: string, assignments: any[]) => {
         const normalizedNew = normalizeItemName(itemName);
         const updatedSuppliers = pereciveisSuppliers.map(supplier => {
             const assignment = assignments.find(a => a.supplierCpf === supplier.cpfCnpj);
             const newContractItems = Object.values(supplier.contractItems || {}).filter((ci: any) => {
                 const normalizedCi = normalizeItemName(ci.name);
-                // Remove if it's the same name or if the new name is a more detailed version of the old one
                 return normalizedCi !== normalizedNew && !normalizedNew.startsWith(normalizedCi);
             });
             if (assignment) {
@@ -347,6 +357,34 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             return { ...supplier, contractItems: newContractItems };
         });
         await handleUpdatePereciveisSuppliers(updatedSuppliers);
+        await updateAcquisitionItemPrice(itemName, assignments);
+        return { success: true, message: 'Contratos de fornecedores atualizados' };
+    };
+
+    const handleUpdateContractForEstocaveis = async (itemName: string, assignments: any[]) => {
+        const normalizedNew = normalizeItemName(itemName);
+        const updatedSuppliers = estocaveisSuppliers.map(supplier => {
+            const assignment = assignments.find(a => a.supplierCpf === supplier.cpfCnpj);
+            const newContractItems = Object.values(supplier.contractItems || {}).filter((ci: any) => {
+                const normalizedCi = normalizeItemName(ci.name);
+                return normalizedCi !== normalizedNew && !normalizedNew.startsWith(normalizedCi);
+            });
+            if (assignment) {
+                newContractItems.push({
+                    name: itemName,
+                    totalKg: assignment.totalKg,
+                    valuePerKg: assignment.valuePerKg,
+                    unit: assignment.unit,
+                    category: assignment.category,
+                    comprasCode: assignment.comprasCode,
+                    becCode: assignment.becCode,
+                    period: '2_3_QUAD'
+                });
+            }
+            return { ...supplier, contractItems: newContractItems };
+        });
+        await handleUpdateEstocaveisSuppliers(updatedSuppliers);
+        await updateAcquisitionItemPrice(itemName, assignments);
         return { success: true, message: 'Contratos de fornecedores atualizados' };
     };
 
@@ -1996,7 +2034,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 onUpdateContractForItem={
                                     activeSubTab === 'PPAIS' ? handleUpdateContractForPpais : 
                                     activeSubTab === 'PERECÍVEIS' ? handleUpdateContractForPereciveis : 
-                                    onUpdateContractForItem
+                                    (activeSubTab === 'ESTOCÁVEIS' ? handleUpdateContractForEstocaveis : onUpdateContractForItem)
                                 }
                             />
                         )}
