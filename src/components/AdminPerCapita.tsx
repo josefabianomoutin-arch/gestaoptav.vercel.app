@@ -127,7 +127,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         }
         if (JSON.stringify(perCapitaConfig.monthlyAdvances) !== JSON.stringify(monthlyAdvances)) setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
         setIsDirty(false);
-    }, [perCapitaConfig]);
+    }, [perCapitaConfig, staffCount, inmateCount, customPerCapita, seiProcessNumbers, seiProcessDefinitions, monthlyQuota, monthlyResource, ptresResources, ppaisProducers, pereciveisSuppliers, estocaveisSuppliers, monthlyAdvances]);
 
     useEffect(() => {
         localStorage.setItem('perCapita_staffCount', staffCount.toString());
@@ -296,6 +296,16 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         } as Supplier));
     }, [pereciveisSuppliers]);
 
+    const estocaveisAsSuppliers = useMemo(() => {
+        return estocaveisSuppliers.map(p => ({
+            ...p,
+            cpf: p.cpfCnpj,
+            deliveries: p.deliveries || [],
+            allowedWeeks: [],
+            initialValue: Object.values(p.contractItems || {}).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
+        } as Supplier));
+    }, [estocaveisSuppliers]);
+
     const handleUpdateContractForPpais = async (itemName: string, assignments: any[]) => {
         const normalizedNew = normalizeItemName(itemName);
         const updatedProducers = ppaisProducers.map(producer => {
@@ -351,6 +361,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     category: assignment.category,
                     comprasCode: assignment.comprasCode,
                     becCode: assignment.becCode,
+                    commitmentNumber: assignment.commitmentNumber,
+                    commitmentValue: assignment.commitmentValue,
                     period: '2_3_QUAD'
                 });
             }
@@ -378,6 +390,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     category: assignment.category,
                     comprasCode: assignment.comprasCode,
                     becCode: assignment.becCode,
+                    commitmentNumber: assignment.commitmentNumber,
+                    commitmentValue: assignment.commitmentValue,
                     period: '2_3_QUAD'
                 });
             }
@@ -392,6 +406,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         const result: Record<string, string[]> = {
             'PPAIS': [],
             'PERECÍVEIS': [],
+            'ESTOCÁVEIS': [],
             'OTHERS': []
         };
 
@@ -407,6 +422,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         });
         result['PERECÍVEIS'] = Array.from(pereciveisNames).sort();
 
+        const estocaveisNames = new Set<string>();
+        estocaveisSuppliers.forEach(s => {
+            Object.values(s.contractItems || {}).forEach((ci: any) => estocaveisNames.add(ci.name));
+        });
+        result['ESTOCÁVEIS'] = Array.from(estocaveisNames).sort();
+
         const otherNames = new Set<string>();
         suppliers.forEach(s => {
             Object.values(s.contractItems || {}).forEach((ci: any) => otherNames.add(ci.name));
@@ -414,12 +435,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         result['OTHERS'] = Array.from(otherNames).sort();
 
         return result;
-    }, [suppliers, ppaisProducers, pereciveisSuppliers]);
+    }, [suppliers, ppaisProducers, pereciveisSuppliers, estocaveisSuppliers]);
 
     const itemData = useMemo(() => {
       const data = new Map<string, { totalQuantity: number; totalValue: number; unit: string; category: string }>();
       
-      const allSources = [...suppliers, ...ppaisAsSuppliers, ...pereciveisAsSuppliers];
+      const allSources = [...suppliers, ...ppaisAsSuppliers, ...pereciveisAsSuppliers, ...estocaveisAsSuppliers];
       
       allSources.forEach(p => {
         Object.values(p.contractItems || {}).forEach((item: any) => {
@@ -441,7 +462,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
       return Array.from(data.entries())
         .map(([name, values]) => ({ name, ...values }))
         .sort((a, b) => a.name.localeCompare(b.name));
-    }, [suppliers, ppaisAsSuppliers, pereciveisAsSuppliers]);
+    }, [suppliers, ppaisAsSuppliers, pereciveisAsSuppliers, estocaveisAsSuppliers]);
 
     const perCapitaDenominator = useMemo(() => {
         return inmateCount + staffCount;
@@ -597,8 +618,16 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             });
         });
 
+        // 4. Estocaveis Suppliers
+        estocaveisSuppliers.forEach(p => {
+            (Object.values(p.deliveries || {}) as Delivery[]).forEach(d => {
+                const m = getMonthFromDate(d.date);
+                if (m) execution[m]['ESTOCÁVEIS'] += d.value || 0;
+            });
+        });
+
         return execution;
-    }, [suppliers, ppaisProducers, pereciveisSuppliers, acquisitionItems]);
+    }, [suppliers, ppaisProducers, pereciveisSuppliers, estocaveisSuppliers, acquisitionItems]);
 
     const categoryMonthlyAverages = useMemo(() => {
         const averages: Record<string, number> = {};
@@ -673,7 +702,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
     const deliveryStats = useMemo(() => {
         const stats: Record<string, { name: string, total: number, value: number }> = {};
-        const allSources = [...(suppliers || []), ...ppaisAsSuppliers, ...pereciveisAsSuppliers];
+        const allSources = [...(suppliers || []), ...ppaisAsSuppliers, ...pereciveisAsSuppliers, ...estocaveisAsSuppliers];
         
         allSources.forEach(s => {
             const deliveries = (Object.values(s.deliveries || {}) as any[]);
@@ -690,7 +719,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         });
         
         return Object.values(stats).sort((a, b) => b.total - a.total).slice(0, 10); // Top 10 items
-    }, [suppliers, ppaisAsSuppliers, pereciveisAsSuppliers]);
+    }, [suppliers, ppaisAsSuppliers, pereciveisAsSuppliers, estocaveisAsSuppliers]);
 
     const auditInconsistencies = useMemo(() => {
         const issues: { type: string, description: string, supplierName?: string, itemName?: string, category?: string, fix: () => Promise<void> }[] = [];
@@ -766,7 +795,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         });
 
         // 3. Check for items in deliveries that are missing from the contract
-        const allSources = [...(suppliers || []), ...ppaisAsSuppliers, ...pereciveisAsSuppliers];
+        const allSources = [...(suppliers || []), ...ppaisAsSuppliers, ...pereciveisAsSuppliers, ...estocaveisAsSuppliers];
         allSources.forEach(s => {
             const contractItemNames = new Set((Object.values(s.contractItems || {}) as any[]).map(ci => normalizeItemName(ci.name)));
             const deliveries = (Object.values(s.deliveries || {}) as any[]);
@@ -790,7 +819,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         });
 
         return issues;
-    }, [suppliers, ppaisProducers, pereciveisSuppliers, acquisitionItems, onUpdateContractForItem, ppaisAsSuppliers, pereciveisAsSuppliers, handleUpdatePereciveisSuppliers, handleUpdateProducers]);
+    }, [suppliers, ppaisProducers, pereciveisSuppliers, estocaveisSuppliers, acquisitionItems, onUpdateContractForItem, ppaisAsSuppliers, pereciveisAsSuppliers, estocaveisAsSuppliers, handleUpdatePereciveisSuppliers, handleUpdateProducers, handleUpdateEstocaveisSuppliers]);
 
     const handleFixAllInconsistencies = async () => {
         setIsSaving(true);
@@ -826,7 +855,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
     const contractedItemsSummary = useMemo(() => {
         const summary = new Map<string, { contracted: number; received: number; remaining: number; unit: string; originalName: string; suppliers: Set<string>; empenhos: Set<string>; addendum: number }>();
-        const allSources = [...(suppliers || []), ...ppaisAsSuppliers, ...pereciveisAsSuppliers];
+        const allSources = [...(suppliers || []), ...ppaisAsSuppliers, ...pereciveisAsSuppliers, ...estocaveisAsSuppliers];
 
         allSources.forEach(supplier => {
             supplier.contractItems?.forEach(item => {
@@ -887,7 +916,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         }).sort((a, b) => a.name.localeCompare(b.name));
 
         return result;
-    }, [suppliers, ppaisAsSuppliers, pereciveisAsSuppliers, acquisitionItems]);
+    }, [suppliers, ppaisAsSuppliers, pereciveisAsSuppliers, estocaveisAsSuppliers, acquisitionItems]);
 
     const filteredComparison = useMemo(() => {
         if (comparisonFilter === 'TODOS') return contractedItemsSummary;
@@ -2029,7 +2058,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 suppliers={
                                     activeSubTab === 'PPAIS' ? ppaisAsSuppliers : 
                                     activeSubTab === 'PERECÍVEIS' ? pereciveisAsSuppliers : 
-                                    (activeSubTab === 'ESTOCÁVEIS' ? estocaveisSuppliers.map(s => ({ ...s, cpf: s.cpfCnpj, allowedWeeks: [], deliveries: [], initialValue: 0, contractItems: s.contractItems || [] } as unknown as Supplier)) : suppliers)
+                                    (activeSubTab === 'ESTOCÁVEIS' ? estocaveisAsSuppliers : suppliers)
                                 }
                                 onUpdateContractForItem={
                                     activeSubTab === 'PPAIS' ? handleUpdateContractForPpais : 

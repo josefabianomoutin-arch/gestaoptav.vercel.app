@@ -1743,7 +1743,16 @@ const App: React.FC = () => {
           ...p,
           contractItems: (p.contractItems || []).map(ci => ci.name === oldItem.name ? { ...ci, name: item.name } : ci)
         }));
-        await set(perCapitaConfigRef, { ...perCapitaConfig, ppaisProducers: updatedPpais, pereciveisSuppliers: updatedPereciveis });
+        const updatedEstocaveis = (perCapitaConfig.estocaveisSuppliers || []).map(p => ({
+          ...p,
+          contractItems: (p.contractItems || []).map(ci => ci.name === oldItem.name ? { ...ci, name: item.name } : ci)
+        }));
+        await set(perCapitaConfigRef, { 
+          ...perCapitaConfig, 
+          ppaisProducers: updatedPpais, 
+          pereciveisSuppliers: updatedPereciveis,
+          estocaveisSuppliers: updatedEstocaveis 
+        });
       }
       return { success: true, message: 'Item atualizado com sucesso' };
     } catch (e) {

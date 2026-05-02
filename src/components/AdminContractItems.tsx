@@ -494,18 +494,24 @@ export interface ManageContractSuppliersModalProps {
 }
 
 export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModalProps> = ({ itemName, currentSuppliers, allSuppliers, unit, category, comprasCode, becCode, acquiredQuantity, onClose, onSave }) => {
-    const [assignments, setAssignments] = useState(() => currentSuppliers.map(s => ({
-        supplierCpf: s.supplierCpf,
-        supplierName: s.supplierName,
-        totalKg: String(s.amount).replace('.', ','),
-        valuePerKg: String(s.price).replace('.', ','),
-        unit: unit,
-        category: category || 'OUTROS',
-        comprasCode: comprasCode || '',
-        becCode: becCode || '',
-        commitmentNumber: s.commitmentNumber || '',
-        commitmentValue: String(s.commitmentValue || 0).replace('.', ',')
-    })));
+    const [assignments, setAssignments] = useState(() => currentSuppliers.map(s => {
+        const kg = s.amount || 0;
+        const price = s.price || 0;
+        const autoCommitmentValue = s.commitmentValue && s.commitmentValue > 0 ? s.commitmentValue : (kg * price);
+        
+        return {
+            supplierCpf: s.supplierCpf,
+            supplierName: s.supplierName,
+            totalKg: String(kg).replace('.', ','),
+            valuePerKg: String(price).replace('.', ','),
+            unit: unit,
+            category: category || 'OUTROS',
+            comprasCode: comprasCode || '',
+            becCode: becCode || '',
+            commitmentNumber: s.commitmentNumber || '',
+            commitmentValue: String(autoCommitmentValue || 0).replace('.', ',')
+        };
+    }));
 
     const [itemCategory, setItemCategory] = useState(category || 'OUTROS');
     const [itemComprasCode, setItemComprasCode] = useState(comprasCode || '');
@@ -536,7 +542,7 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
         
         return currentAssignments.map(a => {
             const kg = perSupplier;
-            const price = parseFloat(a.valuePerKg.replace(',', '.')) || 0;
+            const price = parseFloat(String(a.valuePerKg).replace(',', '.')) || 0;
             return {
                 ...a,
                 totalKg: perSupplierStr,
@@ -581,12 +587,12 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
 
     const handleValueChange = (cpf: string, field: 'totalKg' | 'valuePerKg', value: string) => {
         const sanitizedValue = value.replace(/[^0-9,.]/g, '');
-        setAssignments(assignments.map(a => {
+        setAssignments(prev => prev.map(a => {
             if (a.supplierCpf !== cpf) return a;
             
             const updatedA = { ...a, [field]: sanitizedValue };
-            const kg = parseFloat(updatedA.totalKg.replace(',', '.')) || 0;
-            const price = parseFloat(updatedA.valuePerKg.replace(',', '.')) || 0;
+            const kg = parseFloat(String(updatedA.totalKg).replace(',', '.')) || 0;
+            const price = parseFloat(String(updatedA.valuePerKg).replace(',', '.')) || 0;
             return {
                 ...updatedA,
                 commitmentValue: (kg * price).toFixed(2).replace('.', ',')
@@ -778,8 +784,11 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
                                         <label className="text-[8px] font-black text-gray-400 uppercase block mb-0.5 ml-1">V. Empenho (R$)</label>
                                         <input 
                                             type="text" 
-                                            value={a.commitmentValue || ''}
-                                            onChange={e => setAssignments(assignments.map(assign => assign.supplierCpf === a.supplierCpf ? { ...assign, commitmentValue: e.target.value.replace(/[^0-9,.]/g, '') } : assign))}
+                                            value={a.commitmentValue || '0,00'}
+                                            onChange={e => {
+                                                const val = e.target.value.replace(/[^0-9,.]/g, '');
+                                                setAssignments(prev => prev.map(assign => assign.supplierCpf === a.supplierCpf ? { ...assign, commitmentValue: val } : assign));
+                                            }}
                                             className="w-full p-2 border-2 border-gray-50 rounded-lg text-center font-mono text-xs focus:border-indigo-400 outline-none transition-all bg-white"
                                         />
                                     </div>

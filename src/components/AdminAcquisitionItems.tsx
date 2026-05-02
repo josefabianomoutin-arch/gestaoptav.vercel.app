@@ -557,15 +557,15 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                     <td className="p-6 text-right border-r border-zinc-50">
                                         <div className="flex flex-col gap-2 items-end">
                                             <div className="flex flex-col items-end">
-                                                <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Vlr. Unitário</span>
-                                                <span className="font-mono text-xs font-bold text-zinc-500">
+                                                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mb-0.5">Vlr. Unitário</span>
+                                                <span className="font-mono text-sm font-black text-zinc-900 border-b border-emerald-500/20 pb-0.5">
                                                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unitValue || 0)}
                                                 </span>
                                             </div>
                                             <div className="h-px w-12 bg-zinc-100"></div>
                                             <div className="flex flex-col items-end">
                                                 <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Total Item</span>
-                                                <span className="font-mono text-sm font-black text-zinc-900 whitespace-nowrap">
+                                                <span className="font-mono text-sm font-black text-zinc-900 border-b border-indigo-500/20 pb-0.5 whitespace-nowrap">
                                                     {(() => {
                                                         const unitVal = parseFloat(String((item.unitValue as any) || '0').replace(',', '.'));
                                                         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(unitVal * (item.acquiredQuantity + (item.contractAddendum || 0)));
@@ -578,9 +578,9 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         <div className="flex flex-col gap-2">
                                             <button 
                                                 onClick={() => setManageItem(item)}
-                                                className={`w-full ${category === 'PPAIS' || category === 'PERECÍVEIS' ? 'bg-indigo-600' : 'bg-zinc-900'} text-white hover:opacity-90 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95`}
+                                                className={`w-full ${category === 'PPAIS' || category === 'PERECÍVEIS' || category === 'ESTOCÁVEIS' ? 'bg-indigo-600' : 'bg-zinc-900'} text-white hover:opacity-90 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95`}
                                             >
-                                                {category === 'PPAIS' || category === 'PERECÍVEIS' ? 'Distribuir Peso' : 'Vincular'}
+                                                {category === 'PPAIS' || category === 'PERECÍVEIS' || category === 'ESTOCÁVEIS' ? 'Distribuir Peso' : 'Vincular'}
                                             </button>
                                             <div className="flex gap-2">
                                                 <button 
