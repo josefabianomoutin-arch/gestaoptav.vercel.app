@@ -171,8 +171,8 @@ const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ supplie
                 <th>Descrição do Item</th>
                 <th>Validade</th>
                 <th>Qtd.</th>
-                <th>V. Mediana</th>
-                <th>V. Total</th>
+                <th className="p-3 text-left">Vlr. Unitário</th>
+                <th className="p-3 text-left">Total Item</th>
               </tr>
             </thead>
             <tbody>

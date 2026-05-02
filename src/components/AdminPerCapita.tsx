@@ -330,12 +330,20 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             return { ...producer, contractItems: newContractItems };
         });
         await handleUpdateProducers(updatedProducers);
+        await updateAcquisitionItemPrice(itemName, assignments);
         return { success: true, message: 'Contratos de produtores atualizados' };
     };
 
     const updateAcquisitionItemPrice = async (itemName: string, assignments: any[]) => {
         const totalKg = assignments.reduce((sum, a) => sum + parseFloat(String(a.totalKg || '0').replace(',', '.')), 0);
-        const totalValue = assignments.reduce((sum, a) => sum + parseFloat(String(a.totalKg || '0').replace(',', '.')) * parseFloat(String(a.valuePerKg || '0').replace(',', '.')), 0);
+        const totalValue = assignments.reduce((sum, a) => {
+            const kg = parseFloat(String(a.totalKg || '0').replace(',', '.'));
+            const price = parseFloat(String(a.valuePerKg || '0').replace(',', '.'));
+            const commitment = parseFloat(String(a.commitmentValue || '0').replace(',', '.'));
+            // Use commitment value if non-zero, otherwise kg * price
+            const val = (commitment > 0) ? commitment : (kg * price);
+            return sum + val;
+        }, 0);
         const weightedAvg = totalKg > 0 ? totalValue / totalKg : 0;
         
         const itemToUpdate = acquisitionItems.find(i => normalizeItemName(i.name) === normalizeItemName(itemName));

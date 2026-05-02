@@ -763,7 +763,7 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
                                         />
                                     </div>
                                     <div className="w-full md:w-28">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase block mb-0.5 ml-1">V. Mediana (R$)</label>
+                                        <label className="text-[8px] font-black text-gray-400 uppercase block mb-0.5 ml-1">Vlr. Unitário</label>
                                         <input 
                                             type="text" 
                                             value={a.valuePerKg} 
@@ -781,13 +781,27 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
                                         />
                                     </div>
                                     <div className="w-full md:w-28">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase block mb-0.5 ml-1">V. Empenho (R$)</label>
+                                        <label className="text-[8px] font-black text-gray-400 uppercase block mb-0.5 ml-1">Total Item</label>
                                         <input 
                                             type="text" 
                                             value={a.commitmentValue || '0,00'}
                                             onChange={e => {
                                                 const val = e.target.value.replace(/[^0-9,.]/g, '');
-                                                setAssignments(prev => prev.map(assign => assign.supplierCpf === a.supplierCpf ? { ...assign, commitmentValue: val } : assign));
+                                                const numericTotal = parseFloat(val.replace(',', '.')) || 0;
+                                                const kg = parseFloat(String(a.totalKg).replace(',', '.')) || 0;
+                                                
+                                                setAssignments(prev => prev.map(assign => {
+                                                    if (assign.supplierCpf !== a.supplierCpf) return assign;
+                                                    
+                                                    // Reverse sync: update Vlr. Unitário if Total Item changes
+                                                    const newUnitPrice = kg > 0 ? (numericTotal / kg).toFixed(2).replace('.', ',') : assign.valuePerKg;
+                                                    
+                                                    return { 
+                                                        ...assign, 
+                                                        commitmentValue: val,
+                                                        valuePerKg: newUnitPrice
+                                                    };
+                                                }));
                                             }}
                                             className="w-full p-2 border-2 border-gray-50 rounded-lg text-center font-mono text-xs focus:border-indigo-400 outline-none transition-all bg-white"
                                         />
