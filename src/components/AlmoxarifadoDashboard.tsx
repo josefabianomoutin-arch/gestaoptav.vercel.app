@@ -341,6 +341,21 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             totalValue: (items as any[]).reduce((sum, it) => sum + ((it.kg || 0) * (it.value || 0)), 0)
         })).sort((a, b) => a.date.localeCompare(b.date));
 
+        // Pegar número de empenho único dos itens agendados
+        const commitmentNumbers = [...new Set(deliveries.flatMap(d => 
+            d.items.map(it => {
+                // Tentar buscar em acquisitionItems primeiro
+                const acqItem = acquisitionItems.find(ai => ai.name === it.item || ai.nickname === it.item);
+                if (acqItem?.commitmentNumber) return acqItem.commitmentNumber;
+                
+                // Fallback para itens do contrato do fornecedor
+                const supplierItems = (Object.values(supplier.contractItems || {}) as any[]);
+                const contractItem = supplierItems.find(ci => ci.name === it.item);
+                return contractItem?.commitmentNumber;
+            }).filter(Boolean)
+        ))];
+        const commitmentStr = commitmentNumbers.join(' / ') || 'N/A';
+
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
@@ -390,6 +405,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         <div class="box-row"><span class="label">PROCESSO SEI:</span> ${SeiNumber || 'N/A'}</div>
                         <div class="box-row"><span class="label">UNIDADE:</span> PENITENCIÁRIA DE TAIUVA</div>
                         <div class="box-row"><span class="label">PERÍODO:</span> ${selectedMonth} DE ${selectedYear}</div>
+                        <div class="box-row"><span class="label">Nº EMPENHO:</span> ${commitmentStr}</div>
                     </div>
                 </div>
                 

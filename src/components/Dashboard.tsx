@@ -249,6 +249,13 @@ const Dashboard: React.FC<DashboardProps> = ({
     const totalWeight = monthDeliveries.reduce((sum, d) => sum + (d.kg || 0), 0);
     const totalValue = monthDeliveries.reduce((sum, d) => sum + (d.value || 0), 0);
 
+    // Filter commitment numbers from the items in this month's deliveries
+    const commitmentNumbers = [...new Set(monthDeliveries.map(d => {
+        const contractItem = (supplier.contractItems || []).find((ci: any) => ci.name === d.item);
+        return contractItem?.commitmentNumber;
+    }).filter(Boolean))];
+    const commitmentStr = commitmentNumbers.join(' / ') || 'NÃO INFORMADO';
+
     const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
     const formatDate = (dateString: string) => {
         const date = new Date(dateString + 'T00:00:00');
@@ -292,7 +299,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div class="info-box">
                     <strong>PROCESSO SEI:</strong> ${supplier.processNumber || 'NÃO INFORMADO'}<br>
                     <strong>UNIDADE:</strong> PENITENCIÁRIA DE TAIUVA<br>
-                    <strong>PERÍODO:</strong> ${currentMonthName}
+                    <strong>PERÍODO:</strong> ${currentMonthName}<br>
+                    <strong>Nº EMPENHO:</strong> ${commitmentStr}
                 </div>
             </div>
             <div class="opening-text">

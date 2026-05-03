@@ -241,6 +241,8 @@ export interface AcquisitionItem {
     contractItemName?: string;
     expenseNature?: string;
     nickname?: string;
+    commitmentNumber?: string;
+    commitmentValue?: string;
 }
 
 export interface VehicleExitOrder {

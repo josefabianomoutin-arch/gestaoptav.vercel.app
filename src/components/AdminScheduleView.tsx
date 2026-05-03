@@ -157,6 +157,14 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
 
         const sortedDates = Array.from(groupedByDate.keys()).sort();
 
+        // Pegar número de empenho único dos itens selecionados
+        const commitmentNumbers = [...new Set(selectedReportItems.map(it => {
+            const supplierItems = (Object.values(supplier.contractItems || {}) as any[]);
+            const contractItem = supplierItems.find(ci => ci.name === it.item);
+            return contractItem?.commitmentNumber;
+        }).filter(Boolean))];
+        const commitmentStr = commitmentNumbers.join(' / ') || 'NÃO INFORMADO';
+
         const htmlContent = `
             <!DOCTYPE html>
             <html>
@@ -210,7 +218,8 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                     <div class="info-box">
                         <strong>PROCESSO SEI:</strong> ${reportSeiNumber || 'NÃO INFORMADO'}<br>
                         <strong>UNIDADE:</strong> PENITENCIÁRIA DE TAIUVA<br>
-                        <strong>PERÍODO:</strong> ${getMonthName(reportSelectedMonth)}
+                        <strong>PERÍODO:</strong> ${getMonthName(reportSelectedMonth)}<br>
+                        <strong>Nº EMPENHO:</strong> ${commitmentStr}
                     </div>
                 </div>
 
