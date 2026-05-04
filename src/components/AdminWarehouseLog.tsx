@@ -6,7 +6,10 @@ import {
     Search, 
     Edit2, 
     Trash2, 
-    Clock
+    Clock,
+    Eye,
+    FileText,
+    ImageIcon
 } from 'lucide-react';
 import type { WarehouseMovement, Supplier } from '../types';
 import ConfirmModal from './ConfirmModal';
@@ -409,6 +412,59 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                 </div>
             </div>
 
+            {/* VISUALIZAÇÃO DE IMAGENS / DOCUMENTOS (Opcional) */}
+            {filteredLog.some(l => l.invoiceUrl) && (
+                <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm animate-fade-in space-y-4">
+                    <div className="flex items-center justify-between border-b border-gray-50 pb-2">
+                        <div className="flex items-center gap-2">
+                            <div className="bg-indigo-100 text-indigo-600 p-1.5 rounded-lg">
+                                <ImageIcon className="h-4 w-4" />
+                            </div>
+                            <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-900 italic">Comprovantes & Imagens do Período</h3>
+                        </div>
+                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter italic">{filteredLog.filter(l => l.invoiceUrl).length} DOCUMENTO(S) ENCONTRADO(S)</span>
+                    </div>
+                    <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+                        {filteredLog.filter(l => l.invoiceUrl).slice(0, 10).map(log => (
+                            <div 
+                                key={`img-${log.id}`} 
+                                className="min-w-[120px] aspect-[3/4] bg-gray-50 rounded-xl border border-gray-100 overflow-hidden relative group cursor-pointer shadow-sm hover:shadow-md transition-all"
+                                onClick={() => {
+                                    if (log.invoiceUrl) {
+                                        const win = window.open();
+                                        if (win) {
+                                            win.document.write(`<iframe src="${log.invoiceUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                        }
+                                    }
+                                }}
+                            >
+                                {log.invoiceUrl?.startsWith('data:image') ? (
+                                    <img src={log.invoiceUrl} alt="NF" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
+                                ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 group-hover:text-amber-500 transition-colors">
+                                        <FileText className="h-8 w-8" />
+                                        <span className="text-[7px] font-black uppercase mt-1">PDF</span>
+                                    </div>
+                                )}
+                                <div className="absolute inset-x-0 bottom-0 bg-zinc-900/80 p-2 transform translate-y-full group-hover:translate-y-0 transition-transform">
+                                    <p className="text-[7px] text-white font-black uppercase truncate leading-none mb-1">{log.itemName}</p>
+                                    <p className="text-[6px] text-zinc-400 font-bold uppercase truncate">{log.supplierName}</p>
+                                </div>
+                                <div className="absolute top-2 right-2 bg-white/90 p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Eye className="h-3 w-3 text-indigo-600" />
+                                </div>
+                            </div>
+                        ))}
+                        {filteredLog.filter(l => l.invoiceUrl).length > 10 && (
+                            <div className="min-w-[120px] aspect-[3/4] bg-indigo-50 rounded-xl border border-dashed border-indigo-200 flex flex-col items-center justify-center text-indigo-400 font-black uppercase text-[8px] italic tracking-tighter">
+                                <span>+{filteredLog.filter(l => l.invoiceUrl).length - 10}</span>
+                                <span>Documentos</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* RESUMO DO CONTRATO / FORNECEDOR */}
             {filteredLog.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
@@ -432,12 +488,12 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                             
                             return acc;
                         }, {} as Record<string, { supplier: string; item: string; totalWeight: number; totalValue: number; weeks: Set<number> }>)
-                    ).map(([key, data]) => (
+                    ).map(([key, data]: [string, any]) => (
                         <div key={key} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all border-l-4 border-l-indigo-500 group">
                             <div className="flex justify-between items-start mb-2">
                                 <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest">{data.supplier}</span>
                                 <div className="flex gap-1">
-                                    {Array.from(data.weeks).sort().map(w => (
+                                    {Array.from(data.weeks as Set<number>).sort().map(w => (
                                         <span key={w} className="bg-white border border-slate-200 text-[7px] font-black px-1.5 py-0.5 rounded text-slate-400 italic">S{w}</span>
                                     ))}
                                 </div>
@@ -515,6 +571,20 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                     </td>
                                     <td className="p-2 text-center">
                                         <div className="flex justify-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                            {log.invoiceUrl && (
+                                                <button 
+                                                    onClick={() => {
+                                                        const win = window.open();
+                                                        if (win) {
+                                                            win.document.write(`<iframe src="${log.invoiceUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                                        }
+                                                    }}
+                                                    className="text-gray-400 hover:text-amber-600 hover:bg-amber-50 p-1.5 rounded-lg transition-all"
+                                                    title="Ver Comprovante"
+                                                >
+                                                    <Eye className="h-3.5 w-3.5" />
+                                                </button>
+                                            )}
                                             <button 
                                                 onClick={() => handlePrintLabel(log)}
                                                 className="text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-lg transition-all"
@@ -542,14 +612,12 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                 </tr>
                             ))}
                             {filteredLog.length === 0 && (
-                                <tr><td colSpan={8} className="p-16 text-center text-gray-200 italic font-black uppercase tracking-[0.2em] text-[10px]">Sem registros para este filtro</td></tr>
+                                <tr><td colSpan={10} className="p-16 text-center text-gray-200 italic font-black uppercase tracking-[0.2em] text-[10px]">Sem registros para este filtro</td></tr>
                             )}
                         </tbody>
                     </table>
                     </div>
                 </div>
-            </div>
-
 
             {editingLog && (
                 <EditWarehouseMovementModal 

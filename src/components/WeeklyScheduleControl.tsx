@@ -94,14 +94,24 @@ const WeeklyScheduleControl: React.FC<WeeklyScheduleControlProps> = ({
                 .filter(d => d.item !== 'AGENDAMENTO PENDENTE' && d.invoiceNumber)
                 .reduce((acc, d) => {
                     const nf = d.invoiceNumber!;
-                    // Only include in *this* week if this week is the earliest week for this NF
                     if (nfToEarliestWeek[nf] === selectedWeek) {
-                        if (!acc.find(i => i.nf === nf)) {
-                            acc.push({ nf, date: d.date });
+                        let existing = acc.find(i => i.nf === nf);
+                        if (!existing) {
+                            existing = { nf, date: d.date, commitment: '' };
+                            
+                            // Find commitment number for this item
+                            const contractItem = (supplier.contractItems || []).find(ci => 
+                                superNormalize(ci.name) === superNormalize(d.item)
+                            );
+                            if (contractItem?.commitmentNumber) {
+                                existing.commitment = contractItem.commitmentNumber;
+                            }
+                            
+                            acc.push(existing);
                         }
                     }
                     return acc;
-                }, [] as { nf: string, date: string }[]);
+                }, [] as { nf: string, date: string, commitment: string }[]);
 
             const hasScheduled = scheduledDates.length > 0 || (supplier.allowedWeeks || []).includes(selectedWeek);
             const hasDelivered = invoices.length > 0;
@@ -218,9 +228,15 @@ const WeeklyScheduleControl: React.FC<WeeklyScheduleControlProps> = ({
                                     <td className="p-5 text-center">
                                         <div className="flex flex-wrap justify-center gap-2">
                                             {item.invoices.length > 0 ? item.invoices.map(inv => (
-                                                <div key={inv.nf} className="flex flex-col items-center bg-green-50 text-green-700 px-3 py-1 rounded-xl border border-green-100">
-                                                    <span className="text-[10px] font-black">NF {inv.nf}</span>
-                                                    <span className="text-[8px] font-bold opacity-70">{formatDate(inv.date)}</span>
+                                                <div key={inv.nf} className="flex flex-col items-center bg-green-50 text-green-700 px-3 py-1.5 rounded-xl border border-green-100 min-w-[120px]">
+                                                    <span className="text-[10px] font-black uppercase">NF {inv.nf}</span>
+                                                    <span className="text-[8px] font-bold opacity-70 mb-1">{formatDate(inv.date)}</span>
+                                                    {inv.commitment && (
+                                                        <div className="mt-1 pt-1 border-t border-green-200/50 w-full text-center">
+                                                            <span className="text-[7px] font-black text-green-500 uppercase block leading-none">Empenho</span>
+                                                            <span className="text-[9px] font-black font-mono tracking-tighter">{inv.commitment}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )) : (
                                                 <span className="text-[10px] text-red-300 font-bold uppercase italic">Nenhuma NF registrada</span>

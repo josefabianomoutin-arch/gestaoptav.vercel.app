@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
-import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon } from 'lucide-react';
+import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, ImageIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus } from '../types';
 import InfobarTicker from './InfobarTicker';
@@ -1130,12 +1130,20 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         </div>
                     )}
                     <div className="flex bg-slate-100 p-1 rounded-2xl">
-                        {['history', 'movement_history', 'validity', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'sync'].map(tab => (
+                        {['history', 'movement_history', 'image_history', 'validity', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'sync'].map(tab => (
                             <button 
                                 key={tab}
                                 onClick={() => setActiveTab(tab)} 
                                 className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                                {tab === 'history' ? 'Consulta & Gestão' : tab === 'movement_history' ? 'Histórico' : tab === 'validity' ? 'Validade' : tab === 'agenda' ? 'Agenda' : tab === 'cronograma' ? 'Cronograma' : tab === 'menu' ? 'Cardápio' : tab === 'receipt' ? 'Controle Doc.' : tab === 'manual_receipt' ? 'Termo Manual' : 'Sincronização'}
+                                {tab === 'history' ? 'Consulta & Gestão' : 
+                                 tab === 'movement_history' ? 'Log de Movimentação' : 
+                                 tab === 'image_history' ? 'Histórico (Imagem)' : 
+                                 tab === 'validity' ? 'Validade' : 
+                                 tab === 'agenda' ? 'Agenda' : 
+                                 tab === 'cronograma' ? 'Cronograma' : 
+                                 tab === 'menu' ? 'Cardápio' : 
+                                 tab === 'receipt' ? 'Controle Doc.' : 
+                                 tab === 'manual_receipt' ? 'Termo Manual' : 'Sincronização'}
                             </button>
                         ))}
                     </div>
@@ -1180,6 +1188,73 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         onDeleteEntry={onDeleteWarehouseEntry!}
                         onUpdateWarehouseEntry={onUpdateWarehouseEntry!}
                     />
+                ) : activeTab === 'image_history' ? (
+                    <div className="space-y-6">
+                        <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in mb-8">
+                            <div className="p-4 md:p-6 border-b border-gray-100 bg-zinc-900 text-white flex items-center gap-3">
+                                <div className="bg-indigo-500 text-white p-2 rounded-[1rem]">
+                                    <FileIcon className="h-6 w-6" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-black uppercase tracking-tighter leading-none italic">Histórico de Imagens / Comprovantes</h2>
+                                    <p className="text-zinc-400 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Visualização de Documentos Anexados</p>
+                                </div>
+                            </div>
+                            <div className="p-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                                    {warehouseLog.filter(l => l.invoiceUrl).length > 0 ? (
+                                        warehouseLog.filter(l => l.invoiceUrl).sort((a, b) => b.timestamp - a.timestamp).map(log => (
+                                            <div key={log.id} className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all group flex flex-col h-full">
+                                                <div 
+                                                    className="aspect-[3/4] bg-zinc-200 flex items-center justify-center cursor-pointer relative overflow-hidden"
+                                                    onClick={() => {
+                                                        if (log.invoiceUrl) {
+                                                            const win = window.open();
+                                                            if (win) {
+                                                                win.document.write(`<iframe src="${log.invoiceUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                                            }
+                                                        }
+                                                    }}
+                                                >
+                                                    {log.invoiceUrl?.startsWith('data:image') ? (
+                                                        <img src={log.invoiceUrl} alt="Comprovante" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                    ) : (
+                                                        <div className="flex flex-col items-center gap-2 text-zinc-400 group-hover:text-indigo-500 transition-colors">
+                                                            <FileText className="h-12 w-12" />
+                                                            <span className="text-[10px] font-black uppercase tracking-widest">Documento PDF</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                        <Eye className="text-white h-8 w-8" />
+                                                    </div>
+                                                </div>
+                                                <div className="p-4 flex flex-col flex-grow">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <span className="text-[8px] font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded uppercase">{log.type}</span>
+                                                        <span className="text-[9px] font-mono font-bold text-gray-400">{(log.date || '').split('-').reverse().join('/')}</span>
+                                                    </div>
+                                                    <h4 className="text-[10px] font-black text-gray-900 uppercase leading-tight mb-1">{log.itemName}</h4>
+                                                    <p className="text-[8px] text-gray-500 font-bold uppercase truncate mb-3">{log.supplierName}</p>
+                                                    
+                                                    <div className="mt-auto pt-3 border-t border-gray-100 flex justify-between items-center text-[9px] font-mono font-bold">
+                                                        <span className="text-gray-400">NF: {log.inboundInvoice || log.outboundInvoice || '-'}</span>
+                                                        <span className="text-zinc-900">{log.quantity.toFixed(2)} Kg</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="col-span-full py-20 text-center">
+                                            <div className="inline-block p-6 bg-gray-50 rounded-full mb-4">
+                                                <ImageIcon className="h-12 w-12 text-gray-200" />
+                                            </div>
+                                            <p className="text-gray-400 font-bold uppercase tracking-[0.2em] italic">Nenhum comprovante anexado nos registros</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 ) : activeTab === 'validity' ? (
                     <ValidityAnalysisPanel warehouseLog={warehouseLog} />
                 ) : activeTab === 'manual_receipt' ? (
