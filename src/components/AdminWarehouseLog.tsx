@@ -172,8 +172,9 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
     const groupedProjectionData = useMemo(() => {
         if (!perCapitaConfig) return [];
         
-        const [_year, monthIdx] = activeMonthTab.split('-').map(Number);
-        const monthName = monthNamesInOrder[monthIdx];
+        const [yearStr, monthStr] = activeMonthTab.split('-');
+        const monthIdx = parseInt(monthStr);
+        const monthName = monthNamesInOrder[monthIdx - 1];
         
         const allPCSupers = [
             ...(perCapitaConfig.ppaisProducers || []),
@@ -185,7 +186,9 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
 
         allPCSupers.forEach((s: any) => {
             const schedule = s.monthlySchedule || {};
-            if (schedule[monthName]) {
+            const weeks = schedule[monthName] || schedule[monthName.toLowerCase()] || [];
+            
+            if (weeks.length > 0) {
                 const items = Object.values(s.contractItems || {}) as any[];
                 items.forEach(it => {
                     if (!grouped[it.name]) {
@@ -203,6 +206,21 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     
                     const monthlyWeight = (it.totalKg || 0) / divisor;
                     const monthlyValue = monthlyWeight * (it.valuePerKg || 0);
+
+                    // Find actual deliveries in this month for this item/supplier
+                    const deliveredForThis = combinedLog.filter(l => 
+                        superNormalize(l.itemName) === superNormalize(it.name) && 
+                        superNormalize(l.supplierName) === superNormalize(s.name) && 
+                        l.type === 'entrada' &&
+                        (l.date || '').startsWith(activeMonthTab)
+                    );
+                    const deliveredWeight = deliveredForThis.reduce((sum, l) => sum + (l.quantity || 0), 0);
+                    
+                    let status = 'AGUARDANDO';
+                    if (deliveredWeight > 0) {
+                        if (deliveredWeight >= monthlyWeight * 0.95) status = 'CONCLUÍDO';
+                        else status = 'EM ANDAMENTO';
+                    }
                     
                     grouped[it.name].producers.push({
                         supplier: s.name,
@@ -210,7 +228,9 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         monthlyValue: monthlyValue,
                         totalContractWeight: it.totalKg || 0,
                         totalContractValue: (it.totalKg || 0) * (it.valuePerKg || 0),
-                        weeks: schedule[monthName]
+                        weeks: weeks,
+                        deliveredWeight,
+                        status
                     });
                     
                     grouped[it.name].totalItemWeight += monthlyWeight;
@@ -220,7 +240,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
         });
 
         return Object.values(grouped).sort((a, b) => a.itemName.localeCompare(b.itemName));
-    }, [perCapitaConfig, activeMonthTab]);
+    }, [perCapitaConfig, activeMonthTab, combinedLog]);
 
     React.useEffect(() => {
         const table = tableRef.current;
@@ -470,6 +490,92 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     </div>
                 </div>
             </div>
+
+            {/* PROJEÇÃO DE ABASTECIMENTO */}
+            {groupedProjectionData.length > 0 && (
+                <div className="bg-amber-50/30 p-4 md:p-6 rounded-[2rem] border-2 border-amber-100/50 space-y-4">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-amber-100 p-2 rounded-xl text-amber-600">
+                            <Clock className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-black text-amber-900 uppercase tracking-tighter italic">
+                                Projeção de Abastecimento para {monthNamesInOrder[parseInt(activeMonthTab.split('-')[1]) - 1]} / {activeMonthTab.split('-')[0]}
+                            </h3>
+                            <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest italic mt-0.5">Organizado por Item: Planejamento Mensal vs Contrato Total</p>
+                        </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-[10px] border-separate border-spacing-y-2">
+                            <thead>
+                                <tr className="text-zinc-400 font-black uppercase tracking-tighter italic text-[9px]">
+                                    <th className="px-4 py-2 text-left">Item / Fornecedor</th>
+                                    <th className="px-4 py-2 text-center">Semanas</th>
+                                    <th className="px-4 py-2 text-right">Entrega Mês (KG)</th>
+                                    <th className="px-4 py-2 text-right">Valor Mês</th>
+                                    <th className="px-4 py-2 text-right">Total Contrato (KG)</th>
+                                    <th className="px-4 py-2 text-right">Valor Total</th>
+                                    <th className="px-4 py-2 text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {groupedProjectionData.map((item, idx) => (
+                                    <React.Fragment key={idx}>
+                                        {/* Row for Item Header */}
+                                        <tr className="bg-white/50 border-b border-amber-100">
+                                            <td colSpan={3} className="px-4 py-4">
+                                                <h4 className="text-[11px] font-black text-zinc-800 uppercase leading-snug max-w-2xl">{item.itemName}</h4>
+                                            </td>
+                                            <td className="px-4 py-4"></td>
+                                            <td className="px-4 py-4 text-right font-mono font-black text-zinc-900 bg-amber-50/50 rounded-l-xl">
+                                                {item.producers.reduce((acc: number, p: any) => acc + p.totalContractWeight, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} Kg
+                                            </td>
+                                            <td className="px-4 py-4 text-right font-mono font-black text-amber-600 bg-amber-50/50 rounded-r-xl">
+                                                {formatCurrency(item.producers.reduce((acc: number, p: any) => acc + p.totalContractValue, 0))}
+                                            </td>
+                                            <td className="px-4 py-4"></td>
+                                        </tr>
+                                        {/* Rows for Producers */}
+                                        {item.producers.map((prod: any, pIdx: number) => (
+                                            <tr key={`${idx}-${pIdx}`} className="bg-white/30 hover:bg-white transition-all group">
+                                                <td className="px-10 py-3 text-zinc-500 font-black italic uppercase text-[9px]">{prod.supplier}</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <div className="flex justify-center gap-1">
+                                                        {(prod.weeks || []).map((w: number) => (
+                                                            <span key={w} className="bg-amber-100 text-amber-700 text-[8px] font-black px-1.5 py-0.5 rounded italic">S{w}</span>
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-mono font-bold">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-indigo-600">{prod.monthlyWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} KG</span>
+                                                        {prod.deliveredWeight > 0 && (
+                                                            <span className="text-[7px] text-zinc-400">Entrega Real: {prod.deliveredWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-mono font-bold text-green-600">{formatCurrency(prod.monthlyValue)}</td>
+                                                <td className="px-4 py-3 text-right font-mono text-zinc-400 font-bold">{prod.totalContractWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} KG</td>
+                                                <td className="px-4 py-3 text-right font-mono text-zinc-400 font-bold">{formatCurrency(prod.totalContractValue)}</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase italic tracking-tighter ${
+                                                        prod.status === 'CONCLUÍDO' ? 'bg-green-100 text-green-600' :
+                                                        prod.status === 'EM ANDAMENTO' ? 'bg-indigo-100 text-indigo-600' :
+                                                        'bg-gray-100 text-gray-400'
+                                                    }`}>
+                                                        {prod.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </React.Fragment>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* VISUALIZAÇÃO DE IMAGENS / DOCUMENTOS (Opcional) */}
             {filteredLog.some(l => l.invoiceUrl) && (
