@@ -293,7 +293,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
                 const mergedWeeks = Array.from(new Set([...(existing.allowedWeeks || []), ...(s.allowedWeeks || [])])).sort((a, b) => a - b);
                 
                 // Merge contract items
-                const mergedItems = [...(existing.contractItems || []), ...(s.contractItems || [])];
+                const getItems = (items: any) => {
+                    if (!items) return [];
+                    return Array.isArray(items) ? items : Object.values(items);
+                };
+                const mergedItems = [...getItems(existing.contractItems), ...getItems(s.contractItems)];
                 const uniqueItems = Array.from(new Map(mergedItems.map(item => [item.name + (item.period || ''), item])).values());
 
                 uniqueMap.set(s.cpf, {

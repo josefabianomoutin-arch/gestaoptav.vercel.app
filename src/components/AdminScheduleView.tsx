@@ -158,12 +158,15 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
         const sortedDates = Array.from(groupedByDate.keys()).sort();
 
         // Pegar número de empenho único dos itens selecionados
+        const normalize = (s: string) => s.trim().toUpperCase().replace(/\s+/g, ' ');
         const commitmentNumbers = [...new Set(selectedReportItems.map(it => {
-            const supplierItems = (Object.values(supplier.contractItems || {}) as any[]);
-            const contractItem = supplierItems.find(ci => ci.name === it.item);
+            const itemsSource = supplier.contractItems || {};
+            const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+            const normalizedItemName = normalize(it.item || it.itemName || '');
+            const contractItem = supplierItems.find(ci => normalize(ci.name) === normalizedItemName);
             return contractItem?.commitmentNumber;
         }).filter(Boolean))];
-        const commitmentStr = commitmentNumbers.join(' / ') || 'NÃO INFORMADO';
+        const commitmentStr = commitmentNumbers.length > 0 ? commitmentNumbers.join(' / ') : 'NÃO INFORMADO';
 
         const htmlContent = `
             <!DOCTYPE html>
@@ -703,6 +706,24 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                                                 </label>
                                             ))}
                                         </div>
+
+                                        {selectedItemIds.length > 0 && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-scale-in">
+                                                <div className="bg-red-600 p-6 rounded-3xl shadow-lg border-b-4 border-red-800">
+                                                    <p className="text-[10px] font-black text-red-200 uppercase tracking-widest mb-1">Peso Total Selecionado</p>
+                                                    <h4 className="text-3xl font-black text-white italic tracking-tighter">
+                                                        {selectedReportItems.reduce((acc, curr) => acc + (curr.kg || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })}
+                                                        <span className="text-sm ml-1 opacity-60 not-italic">KG</span>
+                                                    </h4>
+                                                </div>
+                                                <div className="bg-red-600 p-6 rounded-3xl shadow-lg border-b-4 border-red-800">
+                                                    <p className="text-[10px] font-black text-red-200 uppercase tracking-widest mb-1">Valor Total Selecionado</p>
+                                                    <h4 className="text-3xl font-black text-white italic tracking-tighter">
+                                                        {formatCurrency(selectedReportItems.reduce((acc, curr) => acc + (curr.value || 0), 0))}
+                                                    </h4>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
@@ -713,11 +734,25 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                                         Pré-visualização do Cronograma
                                     </h3>
                                     
-                                    <div className="bg-white rounded-3xl shadow-sm border border-purple-100 p-8 space-y-6 text-[11px] font-serif overflow-x-auto">
+                                    <div className="bg-white rounded-3xl shadow-sm border border-purple-100 p-8 space-y-6 text-[11px] font-serif overflow-x-auto relative">
                                         <div className="text-center font-bold uppercase text-sm border-b-2 border-black pb-4 mb-6">
                                             CRONOGRAMA DE ENTREGA
                                         </div>
                                         
+                                        <div className="grid grid-cols-2 gap-4 mb-6 text-[10px]">
+                                            <div className="border border-black p-3 bg-gray-50/50">
+                                                <strong>FORNECEDOR:</strong> {(suppliers.find(s => s.cpf === reportSupplierCpf)?.name || '').toUpperCase()}<br/>
+                                                <strong>CPF/CNPJ:</strong> {reportSupplierCpf}<br/>
+                                                <strong>ENDEREÇO:</strong> {reportSupplierAddress || '____________________________________________________'}
+                                            </div>
+                                            <div className="border border-black p-3 bg-gray-50/50">
+                                                <strong>PROCESSO SEI:</strong> {reportSeiNumber || 'NÃO INFORMADO'}<br/>
+                                                <strong>UNIDADE:</strong> PENITENCIÁRIA DE TAIUVA<br/>
+                                                <strong>PERÍODO:</strong> {getMonthName(reportSelectedMonth)}<br/>
+                                                <strong>Nº EMPENHO:</strong> {commitmentStr}
+                                            </div>
+                                        </div>
+
                                         <div className="text-justify leading-relaxed">
                                             <strong>Fornecedor:</strong> {(suppliers.find(s => s.cpf === reportSupplierCpf)?.name || '').toUpperCase()}, maior, capaz e residente na {reportSupplierAddress || '__________________________________________________________________'}, inscrito no CPF: {reportSupplierCpf} doravante designado Contratado.
                                         </div>

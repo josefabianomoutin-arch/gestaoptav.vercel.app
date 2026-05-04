@@ -397,19 +397,22 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         })).sort((a, b) => a.date.localeCompare(b.date));
 
         // Pegar número de empenho único dos itens agendados
+        const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
         const commitmentNumbers = [...new Set(deliveries.flatMap(d => 
             d.items.map(it => {
+                const normIt = normalize(it.item);
                 // Tentar buscar em acquisitionItems primeiro
-                const acqItem = acquisitionItems.find(ai => ai.name === it.item || ai.nickname === it.item);
+                const acqItem = acquisitionItems.find(ai => normalize(ai.name) === normIt || normalize(ai.nickname) === normIt);
                 if (acqItem?.commitmentNumber) return acqItem.commitmentNumber;
                 
                 // Fallback para itens do contrato do fornecedor
-                const supplierItems = (Object.values(supplier.contractItems || {}) as any[]);
-                const contractItem = supplierItems.find(ci => ci.name === it.item);
+                const itemsSource = supplier.contractItems || {};
+                const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                const contractItem = supplierItems.find(ci => normalize(ci.name) === normIt);
                 return contractItem?.commitmentNumber;
             }).filter(Boolean)
         ))];
-        const commitmentStr = commitmentNumbers.join(' / ') || 'N/A';
+        const commitmentStr = commitmentNumbers.length > 0 ? commitmentNumbers.join(' / ') : 'N/A';
 
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;

@@ -1,5 +1,6 @@
 
 
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import html2pdf from 'html2pdf.js';
@@ -78,25 +79,30 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [comparisonFilter, setComparisonFilter] = useState<'TODOS' | 'SEM_ENTREGA' | 'ATENCAO' | 'AVANCADO' | 'CONCLUIDO' | 'COM_EMPENHO'>('TODOS');
 
     useEffect(() => {
-        if (perCapitaConfig) {
-            setStaffCount(prev => perCapitaConfig.staffCount !== undefined ? (perCapitaConfig.staffCount || 0) : prev);
-            setInmateCount(prev => perCapitaConfig.inmateCount !== undefined ? (perCapitaConfig.inmateCount || 0) : prev);
-            setCustomPerCapita(perCapitaConfig.customValues || {});
-            
-            if (!isDirty) {
-                setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
-                setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
-                setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
-                setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
-                setMonthlyResource(perCapitaConfig.monthlyResource || {});
-                setPtresResources(perCapitaConfig.ptresResources || {});
-            }
-            
-            setPpaisProducers(perCapitaConfig.ppaisProducers || []);
-            setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
-            setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
+        if (!perCapitaConfig) return;
+
+        const newStaffCount = perCapitaConfig.staffCount !== undefined ? (perCapitaConfig.staffCount || 0) : staffCount;
+        const newInmateCount = perCapitaConfig.inmateCount !== undefined ? (perCapitaConfig.inmateCount || 0) : inmateCount;
+
+        if (newStaffCount !== staffCount) setStaffCount(newStaffCount);
+        if (newInmateCount !== inmateCount) setInmateCount(newInmateCount);
+        
+        setCustomPerCapita(perCapitaConfig.customValues || {});
+        
+        if (!isDirty) {
+            setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
+            setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
+            setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
+            setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
+            setMonthlyResource(perCapitaConfig.monthlyResource || {});
+            setPtresResources(perCapitaConfig.ptresResources || {});
         }
-    }, [perCapitaConfig, isDirty]);
+        
+        setPpaisProducers(perCapitaConfig.ppaisProducers || []);
+        setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
+        setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [perCapitaConfig]);
 
     useEffect(() => {
         localStorage.setItem('perCapita_staffCount', staffCount.toString());

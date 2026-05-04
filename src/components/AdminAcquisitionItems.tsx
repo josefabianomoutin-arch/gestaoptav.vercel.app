@@ -33,6 +33,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
     const [unitValue, setUnitValue] = useState('0');
     const [unitValue23, setUnitValue23] = useState('0');
     const [contractAddendum, setContractAddendum] = useState('0');
+    const [commitmentNumber, setCommitmentNumber] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
     // Confirmation Modal State
@@ -187,6 +188,99 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
         printWindow.document.close();
     };
 
+    const handlePrintHorizontal = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Por favor, permita popups para imprimir.');
+            return;
+        }
+
+        const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+        const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Relatório Horizontal - ${category}</title>
+                <style>
+                    @page { size: A4 landscape; margin: 10mm; }
+                    body { font-family: Arial, sans-serif; font-size: 10px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+                    th { background-color: #f3f4f6; text-transform: uppercase; font-size: 9px; }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    h2 { text-align: center; text-transform: uppercase; margin-bottom: 5px; }
+                    .header-info { text-align: center; color: #666; margin-bottom: 20px; font-size: 11px; }
+                </style>
+            </head>
+            <body>
+                <h2>RELATÓRIO DE DISTRIBUIÇÃO POR ITEM - ${category}</h2>
+                <div class="header-info">Data de emissão: ${new Date().toLocaleDateString('pt-BR')}</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>PRODUTO PARA AQUISIÇÃO</th>
+                            <th class="text-right">QTD CONTRATO</th>
+                            <th class="text-right">VALOR CONTRATO</th>
+                            <th>FORNECEDOR(ES) VINCULADO(S)</th>
+                            <th class="text-right">PESO/MÊS</th>
+                            <th class="text-right">VALOR/MÊS</th>
+                            <th class="text-center">SEMANA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredItems.flatMap((item) => {
+                            const totalQuantity = item.acquiredQuantity + (item.contractAddendum || 0);
+                            const totalValue = totalQuantity * (item.unitValue || 0);
+                            
+                            const suppliersForItem = suppliers.filter(s => {
+                                const itemsSource = s.contractItems || {};
+                                const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                                return supplierItems.some((ci: any) => normalize(ci.name) === normalize(item.name));
+                            });
+
+                            if (suppliersForItem.length === 0) {
+                                return `
+                                    <tr>
+                                        <td>${item.name}</td>
+                                        <td class="text-right">${totalQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                        <td class="text-right">${formatCurrency(totalValue)}</td>
+                                        <td colspan="4" class="text-center italic text-gray-400">--- SEM VÍNCULO ---</td>
+                                    </tr>
+                                `;
+                            }
+
+                            return suppliersForItem.map((s, idx) => {
+                                const weightPerSupplier = totalQuantity / suppliersForItem.length;
+                                const valuePerSupplier = totalValue / suppliersForItem.length;
+                                const weightMonth = weightPerSupplier / 8; // Média mensal (dividido por 8 meses)
+                                const valueMonth = valuePerSupplier / 8;
+
+                                return `
+                                    <tr>
+                                        ${idx === 0 ? `<td rowspan="${suppliersForItem.length}">${item.name}</td>` : ''}
+                                        ${idx === 0 ? `<td rowspan="${suppliersForItem.length}" class="text-right">${totalQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>` : ''}
+                                        ${idx === 0 ? `<td rowspan="${suppliersForItem.length}" class="text-right">${formatCurrency(totalValue)}</td>` : ''}
+                                        <td>${s.name.toUpperCase()}</td>
+                                        <td class="text-right">${weightMonth.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                        <td class="text-right">${formatCurrency(valueMonth)}</td>
+                                        <td class="text-center">${s.allowedWeeks?.length > 0 ? s.allowedWeeks.join(', ') : 'LIVRE'}</td>
+                                    </tr>
+                                `;
+                            }).join('');
+                        }).join('')}
+                    </tbody>
+                </table>
+                <script>window.onload = () => window.print();</script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
     const handleSave = async () => {
         if (!name) return;
         setIsSaving(true);
@@ -205,6 +299,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                 unitValue: parseFloat(unitValue.replace(',', '.')) || 0,
                 unitValue23: parseFloat(unitValue23.replace(',', '.')) || 0,
                 contractAddendum: parseFloat(contractAddendum.replace(',', '.')) || 0,
+                commitmentNumber,
                 category
             };
 
@@ -228,6 +323,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
         setUnitValue('0');
         setUnitValue23('0');
         setContractAddendum('0');
+        setCommitmentNumber('');
         setIsAdding(false);
         setEditingId(null);
     };
@@ -245,6 +341,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
         setUnitValue(String(item.unitValue || 0).replace('.', ','));
         setUnitValue23(String(item.unitValue23 || 0).replace('.', ','));
         setContractAddendum(String(item.contractAddendum || 0).replace('.', ','));
+        setCommitmentNumber(item.commitmentNumber || '');
         setEditingId(item.id);
         setIsAdding(true);
     };
@@ -373,6 +470,13 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                     >
                         <svg className="h-4 w-4 text-zinc-400 group-hover:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 00-2 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                         <span className="text-[10px] uppercase tracking-[0.2em]">Gerar Relatório</span>
+                    </button>
+                    <button 
+                        onClick={handlePrintHorizontal}
+                        className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-2 border-emerald-100 font-black rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-3 group"
+                    >
+                        <svg className="h-4 w-4 text-emerald-400 group-hover:text-emerald-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        <span className="text-[10px] uppercase tracking-[0.2em]">Mapa de Distribuição</span>
                     </button>
                 </div>
             </div>
@@ -724,6 +828,16 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         onChange={e => setExpenseNature(e.target.value)} 
                                         className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all"
                                         placeholder="339030"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Nota de Empenho</label>
+                                    <input 
+                                        type="text" 
+                                        value={commitmentNumber} 
+                                        onChange={e => setCommitmentNumber(e.target.value.toUpperCase())} 
+                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                        placeholder="Ex: 2024NE00123"
                                     />
                                 </div>
                             </div>
