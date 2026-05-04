@@ -117,9 +117,6 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
             const itemMonthlyData = [];
             const { unit: itemUnit } = getContractItemDisplayInfo(items[0] as any);
 
-            // Determine if this is a PPAIS item/supplier
-            const isThisItemPPAIS = isPpaisProducer || items.some(it => it.period === '2_3_QUAD' || it.category === 'PPAIS');
-
             // Calculate total contracted for the period
             const period2Items = items.filter(it => it.period !== '1_QUAD');
             let totalQty = 0;
@@ -139,7 +136,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                 });
             }
 
-            const divisor = isThisItemPPAIS ? 8 : 12;
+            const divisor = 12; // Everything uses 12 for the long period for annual consistency
             const qtyIntegerPart = Math.floor(totalQty / divisor);
             const valIntegerPart = Math.floor(totalVal / divisor);
 

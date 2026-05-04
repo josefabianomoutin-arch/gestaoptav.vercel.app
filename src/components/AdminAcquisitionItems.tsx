@@ -169,7 +169,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                     }
 
                                     if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') return 4;
-                                    if (cat === 'PPAIS') return 8;
+                                    if (cat === 'PPAIS') return 12;
                                     return 12;
                                 };
                                 const divisor = getDivisor(item.name);
@@ -656,16 +656,30 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         const getDivisor = () => {
                                             const cat = item.category || category;
                                             if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') return 4;
-                                            if (cat === 'PPAIS') return 8;
+                                            if (cat === 'PPAIS') return 12;
                                             return 12;
                                         };
 
                                         const divisor = getDivisor();
 
+                                        const summedMonthlyWeight = suppliersAssigned.reduce((sum, s) => {
+                                            const itemsSource = s.contractItems || {};
+                                            const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                                            const contractItem = supplierItems.find((ci: any) => normalize(ci.name) === normalizedName);
+                                            return sum + (contractItem?.monthlyWeight || 0);
+                                        }, 0);
+
+                                        const summedMonthlyValue = suppliersAssigned.reduce((sum, s) => {
+                                            const itemsSource = s.contractItems || {};
+                                            const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                                            const contractItem = supplierItems.find((ci: any) => normalize(ci.name) === normalizedName);
+                                            return sum + (contractItem?.monthlyValue || 0);
+                                        }, 0);
+
                                         // Prioritize calculation according to Per Capita logic (total / divisor)
-                                        // as requested by the user to avoid discrepancies from supplier assignments
-                                        const totalMonthlyWeight = totalQuantity / divisor;
-                                        const totalMonthlyValue = (totalQuantity * unitVal) / divisor;
+                                        // Unless it is PPAIS, then we use the summed values from suppliers/producers as requested
+                                        const totalMonthlyWeight = (category === 'PPAIS' && summedMonthlyWeight > 0) ? summedMonthlyWeight : (totalQuantity / divisor);
+                                        const totalMonthlyValue = (category === 'PPAIS' && summedMonthlyValue > 0) ? summedMonthlyValue : (totalQuantity * unitVal / divisor);
 
                                         const weightPerSupplier = suppliersAssigned.length > 0 ? totalQuantity / suppliersAssigned.length : 0;
                                         const valuePerSupplier = unitVal * weightPerSupplier;

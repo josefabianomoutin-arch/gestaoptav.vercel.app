@@ -490,7 +490,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 
                 let divisor = 12;
                 if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
-                else if (cat === 'PPAIS') divisor = 8;
+                else if (cat === 'PPAIS') divisor = 1;
                 
                 return sum + (weight / divisor);
             }, 0);
@@ -506,7 +506,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
                     let divisor = 12;
                     if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
-                    else if (cat === 'PPAIS') divisor = 8;
+                    else if (cat === 'PPAIS') divisor = 1;
                     
                     return sum + ((id.totalQuantity || 0) / divisor);
                 }, 0);
@@ -538,7 +538,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 
                 let divisor = 12;
                 if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
-                else if (cat === 'PPAIS') divisor = 8;
+                else if (cat === 'PPAIS') divisor = 1;
 
                 return sum + (value / divisor);
             }, 0);
@@ -551,7 +551,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     
                     let divisor = 12;
                     if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
-                    else if (cat === 'PPAIS') divisor = 8;
+                    else if (cat === 'PPAIS') divisor = 1;
                     
                     return sum + ((id.totalValue || 0) / divisor);
                 }, 0);
@@ -662,11 +662,10 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') {
                 divisor = 4; // Apenas Maio, Junho, Julho, Agosto
             } else if (cat === 'PPAIS') {
-                divisor = 8; // Maio a Dezembro
+                divisor = 1; // Média mensal já carregada do contrato (não dividir)
             } else {
-                // Média mensal: 4 meses para Jan-Abr, 8 meses para Mai-Dez
-                const currentMonth = new Date().getMonth();
-                divisor = currentMonth <= 3 ? 4 : 8;
+                // Média mensal: 12 meses
+                divisor = 12;
             }
             averages[cat] = total / divisor;
         });

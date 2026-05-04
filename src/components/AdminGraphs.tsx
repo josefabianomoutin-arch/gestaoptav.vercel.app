@@ -113,7 +113,7 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
     const totalMonthly = suppliers.reduce((acc, s) => {
       return acc + Object.values(s.contractItems || {}).reduce((sum: any, item: any) => {
         const value = (item.totalKg || 0) * (item.valuePerKg || 0);
-        const divisor = (item.category === 'PERECÍVEIS' || item.category === 'ESTOCÁVEIS') ? 4 : 8;
+        const divisor = (item.category === 'PERECÍVEIS' || item.category === 'ESTOCÁVEIS') ? 4 : 12;
         return sum + (value / divisor);
       }, 0);
     }, 0);

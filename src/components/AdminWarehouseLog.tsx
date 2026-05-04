@@ -45,7 +45,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<'all' | 'entrada' | 'saída'>('all');
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
-    const [editingLog, setEditingLog] = useState<WarehouseMovement | null>(null);
 
     // Persistence: Pending Offline Entries
     const offlineEntries = useMemo(() => {
@@ -56,7 +55,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             console.error("Error loading offline entries:", e);
             return [];
         }
-    }, []); // Refresh when modal closes as it might have added new ones
+    }, []);
 
     const combinedLog = useMemo(() => {
         const mappedOffline = offlineEntries.map((off: any, idx: number) => ({
@@ -186,7 +185,8 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
 
         allPCSupers.forEach((s: any) => {
             const schedule = s.monthlySchedule || {};
-            const weeks = schedule[monthName] || schedule[monthName.toLowerCase()] || [];
+            const monthsNamesMatch = [monthName, monthName.toLowerCase()];
+            const weeks = monthsNamesMatch.reduce((acc, m) => acc.length > 0 ? acc : (schedule[m] || []), [] as number[]);
             
             if (weeks.length > 0) {
                 const items = Object.values(s.contractItems || {}) as any[];
@@ -212,7 +212,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         }
 
                         if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') return 4;
-                        if (cat === 'PPAIS') return 8;
+                        if (cat === 'PPAIS') return 12;
                         return 12;
                     };
 
@@ -792,13 +792,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                                     <Printer className="h-3.5 w-3.5" />
                                                 </button>
                                                 <button 
-                                                    onClick={() => setEditingLog(log)}
-                                                    className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all"
-                                                    title="Editar Registro"
-                                                >
-                                                    <Edit2 className="h-3.5 w-3.5" />
-                                                </button>
-                                                <button 
                                                     onClick={() => handleDelete(log)} 
                                                     disabled={isDeleting === log.id}
                                                     className="text-gray-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-all disabled:opacity-50"
@@ -817,6 +810,15 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             ) : (
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center text-gray-400 italic font-black uppercase tracking-[0.2em] text-[10px]">Sem registros para este filtro</div>
             )}
+
+            <ConfirmModal 
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                variant={confirmConfig.variant}
+            />
         </div>
     );
 };
