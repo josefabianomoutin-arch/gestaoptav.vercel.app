@@ -203,18 +203,23 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         };
                     }
                     
-                    const monthlyValue = (it.totalKg || 0) * (it.valuePerKg || 0);
+                    let divisor = 12; // Default
+                    if (it.period === '1_QUAD') divisor = 4;
+                    else if (it.period === '2_3_QUAD') divisor = 8;
+                    
+                    const monthlyWeight = (it.totalKg || 0) / divisor;
+                    const monthlyValue = monthlyWeight * (it.valuePerKg || 0);
                     
                     grouped[it.name].producers.push({
                         supplier: s.name,
-                        monthlyWeight: it.totalKg || 0,
+                        monthlyWeight: monthlyWeight,
                         monthlyValue: monthlyValue,
                         totalContractWeight: it.totalKg || 0,
-                        totalContractValue: monthlyValue,
+                        totalContractValue: (it.totalKg || 0) * (it.valuePerKg || 0),
                         weeks: schedule[monthName]
                     });
                     
-                    grouped[it.name].totalItemWeight += it.totalKg || 0;
+                    grouped[it.name].totalItemWeight += monthlyWeight;
                     grouped[it.name].totalItemValue += monthlyValue;
                 });
             }
