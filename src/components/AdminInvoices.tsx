@@ -56,8 +56,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   onUpdateInvoiceItems,
   onManualInvoiceEntry,
   mode = 'admin',
-  perCapitaConfig,
-  acquisitionItems = []
+  perCapitaConfig
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter] = useState<'all' | 'pending' | 'opened'>('all');
@@ -704,7 +703,6 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                       </div>
 
                       {editingInvoice.items.map((item: any, idx: number) => {
-                          const unitPrice = item.value && item.kg ? item.value / item.kg : item.value || 0;
                           const totalPrice = item.value || 0;
                           
                           return (

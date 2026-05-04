@@ -453,7 +453,7 @@ const AdminFinancialManager: React.FC<AdminFinancialManagerProps> = ({ records, 
         } else {
             alert(res?.message || 'Falha ao salvar registro.');
         }
-    } catch (error) {
+    } catch {
         alert("Erro de conexão. Tente novamente.");
     } finally {
         setIsSaving(false);

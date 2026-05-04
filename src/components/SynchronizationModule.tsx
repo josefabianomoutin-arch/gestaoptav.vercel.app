@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Upload, Download, RefreshCw, Database, Package, Trash2, TrendingUp, BarChart as BarChartIcon, Monitor, HelpCircle, FileText as FileTextIcon, FolderSearch, Loader2, PlayCircle, Users, Settings } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { Upload, Download, RefreshCw, Database, Package, Trash2, TrendingUp, BarChart as BarChartIcon, Monitor, Loader2, Users, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -14,10 +14,6 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
     });
     const [isProcessing, setIsProcessing] = useState(false);
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-
-    const [networkPath, setNetworkPath] = useState(() => 
-        localStorage.getItem('warehouse_network_path') || ''
-    );
 
     useEffect(() => {
         window.addEventListener('beforeinstallprompt', (e) => {
@@ -87,9 +83,6 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
         printWindow.document.close();
     };
 
-    const [isScanning, setIsScanning] = useState(false);
-    const [directoryHandle, setDirectoryHandle] = useState<any>(null);
-
     const metrics = useMemo(() => {
         const totalItems = pendingEntries.length;
         const totalWeight = pendingEntries.reduce((acc, curr) => acc + (parseFloat(curr.quantity) || 0), 0);
@@ -112,73 +105,7 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
         return { totalItems, totalWeight, entriesByType, chartData };
     }, [pendingEntries]);
 
-    const savePath = () => {
-        localStorage.setItem('warehouse_network_path', networkPath);
-        toast.info("Caminho da pasta de rede salvo!");
-    };
-
-    // New: Handle Directory Selection for PC2 Sync
-    const handlePickDirectory = async () => {
-        try {
-            // @ts-ignore
-            const handle = await window.showDirectoryPicker();
-            setDirectoryHandle(handle);
-            toast.success("Pasta selecionada com sucesso! Clique em 'Escanear Pasta' para sincronizar.");
-        } catch (err) {
-            console.error(err);
-            toast.error("Seu navegador não suporta a seleção direta de pastas ou a permissão foi negada.");
-        }
-    };
-
-    const handleScanDirectory = async () => {
-        if (!directoryHandle) {
-            toast.error("Selecione a pasta compartilhada primeiro.");
-            return;
-        }
-
-        setIsScanning(true);
-        try {
-            let filesFound = 0;
-            let totalSynced = 0;
-
-            // @ts-ignore
-            for await (const entry of directoryHandle.values()) {
-                if (entry.kind === 'file' && entry.name.startsWith('sincronizacao_') && entry.name.endsWith('.json')) {
-                    filesFound++;
-                    const file = await entry.getFile();
-                    const content = await file.text();
-                    try {
-                        const rawData = JSON.parse(content);
-                        const data = Array.isArray(rawData) ? rawData : (rawData.entries || []);
-                        
-                        if (data.length > 0) {
-                            const success = await onSyncWithFirebase(data);
-                            if (success) {
-                                totalSynced += data.length;
-                                // Ideally we would delete or move the file, but browsers can't easily move files between directories without creating new ones
-                                // We'll just inform the user to archive them
-                            }
-                        }
-                    } catch (e) {
-                        console.error(`Erro ao ler arquivo ${entry.name}:`, e);
-                    }
-                }
-            }
-
-            if (filesFound === 0) {
-                toast.info("Nenhum arquivo de sincronização novo encontrado na pasta.");
-            } else {
-                toast.success(`Escaneamento concluído: ${filesFound} arquivos processados, ${totalSynced} registros sincronizados.`);
-                toast.info("Lembre-se de mover ou deletar os arquivos processados da pasta para evitar duplicidade.");
-            }
-        } catch (err) {
-            toast.error("Erro ao escanear a pasta.");
-        } finally {
-            setIsScanning(false);
-        }
-    };
-
-    const handleDirectSync = async () => {
+    const handleDirectSync = useCallback(async () => {
         if (pendingEntries.length === 0) {
             toast.info("Nenhum lançamento pendente para sincronizar.");
             return;
@@ -204,7 +131,7 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
         } finally {
             setIsProcessing(false);
         }
-    };
+    }, [pendingEntries, onSyncWithFirebase]);
 
     useEffect(() => {
         const handleOnline = () => {
@@ -221,7 +148,7 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
 
         window.addEventListener('online', handleOnline);
         return () => window.removeEventListener('online', handleOnline);
-    }, [pendingEntries]);
+    }, [pendingEntries, handleDirectSync]);
 
     // --- New: Full Database State Export (for Offline Computer update) ---
     const handleExportFullDatabase = () => {
@@ -306,10 +233,10 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
         const dataStr = JSON.stringify(exportData, null, 2);
 
         // Try to use File System Access API for a better Save experience
-        // @ts-ignore
+        // @ts-expect-error - File System Access API is not yet in all TS environments
         if (window.showSaveFilePicker) {
             try {
-                // @ts-ignore
+                // @ts-expect-error - File System Access API is not yet in all TS environments
                 const handle = await window.showSaveFilePicker({
                     suggestedName: fileName,
                     types: [{

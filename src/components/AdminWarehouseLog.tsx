@@ -76,7 +76,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             const [yB, mB] = b.split('-').map(Number);
             return (yB * 12 + mB) - (yA * 12 + mA);
         });
-    }, [warehouseLog]);
+    }, [combinedLog]);
 
     const [activeMonthTab, setActiveMonthTab] = useState<string>(() => {
         const now = new Date();
@@ -158,7 +158,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                 const dateB = new Date(b.date || b.timestamp).getTime();
                 return dateB - dateA;
             });
-    }, [warehouseLog, filterType, searchTerm, activeMonthTab]);
+    }, [combinedLog, filterType, searchTerm, activeMonthTab]);
 
     React.useEffect(() => {
         const table = tableRef.current;
@@ -407,8 +407,58 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         </button>
                     </div>
                 </div>
+            </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* RESUMO DO CONTRATO / FORNECEDOR */}
+            {filteredLog.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
+                    {Object.entries(
+                        filteredLog.reduce((acc, log) => {
+                            const key = `${log.supplierName}-${log.itemName}`;
+                            if (!acc[key]) acc[key] = { 
+                                supplier: log.supplierName, 
+                                item: log.itemName, 
+                                totalWeight: 0, 
+                                totalValue: 0, 
+                                weeks: new Set<number>() 
+                            };
+                            acc[key].totalWeight += log.quantity || 0;
+                            acc[key].totalValue += log.value || 0;
+                            
+                            const dateStr = log.date || (typeof log.timestamp === 'number' ? new Date(log.timestamp).toISOString().split('T')[0] : (log.timestamp as any)?.split?.('T')?.[0]);
+                            const logDate = new Date(dateStr + 'T00:00:00');
+                            const week = Math.ceil(logDate.getDate() / 7);
+                            acc[key].weeks.add(week);
+                            
+                            return acc;
+                        }, {} as Record<string, { supplier: string; item: string; totalWeight: number; totalValue: number; weeks: Set<number> }>)
+                    ).map(([key, data]) => (
+                        <div key={key} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all border-l-4 border-l-indigo-500 group">
+                            <div className="flex justify-between items-start mb-2">
+                                <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest">{data.supplier}</span>
+                                <div className="flex gap-1">
+                                    {Array.from(data.weeks).sort().map(w => (
+                                        <span key={w} className="bg-white border border-slate-200 text-[7px] font-black px-1.5 py-0.5 rounded text-slate-400 italic">S{w}</span>
+                                    ))}
+                                </div>
+                            </div>
+                            <h3 className="text-[11px] font-black text-slate-900 uppercase leading-tight mb-3 group-hover:text-indigo-600 transition-colors">{data.item}</h3>
+                            <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+                                <div className="space-y-0.5">
+                                    <p className="text-[7px] text-slate-400 font-bold uppercase tracking-tighter">Peso Total</p>
+                                    <p className="text-[12px] font-black text-slate-900">{data.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-[8px] text-slate-400">Kg</span></p>
+                                </div>
+                                <div className="space-y-0.5 text-right">
+                                    <p className="text-[7px] text-slate-400 font-bold uppercase tracking-tighter">Valor Acumulado</p>
+                                    <p className="text-[12px] font-black text-emerald-600">{data.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div 
                         ref={topScrollRef} 
                         className="overflow-x-auto overflow-y-hidden custom-scrollbar border-b border-gray-50" 

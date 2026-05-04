@@ -2080,7 +2080,7 @@ const App: React.FC = () => {
             localStorage.setItem('offline_warehouse_entries', JSON.stringify(currentOffline));
             return { success: true, message: 'Registrado offline com sucesso! Use o Módulo de Sincronização via Pendrive.' };
         } catch (storageError) {
-             return { success: false, message: 'Erro ao registrar offline: ' + (e instanceof Error ? e.message : String(e)) };
+             return { success: false, message: 'Erro ao registrar offline: ' + (storageError instanceof Error ? storageError.message : String(storageError)) };
         }
     }
   };

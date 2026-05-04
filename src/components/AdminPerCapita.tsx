@@ -1,6 +1,6 @@
 
 
-import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import html2pdf from 'html2pdf.js';
 import type { Supplier, PerCapitaConfig, WarehouseMovement, AcquisitionItem, Delivery } from '../types';
@@ -39,29 +39,7 @@ const normalizeItemName = (name: string): string => {
         .toUpperCase();
 };
 
-const hortifrutiKeywords = [
-    'abacate', 'abacaxi', 'abóbora', 'abobrinha', 'acelga', 'agrião', 'alface', 
-    'banana', 'batata', 'berinjela', 'beterraba', 'brócolis', 'caqui', 'cará', 
-    'cebola', 'cebolinha', 'cenoura', 'chuchu', 'couve', 'escarola', 'espinafre', 
-    'goiaba', 'inhame', 'jiló', 'laranja', 'limão', 'maçã', 'mamão', 'mandioca', 
-    'manga', 'maracujá', 'melancia', 'melão', 'milho', 'moranga', 'mostarda', 
-    'pepino', 'pêra', 'pimentão', 'quiabo', 'rabanete', 'repolho', 'rúcula', 
-    'salsa', 'tomate', 'uva', 'vagem'
-];
-
-const perishablesKeywords = [
-    'carne', 'frango', 'suína', 'peixe', 'bovina', 'almôndega', 'embutido', 
-    'linguiça', 'salsicha', 'fígado', 'dobradinha', 'charque', 'costela', 'pé', 
-    'toucinho', 'bisteca', 'lombo', 'pernil', 'hambúrguer', 'ovo', 'atum', 'sardinha'
-];
-
 const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-
-const isHortifrutiOrPerishable = (itemName: string): boolean => {
-    const lowerItemName = itemName.toLowerCase();
-    const allKeywords = [...hortifrutiKeywords, ...perishablesKeywords];
-    return allKeywords.some(keyword => lowerItemName.includes(keyword));
-};
 
 const getSeiValue = (map: Record<string, string>, tab: string) => (map && tab) ? map[tab] || '' : '';
 
@@ -98,36 +76,24 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [comparisonFilter, setComparisonFilter] = useState<'TODOS' | 'SEM_ENTREGA' | 'ATENCAO' | 'AVANCADO' | 'CONCLUIDO' | 'COM_EMPENHO'>('TODOS');
+    const [prevPerCapitaConfig, setPrevPerCapitaConfig] = useState(perCapitaConfig);
 
-    const totalCategoryValue = useMemo(() => {
-        return Object.values(monthlyQuota).reduce((a: number, b: number) => a + (b || 0), 0);
-    }, [monthlyQuota]);
-
-    useEffect(() => {
-        if (!perCapitaConfig) return;
-        
-        console.log("AdminPerCapita: Sincronizando estados com perCapitaConfig", perCapitaConfig);
-        console.log("AdminPerCapita: ppaisProducers:", perCapitaConfig.ppaisProducers);
-        console.log("AdminPerCapita: pereciveisSuppliers:", perCapitaConfig.pereciveisSuppliers);
-        console.log("AdminPerCapita: estocaveisSuppliers:", perCapitaConfig.estocaveisSuppliers);
+    if (perCapitaConfig && perCapitaConfig !== prevPerCapitaConfig) {
+        setPrevPerCapitaConfig(perCapitaConfig);
         if (perCapitaConfig.staffCount !== staffCount) setStaffCount(perCapitaConfig.staffCount || 0);
         if (perCapitaConfig.inmateCount !== inmateCount) setInmateCount(perCapitaConfig.inmateCount || 0);
-        if (JSON.stringify(perCapitaConfig.customValues) !== JSON.stringify(customPerCapita)) setCustomPerCapita(perCapitaConfig.customValues || {});
-        if (JSON.stringify(perCapitaConfig.seiProcessNumbers) !== JSON.stringify(seiProcessNumbers)) setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
-        if (JSON.stringify(perCapitaConfig.seiProcessDefinitions) !== JSON.stringify(seiProcessDefinitions)) setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
-        if (JSON.stringify(perCapitaConfig.monthlyQuota) !== JSON.stringify(monthlyQuota)) setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
-        if (JSON.stringify(perCapitaConfig.monthlyResource) !== JSON.stringify(monthlyResource)) setMonthlyResource(perCapitaConfig.monthlyResource || {});
-        if (JSON.stringify(perCapitaConfig.ptresResources) !== JSON.stringify(ptresResources)) setPtresResources(perCapitaConfig.ptresResources || {});
-        if (JSON.stringify(perCapitaConfig.ppaisProducers) !== JSON.stringify(ppaisProducers)) setPpaisProducers(perCapitaConfig.ppaisProducers || []);
-        if (JSON.stringify(perCapitaConfig.pereciveisSuppliers) !== JSON.stringify(pereciveisSuppliers)) {
-            setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
-        }
-        if (JSON.stringify(perCapitaConfig.estocaveisSuppliers) !== JSON.stringify(estocaveisSuppliers)) {
-            setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
-        }
-        if (JSON.stringify(perCapitaConfig.monthlyAdvances) !== JSON.stringify(monthlyAdvances)) setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
+        setCustomPerCapita(perCapitaConfig.customValues || {});
+        setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
+        setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
+        setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
+        setMonthlyResource(perCapitaConfig.monthlyResource || {});
+        setPtresResources(perCapitaConfig.ptresResources || {});
+        setPpaisProducers(perCapitaConfig.ppaisProducers || []);
+        setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
+        setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
+        setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
         setIsDirty(false);
-    }, [perCapitaConfig, staffCount, inmateCount, customPerCapita, seiProcessNumbers, seiProcessDefinitions, monthlyQuota, monthlyResource, ptresResources, ppaisProducers, pereciveisSuppliers, estocaveisSuppliers, monthlyAdvances]);
+    }
 
     useEffect(() => {
         localStorage.setItem('perCapita_staffCount', staffCount.toString());
@@ -836,30 +802,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 await issue.fix();
             }
             toast.success('Todas as inconsistências foram corrigidas!');
-        } catch (error) {
+        } catch {
             toast.error('Erro ao corrigir inconsistências.');
         } finally {
             setIsSaving(false);
         }
     };
-
-    const totalContractValue = useMemo(() => {
-        const targetCategories = ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS'];
-        let total = 0;
-        
-        targetCategories.forEach(cat => {
-            months.forEach(month => {
-                const execVal = monthlyExecution[month]?.[cat] || 0;
-                const isActiveMonth = getIsActiveMonth(month, cat);
-                const futureVal = isActiveMonth ? (categoryMonthlyAverages[cat] || 0) : 0;
-                if (isActiveMonth) {
-                    total += execVal > 0 ? execVal : futureVal;
-                }
-            });
-        });
-        
-        return total;
-    }, [monthlyExecution, categoryMonthlyAverages]);
 
     const contractedItemsSummary = useMemo(() => {
         const summary = new Map<string, { contracted: number; received: number; remaining: number; unit: string; originalName: string; suppliers: Set<string>; empenhos: Set<string>; addendum: number }>();
@@ -900,7 +848,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             });
         });
 
-        const result = Array.from(summary.entries()).map(([name, data]) => {
+        const result = Array.from(summary.entries()).map(([, data]) => {
             const totalContracted = data.contracted + data.addendum;
             const percentage = totalContracted > 0 ? (data.received / totalContracted) * 100 : 0;
             let status = 'NORMAL';
