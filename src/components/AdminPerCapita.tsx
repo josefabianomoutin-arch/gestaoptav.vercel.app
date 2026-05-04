@@ -1307,7 +1307,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                         <th className="p-4 text-left">Fornecedor</th>
                                         <th className="p-4 text-left">Categoria</th>
                                         <th className="p-4 text-left">Itens em Contrato</th>
-                                        <th className="p-4 text-right">Peso Total</th>
                                         <th className="p-4 text-right">Valor Total</th>
                                     </tr>
                                 </thead>
@@ -1319,7 +1318,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                             const category = ppaisProducers.some(p => p.cpfCnpj === s.cpf) ? 'PPAIS' : 
                                                              pereciveisSuppliers.some(p => p.cpfCnpj === s.cpf) ? 'PERECÍVEIS' : 'ESTOCÁVEIS';
                                             
-                                            const totalWeight = items.reduce((acc: any, curr: any) => acc + (Number(curr.totalKg) || 0), 0);
                                             
                                             return (
                                                 <tr key={idx} className="hover:bg-zinc-50 transition-colors">
@@ -1348,9 +1346,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                                                 <span className="text-red-500 text-[9px] font-black uppercase italic">Nenhum item vinculado</span>
                                                             )}
                                                         </div>
-                                                    </td>
-                                                    <td className="p-4 text-right font-mono font-bold text-zinc-600">
-                                                        {totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} Kg
                                                     </td>
                                                     <td className="p-4 text-right font-mono font-bold text-zinc-600">
                                                         {formatCurrency(s.initialValue || 0)}
