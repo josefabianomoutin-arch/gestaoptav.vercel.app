@@ -200,25 +200,24 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         };
                     }
                     
-                    const getDivisor = (itemName: string) => {
+                    const getMonthlyValues = (itemName: string) => {
                         const norm = (itemName || '').trim().toUpperCase().replace(/\s+/g, ' ');
-                        let cat = 'OUTROS';
                         const sItem = (perCapitaConfig?.standardMenu?.rows || []).find((r: any) => (r.contractedItem || '').trim().toUpperCase().replace(/\s+/g, ' ') === norm);
-                        if (sItem && sItem.category) {
-                            cat = sItem.category;
-                        } else {
-                            const ci = (perCapitaConfig?.contractedItems || []).find((c: any) => (c.name || '').trim().toUpperCase().replace(/\s+/g, ' ') === norm);
-                            if (ci && ci.category) cat = ci.category;
+                        const cat = sItem?.category || (perCapitaConfig?.contractedItems || []).find((c: any) => (c.name || '').trim().toUpperCase().replace(/\s+/g, ' ') === norm)?.category || 'OUTROS';
+                        
+                        if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') {
+                             return { weight: it.totalKg / 4, value: (it.totalKg * (it.valuePerKg || 0)) / 4 };
+                        }
+                        
+                        if (cat === 'PPAIS') {
+                            // Buscar diretamente da estrutura do contrato
+                            return { weight: it.monthlyWeight || 0, value: it.monthlyValue || 0 };
                         }
 
-                        if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') return 4;
-                        if (cat === 'PPAIS') return 12;
-                        return 12;
+                        return { weight: it.totalKg / 12, value: (it.totalKg * (it.valuePerKg || 0)) / 12 };
                     };
 
-                    const divisor = getDivisor(it.name);
-                    const monthlyWeight = it.totalKg / divisor;
-                    const monthlyValue = (it.totalKg * (it.valuePerKg || 0)) / divisor;
+                    const { weight: monthlyWeight, value: monthlyValue } = getMonthlyValues(it.name);
 
                     // Find actual deliveries in this month for this item/supplier
                     const deliveredForThis = combinedLog.filter(l => 
