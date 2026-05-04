@@ -428,7 +428,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [suppliers, ppaisProducers, pereciveisSuppliers, estocaveisSuppliers]);
 
     const itemData = useMemo(() => {
-      const data = new Map<string, { totalQuantity: number; totalValue: number; unit: string; category: string }>();
+      const data = new Map<string, { totalQuantity: number; totalValue: number; monthlyWeight: number; monthlyValue: number; unit: string; category: string }>();
       
       const allSources = [...suppliers, ...ppaisAsSuppliers, ...pereciveisAsSuppliers, ...estocaveisAsSuppliers];
       
@@ -436,15 +436,19 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         Object.values(p.contractItems || {}).forEach((item: any) => {
           const current = data.get(item.name) || { 
             totalQuantity: 0, 
-            totalValue: 0, 
+            totalValue: 0,
+            monthlyWeight: 0,
+            monthlyValue: 0,
             unit: item.unit || 'kg-1',
             category: item.category || 'OUTROS'
           };
           
           current.totalQuantity += item.totalKg;
+          current.monthlyWeight += (item.monthlyWeight || 0);
 
           const itemTotalValue = (item.totalKg || 0) * (item.valuePerKg || 0);
           current.totalValue += itemTotalValue;
+          current.monthlyValue += (item.monthlyValue || 0);
 
           data.set(item.name, current);
         });
@@ -471,11 +475,24 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             
             const catWeight = acqItems.reduce((sum, ai) => {
                 const contracted = itemData.find(id => normalizeItemName(id.name) === normalizeItemName(ai.name));
+                
+                // Prioritize monthlyWeight from contract
+                if (contracted && contracted.monthlyWeight > 0) {
+                    const [unitType] = (ai.unit || 'kg-1').split('-');
+                    if (['litro', 'embalagem', 'caixa', 'dz'].some(u => unitType.includes(u))) return sum;
+                    return sum + contracted.monthlyWeight;
+                }
+
                 const weight = (contracted && contracted.totalQuantity > 0) ? contracted.totalQuantity : (ai.acquiredQuantity || 0);
                 
                 const [unitType] = (ai.unit || 'kg-1').split('-');
                 if (['litro', 'embalagem', 'caixa', 'dz'].some(u => unitType.includes(u))) return sum;
-                return sum + weight;
+                
+                let divisor = 12;
+                if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
+                else if (cat === 'PPAIS') divisor = 8;
+                
+                return sum + (weight / divisor);
             }, 0);
 
             // Adicionar itens que estão no contrato mas não no planejamento
@@ -484,21 +501,17 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 .reduce((sum, id) => {
                     const [unitType] = (id.unit || 'kg-1').split('-');
                     if (['litro', 'embalagem', 'caixa', 'dz'].some(u => unitType.includes(u))) return sum;
-                    return sum + (id.totalQuantity || 0);
+                    
+                    if (id.monthlyWeight > 0) return sum + id.monthlyWeight;
+
+                    let divisor = 12;
+                    if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
+                    else if (cat === 'PPAIS') divisor = 8;
+                    
+                    return sum + ((id.totalQuantity || 0) / divisor);
                 }, 0);
 
-            const finalCatWeight = catWeight + onlyContractWeight;
-            if (finalCatWeight === 0) return;
-
-            // Divisor padrão de 12 meses para uma estimativa anual diluída, 
-            // ou ajuste conforme a natureza do contrato (ex: PPAIS costuma ser semestral/anual)
-            let divisor = 12;
-            if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') {
-                divisor = 4;
-            } else if (cat === 'PPAIS') {
-                divisor = 8;
-            }
-            totalMonthlyWeight += finalCatWeight / divisor;
+            totalMonthlyWeight += catWeight + onlyContractWeight;
         });
 
         // Média mensal dividida por 30 para obter a média diária
@@ -517,25 +530,33 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             const acqItems = acquisitionItems.filter(ai => ai.category === cat);
             const totalFromAcq = acqItems.reduce((sum, ai) => {
                 const contracted = itemData.find(id => normalizeItemName(id.name) === normalizeItemName(ai.name));
-                if (contracted && contracted.totalValue > 0) return sum + contracted.totalValue;
-                return sum + ((ai.unitValue || 0) * (ai.acquiredQuantity || 0));
+                
+                // Prioritize monthlyValue from contract
+                if (contracted && contracted.monthlyValue > 0) return sum + contracted.monthlyValue;
+
+                const value = (contracted && contracted.totalValue > 0) ? contracted.totalValue : ((ai.unitValue || 0) * (ai.acquiredQuantity || 0));
+                
+                let divisor = 12;
+                if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
+                else if (cat === 'PPAIS') divisor = 8;
+
+                return sum + (value / divisor);
             }, 0);
 
             // Adicionar itens que estão no contrato mas não no planejamento
             const totalOnlyInContract = itemData
                 .filter(id => id.category === cat && !acqItems.some(ai => normalizeItemName(ai.name) === normalizeItemName(id.name)))
-                .reduce((sum, id) => sum + (id.totalValue || 0), 0);
+                .reduce((sum, id) => {
+                    if (id.monthlyValue > 0) return sum + id.monthlyValue;
+                    
+                    let divisor = 12;
+                    if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
+                    else if (cat === 'PPAIS') divisor = 8;
+                    
+                    return sum + ((id.totalValue || 0) / divisor);
+                }, 0);
 
-            const finalCatValue = totalFromAcq + totalOnlyInContract;
-            if (finalCatValue === 0) return;
-
-            let divisor = 12;
-            if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') {
-                divisor = 4;
-            } else if (cat === 'PPAIS') {
-                divisor = 8;
-            }
-            totalMonthlyValue += finalCatValue / divisor;
+            totalMonthlyValue += totalFromAcq + totalOnlyInContract;
         });
 
         // Média mensal dividida por 30 para obter o custo diário

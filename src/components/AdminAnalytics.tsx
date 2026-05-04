@@ -124,7 +124,7 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], perCapi
                         supplierCpf: s.cpf,
                         itemReal: ci.name,
                         month: mName,
-                        contractedKgMonthly: hasContractInMonth ? (Number(ci.totalKg) || 0) / monthsCount : 0,
+                        contractedKgMonthly: hasContractInMonth ? (ci.monthlyWeight || (Number(ci.totalKg) || 0) / monthsCount) : 0,
                         receivedKg: 0,
                         price: Number(ci.valuePerKg) || 0,
                         normSupplier: sNorm,

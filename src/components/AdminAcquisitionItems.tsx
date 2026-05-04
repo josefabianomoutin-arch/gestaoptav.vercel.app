@@ -252,10 +252,12 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                             }
 
                             return suppliersForItem.map((s, idx) => {
-                                const weightPerSupplier = totalQuantity / suppliersForItem.length;
-                                const valuePerSupplier = totalValue / suppliersForItem.length;
-                                const weightMonth = weightPerSupplier / 8; // Média mensal (dividido por 8 meses)
-                                const valueMonth = valuePerSupplier / 8;
+                                const itemsSource = s.contractItems || {};
+                                const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                                const contractItem = supplierItems.find((ci: any) => normalize(ci.name) === normalize(item.name));
+                                
+                                const weightMonth = contractItem?.monthlyWeight || 0;
+                                const valueMonth = contractItem?.monthlyValue || 0;
 
                                 return `
                                     <tr>
@@ -614,13 +616,32 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                             </div>
                                         </td>
                                     ) : (() => {
-                                        const supplierCount = suppliers.filter(s => 
-                                            Object.values(s.contractItems || {}).some((ci: any) => ci.name === item.name)
-                                        ).length || 1;
+                                        const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+                                        const suppliersAssigned = suppliers.filter(s => {
+                                            const itemsSource = s.contractItems || {};
+                                            const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                                            return supplierItems.some((ci: any) => normalize(ci.name) === normalize(item.name));
+                                        });
+
+                                        const totalMonthlyWeight = suppliersAssigned.reduce((sum, s) => {
+                                            const itemsSource = s.contractItems || {};
+                                            const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                                            const ci = supplierItems.find((ci: any) => normalize(ci.name) === normalize(item.name));
+                                            return sum + (ci?.monthlyWeight || 0);
+                                        }, 0);
+
+                                        const totalMonthlyValue = suppliersAssigned.reduce((sum, s) => {
+                                            const itemsSource = s.contractItems || {};
+                                            const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                                            const ci = supplierItems.find((ci: any) => normalize(ci.name) === normalize(item.name));
+                                            return sum + (ci?.monthlyValue || 0);
+                                        }, 0);
+
                                         const totalQuantity = item.acquiredQuantity + (item.contractAddendum || 0);
-                                        const weightPerSupplier = totalQuantity / supplierCount;
+                                        const weightPerSupplier = suppliersAssigned.length > 0 ? totalQuantity / suppliersAssigned.length : 0;
                                         const unitVal = parseFloat(String((item.unitValue as any) || '0').replace(',', '.'));
                                         const valuePerSupplier = unitVal * weightPerSupplier;
+
                                         return (
                                             <>
                                                 <td className="p-6 text-right border-r border-zinc-50">
@@ -635,7 +656,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                                     <div className="flex flex-col items-end">
                                                         <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Peso/Mês</span>
                                                         <span className="font-mono text-sm font-black text-indigo-600">
-                                                            {(weightPerSupplier / 8).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                            {totalMonthlyWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                                         </span>
                                                     </div>
                                                 </td>
@@ -651,7 +672,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                                     <div className="flex flex-col items-end">
                                                         <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Vlr/Mês</span>
                                                         <span className="font-mono text-sm font-black text-indigo-600">
-                                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valuePerSupplier / 8)}
+                                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalMonthlyValue)}
                                                         </span>
                                                     </div>
                                                 </td>
@@ -938,6 +959,8 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                 supplierCpf: s.cpf,
                                 amount: ci.totalKg,
                                 price: ci.valuePerKg,
+                                monthlyWeight: ci.monthlyWeight,
+                                monthlyValue: ci.monthlyValue,
                                 commitmentNumber: ci.commitmentNumber,
                                 commitmentValue: ci.commitmentValue
                             }))
