@@ -1,6 +1,6 @@
 
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import html2pdf from 'html2pdf.js';
 import type { Supplier, PerCapitaConfig, WarehouseMovement, AcquisitionItem, Delivery } from '../types';
@@ -79,25 +79,36 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
     useEffect(() => {
         if (perCapitaConfig) {
-            if (perCapitaConfig.staffCount !== undefined) setStaffCount(perCapitaConfig.staffCount || 0);
-            if (perCapitaConfig.inmateCount !== undefined) setInmateCount(perCapitaConfig.inmateCount || 0);
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setStaffCount(prev => perCapitaConfig.staffCount !== undefined ? (perCapitaConfig.staffCount || 0) : prev);
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setInmateCount(prev => perCapitaConfig.inmateCount !== undefined ? (perCapitaConfig.inmateCount || 0) : prev);
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setCustomPerCapita(perCapitaConfig.customValues || {});
             
-            // Only override data if NOT currently editing (to prevent wiping typed changes)
             if (!isDirty) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setMonthlyResource(perCapitaConfig.monthlyResource || {});
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setPtresResources(perCapitaConfig.ptresResources || {});
             }
             
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setPpaisProducers(perCapitaConfig.ppaisProducers || []);
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
         }
-    }, [perCapitaConfig]);
+    }, [perCapitaConfig, isDirty]);
 
     useEffect(() => {
         localStorage.setItem('perCapita_staffCount', staffCount.toString());
@@ -172,7 +183,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         setIsDirty(true);
     };
 
-    const handleUpdateProducers = async (newProducers: PerCapitaSupplier[]) => {
+    const handleUpdateProducers = useCallback(async (newProducers: PerCapitaSupplier[]) => {
         setPpaisProducers(newProducers);
         const newConfig: PerCapitaConfig = {
             staffCount,
@@ -195,9 +206,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             console.error("Failed to save producers:", error);
             toast.error("Erro ao salvar produtores.");
         }
-    };
+    }, [staffCount, inmateCount, customPerCapita, seiProcessNumbers, seiProcessDefinitions, monthlyQuota, monthlyResource, ptresResources, pereciveisSuppliers, estocaveisSuppliers, monthlyAdvances, onUpdatePerCapitaConfig]);
 
-    const handleUpdatePereciveisSuppliers = async (newSuppliers: PerCapitaSupplier[]) => {
+    const handleUpdatePereciveisSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
         setPereciveisSuppliers(newSuppliers);
         const newConfig: PerCapitaConfig = {
             staffCount,
@@ -220,9 +231,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             console.error("Failed to save suppliers:", error);
             toast.error("Erro ao salvar fornecedores.");
         }
-    };
+    }, [staffCount, inmateCount, customPerCapita, seiProcessNumbers, seiProcessDefinitions, monthlyQuota, monthlyResource, ptresResources, ppaisProducers, estocaveisSuppliers, monthlyAdvances, onUpdatePerCapitaConfig]);
 
-    const handleUpdateEstocaveisSuppliers = async (newSuppliers: PerCapitaSupplier[]) => {
+    const handleUpdateEstocaveisSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
         setEstocaveisSuppliers(newSuppliers);
         const newConfig: PerCapitaConfig = {
             staffCount,
@@ -245,7 +256,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             console.error("Failed to save suppliers:", error);
             toast.error("Erro ao salvar fornecedores.");
         }
-    };
+    }, [staffCount, inmateCount, customPerCapita, seiProcessNumbers, seiProcessDefinitions, monthlyQuota, monthlyResource, ptresResources, ppaisProducers, pereciveisSuppliers, monthlyAdvances, onUpdatePerCapitaConfig]);
 
     const ppaisAsSuppliers = useMemo(() => {
         return ppaisProducers.map(p => ({

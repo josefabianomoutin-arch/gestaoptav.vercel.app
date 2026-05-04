@@ -264,6 +264,65 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     }, [weeklyDeliveries]);
     */
 
+    const availableImageMonths = useMemo(() => {
+        const months = new Set<string>();
+        warehouseLog.filter(l => l.invoiceUrl).forEach(log => {
+            const dateStr = log.date || (typeof log.timestamp === 'number' ? new Date(log.timestamp).toISOString().split('T')[0] : (log.timestamp as any)?.split?.('T')?.[0]);
+            if (dateStr) {
+                const d = new Date(dateStr + 'T00:00:00');
+                if (!isNaN(d.getTime())) {
+                    months.add(`${d.getFullYear()}-${d.getMonth()}`);
+                }
+            }
+        });
+
+        return Array.from(months).sort((a, b) => {
+            const [yA, mA] = a.split('-').map(Number);
+            const [yB, mB] = b.split('-').map(Number);
+            return (yB * 12 + mB) - (yA * 12 + mA);
+        });
+    }, [warehouseLog]);
+
+    const [activeImageMonth, setActiveImageMonth] = useState<string>(() => {
+        // Find if there's any month data available initially
+        const months = new Set<string>();
+        warehouseLog.filter(l => l.invoiceUrl).forEach(log => {
+            const dateStr = log.date || (typeof log.timestamp === 'number' ? new Date(log.timestamp).toISOString().split('T')[0] : (log.timestamp as any)?.split?.('T')?.[0]);
+            if (dateStr) {
+                const d = new Date(dateStr + 'T00:00:00');
+                if (!isNaN(d.getTime())) {
+                    months.add(`${d.getFullYear()}-${d.getMonth()}`);
+                }
+            }
+        });
+        const sorted = Array.from(months).sort((a, b) => {
+            const [yA, mA] = a.split('-').map(Number);
+            const [yB, mB] = b.split('-').map(Number);
+            return (yB * 12 + mB) - (yA * 12 + mA);
+        });
+        return sorted[0] || '';
+    });
+
+    useEffect(() => {
+        if (!activeImageMonth && availableImageMonths.length > 0) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setActiveImageMonth(availableImageMonths[0]);
+        }
+    }, [availableImageMonths, activeImageMonth]);
+
+    const filteredImages = useMemo(() => {
+        return warehouseLog.filter(l => {
+            if (!l.invoiceUrl) return false;
+            if (!activeImageMonth) return true;
+            
+            const dateStr = l.date || (typeof l.timestamp === 'number' ? new Date(l.timestamp).toISOString().split('T')[0] : (l.timestamp as any)?.split?.('T')?.[0]);
+            if (!dateStr) return false;
+            
+            const d = new Date(dateStr + 'T00:00:00');
+            return `${d.getFullYear()}-${d.getMonth()}` === activeImageMonth;
+        }).sort((a, b) => b.timestamp - a.timestamp);
+    }, [warehouseLog, activeImageMonth]);
+
     const handlePrintCronograma = () => {
         const monthIndex = MONTHS_PT.indexOf(selectedMonth);
         const firstBusinessDay = getFirstBusinessDayOfMonth(monthIndex, selectedYear);
@@ -1188,19 +1247,48 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 ) : activeTab === 'image_history' ? (
                     <div className="space-y-6">
                         <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in mb-8">
-                            <div className="p-4 md:p-6 border-b border-gray-100 bg-zinc-900 text-white flex items-center gap-3">
-                                <div className="bg-indigo-500 text-white p-2 rounded-[1rem]">
-                                    <FileIcon className="h-6 w-6" />
-                                </div>
-                                <div>
-                                    <h2 className="text-lg font-black uppercase tracking-tighter leading-none italic">Histórico de Imagens / Comprovantes</h2>
-                                    <p className="text-zinc-400 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Visualização de Documentos Anexados</p>
+                            <div className="p-4 md:p-6 border-b border-gray-100 bg-zinc-900 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-indigo-500 text-white p-2 rounded-[1rem]">
+                                        <FileIcon className="h-6 w-6" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-lg font-black uppercase tracking-tighter leading-none italic">Histórico de Imagens</h2>
+                                        <p className="text-zinc-400 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Visualização por Mês das Notas(PDF) Cadastradas</p>
+                                    </div>
                                 </div>
                             </div>
+                            
+                            {/* Month Selector Tabs */}
+                            {availableImageMonths.length > 0 && (
+                                <div className="px-6 py-4 flex flex-wrap gap-2 bg-gray-50/50 border-b border-gray-100 overflow-x-auto scrollbar-hide">
+                                    {availableImageMonths.map(monthKey => {
+                                        const [year, monthIdx] = monthKey.split('-').map(Number);
+                                        const monthName = [
+                                            'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                                            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+                                        ][monthIdx];
+                                        return (
+                                            <button
+                                                key={monthKey}
+                                                onClick={() => setActiveImageMonth(monthKey)}
+                                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                                                    activeImageMonth === monthKey 
+                                                    ? 'bg-zinc-900 text-white shadow-lg' 
+                                                    : 'bg-white text-zinc-400 border border-zinc-100 hover:border-zinc-300'
+                                                }`}
+                                            >
+                                                {monthName} / {year}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
                             <div className="p-6">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                                    {warehouseLog.filter(l => l.invoiceUrl).length > 0 ? (
-                                        warehouseLog.filter(l => l.invoiceUrl).sort((a, b) => b.timestamp - a.timestamp).map(log => (
+                                    {filteredImages.length > 0 ? (
+                                        filteredImages.map(log => (
                                             <div key={log.id} className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all group flex flex-col h-full">
                                                 <div 
                                                     className="aspect-[3/4] bg-zinc-200 flex items-center justify-center cursor-pointer relative overflow-hidden"
@@ -1231,11 +1319,17 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                         <span className="text-[9px] font-mono font-bold text-gray-400">{(log.date || '').split('-').reverse().join('/')}</span>
                                                     </div>
                                                     <h4 className="text-[10px] font-black text-gray-900 uppercase leading-tight mb-1">{log.itemName}</h4>
-                                                    <p className="text-[8px] text-gray-500 font-bold uppercase truncate mb-3">{log.supplierName}</p>
+                                                    <p className="text-[8px] text-gray-500 font-bold uppercase truncate mb-1">{log.supplierName}</p>
                                                     
                                                     <div className="mt-auto pt-3 border-t border-gray-100 flex justify-between items-center text-[9px] font-mono font-bold">
-                                                        <span className="text-gray-400">NF: {log.inboundInvoice || log.outboundInvoice || '-'}</span>
-                                                        <span className="text-zinc-900">{log.quantity.toFixed(2)} Kg</span>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-gray-400 text-[7px] uppercase tracking-tighter">Nota Fiscal</span>
+                                                            <span className="text-zinc-600">{log.inboundInvoice || log.outboundInvoice || '-'}</span>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <span className="text-gray-400 text-[7px] uppercase tracking-tighter block">Quantidade</span>
+                                                            <span className="text-zinc-900 font-black">{log.quantity.toFixed(2)} Kg</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1245,7 +1339,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                             <div className="inline-block p-6 bg-gray-50 rounded-full mb-4">
                                                 <ImageIcon className="h-12 w-12 text-gray-200" />
                                             </div>
-                                            <p className="text-gray-400 font-bold uppercase tracking-[0.2em] italic">Nenhum comprovante anexado nos registros</p>
+                                            <p className="text-gray-400 font-bold uppercase tracking-[0.2em] italic">Nenhum comprovante para este mês</p>
                                         </div>
                                     )}
                                 </div>
