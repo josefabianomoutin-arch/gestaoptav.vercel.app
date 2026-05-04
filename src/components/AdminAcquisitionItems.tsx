@@ -12,9 +12,10 @@ interface AdminAcquisitionItemsProps {
     contractItems?: string[]; // Lista de nomes de itens do contrato para vinculação
     suppliers?: Supplier[];
     onUpdateContractForItem?: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string, commitmentNumber?: string, commitmentValue?: number }[]) => Promise<{ success: boolean, message: string }>;
+    perCapitaConfig?: any;
 }
 
-const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, category, onUpdate, onDelete, contractItems = [], suppliers = [], onUpdateContractForItem }) => {
+const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, category, onUpdate, onDelete, contractItems = [], suppliers = [], onUpdateContractForItem, perCapitaConfig }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -142,18 +143,42 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                             const totalValue = totalQuantity * (item.unitValue || 0);
                             
                             let extraCols: string;
-                            if (category !== 'PPAIS' && category !== 'PERECÍVEIS') {
+                            if (category !== 'PPAIS' && category !== 'PERECÍVEIS' && category !== 'ESTOCÁVEIS') {
                                 extraCols = `<td class="text-right">${item.stockBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
                             } else {
-                                const suppliersForItem = suppliers.filter(s => Object.values(s.contractItems || {}).some((ci: any) => ci.name === item.name));
+                                const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+                                const normalizedName = normalize(item.name);
+                                const suppliersForItem = suppliers.filter(s => {
+                                    const itemsSource = s.contractItems || {};
+                                    const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                                    return supplierItems.some((ci: any) => normalize(ci.name) === normalizedName);
+                                });
                                 const numSuppliers = suppliersForItem.length || 1;
                                 const weightPerSupplier = totalQuantity / numSuppliers;
                                 const valuePerSupplier = totalValue / numSuppliers;
+
+                                const getDivisor = (itemName: string) => {
+                                    const norm = normalize(itemName);
+                                    let cat = 'OUTROS';
+                                    const sItem = (perCapitaConfig?.standardMenu?.rows || []).find((r: any) => normalize(r.contractedItem) === norm);
+                                    if (sItem && sItem.category) {
+                                        cat = sItem.category;
+                                    } else {
+                                        const ci = (perCapitaConfig?.contractedItems || []).find((c: any) => normalize(c.name) === norm);
+                                        if (ci && ci.category) cat = ci.category;
+                                    }
+
+                                    if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') return 4;
+                                    if (cat === 'PPAIS') return 8;
+                                    return 12;
+                                };
+                                const divisor = getDivisor(item.name);
+
                                 extraCols = `
                                     <td class="text-right">${weightPerSupplier.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                    <td class="text-right">${(weightPerSupplier / 8).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                    <td class="text-right">${(weightPerSupplier / divisor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                                     <td class="text-right">${formatCurrency(valuePerSupplier)}</td>
-                                    <td class="text-right">${formatCurrency(valuePerSupplier / 8)}</td>
+                                    <td class="text-right">${formatCurrency(valuePerSupplier / divisor)}</td>
                                 `;
                             }
 
@@ -617,29 +642,59 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         </td>
                                     ) : (() => {
                                         const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+                                        const normalizedName = normalize(item.name);
                                         const suppliersAssigned = suppliers.filter(s => {
                                             const itemsSource = s.contractItems || {};
                                             const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
-                                            return supplierItems.some((ci: any) => normalize(ci.name) === normalize(item.name));
+                                            return supplierItems.some((ci: any) => normalize(ci.name) === normalizedName);
                                         });
 
-                                        const totalMonthlyWeight = suppliersAssigned.reduce((sum, s) => {
+                                        const unitVal = parseFloat(String((item.unitValue as any) || '0').replace(',', '.'));
+                                        const totalQuantity = (item.acquiredQuantity || 0) + (item.contractAddendum || 0);
+
+                                        // Fallback Divisor Logic (informed in Per Capita calculation logic)
+                                        const getDivisor = (itemName: string) => {
+                                            const norm = normalize(itemName);
+                                            // Try to find category in standard menu or contracted items
+                                            let cat = 'OUTROS';
+                                            const sItem = (perCapitaConfig?.standardMenu?.rows || []).find((r: any) => normalize(r.contractedItem) === norm);
+                                            if (sItem && sItem.category) {
+                                                cat = sItem.category;
+                                            } else {
+                                                const ci = (perCapitaConfig?.contractedItems || []).find((c: any) => normalize(c.name) === norm);
+                                                if (ci && ci.category) cat = ci.category;
+                                            }
+
+                                            if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') return 4;
+                                            if (cat === 'PPAIS') return 8;
+                                            return 12;
+                                        };
+
+                                        const divisor = getDivisor(item.name);
+
+                                        let totalMonthlyWeight = suppliersAssigned.reduce((sum, s) => {
                                             const itemsSource = s.contractItems || {};
                                             const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
-                                            const ci = supplierItems.find((ci: any) => normalize(ci.name) === normalize(item.name));
+                                            const ci = supplierItems.find((ci: any) => normalize(ci.name) === normalizedName);
                                             return sum + (ci?.monthlyWeight || 0);
                                         }, 0);
 
-                                        const totalMonthlyValue = suppliersAssigned.reduce((sum, s) => {
+                                        let totalMonthlyValue = suppliersAssigned.reduce((sum, s) => {
                                             const itemsSource = s.contractItems || {};
                                             const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
-                                            const ci = supplierItems.find((ci: any) => normalize(ci.name) === normalize(item.name));
+                                            const ci = supplierItems.find((ci: any) => normalize(ci.name) === normalizedName);
                                             return sum + (ci?.monthlyValue || 0);
                                         }, 0);
 
-                                        const totalQuantity = item.acquiredQuantity + (item.contractAddendum || 0);
+                                        // If still zero, use the default calculation from Per Capita
+                                        if (totalMonthlyWeight === 0 && totalQuantity > 0) {
+                                            totalMonthlyWeight = totalQuantity / divisor;
+                                        }
+                                        if (totalMonthlyValue === 0 && totalQuantity > 0) {
+                                            totalMonthlyValue = (totalQuantity * unitVal) / divisor;
+                                        }
+
                                         const weightPerSupplier = suppliersAssigned.length > 0 ? totalQuantity / suppliersAssigned.length : 0;
-                                        const unitVal = parseFloat(String((item.unitValue as any) || '0').replace(',', '.'));
                                         const valuePerSupplier = unitVal * weightPerSupplier;
 
                                         return (

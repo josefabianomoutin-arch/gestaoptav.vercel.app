@@ -537,8 +537,25 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
         return allSuppliers.filter(s => !assignments.some(a => a.supplierCpf === s.cpf)).sort((a,b) => a.name.localeCompare(b.name));
     }, [allSuppliers, assignments]);
 
+    const getDivisor = (cat: string) => {
+        if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') return 4;
+        if (cat === 'PPAIS') return 8;
+        return 12;
+    };
+
     const distributeMeta = (currentAssignments: typeof assignments, metaValue: string) => {
-        if (itemCategory !== 'PPAIS' || currentAssignments.length === 0) return currentAssignments;
+        const divisor = getDivisor(itemCategory);
+        if (itemCategory !== 'PPAIS' || currentAssignments.length === 0) {
+            return currentAssignments.map(a => {
+                const kg = parseFloat(String(a.totalKg).replace(',', '.')) || 0;
+                const price = parseFloat(String(a.valuePerKg).replace(',', '.')) || 0;
+                return {
+                    ...a,
+                    monthlyWeight: a.monthlyWeight && a.monthlyWeight !== '0' ? a.monthlyWeight : (kg / divisor).toFixed(2).replace('.', ','),
+                    monthlyValue: a.monthlyValue && a.monthlyValue !== '0' ? a.monthlyValue : ((kg * price) / divisor).toFixed(2).replace('.', ',')
+                };
+            });
+        }
         
         const total = parseFloat(metaValue.replace(',', '.')) || 0;
         const perSupplier = total / currentAssignments.length;
@@ -550,6 +567,8 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
             return {
                 ...a,
                 totalKg: perSupplierStr,
+                monthlyWeight: (kg / divisor).toFixed(2).replace('.', ','),
+                monthlyValue: ((kg * price) / divisor).toFixed(2).replace('.', ','),
                 commitmentValue: (kg * price).toFixed(2).replace('.', ',')
             };
         });
@@ -593,15 +612,20 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
 
     const handleValueChange = (cpf: string, field: 'totalKg' | 'valuePerKg', value: string) => {
         const sanitizedValue = value.replace(/[^0-9,.]/g, '');
+        const divisor = getDivisor(itemCategory);
+
         setAssignments(prev => prev.map(a => {
             if (a.supplierCpf !== cpf) return a;
             
             const updatedA = { ...a, [field]: sanitizedValue };
             const kg = parseFloat(String(updatedA.totalKg).replace(',', '.')) || 0;
             const price = parseFloat(String(updatedA.valuePerKg).replace(',', '.')) || 0;
-            return {
-                ...updatedA,
-                commitmentValue: (kg * price).toFixed(2).replace('.', ',')
+            
+            return { 
+                ...updatedA, 
+                commitmentValue: (kg * price).toFixed(2).replace('.', ','),
+                monthlyWeight: (a.monthlyWeight && a.monthlyWeight !== '0' && field !== 'totalKg') ? a.monthlyWeight : (kg / divisor).toFixed(2).replace('.', ','),
+                monthlyValue: (a.monthlyValue && a.monthlyValue !== '0' && field !== 'totalKg' && field !== 'valuePerKg') ? a.monthlyValue : ((kg * price) / divisor).toFixed(2).replace('.', ',')
             };
         }));
     };

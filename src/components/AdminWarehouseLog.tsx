@@ -200,8 +200,25 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         };
                     }
                     
-                    const monthlyWeight = it.monthlyWeight || 0;
-                    const monthlyValue = it.monthlyValue || 0;
+                    const getDivisor = (itemName: string) => {
+                        const norm = (itemName || '').trim().toUpperCase().replace(/\s+/g, ' ');
+                        let cat = 'OUTROS';
+                        const sItem = (perCapitaConfig?.standardMenu?.rows || []).find((r: any) => (r.contractedItem || '').trim().toUpperCase().replace(/\s+/g, ' ') === norm);
+                        if (sItem && sItem.category) {
+                            cat = sItem.category;
+                        } else {
+                            const ci = (perCapitaConfig?.contractedItems || []).find((c: any) => (c.name || '').trim().toUpperCase().replace(/\s+/g, ' ') === norm);
+                            if (ci && ci.category) cat = ci.category;
+                        }
+
+                        if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') return 4;
+                        if (cat === 'PPAIS') return 8;
+                        return 12;
+                    };
+
+                    const divisor = getDivisor(it.name);
+                    const monthlyWeight = it.monthlyWeight || (it.totalKg / divisor) || 0;
+                    const monthlyValue = it.monthlyValue || ((it.totalKg * (it.valuePerKg || 0)) / divisor) || 0;
 
                     // Find actual deliveries in this month for this item/supplier
                     const deliveredForThis = combinedLog.filter(l => 

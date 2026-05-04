@@ -2056,6 +2056,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 <AdminAcquisitionItems 
                                 category={activeSubTab === 'AUDIT' ? 'PPAIS' : activeSubTab} 
                                 items={acquisitionItems} 
+                                perCapitaConfig={perCapitaConfig}
                                 onUpdate={onUpdateAcquisitionItem} 
                                 onDelete={onDeleteAcquisitionItem} 
                                 contractItems={
