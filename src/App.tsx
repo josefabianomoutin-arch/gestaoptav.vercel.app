@@ -1656,12 +1656,15 @@ const App: React.FC = () => {
         });
 
         // --- NOVO: Sincronizar com perCapitaConfig se for produtor ou perecível ---
-        const ppaisIndex = (perCapitaConfig.ppaisProducers || []).findIndex(p => p.cpfCnpj === supplier.cpf);
-        const pereciveisIndex = (perCapitaConfig.pereciveisSuppliers || []).findIndex(p => p.cpfCnpj === supplier.cpf);
+        await runTransaction(perCapitaConfigRef, (current: any) => {
+          if (!current) return current;
+          
+          let changed = false;
+          const updatedPpais = [...(current.ppaisProducers || [])];
+          const updatedPereciveis = [...(current.pereciveisSuppliers || [])];
 
-        if (ppaisIndex !== -1 || pereciveisIndex !== -1) {
-          const updatedPpais = [...(perCapitaConfig.ppaisProducers || [])];
-          const updatedPereciveis = [...(perCapitaConfig.pereciveisSuppliers || [])];
+          const ppaisIndex = updatedPpais.findIndex(p => p.cpfCnpj === supplier.cpf);
+          const pereciveisIndex = updatedPereciveis.findIndex(p => p.cpfCnpj === supplier.cpf);
 
           if (ppaisIndex !== -1) {
             const p = updatedPpais[ppaisIndex];
@@ -1681,6 +1684,7 @@ const App: React.FC = () => {
               });
             }
             updatedPpais[ppaisIndex] = { ...p, contractItems: otherItems };
+            changed = true;
           }
 
           if (pereciveisIndex !== -1) {
@@ -1701,10 +1705,18 @@ const App: React.FC = () => {
               });
             }
             updatedPereciveis[pereciveisIndex] = { ...p, contractItems: otherItems };
+            changed = true;
           }
 
-          await set(perCapitaConfigRef, { ...perCapitaConfig, ppaisProducers: updatedPpais, pereciveisSuppliers: updatedPereciveis });
-        }
+          if (changed) {
+            return {
+              ...current,
+              ppaisProducers: updatedPpais,
+              pereciveisSuppliers: updatedPereciveis
+            };
+          }
+          return current;
+        });
       }
       
       console.log('Contratos atualizados com sucesso!');

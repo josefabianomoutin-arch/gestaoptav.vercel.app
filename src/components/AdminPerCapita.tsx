@@ -80,19 +80,23 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
     if (perCapitaConfig && perCapitaConfig !== prevPerCapitaConfig) {
         setPrevPerCapitaConfig(perCapitaConfig);
-        if (perCapitaConfig.staffCount !== staffCount) setStaffCount(perCapitaConfig.staffCount || 0);
-        if (perCapitaConfig.inmateCount !== inmateCount) setInmateCount(perCapitaConfig.inmateCount || 0);
+        if (perCapitaConfig.staffCount !== undefined) setStaffCount(perCapitaConfig.staffCount || 0);
+        if (perCapitaConfig.inmateCount !== undefined) setInmateCount(perCapitaConfig.inmateCount || 0);
         setCustomPerCapita(perCapitaConfig.customValues || {});
-        setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
-        setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
-        setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
-        setMonthlyResource(perCapitaConfig.monthlyResource || {});
-        setPtresResources(perCapitaConfig.ptresResources || {});
+        
+        // Only override SEI and Advance data if NOT currently editing (to prevent wiping typed changes)
+        if (!isDirty) {
+            setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
+            setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
+            setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
+            setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
+            setMonthlyResource(perCapitaConfig.monthlyResource || {});
+            setPtresResources(perCapitaConfig.ptresResources || {});
+        }
+        
         setPpaisProducers(perCapitaConfig.ppaisProducers || []);
         setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
         setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
-        setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
-        setIsDirty(false);
     }
 
     useEffect(() => {
@@ -119,13 +123,14 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         };
         try {
             await onUpdatePerCapitaConfig(newConfig);
-            setIsDirty(false);
+            setIsDirty(false); // Only reset if successful
             setSaveSuccess(true);
             localStorage.removeItem('perCapita_staffCount');
             localStorage.removeItem('perCapita_inmateCount');
             setTimeout(() => setSaveSuccess(false), 3000);
         } catch (error) {
             console.error("Failed to save per capita config:", error);
+            alert("Erro ao salvar configurações!");
         } finally {
             setIsSaving(false);
         }
@@ -793,7 +798,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         });
 
         return issues;
-    }, [suppliers, ppaisProducers, pereciveisSuppliers, estocaveisSuppliers, acquisitionItems, onUpdateContractForItem, ppaisAsSuppliers, pereciveisAsSuppliers, estocaveisAsSuppliers, handleUpdatePereciveisSuppliers, handleUpdateProducers, handleUpdateEstocaveisSuppliers]);
+    }, [suppliers, ppaisProducers, pereciveisSuppliers, acquisitionItems, onUpdateContractForItem, ppaisAsSuppliers, pereciveisAsSuppliers, estocaveisAsSuppliers, handleUpdatePereciveisSuppliers, handleUpdateProducers]);
 
     const handleFixAllInconsistencies = async () => {
         setIsSaving(true);
@@ -1697,7 +1702,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-red-50 bg-white">
-                                        {suppliersWithoutEmpenho.map((supplier, index) => (
+                                        {suppliersWithoutEmpenho.map((supplier) => (
                                             <React.Fragment key={supplier.document}>
                                                 <tr className="hover:bg-red-50/50 transition-colors">
                                                     <td className="p-3 font-semibold text-gray-800">

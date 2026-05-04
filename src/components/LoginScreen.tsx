@@ -1,6 +1,5 @@
 
 import React, { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
 import PublicInfoPortal from './PublicInfoPortal';
 import InfobarTicker from './InfobarTicker';
 import { PublicInfo } from '../types';
@@ -13,32 +12,12 @@ interface LoginScreenProps {
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList }) => {
   const [loginName, setLoginName] = useState('');
   const [loginCpf, setLoginCpf] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isPortalOpen, setIsPortalOpen] = useState(false);
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!onLogin(loginName, loginCpf)) {
-      setLoginError('Dados de acesso incorretos. Verifique o nome e a senha.');
-    } else {
-      setLoginError('');
-    }
+    onLogin(loginName, loginCpf);
   };
-
-  const isStringLogin = useMemo(() => {
-    const nameTrimmed = loginName.trim().toUpperCase();
-    return ['ITESP', 'ALMOXARIFADO', 'ALMOX', 'FINANCEIRO', 'SUBPORTARIA', 'INFRAESTRUTURA', 'ORDEM DE SAIDA', 'SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA', 'ORDEM DE SERVIÇO'].includes(nameTrimmed);
-  }, [loginName]);
-
-  const passwordPlaceholder = useMemo(() => {
-    if (isStringLogin) return "Senha do Setor";
-    const name = loginName.trim().toUpperCase();
-    if (['ADMINISTRADOR', 'ADM', 'DOUGLAS', 'GALDINO'].some(n => name.includes(n))) return "Senha do Admin";
-    return "Senha (CPF ou CNPJ)";
-  }, [loginName, isStringLogin]);
-
-  const isAbrilVerde = new Date().getMonth() === 3; // April is index 3
 
   const displayInfo = useMemo(() => publicInfoList.filter(info => !info.isConfidential), [publicInfoList]);
 
@@ -98,7 +77,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList }) =>
                   className="w-full h-14 px-6 bg-white/5 border border-white/10 placeholder-slate-500 text-white rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold transition-all text-sm"
                 />
               <input 
-                  type={showPassword ? "text" : "password"} 
+                  type="password" 
                   autoComplete="current-password"
                   required 
                   value={loginCpf} 

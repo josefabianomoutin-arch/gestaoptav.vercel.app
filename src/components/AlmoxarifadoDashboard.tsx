@@ -2,9 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
 import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, ImageIcon } from 'lucide-react';
-import { motion } from 'framer-motion';
 import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus } from '../types';
-import InfobarTicker from './InfobarTicker';
 import AdminInvoices from './AdminInvoices';
 import AgendaChegadas from './AgendaChegadas';
 import WarehouseMovementForm from './WarehouseMovementForm';
@@ -97,10 +95,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     thirdPartyEntries,
     perCapitaConfig,
     acquisitionItems = [],
-    publicInfoList = [],
     standardMenu,
     dailyMenus,
-    onUpdateStandardMenu,
     onUpdateDailyMenu
 }) => {
     const [activeTab, setActiveTab] = useState<string>('history');

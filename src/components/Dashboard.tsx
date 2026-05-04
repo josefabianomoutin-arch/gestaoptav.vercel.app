@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import type { Supplier, Delivery, ContractItem } from '../types';
+import type { Supplier, Delivery } from '../types';
 import Calendar from './Calendar';
 import DeliveryModal from './DeliveryModal';
 import ViewDeliveryModal from './ViewDeliveryModal';
@@ -10,11 +10,9 @@ import EmailConfirmationModal from './EmailConfirmationModal';
 import SendInvoiceModal from './SendInvoiceModal';
 import ConfirmModal from './ConfirmModal';
 import { speechService } from '../services/speechService';
-import { HelpCircle, Volume2, Loader2, Calendar as CalendarIcon, FileText, Search, Download } from 'lucide-react';
+import { HelpCircle, Volume2, Calendar as CalendarIcon, FileText, Search, Download } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app } from '../firebaseConfig';
-import { MONTHS_2026 } from '../constants';
-
 import { toast } from 'sonner';
 
 const SIMULATED_TODAY = new Date('2026-04-30T00:00:00');
