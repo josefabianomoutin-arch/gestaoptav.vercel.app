@@ -1644,7 +1644,9 @@ const App: React.FC = () => {
               comprasCode: assignment.comprasCode || '',
               becCode: assignment.becCode || '',
               commitmentNumber: assignment.commitmentNumber || '',
-              commitmentValue: assignment.commitmentValue || 0
+              commitmentValue: assignment.commitmentValue || 0,
+              monthlyWeight: assignment.monthlyWeight || 0,
+              monthlyValue: assignment.monthlyValue || 0
             });
           }
           
@@ -1682,6 +1684,8 @@ const App: React.FC = () => {
                 becCode: assignment.becCode || '',
                 commitmentNumber: assignment.commitmentNumber || '',
                 commitmentValue: assignment.commitmentValue || 0,
+                monthlyWeight: assignment.monthlyWeight || 0,
+                monthlyValue: assignment.monthlyValue || 0,
                 period: '2_3_QUAD'
               });
             }
@@ -1703,6 +1707,8 @@ const App: React.FC = () => {
                 becCode: assignment.becCode || '',
                 commitmentNumber: assignment.commitmentNumber || '',
                 commitmentValue: assignment.commitmentValue || 0,
+                monthlyWeight: assignment.monthlyWeight || 0,
+                monthlyValue: assignment.monthlyValue || 0,
                 period: '2_3_QUAD'
               });
             }
@@ -1724,6 +1730,8 @@ const App: React.FC = () => {
                 becCode: assignment.becCode || '',
                 commitmentNumber: assignment.commitmentNumber || '',
                 commitmentValue: assignment.commitmentValue || 0,
+                monthlyWeight: assignment.monthlyWeight || 0,
+                monthlyValue: assignment.monthlyValue || 0,
                 period: '2_3_QUAD'
               });
             }

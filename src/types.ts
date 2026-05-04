@@ -33,6 +33,8 @@ export interface ContractItem {
     name: string;
     totalKg: number;
     valuePerKg: number;
+    monthlyWeight?: number;
+    monthlyValue?: number;
     unit?: string;
     period?: '1_QUAD' | '2_3_QUAD' | string;
     category?: string;

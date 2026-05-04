@@ -70,6 +70,8 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
                     supplierCpf: s.cpf, 
                     amount: Number(ci.totalKg), 
                     price: Number(ci.valuePerKg),
+                    monthlyWeight: Number(ci.monthlyWeight || 0),
+                    monthlyValue: Number(ci.monthlyValue || 0),
                     commitmentNumber: ci.commitmentNumber,
                     commitmentValue: Number(ci.commitmentValue)
                 });
@@ -490,11 +492,11 @@ export interface ManageContractSuppliersModalProps {
     becCode?: string;
     acquiredQuantity?: number;
     onClose: () => void;
-    onSave: (assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string, commitmentNumber?: string, commitmentValue?: number }[]) => Promise<{ success: boolean; message: string } | void>;
+    onSave: (assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, monthlyWeight?: number, monthlyValue?: number, unit?: string, category?: string, comprasCode?: string, becCode?: string, commitmentNumber?: string, commitmentValue?: number }[]) => Promise<{ success: boolean; message: string } | void>;
 }
 
 export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModalProps> = ({ itemName, currentSuppliers, allSuppliers, unit, category, comprasCode, becCode, acquiredQuantity, onClose, onSave }) => {
-    const [assignments, setAssignments] = useState(() => currentSuppliers.map(s => {
+    const [assignments, setAssignments] = useState(() => currentSuppliers.map((s: any) => {
         const kg = s.amount || 0;
         const price = s.price || 0;
         const autoCommitmentValue = s.commitmentValue && s.commitmentValue > 0 ? s.commitmentValue : (kg * price);
@@ -504,6 +506,8 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
             supplierName: s.supplierName,
             totalKg: String(kg).replace('.', ','),
             valuePerKg: String(price).replace('.', ','),
+            monthlyWeight: String(s.monthlyWeight || 0).replace('.', ','),
+            monthlyValue: String(s.monthlyValue || 0).replace('.', ','),
             unit: unit,
             category: category || 'OUTROS',
             comprasCode: comprasCode || '',
@@ -567,6 +571,8 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
                 supplierName: s.name,
                 totalKg: '0',
                 valuePerKg: assignments.length > 0 ? assignments[0].valuePerKg : '0',
+                monthlyWeight: '0',
+                monthlyValue: '0',
                 unit: unit,
                 category: itemCategory,
                 comprasCode: itemComprasCode,
@@ -619,8 +625,10 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
         setSaveError(null);
         const finalAssignments = assignments.map(a => ({
             supplierCpf: a.supplierCpf,
-            totalKg: parseFloat(a.totalKg.replace(',', '.')),
-            valuePerKg: parseFloat(a.valuePerKg.replace(',', '.')),
+            totalKg: parseFloat(a.totalKg.toString().replace(',', '.')),
+            valuePerKg: parseFloat(a.valuePerKg.toString().replace(',', '.')),
+            monthlyWeight: parseFloat(a.monthlyWeight.toString().replace(',', '.')) || 0,
+            monthlyValue: parseFloat(a.monthlyValue.toString().replace(',', '.')) || 0,
             unit: a.unit,
             category: itemCategory,
             comprasCode: itemComprasCode,
@@ -769,6 +777,24 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
                                             value={a.valuePerKg} 
                                             onChange={e => handleValueChange(a.supplierCpf, 'valuePerKg', e.target.value)} 
                                             className="w-full p-2 border-2 border-gray-50 rounded-lg text-center font-mono text-xs focus:border-indigo-400 outline-none transition-all bg-white"
+                                        />
+                                    </div>
+                                    <div className="w-full md:w-28">
+                                        <label className="text-[8px] font-black text-indigo-400 uppercase block mb-0.5 ml-1 font-serif italic">Entrega Mês (KG)</label>
+                                        <input 
+                                            type="text" 
+                                            value={a.monthlyWeight} 
+                                            onChange={e => setAssignments(assignments.map(assign => assign.supplierCpf === a.supplierCpf ? { ...assign, monthlyWeight: e.target.value.replace(/[^0-9,.]/g, '') } : assign))}
+                                            className="w-full p-2 border-2 border-indigo-50 rounded-lg text-center font-mono text-xs focus:border-indigo-400 outline-none transition-all bg-white"
+                                        />
+                                    </div>
+                                    <div className="w-full md:w-28">
+                                        <label className="text-[8px] font-black text-indigo-400 uppercase block mb-0.5 ml-1 font-serif italic">Valor Mês</label>
+                                        <input 
+                                            type="text" 
+                                            value={a.monthlyValue} 
+                                            onChange={e => setAssignments(assignments.map(assign => assign.supplierCpf === a.supplierCpf ? { ...assign, monthlyValue: e.target.value.replace(/[^0-9,.]/g, '') } : assign))}
+                                            className="w-full p-2 border-2 border-indigo-50 rounded-lg text-center font-mono text-xs focus:border-indigo-400 outline-none transition-all bg-white"
                                         />
                                     </div>
                                     <div className="w-full md:w-28">

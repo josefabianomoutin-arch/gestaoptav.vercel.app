@@ -134,6 +134,21 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
         return { totalWeight, totalValue };
     }, [selectedReportItems]);
 
+    const commitmentStr = useMemo(() => {
+        const supplier = suppliers.find(s => s.cpf === reportSupplierCpf);
+        if (!supplier || selectedReportItems.length === 0) return 'NÃO INFORMADO';
+
+        const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+        const commitmentNumbers = [...new Set(selectedReportItems.map(it => {
+            const itemsSource = supplier.contractItems || {};
+            const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+            const normalizedItemName = normalize(it.item || it.itemName || '');
+            const contractItem = supplierItems.find(ci => normalize(ci.name) === normalizedItemName);
+            return contractItem?.commitmentNumber;
+        }).filter(Boolean))];
+        return commitmentNumbers.length > 0 ? commitmentNumbers.join(' / ') : 'NÃO INFORMADO';
+    }, [suppliers, reportSupplierCpf, selectedReportItems]);
+
     const handleGenerateReport = () => {
         const supplier = suppliers.find(s => s.cpf === reportSupplierCpf);
         if (!supplier || !reportSelectedMonth || selectedReportItems.length === 0) return;
@@ -156,17 +171,6 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
         });
 
         const sortedDates = Array.from(groupedByDate.keys()).sort();
-
-        // Pegar número de empenho único dos itens selecionados
-        const normalize = (s: string) => s.trim().toUpperCase().replace(/\s+/g, ' ');
-        const commitmentNumbers = [...new Set(selectedReportItems.map(it => {
-            const itemsSource = supplier.contractItems || {};
-            const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
-            const normalizedItemName = normalize(it.item || it.itemName || '');
-            const contractItem = supplierItems.find(ci => normalize(ci.name) === normalizedItemName);
-            return contractItem?.commitmentNumber;
-        }).filter(Boolean))];
-        const commitmentStr = commitmentNumbers.length > 0 ? commitmentNumbers.join(' / ') : 'NÃO INFORMADO';
 
         const htmlContent = `
             <!DOCTYPE html>

@@ -200,12 +200,8 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         };
                     }
                     
-                    let divisor = 12; // Default
-                    if (it.period === '1_QUAD') divisor = 4;
-                    else if (it.period === '2_3_QUAD') divisor = 8;
-                    
-                    const monthlyWeight = (it.totalKg || 0) / divisor;
-                    const monthlyValue = monthlyWeight * (it.valuePerKg || 0);
+                    const monthlyWeight = it.monthlyWeight || 0;
+                    const monthlyValue = it.monthlyValue || 0;
 
                     // Find actual deliveries in this month for this item/supplier
                     const deliveredForThis = combinedLog.filter(l => 
