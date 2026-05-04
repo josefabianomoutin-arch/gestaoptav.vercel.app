@@ -211,7 +211,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         
                         if (cat === 'PPAIS') {
                             // Buscar diretamente da estrutura do contrato, dividir por 8 meses (maio a dezembro)
-                            return { weight: (it.monthlyWeight || 0) / 8, value: (it.monthlyValue || 0) / 8 };
+                            return { weight: it.totalKg / 8, value: (it.totalKg * (it.valuePerKg || 0)) / 8 };
                         }
 
                         return { weight: it.totalKg / 12, value: (it.totalKg * (it.valuePerKg || 0)) / 12 };
