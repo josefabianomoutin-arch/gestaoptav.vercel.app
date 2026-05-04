@@ -14,6 +14,7 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
     });
     const [isProcessing, setIsProcessing] = useState(false);
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const [syncPath, setSyncPath] = useState(localStorage.getItem('sync_path_local') || '');
 
     useEffect(() => {
         window.addEventListener('beforeinstallprompt', (e) => {
@@ -402,6 +403,27 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
                         </div>
 
                         <div className="space-y-6">
+                            {/* Folder/USB Path Configuration */}
+                            <div className="p-4 rounded-2xl border-2 border-dashed border-indigo-100 bg-indigo-50/10">
+                                <label className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1.5 block italic">Local de Busca (Pasta de Rede / Pendrive)</label>
+                                <div className="relative group">
+                                    <input 
+                                        type="text" 
+                                        value={syncPath}
+                                        onChange={(e) => {
+                                            setSyncPath(e.target.value);
+                                            localStorage.setItem('sync_path_local', e.target.value);
+                                        }}
+                                        placeholder="Ex: Z:\Sincronizacao"
+                                        className="w-full bg-white border border-indigo-100 rounded-xl pl-3 pr-10 py-2.5 text-[10px] font-mono focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm shadow-indigo-50 transition-all"
+                                    />
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-400">
+                                        <Database className="h-3.5 w-3.5" />
+                                    </div>
+                                </div>
+                                <p className="text-[7px] text-zinc-400 font-bold uppercase italic mt-1.5 leading-tight">O sistema usará este local como referência para salvar e buscar arquivos.</p>
+                            </div>
+
                             {/* Workflow 1: Database Setup/Update (Online -> Offline) */}
                             <div className="p-5 rounded-2xl border border-zinc-100 bg-zinc-50/30">
                                 <h4 className="text-[10px] font-black text-zinc-800 uppercase mb-3 flex items-center gap-2 tracking-widest">
