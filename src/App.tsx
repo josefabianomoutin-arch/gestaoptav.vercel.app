@@ -1642,7 +1642,9 @@ const App: React.FC = () => {
               unit: assignment.unit || 'kg-1',
               category: assignment.category || 'OUTROS',
               comprasCode: assignment.comprasCode || '',
-              becCode: assignment.becCode || ''
+              becCode: assignment.becCode || '',
+              commitmentNumber: assignment.commitmentNumber || '',
+              commitmentValue: assignment.commitmentValue || 0
             });
           }
           
@@ -1673,6 +1675,8 @@ const App: React.FC = () => {
                 category: assignment.category || 'PPAIS',
                 comprasCode: assignment.comprasCode || '',
                 becCode: assignment.becCode || '',
+                commitmentNumber: assignment.commitmentNumber || '',
+                commitmentValue: assignment.commitmentValue || 0,
                 period: '2_3_QUAD'
               });
             }
@@ -1691,6 +1695,8 @@ const App: React.FC = () => {
                 category: assignment.category || 'PERECÍVEIS',
                 comprasCode: assignment.comprasCode || '',
                 becCode: assignment.becCode || '',
+                commitmentNumber: assignment.commitmentNumber || '',
+                commitmentValue: assignment.commitmentValue || 0,
                 period: '2_3_QUAD'
               });
             }

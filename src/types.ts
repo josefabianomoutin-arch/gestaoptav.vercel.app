@@ -39,7 +39,7 @@ export interface ContractItem {
     comprasCode?: string;
     becCode?: string;
     commitmentNumber?: string;
-    commitmentValue?: string;
+    commitmentValue?: number;
 }
 
 export interface Supplier {
@@ -242,7 +242,7 @@ export interface AcquisitionItem {
     expenseNature?: string;
     nickname?: string;
     commitmentNumber?: string;
-    commitmentValue?: string;
+    commitmentValue?: number;
 }
 
 export interface VehicleExitOrder {

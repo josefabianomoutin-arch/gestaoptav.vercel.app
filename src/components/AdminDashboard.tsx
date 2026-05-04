@@ -49,7 +49,7 @@ interface AdminDashboardProps {
   onUpdatePerCapitaConfig: (config: Partial<PerCapitaConfig>) => Promise<{ success: boolean; message?: string }>;
   onDeleteWarehouseEntry: (logEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
   onUpdateWarehouseEntry: (updatedEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
-  onUpdateContractForItem: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string }[]) => Promise<{ success: boolean, message: string }>;
+  onUpdateContractForItem: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string, commitmentNumber?: string, commitmentValue?: number }[]) => Promise<{ success: boolean, message: string }>;
   onUpdateAcquisitionItem: (item: AcquisitionItem) => Promise<{ success: boolean; message: string }>;
   onDeleteAcquisitionItem: (id: string) => Promise<{ success: boolean; message: string }>;
   acquisitionItems: AcquisitionItem[];
