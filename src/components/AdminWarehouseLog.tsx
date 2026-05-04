@@ -572,6 +572,24 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                     </React.Fragment>
                                 ))}
                             </tbody>
+                            <tfoot>
+                                <tr className="bg-amber-100/50">
+                                    <td colSpan={4} className="px-4 py-3 text-right">
+                                        <span className="text-[10px] font-black text-amber-900 uppercase italic tracking-widest mr-4">Total Geral do Período:</span>
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-mono font-black text-zinc-900 border-2 border-amber-200 rounded-lg bg-white shadow-sm">
+                                        {groupedProjectionData.reduce((acc, item) => 
+                                            acc + item.producers.reduce((pAcc: number, p: any) => pAcc + (p.totalContractWeight || 0), 0)
+                                        , 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} Kg
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-mono font-black text-amber-600 border-2 border-amber-200 rounded-lg bg-white shadow-sm">
+                                        {formatCurrency(groupedProjectionData.reduce((acc, item) => 
+                                            acc + item.producers.reduce((pAcc: number, p: any) => pAcc + (p.totalContractValue || 0), 0)
+                                        , 0))}
+                                    </td>
+                                    <td className="px-4 py-3"></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>
