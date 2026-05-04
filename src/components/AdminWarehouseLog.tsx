@@ -531,14 +531,8 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             )}
 
             {/* RESUMO DO CONTRATO / FORNECEDOR */}
-            {(filteredLog.length > 0 || groupedProjectionData.length > 0) && (
+            {filteredLog.length > 0 && (
                 <div className="space-y-4">
-                    {groupedProjectionData.length > 0 && (
-                        <div className="flex items-center gap-2 mb-2">
-                             <Clock className="h-4 w-4 text-amber-500" />
-                             <h3 className="text-[10px] font-black uppercase tracking-widest text-amber-600 italic">Projeções de Contratos (Futuro)</h3>
-                        </div>
-                    )}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
                         {/* Summary for real logs */}
                         {Object.entries(
@@ -584,396 +578,114 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                 </div>
                             </div>
                         ))}
-
-                        {/* Summary for projections - Grouped by Item */}
-                        {groupedProjectionData.map((itemData: any, idx: number) => (
-                            <div key={`proj-${idx}`} className="bg-amber-50/30 border border-amber-100 p-5 rounded-[2rem] shadow-sm hover:shadow-md transition-all border-l-4 border-l-amber-500 space-y-4">
-                                <div className="flex justify-between items-center border-b border-amber-100 pb-2">
-                                    <h3 className="text-[12px] font-black text-slate-900 uppercase italic tracking-tighter">{itemData.itemName}</h3>
-                                    <div className="text-right">
-                                        <p className="text-[7px] text-amber-500 font-black uppercase">Total Contrato Item</p>
-                                        <p className="text-[10px] font-bold text-amber-600">{formatCurrency(itemData.totalItemValue)}</p>
-                                    </div>
-                                </div>
-                                
-                                <div className="space-y-3">
-                                    {itemData.producers.map((prod: any, pIdx: number) => (
-                                        <div key={pIdx} className="bg-white/50 rounded-xl p-3 border border-amber-50">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <span className="text-[9px] font-black text-slate-700 uppercase tracking-tight">{prod.supplier}</span>
-                                                <div className="flex gap-1">
-                                                    {(prod.weeks || []).map((w: number) => (
-                                                        <span key={w} className="bg-amber-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded italic">S{w}</span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <div className="flex justify-between items-end">
-                                                <div>
-                                                    <p className="text-[7px] text-slate-400 font-black uppercase">Entrega Mês</p>
-                                                    <p className="text-[10px] font-black text-slate-900">{prod.monthlyWeight.toLocaleString('pt-BR')} <span className="text-[8px] text-slate-400">Kg</span></p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-[7px] text-amber-400 font-black uppercase">Valor Mes</p>
-                                                    <p className="text-[10px] font-black text-emerald-600">{formatCurrency(prod.monthlyValue)}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
                     </div>
                 </div>
             )}
-
-            {/* TABELA DE MOVIMENTAÇÕES OU PROJEÇÕES */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                {groupedProjectionData.length > 0 && filteredLog.length === 0 ? (
-                    <div className="p-0">
-                        <div className="bg-amber-50/50 p-4 border-b border-amber-100 italic">
-                            <p className="text-[10px] font-black uppercase text-amber-700 tracking-widest flex items-center gap-2">
-                                <Clock className="h-4 w-4" />
-                                Projeção de Abastecimento para {monthNamesInOrder[parseInt(activeMonthTab.split('-')[1])]} / {activeMonthTab.split('-')[0]}
-                            </p>
-                            <p className="text-[8px] text-amber-600 font-bold uppercase mt-1">Organizado por Item: Planejamento Mensal vs Contrato Total</p>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-[10px] border-separate border-spacing-0">
-                                <thead className="bg-gray-50/80 backdrop-blur-md sticky top-0 z-10">
-                                    <tr className="italic">
-                                        <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Item / Fornecedor</th>
-                                        <th className="p-3 text-center font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Semanas</th>
-                                        <th className="p-3 text-right font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Entrega Mês (Kg)</th>
-                                        <th className="p-3 text-right font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Valor Mês</th>
-                                        <th className="p-3 text-right font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Total Contrato (Kg)</th>
-                                        <th className="p-3 text-right font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Valor Total</th>
-                                        <th className="p-3 text-center font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                    {groupedProjectionData.map((itemGroup: any, idx: number) => (
-                                        <React.Fragment key={idx}>
-                                            <tr className="bg-slate-50/80">
-                                                <td colSpan={1} className="p-3 font-black text-zinc-900 uppercase text-[11px] italic tracking-tighter">{itemGroup.itemName}</td>
-                                                <td className="p-3"></td>
-                                                <td className="p-3 text-right font-black text-gray-400">-</td>
-                                                <td className="p-3"></td>
-                                                <td className="p-3 text-right font-black text-zinc-900">{itemGroup.totalItemWeight.toLocaleString('pt-BR')} Kg</td>
-                                                <td className="p-3 text-right font-black text-amber-600">{formatCurrency(itemGroup.totalItemValue)}</td>
-                                                <td className="p-3"></td>
-                                            </tr>
-                                            {itemGroup.producers.map((prod: any, pIdx: number) => (
-                                                <tr key={`${idx}-${pIdx}`} className="hover:bg-amber-50/30 transition-colors group">
-                                                    <td className="p-3 pl-8">
-                                                        <span className="font-bold text-gray-600 uppercase italic">{prod.supplier}</span>
-                                                    </td>
-                                                    <td className="p-3 text-center">
-                                                        <div className="flex justify-center gap-1">
-                                                            {(prod.weeks || []).map((w: number) => (
-                                                                <span key={w} className="bg-amber-100 text-amber-700 text-[8px] font-black px-1.5 py-0.5 rounded border border-amber-200 uppercase">S{w}</span>
-                                                            ))}
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-3 text-right font-mono font-black text-indigo-600">
-                                                        {prod.monthlyWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} KG
-                                                    </td>
-                                                    <td className="p-3 text-right font-mono font-black text-emerald-600">
-                                                        {formatCurrency(prod.monthlyValue)}
-                                                    </td>
-                                                    <td className="p-3 text-right font-mono font-bold text-gray-400">
-                                                        {prod.totalContractWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} KG
-                                                    </td>
-                                                    <td className="p-3 text-right font-mono font-bold text-gray-400">
-                                                        {formatCurrency(prod.totalContractValue)}
-                                                    </td>
-                                                    <td className="p-3 text-center">
-                                                        <span className="bg-zinc-100 text-zinc-400 text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest border border-zinc-200">AGUARDANDO</span>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </React.Fragment>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+            {filteredLog.length > 0 ? (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div 
+                        ref={topScrollRef} 
+                        className="overflow-x-auto overflow-y-hidden custom-scrollbar border-b border-gray-50" 
+                        style={{ height: '8px' }}
+                    >
+                        <div style={{ height: '1px' }}></div>
                     </div>
-                ) : (
-                    <>
-                        <div 
-                            ref={topScrollRef} 
-                            className="overflow-x-auto overflow-y-hidden custom-scrollbar border-b border-gray-50" 
-                            style={{ height: '8px' }}
-                        >
-                            <div style={{ height: '1px' }}></div>
-                        </div>
-                        <div ref={bottomScrollRef} className="overflow-x-auto max-h-[50vh] custom-scrollbar scrollbar-thin scrollbar-thumb-gray-200">
-                            <table ref={tableRef} className="w-full text-[10px] border-separate border-spacing-0">
-                                <thead className="bg-gray-50/80 backdrop-blur-md sticky top-0 z-10">
+                    <div ref={bottomScrollRef} className="overflow-x-auto max-h-[50vh] custom-scrollbar scrollbar-thin scrollbar-thumb-gray-200">
+                        <table ref={tableRef} className="w-full text-[10px] border-separate border-spacing-0">
+                            <thead className="bg-gray-50/80 backdrop-blur-md sticky top-0 z-10">
                                 <tr className="italic">
-                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Tipo</th>
-                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100 whitespace-nowrap">Data Doc.</th>
-                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Produto / Origem</th>
-                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Cód. Barras</th>
-                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Lote</th>
-                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Validade</th>
-                                <th className="p-3 text-right font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Quantidade</th>
-                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">NF / REQ</th>
-                                <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Situação PD</th>
-                                <th className="p-3 text-center font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {filteredLog.map(log => (
-                                <tr key={log.id} className={`hover:bg-indigo-50/30 transition-colors group ${log.isOffline ? 'bg-amber-50/50' : (!log.pdNumber ? 'bg-red-100' : 'bg-green-100')}`}>
-                                    <td className="p-2 pl-3">
-                                        <div className="flex flex-col gap-1">
-                                            <span className={`text-[8px] font-black px-2 py-0.5 rounded-lg uppercase italic ${log.type === 'entrada' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{log.type}</span>
-                                            {log.isOffline && (
-                                                <span className="text-[7px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded flex items-center gap-0.5 animate-pulse uppercase italic">
-                                                    <Clock className="h-2 w-2" />
-                                                    Pendente Sync
-                                                </span>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="p-2 font-mono text-indigo-700 text-[10px] font-black">{(log.date || '').split('-').reverse().join('/')}</td>
-                                    <td className="p-2">
-                                        <p className="font-black text-gray-900 uppercase leading-none">{log.itemName}</p>
-                                        <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">{log.supplierName}</p>
-                                    </td>
-                                    <td className="p-2 font-mono text-[10px] text-blue-600 font-black tracking-tighter">{log.barcode || '-'}</td>
-                                    <td className="p-2 font-mono text-[10px] uppercase font-bold text-gray-500">{log.lotNumber || '-'}</td>
-                                    <td className="p-2 font-mono text-[10px] uppercase font-bold text-gray-400">
-                                        {log.expirationDate ? log.expirationDate.split('-').reverse().join('/') : '-'}
-                                    </td>
-                                    <td className="p-2 text-right font-mono font-black text-gray-900 bg-gray-50/30 group-hover:bg-transparent">
-                                        {(log.quantity || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg
-                                    </td>
-                                    <td className="p-2 font-mono text-[10px] text-gray-400 font-bold italic">{log.inboundInvoice || log.outboundInvoice || '-'}</td>
-                                    <td className={`p-2 font-mono text-[10px] font-black italic ${!log.pdNumber ? 'text-red-700' : 'text-green-700'}`}>
-                                        PD - {log.pdNumber ? 'C/ PD' : 'S/ PD'}
-                                    </td>
-                                    <td className="p-2 text-center">
-                                        <div className="flex justify-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                                            {log.invoiceUrl && (
-                                                <button 
-                                                    onClick={() => {
-                                                        const win = window.open();
-                                                        if (win) {
-                                                            win.document.write(`<iframe src="${log.invoiceUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                                                        }
-                                                    }}
-                                                    className="text-gray-400 hover:text-amber-600 hover:bg-amber-50 p-1.5 rounded-lg transition-all"
-                                                    title="Ver Comprovante"
-                                                >
-                                                    <Eye className="h-3.5 w-3.5" />
-                                                </button>
-                                            )}
-                                            <button 
-                                                onClick={() => handlePrintLabel(log)}
-                                                className="text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-lg transition-all"
-                                                title="Imprimir Etiqueta"
-                                            >
-                                                <Printer className="h-3.5 w-3.5" />
-                                            </button>
-                                            <button 
-                                                onClick={() => setEditingLog(log)}
-                                                className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all"
-                                                title="Editar Registro"
-                                            >
-                                                <Edit2 className="h-3.5 w-3.5" />
-                                            </button>
-                                            <button 
-                                                onClick={() => handleDelete(log)} 
-                                                disabled={isDeleting === log.id}
-                                                className="text-gray-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-all disabled:opacity-50"
-                                                title="Excluir Registro"
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                            </button>
-                                        </div>
-                                    </td>
+                                    <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Tipo</th>
+                                    <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100 whitespace-nowrap">Data Doc.</th>
+                                    <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Produto / Origem</th>
+                                    <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Cód. Barras</th>
+                                    <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Lote</th>
+                                    <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Validade</th>
+                                    <th className="p-3 text-right font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Quantidade</th>
+                                    <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">NF / REQ</th>
+                                    <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Situação PD</th>
+                                    <th className="p-3 text-center font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Ações</th>
                                 </tr>
-                            ))}
-                            {filteredLog.length === 0 && (
-                                <tr><td colSpan={10} className="p-16 text-center text-gray-200 italic font-black uppercase tracking-[0.2em] text-[10px]">Sem registros para este filtro</td></tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {filteredLog.map(log => (
+                                    <tr key={log.id} className={`hover:bg-indigo-50/30 transition-colors group ${log.isOffline ? 'bg-amber-50/50' : (!log.pdNumber ? 'bg-red-100' : 'bg-green-100')}`}>
+                                        <td className="p-2 pl-3">
+                                            <div className="flex flex-col gap-1">
+                                                <span className={`text-[8px] font-black px-2 py-0.5 rounded-lg uppercase italic ${log.type === 'entrada' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{log.type}</span>
+                                                {log.isOffline && (
+                                                    <span className="text-[7px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded flex items-center gap-0.5 animate-pulse uppercase italic">
+                                                        <Clock className="h-2 w-2" />
+                                                        Pendente Sync
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="p-2 font-mono text-indigo-700 text-[10px] font-black">{(log.date || '').split('-').reverse().join('/')}</td>
+                                        <td className="p-2">
+                                            <p className="font-black text-gray-900 uppercase leading-none">{log.itemName}</p>
+                                            <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">{log.supplierName}</p>
+                                        </td>
+                                        <td className="p-2 font-mono text-[10px] text-blue-600 font-black tracking-tighter">{log.barcode || '-'}</td>
+                                        <td className="p-2 font-mono text-[10px] uppercase font-bold text-gray-500">{log.lotNumber || '-'}</td>
+                                        <td className="p-2 font-mono text-[10px] uppercase font-bold text-gray-400">
+                                            {log.expirationDate ? log.expirationDate.split('-').reverse().join('/') : '-'}
+                                        </td>
+                                        <td className="p-2 text-right font-mono font-black text-gray-900 bg-gray-50/30 group-hover:bg-transparent">
+                                            {(log.quantity || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg
+                                        </td>
+                                        <td className="p-2 font-mono text-[10px] text-gray-400 font-bold italic">{log.inboundInvoice || log.outboundInvoice || '-'}</td>
+                                        <td className={`p-2 font-mono text-[10px] font-black italic ${!log.pdNumber ? 'text-red-700' : 'text-green-700'}`}>
+                                            PD - {log.pdNumber ? 'C/ PD' : 'S/ PD'}
+                                        </td>
+                                        <td className="p-2 text-center">
+                                            <div className="flex justify-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                {log.invoiceUrl && (
+                                                    <button 
+                                                        onClick={() => {
+                                                            const win = window.open();
+                                                            if (win) {
+                                                                win.document.write(`<iframe src="${log.invoiceUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                                            }
+                                                        }}
+                                                        className="text-gray-400 hover:text-amber-600 hover:bg-amber-50 p-1.5 rounded-lg transition-all"
+                                                        title="Ver Comprovante"
+                                                    >
+                                                        <Eye className="h-3.5 w-3.5" />
+                                                    </button>
+                                                )}
+                                                <button 
+                                                    onClick={() => handlePrintLabel(log)}
+                                                    className="text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-lg transition-all"
+                                                    title="Imprimir Etiqueta"
+                                                >
+                                                    <Printer className="h-3.5 w-3.5" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => setEditingLog(log)}
+                                                    className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all"
+                                                    title="Editar Registro"
+                                                >
+                                                    <Edit2 className="h-3.5 w-3.5" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDelete(log)} 
+                                                    disabled={isDeleting === log.id}
+                                                    className="text-gray-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-all disabled:opacity-50"
+                                                    title="Excluir Registro"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
-                    </>
-                )}
-            </div>
-
-            {editingLog && (
-                <EditWarehouseMovementModal 
-                    suppliers={suppliers} 
-                    logEntry={editingLog}
-                    onClose={() => setEditingLog(null)}
-                    onSave={async (updated) => {
-                        const res = await onUpdateWarehouseEntry(updated);
-                        if (res.success) setEditingLog(null);
-                        else alert(res.message);
-                    }}
-                />
-            )}
-
-            <ConfirmModal
-                isOpen={confirmConfig.isOpen}
-                title={confirmConfig.title}
-                message={confirmConfig.message}
-                onConfirm={confirmConfig.onConfirm}
-                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
-                variant={confirmConfig.variant}
-            />
-
-            <style>{`.custom-scrollbar::-webkit-scrollbar { width: 6px; } .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; } .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }`}</style>
-        </div>
-    );
-};
-
-// --- Modal de Edição de Registro ---
-interface EditWarehouseMovementModalProps {
-    suppliers: Supplier[];
-    logEntry: WarehouseMovement;
-    onClose: () => void;
-    onSave: (updated: WarehouseMovement) => Promise<void>;
-}
-
-const EditWarehouseMovementModal: React.FC<EditWarehouseMovementModalProps> = ({ suppliers, logEntry, onClose, onSave }) => {
-    const [type, setType] = useState<'entrada' | 'saída'>((logEntry.type === 'saida' || logEntry.type === 'saída') ? 'saída' : 'entrada');
-    const [selectedCpf, setSelectedCpf] = useState(() => {
-        const found = suppliers.find(s => superNormalize(s.name) === superNormalize(logEntry.supplierName));
-        return found ? found.cpf : '';
-    });
-    const [itemName, setItemName] = useState(logEntry.itemName);
-    const [lotNumber, setLotNumber] = useState(logEntry.lotNumber);
-    const [barcode, setBarcode] = useState(logEntry.barcode || '');
-    const [quantity, setQuantity] = useState(String(logEntry.quantity || 0).replace('.', ','));
-    const [documentNumber, setDocumentNumber] = useState(logEntry.inboundInvoice || logEntry.outboundInvoice || '');
-    const [date, setDate] = useState(logEntry.date || '');
-    const [expirationDate, setExpirationDate] = useState(logEntry.expirationDate || '');
-    const [pdNumber, setPdNumber] = useState(logEntry.pdNumber || '');
-    const [value, setValue] = useState(String(logEntry.value || 0).replace('.', ','));
-    const [weight, setWeight] = useState(String(logEntry.weight || 0).replace('.', ','));
-    const [isSaving, setIsSaving] = useState(false);
-
-    const selectedSupplier = useMemo(() => suppliers.find(s => s.cpf === selectedCpf), [suppliers, selectedCpf]);
-    const availableItems = useMemo(() => selectedSupplier ? (Object.values(selectedSupplier.contractItems || {}) as any[]).sort((a,b) => a.name.localeCompare(b.name)) : [], [selectedSupplier]);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const qtyVal = parseFloat(quantity.replace(',', '.'));
-        if (!selectedCpf || !itemName || isNaN(qtyVal) || qtyVal <= 0) {
-            alert('Preencha todos os campos obrigatórios corretamente.');
-            return;
-        }
-
-        setIsSaving(true);
-        const updated: WarehouseMovement = {
-            ...logEntry,
-            type,
-            date,
-            lotNumber,
-            itemName,
-            barcode,
-            supplierName: selectedSupplier?.name || logEntry.supplierName,
-            quantity: qtyVal,
-            inboundInvoice: type === 'entrada' ? documentNumber : '',
-            outboundInvoice: type === 'saída' ? documentNumber : '',
-            expirationDate,
-            pdNumber,
-            value: parseFloat(value.replace(',', '.')) || 0,
-            weight: parseFloat(weight.replace(',', '.')) || qtyVal
-        };
-
-        await onSave(updated);
-        setIsSaving(false);
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-[200] p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 animate-fade-in-up">
-                <div className="flex justify-between items-center mb-6 border-b pb-4">
-                    <div>
-                        <h2 className="text-2xl font-black text-blue-800 uppercase tracking-tighter">Editar Registro de Estoque</h2>
-                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">ID do Registro: {logEntry.id}</p>
-                    </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-3xl font-light">&times;</button>
                 </div>
-
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="flex p-1 bg-gray-100 rounded-xl">
-                        <button type="button" onClick={() => setType('entrada')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${type === 'entrada' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-400'}`}>Entrada</button>
-                        <button type="button" onClick={() => setType('saída')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${type === 'saída' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-400'}`}>Saída</button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Fornecedor</label>
-                            <select value={selectedCpf} onChange={e => { setSelectedCpf(e.target.value); setItemName(''); }} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-400 bg-white" required>
-                                <option value="">-- SELECIONE --</option>
-                                {suppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
-                            </select>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Item do Contrato</label>
-                            <select value={itemName} onChange={e => setItemName(e.target.value)} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-400 bg-white" required disabled={!selectedCpf}>
-                                <option value="">-- SELECIONE --</option>
-                                {availableItems.map(ci => <option key={ci.name} value={ci.name}>{ci.name}</option>)}
-                            </select>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-blue-600 uppercase ml-1">Código de Barras</label>
-                            <input type="text" value={barcode} onChange={e => setBarcode(e.target.value)} className="w-full p-2 border-2 border-blue-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 font-mono" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-indigo-600 uppercase ml-1">Data do Documento</label>
-                            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full p-2 border-2 border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-400 bg-indigo-50/30" required />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase ml-1">NF/Documento</label>
-                            <input type="text" value={documentNumber} onChange={e => setDocumentNumber(e.target.value)} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-400" required />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Lote</label>
-                            <input type="text" value={lotNumber} onChange={e => setLotNumber(e.target.value.toUpperCase())} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-400 font-mono" required />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Quantidade (kg)</label>
-                            <input type="text" value={quantity} onChange={e => setQuantity(e.target.value.replace(/[^0-9,]/g, ''))} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-400 font-mono" required />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Data de Validade</label>
-                            <input type="date" value={expirationDate} onChange={e => setExpirationDate(e.target.value)} className="w-full p-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-400" />
-                        </div>
-
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-rose-600 uppercase ml-1">PD (Parecer Despesa)</label>
-                            <input type="text" value={pdNumber} onChange={e => setPdNumber(e.target.value.toUpperCase())} className="w-full p-2 border-2 border-rose-100 rounded-xl outline-none focus:ring-2 focus:ring-rose-400" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-emerald-600 uppercase ml-1">Valor Total Item na NF (R$)</label>
-                            <input type="text" value={value} onChange={e => setValue(e.target.value.replace(/[^0-9,]/g, ''))} className="w-full p-2 border-2 border-emerald-100 rounded-xl outline-none focus:ring-2 focus:ring-emerald-400 font-mono" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-amber-600 uppercase ml-1">Peso Bruto</label>
-                            <input type="text" value={weight} onChange={e => setWeight(e.target.value.replace(/[^0-9,]/g, ''))} className="w-full p-2 border-2 border-amber-100 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 font-mono" />
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-6 border-t">
-                        <button type="button" onClick={onClose} className="bg-gray-200 text-gray-700 px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-xs transition-colors">Cancelar</button>
-                        <button 
-                            type="submit" 
-                            disabled={isSaving || !selectedCpf || !itemName} 
-                            className="px-10 py-3 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg transition-all active:scale-95 bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-300"
-                        >
-                            {isSaving ? 'Salvando...' : 'Atualizar Registro'}
-                        </button>
-                    </div>
-                </form>
-            </div>
+            ) : (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center text-gray-400 italic font-black uppercase tracking-[0.2em] text-[10px]">Sem registros para este filtro</div>
+            )}
         </div>
     );
 };
