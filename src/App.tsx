@@ -1662,9 +1662,11 @@ const App: React.FC = () => {
           let changed = false;
           const updatedPpais = [...(current.ppaisProducers || [])];
           const updatedPereciveis = [...(current.pereciveisSuppliers || [])];
+          const updatedEstocaveis = [...(current.estocaveisSuppliers || [])];
 
           const ppaisIndex = updatedPpais.findIndex(p => p.cpfCnpj === supplier.cpf);
           const pereciveisIndex = updatedPereciveis.findIndex(p => p.cpfCnpj === supplier.cpf);
+          const estocaveisIndex = updatedEstocaveis.findIndex(p => p.cpfCnpj === supplier.cpf);
 
           if (ppaisIndex !== -1) {
             const p = updatedPpais[ppaisIndex];
@@ -1708,11 +1710,33 @@ const App: React.FC = () => {
             changed = true;
           }
 
+          if (estocaveisIndex !== -1) {
+            const p = updatedEstocaveis[estocaveisIndex];
+            const otherItems = (p.contractItems || []).filter(ci => ci.name !== itemName);
+            if (assignment) {
+              otherItems.push({
+                name: itemName,
+                totalKg: assignment.totalKg,
+                valuePerKg: assignment.valuePerKg,
+                unit: assignment.unit || 'kg-1',
+                category: assignment.category || 'ESTOCÁVEIS',
+                comprasCode: assignment.comprasCode || '',
+                becCode: assignment.becCode || '',
+                commitmentNumber: assignment.commitmentNumber || '',
+                commitmentValue: assignment.commitmentValue || 0,
+                period: '2_3_QUAD'
+              });
+            }
+            updatedEstocaveis[estocaveisIndex] = { ...p, contractItems: otherItems };
+            changed = true;
+          }
+
           if (changed) {
             return {
               ...current,
               ppaisProducers: updatedPpais,
-              pereciveisSuppliers: updatedPereciveis
+              pereciveisSuppliers: updatedPereciveis,
+              estocaveisSuppliers: updatedEstocaveis
             };
           }
           return current;

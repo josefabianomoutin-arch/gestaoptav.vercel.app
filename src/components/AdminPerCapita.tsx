@@ -16,7 +16,7 @@ interface AdminPerCapitaProps {
   warehouseLog: WarehouseMovement[];
   perCapitaConfig: PerCapitaConfig;
   onUpdatePerCapitaConfig: (config: PerCapitaConfig) => Promise<any>;
-  onUpdateContractForItem: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string }[]) => Promise<{ success: boolean, message: string }>;
+  onUpdateContractForItem: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string, commitmentNumber?: string, commitmentValue?: number }[]) => Promise<{ success: boolean, message: string }>;
   onUpdateAcquisitionItem: (item: AcquisitionItem) => Promise<{ success: boolean, message: string }>;
   onDeleteAcquisitionItem: (id: string) => Promise<{ success: boolean, message: string }>;
   acquisitionItems: AcquisitionItem[];
@@ -79,33 +79,21 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
     useEffect(() => {
         if (perCapitaConfig) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setStaffCount(prev => perCapitaConfig.staffCount !== undefined ? (perCapitaConfig.staffCount || 0) : prev);
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setInmateCount(prev => perCapitaConfig.inmateCount !== undefined ? (perCapitaConfig.inmateCount || 0) : prev);
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setCustomPerCapita(perCapitaConfig.customValues || {});
             
             if (!isDirty) {
-                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
-                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
-                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
-                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
-                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setMonthlyResource(perCapitaConfig.monthlyResource || {});
-                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setPtresResources(perCapitaConfig.ptresResources || {});
             }
             
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setPpaisProducers(perCapitaConfig.ppaisProducers || []);
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
         }
     }, [perCapitaConfig, isDirty]);

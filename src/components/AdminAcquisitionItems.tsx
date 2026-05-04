@@ -11,7 +11,7 @@ interface AdminAcquisitionItemsProps {
     onDelete: (id: string) => Promise<{ success: boolean; message: string }>;
     contractItems?: string[]; // Lista de nomes de itens do contrato para vinculação
     suppliers?: Supplier[];
-    onUpdateContractForItem?: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string }[]) => Promise<{ success: boolean, message: string }>;
+    onUpdateContractForItem?: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string, commitmentNumber?: string, commitmentValue?: number }[]) => Promise<{ success: boolean, message: string }>;
 }
 
 const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, category, onUpdate, onDelete, contractItems = [], suppliers = [], onUpdateContractForItem }) => {
@@ -823,7 +823,9 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                 supplierName: s.name,
                                 supplierCpf: s.cpf,
                                 amount: ci.totalKg,
-                                price: ci.valuePerKg
+                                price: ci.valuePerKg,
+                                commitmentNumber: ci.commitmentNumber,
+                                commitmentValue: ci.commitmentValue
                             }))
                     )} 
                     allSuppliers={suppliers} 
