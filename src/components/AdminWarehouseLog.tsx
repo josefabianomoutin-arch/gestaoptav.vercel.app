@@ -72,30 +72,22 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
         const months = new Set<string>();
         combinedLog.forEach(log => {
             const dateStr = log.date || (typeof log.timestamp === 'number' ? new Date(log.timestamp).toISOString().split('T')[0] : (log.timestamp as any)?.split?.('T')?.[0]);
-            if (dateStr) {
-                const d = new Date(dateStr + 'T00:00:00');
-                if (!isNaN(d.getTime())) {
-                    months.add(`${d.getFullYear()}-${d.getMonth()}`);
-                }
+            if (dateStr && dateStr.length >= 7) {
+                months.add(dateStr.substring(0, 7)); // YYYY-MM
             }
         });
 
         // Add 2026 projection months (May to December)
-        const yearProjection = 2026;
-        for (let m = 4; m <= 11; m++) { // 4 = May, 11 = December
-            months.add(`${yearProjection}-${m}`);
+        for (let m = 5; m <= 12; m++) { // 05 = May, 12 = December
+            months.add(`2026-${m.toString().padStart(2, '0')}`);
         }
 
-        return Array.from(months).sort((a, b) => {
-            const [yA, mA] = a.split('-').map(Number);
-            const [yB, mB] = b.split('-').map(Number);
-            return (yB * 12 + mB) - (yA * 12 + mA);
-        });
+        return Array.from(months).sort().reverse();
     }, [combinedLog]);
 
     const [activeMonthTab, setActiveMonthTab] = useState<string>(() => {
         const now = new Date();
-        const currentMonthKey = `${now.getFullYear()}-${now.getMonth()}`;
+        const currentMonthKey = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
         return availableMonths.includes(currentMonthKey) ? currentMonthKey : (availableMonths[0] || currentMonthKey);
     });
 
@@ -152,9 +144,11 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
         return combinedLog
             .filter(log => {
                 const dateStr = log.date || (typeof log.timestamp === 'number' ? new Date(log.timestamp).toISOString().split('T')[0] : (log.timestamp as any)?.split?.('T')?.[0]);
-                const logDate = new Date(dateStr + 'T00:00:00');
-                const monthKey = `${logDate.getFullYear()}-${logDate.getMonth()}`;
-                const matchesMonth = monthKey === activeMonthTab;
+                // dateStr should be YYYY-MM-DD
+                const monthMatch = dateStr ? dateStr.substring(0, 7) : ''; // "2026-05"
+                const activeMonthKey = activeMonthTab.split('-').map((v, i) => i === 1 ? (parseInt(v) + 1).toString().padStart(2, '0') : v).join('-');
+                
+                const matchesMonth = monthMatch === activeMonthKey;
 
                 const typeMatch = filterType === 'all' || log.type === filterType;
                 const searchMatch = searchTerm === '' ||
@@ -422,7 +416,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     <div className="flex overflow-x-auto pb-1 gap-1 custom-scrollbar scrollbar-hide">
                         {availableMonths.map(monthKey => {
                             const [year, month] = monthKey.split('-').map(Number);
-                            const label = `${monthNamesInOrder[month]} / ${year}`;
+                            const label = `${monthNamesInOrder[month - 1]} / ${year}`;
                             const isActive = activeMonthTab === monthKey;
                             return (
                                 <button
