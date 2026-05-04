@@ -551,8 +551,8 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
                 const price = parseFloat(String(a.valuePerKg).replace(',', '.')) || 0;
                 return {
                     ...a,
-                    monthlyWeight: a.monthlyWeight && a.monthlyWeight !== '0' ? a.monthlyWeight : (kg / divisor).toFixed(2).replace('.', ','),
-                    monthlyValue: a.monthlyValue && a.monthlyValue !== '0' ? a.monthlyValue : ((kg * price) / divisor).toFixed(2).replace('.', ',')
+                    monthlyWeight: (kg / divisor).toFixed(2).replace('.', ','),
+                    monthlyValue: ((kg * price) / divisor).toFixed(2).replace('.', ',')
                 };
             });
         }
@@ -624,8 +624,8 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
             return { 
                 ...updatedA, 
                 commitmentValue: (kg * price).toFixed(2).replace('.', ','),
-                monthlyWeight: (a.monthlyWeight && a.monthlyWeight !== '0' && field !== 'totalKg') ? a.monthlyWeight : (kg / divisor).toFixed(2).replace('.', ','),
-                monthlyValue: (a.monthlyValue && a.monthlyValue !== '0' && field !== 'totalKg' && field !== 'valuePerKg') ? a.monthlyValue : ((kg * price) / divisor).toFixed(2).replace('.', ',')
+                monthlyWeight: (kg / divisor).toFixed(2).replace('.', ','),
+                monthlyValue: ((kg * price) / divisor).toFixed(2).replace('.', ',')
             };
         }));
     };

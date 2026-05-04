@@ -653,46 +653,19 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         const totalQuantity = (item.acquiredQuantity || 0) + (item.contractAddendum || 0);
 
                                         // Fallback Divisor Logic (informed in Per Capita calculation logic)
-                                        const getDivisor = (itemName: string) => {
-                                            const norm = normalize(itemName);
-                                            // Try to find category in standard menu or contracted items
-                                            let cat = 'OUTROS';
-                                            const sItem = (perCapitaConfig?.standardMenu?.rows || []).find((r: any) => normalize(r.contractedItem) === norm);
-                                            if (sItem && sItem.category) {
-                                                cat = sItem.category;
-                                            } else {
-                                                const ci = (perCapitaConfig?.contractedItems || []).find((c: any) => normalize(c.name) === norm);
-                                                if (ci && ci.category) cat = ci.category;
-                                            }
-
+                                        const getDivisor = () => {
+                                            const cat = item.category || category;
                                             if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') return 4;
                                             if (cat === 'PPAIS') return 8;
                                             return 12;
                                         };
 
-                                        const divisor = getDivisor(item.name);
+                                        const divisor = getDivisor();
 
-                                        let totalMonthlyWeight = suppliersAssigned.reduce((sum, s) => {
-                                            const itemsSource = s.contractItems || {};
-                                            const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
-                                            const ci = supplierItems.find((ci: any) => normalize(ci.name) === normalizedName);
-                                            return sum + (ci?.monthlyWeight || 0);
-                                        }, 0);
-
-                                        let totalMonthlyValue = suppliersAssigned.reduce((sum, s) => {
-                                            const itemsSource = s.contractItems || {};
-                                            const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
-                                            const ci = supplierItems.find((ci: any) => normalize(ci.name) === normalizedName);
-                                            return sum + (ci?.monthlyValue || 0);
-                                        }, 0);
-
-                                        // If still zero, use the default calculation from Per Capita
-                                        if (totalMonthlyWeight === 0 && totalQuantity > 0) {
-                                            totalMonthlyWeight = totalQuantity / divisor;
-                                        }
-                                        if (totalMonthlyValue === 0 && totalQuantity > 0) {
-                                            totalMonthlyValue = (totalQuantity * unitVal) / divisor;
-                                        }
+                                        // Prioritize calculation according to Per Capita logic (total / divisor)
+                                        // as requested by the user to avoid discrepancies from supplier assignments
+                                        const totalMonthlyWeight = totalQuantity / divisor;
+                                        const totalMonthlyValue = (totalQuantity * unitVal) / divisor;
 
                                         const weightPerSupplier = suppliersAssigned.length > 0 ? totalQuantity / suppliersAssigned.length : 0;
                                         const valuePerSupplier = unitVal * weightPerSupplier;

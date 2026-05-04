@@ -217,8 +217,8 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     };
 
                     const divisor = getDivisor(it.name);
-                    const monthlyWeight = it.monthlyWeight || (it.totalKg / divisor) || 0;
-                    const monthlyValue = it.monthlyValue || ((it.totalKg * (it.valuePerKg || 0)) / divisor) || 0;
+                    const monthlyWeight = it.totalKg / divisor;
+                    const monthlyValue = (it.totalKg * (it.valuePerKg || 0)) / divisor;
 
                     // Find actual deliveries in this month for this item/supplier
                     const deliveredForThis = combinedLog.filter(l => 

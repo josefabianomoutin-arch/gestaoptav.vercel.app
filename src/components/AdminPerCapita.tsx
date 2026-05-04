@@ -659,7 +659,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             const total = totalFromAcq + totalOnlyInContract;
             
             let divisor: number;
-            if (cat === 'PERECÍVEIS') {
+            if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') {
                 divisor = 4; // Apenas Maio, Junho, Julho, Agosto
             } else if (cat === 'PPAIS') {
                 divisor = 8; // Maio a Dezembro
