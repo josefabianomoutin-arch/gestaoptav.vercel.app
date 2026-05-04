@@ -1183,6 +1183,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         suppliers={combinedSuppliers}
                         onDeleteEntry={onDeleteWarehouseEntry!}
                         onUpdateWarehouseEntry={onUpdateWarehouseEntry!}
+                        perCapitaConfig={perCapitaConfig}
                     />
                 ) : activeTab === 'image_history' ? (
                     <div className="space-y-6">

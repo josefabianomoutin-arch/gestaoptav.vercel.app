@@ -76,28 +76,28 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [comparisonFilter, setComparisonFilter] = useState<'TODOS' | 'SEM_ENTREGA' | 'ATENCAO' | 'AVANCADO' | 'CONCLUIDO' | 'COM_EMPENHO'>('TODOS');
-    const [prevPerCapitaConfig, setPrevPerCapitaConfig] = useState(perCapitaConfig);
 
-    if (perCapitaConfig && perCapitaConfig !== prevPerCapitaConfig) {
-        setPrevPerCapitaConfig(perCapitaConfig);
-        if (perCapitaConfig.staffCount !== undefined) setStaffCount(perCapitaConfig.staffCount || 0);
-        if (perCapitaConfig.inmateCount !== undefined) setInmateCount(perCapitaConfig.inmateCount || 0);
-        setCustomPerCapita(perCapitaConfig.customValues || {});
-        
-        // Only override SEI and Advance data if NOT currently editing (to prevent wiping typed changes)
-        if (!isDirty) {
-            setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
-            setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
-            setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
-            setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
-            setMonthlyResource(perCapitaConfig.monthlyResource || {});
-            setPtresResources(perCapitaConfig.ptresResources || {});
+    useEffect(() => {
+        if (perCapitaConfig) {
+            if (perCapitaConfig.staffCount !== undefined) setStaffCount(perCapitaConfig.staffCount || 0);
+            if (perCapitaConfig.inmateCount !== undefined) setInmateCount(perCapitaConfig.inmateCount || 0);
+            setCustomPerCapita(perCapitaConfig.customValues || {});
+            
+            // Only override data if NOT currently editing (to prevent wiping typed changes)
+            if (!isDirty) {
+                setSeiProcessNumbers(perCapitaConfig.seiProcessNumbers || {});
+                setSeiProcessDefinitions(perCapitaConfig.seiProcessDefinitions || {});
+                setMonthlyAdvances(perCapitaConfig.monthlyAdvances || {});
+                setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
+                setMonthlyResource(perCapitaConfig.monthlyResource || {});
+                setPtresResources(perCapitaConfig.ptresResources || {});
+            }
+            
+            setPpaisProducers(perCapitaConfig.ppaisProducers || []);
+            setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
+            setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
         }
-        
-        setPpaisProducers(perCapitaConfig.ppaisProducers || []);
-        setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
-        setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
-    }
+    }, [perCapitaConfig]);
 
     useEffect(() => {
         localStorage.setItem('perCapita_staffCount', staffCount.toString());
@@ -1852,10 +1852,10 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 onClick={() => {
                                     if (activeSubTab === 'PPAIS') setPpaisSubTab('SCHEDULE');
                                     else if (activeSubTab === 'PERECÍVEIS') setPereciveisSubTab('SCHEDULE');
-                                    else setPereciveisSubTab('SCHEDULE');
+                                    else if (activeSubTab === 'ESTOCÁVEIS') setEstocaveisSubTab('SCHEDULE');
                                 }}
                                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'SCHEDULE' : pereciveisSubTab === 'SCHEDULE')
+                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'SCHEDULE' : activeSubTab === 'PERECÍVEIS' ? pereciveisSubTab === 'SCHEDULE' : estocaveisSubTab === 'SCHEDULE')
                                     ? 'bg-white text-zinc-900 shadow-sm' 
                                     : 'text-zinc-500 hover:text-zinc-700'
                                 }`}
@@ -1918,7 +1918,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 processDefinition={getSeiValue(seiProcessDefinitions, 'PPAIS')}
                                 items={acquisitionItems.filter(item => item.category === 'PPAIS')}
                             />
-                        ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS' || activeSubTab === 'ESTOCÁVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'SCHEDULE' : pereciveisSubTab === 'SCHEDULE') ? (
+                        ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS' || activeSubTab === 'ESTOCÁVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'SCHEDULE' : activeSubTab === 'PERECÍVEIS' ? pereciveisSubTab === 'SCHEDULE' : estocaveisSubTab === 'SCHEDULE') ? (
                             <div className="p-8 space-y-8">
                                 <div className="flex justify-end gap-3">
                                     {activeSubTab === 'PPAIS' && onSyncPPAISToAgenda && (
@@ -1988,12 +1988,26 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                                                 <div key={week} className="space-y-1">
                                                                     <div className="text-[10px] font-black text-zinc-400 uppercase">Semana {week}</div>
                                                                     <div className="flex flex-col gap-1">
-                                                                        {suppliersInWeek.map(s => (
-                                                                            <div key={s.id} className="bg-white px-3 py-2 rounded-lg border border-zinc-200 text-xs font-bold text-zinc-700 flex justify-between items-center">
-                                                                                <span>{s.name}</span>
-                                                                                <span className="text-[9px] text-zinc-400 font-mono">{s.cpfCnpj}</span>
-                                                                            </div>
-                                                                        ))}
+                                                                        {suppliersInWeek.map(s => {
+                                                                            const items = Object.values(s.contractItems || {}) as any[];
+                                                                            return (
+                                                                                <div key={s.id} className="bg-white px-3 py-2 rounded-lg border border-zinc-200 shadow-sm">
+                                                                                    <div className="flex justify-between items-center mb-1">
+                                                                                        <span className="text-xs font-black text-zinc-900 uppercase">{s.name}</span>
+                                                                                        <span className="text-[9px] text-zinc-400 font-mono">{s.cpfCnpj}</span>
+                                                                                    </div>
+                                                                                    {items.length > 0 && (
+                                                                                        <div className="flex flex-wrap gap-1">
+                                                                                            {items.map((it, i) => (
+                                                                                                <span key={i} className="text-[8px] bg-zinc-50 text-zinc-500 px-1.5 py-0.5 rounded border border-zinc-100 uppercase font-bold">
+                                                                                                    {it.name} ({it.totalKg} {it.unit || 'KG'})
+                                                                                                </span>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            );
+                                                                        })}
                                                                     </div>
                                                                 </div>
                                                             );

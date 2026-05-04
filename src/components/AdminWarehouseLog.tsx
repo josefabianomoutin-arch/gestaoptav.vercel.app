@@ -19,11 +19,16 @@ const monthNamesInOrder = [
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
+const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
 interface AdminWarehouseLogProps {
     warehouseLog: WarehouseMovement[];
     suppliers: Supplier[];
     onDeleteEntry: (logEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
     onUpdateWarehouseEntry: (updatedEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
+    perCapitaConfig?: any;
 }
 
 const superNormalize = (text: string) => {
@@ -36,7 +41,7 @@ const superNormalize = (text: string) => {
         .trim();
 };
 
-const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, suppliers, onDeleteEntry, onUpdateWarehouseEntry }) => {
+const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, suppliers, onDeleteEntry, onUpdateWarehouseEntry, perCapitaConfig }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<'all' | 'entrada' | 'saída'>('all');
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -74,6 +79,13 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                 }
             }
         });
+
+        // Add 2026 projection months (May to December)
+        const yearProjection = 2026;
+        for (let m = 4; m <= 11; m++) { // 4 = May, 11 = December
+            months.add(`${yearProjection}-${m}`);
+        }
+
         return Array.from(months).sort((a, b) => {
             const [yA, mA] = a.split('-').map(Number);
             const [yB, mB] = b.split('-').map(Number);
@@ -162,6 +174,43 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                 return dateB - dateA;
             });
     }, [combinedLog, filterType, searchTerm, activeMonthTab]);
+
+    const projectionData = useMemo(() => {
+        if (!perCapitaConfig) return [];
+        
+        const [year, monthIdx] = activeMonthTab.split('-').map(Number);
+        const monthName = monthNamesInOrder[monthIdx];
+        
+        const allPCSupers = [
+            ...(perCapitaConfig.ppaisProducers || []),
+            ...(perCapitaConfig.pereciveisSuppliers || []),
+            ...(perCapitaConfig.estocaveisSuppliers || [])
+        ];
+
+        const projections: any[] = [];
+
+        allPCSupers.forEach((s: any) => {
+            const schedule = s.monthlySchedule || {};
+            // Check if supplier is scheduled for this month
+            if (schedule[monthName]) {
+                const items = Object.values(s.contractItems || {}) as any[];
+                items.forEach(it => {
+                    // Logic: Distribute total contract weight over months or use as monthly estimate
+                    // For now, if scheduled, we show the item's contract info as the projection.
+                    projections.push({
+                        supplier: s.name,
+                        item: it.name,
+                        totalWeight: it.totalKg || 0, // This might need refinement based on actual per-month logic
+                        totalValue: (it.totalKg || 0) * (it.valuePerKg || 0),
+                        weeks: schedule[monthName],
+                        isProjection: true
+                    });
+                });
+            }
+        });
+
+        return projections;
+    }, [perCapitaConfig, activeMonthTab]);
 
     React.useEffect(() => {
         const table = tableRef.current;
@@ -466,66 +515,153 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             )}
 
             {/* RESUMO DO CONTRATO / FORNECEDOR */}
-            {filteredLog.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
-                    {Object.entries(
-                        filteredLog.reduce((acc, log) => {
-                            const key = `${log.supplierName}-${log.itemName}`;
-                            if (!acc[key]) acc[key] = { 
-                                supplier: log.supplierName, 
-                                item: log.itemName, 
-                                totalWeight: 0, 
-                                totalValue: 0, 
-                                weeks: new Set<number>() 
-                            };
-                            acc[key].totalWeight += log.quantity || 0;
-                            acc[key].totalValue += log.value || 0;
-                            
-                            const dateStr = log.date || (typeof log.timestamp === 'number' ? new Date(log.timestamp).toISOString().split('T')[0] : (log.timestamp as any)?.split?.('T')?.[0]);
-                            const logDate = new Date(dateStr + 'T00:00:00');
-                            const week = Math.ceil(logDate.getDate() / 7);
-                            acc[key].weeks.add(week);
-                            
-                            return acc;
-                        }, {} as Record<string, { supplier: string; item: string; totalWeight: number; totalValue: number; weeks: Set<number> }>)
-                    ).map(([key, data]: [string, any]) => (
-                        <div key={key} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all border-l-4 border-l-indigo-500 group">
-                            <div className="flex justify-between items-start mb-2">
-                                <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest">{data.supplier}</span>
-                                <div className="flex gap-1">
-                                    {Array.from(data.weeks as Set<number>).sort().map(w => (
-                                        <span key={w} className="bg-white border border-slate-200 text-[7px] font-black px-1.5 py-0.5 rounded text-slate-400 italic">S{w}</span>
-                                    ))}
-                                </div>
-                            </div>
-                            <h3 className="text-[11px] font-black text-slate-900 uppercase leading-tight mb-3 group-hover:text-indigo-600 transition-colors">{data.item}</h3>
-                            <div className="flex items-center justify-between pt-3 border-t border-slate-200">
-                                <div className="space-y-0.5">
-                                    <p className="text-[7px] text-slate-400 font-bold uppercase tracking-tighter">Peso Total</p>
-                                    <p className="text-[12px] font-black text-slate-900">{data.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-[8px] text-slate-400">Kg</span></p>
-                                </div>
-                                <div className="space-y-0.5 text-right">
-                                    <p className="text-[7px] text-slate-400 font-bold uppercase tracking-tighter">Valor Acumulado</p>
-                                    <p className="text-[12px] font-black text-emerald-600">{data.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                                </div>
-                            </div>
+            {(filteredLog.length > 0 || projectionData.length > 0) && (
+                <div className="space-y-4">
+                    {projectionData.length > 0 && (
+                        <div className="flex items-center gap-2 mb-2">
+                             <Clock className="h-4 w-4 text-amber-500" />
+                             <h3 className="text-[10px] font-black uppercase tracking-widest text-amber-600 italic">Projeções de Contratos (Futuro)</h3>
                         </div>
-                    ))}
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
+                        {/* Summary for real logs */}
+                        {Object.entries(
+                            filteredLog.reduce((acc, log) => {
+                                const key = `${log.supplierName}-${log.itemName}`;
+                                if (!acc[key]) acc[key] = { 
+                                    supplier: log.supplierName, 
+                                    item: log.itemName, 
+                                    totalWeight: 0, 
+                                    totalValue: 0, 
+                                    weeks: new Set<number>() 
+                                };
+                                acc[key].totalWeight += log.quantity || 0;
+                                acc[key].totalValue += log.value || 0;
+                                
+                                const dateStr = log.date || (typeof log.timestamp === 'number' ? new Date(log.timestamp).toISOString().split('T')[0] : (log.timestamp as any)?.split?.('T')?.[0]);
+                                const logDate = new Date(dateStr + 'T00:00:00');
+                                const week = Math.ceil(logDate.getDate() / 7);
+                                acc[key].weeks.add(week);
+                                
+                                return acc;
+                            }, {} as Record<string, { supplier: string; item: string; totalWeight: number; totalValue: number; weeks: Set<number> }>)
+                        ).map(([key, data]: [string, any]) => (
+                            <div key={key} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all border-l-4 border-l-indigo-500 group">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest">{data.supplier}</span>
+                                    <div className="flex gap-1">
+                                        {Array.from(data.weeks as Set<number>).sort().map(w => (
+                                            <span key={w} className="bg-white border border-slate-200 text-[7px] font-black px-1.5 py-0.5 rounded text-slate-400 italic">S{w}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                                <h3 className="text-[11px] font-black text-slate-900 uppercase leading-tight mb-3 group-hover:text-indigo-600 transition-colors">{data.item}</h3>
+                                <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+                                    <div className="space-y-0.5">
+                                        <p className="text-[7px] text-slate-400 font-bold uppercase tracking-tighter">Peso Realizado</p>
+                                        <p className="text-[12px] font-black text-slate-900">{data.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-[8px] text-slate-400">Kg</span></p>
+                                    </div>
+                                    <div className="space-y-0.5 text-right">
+                                        <p className="text-[7px] text-slate-400 font-bold uppercase tracking-tighter">Valor Realizado</p>
+                                        <p className="text-[12px] font-black text-emerald-600">{data.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+
+                        {/* Summary for projections */}
+                        {projectionData.map((data: any, idx: number) => (
+                            <div key={`proj-${idx}`} className="bg-amber-50/30 border border-amber-100 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all border-l-4 border-l-amber-500 group">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest">{data.supplier}</span>
+                                    <div className="flex gap-1">
+                                        {(data.weeks || []).sort().map((w: number) => (
+                                            <span key={w} className="bg-white border border-amber-200 text-[7px] font-black px-1.5 py-0.5 rounded text-amber-400 italic">S{w}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                                <h3 className="text-[11px] font-black text-slate-900 uppercase leading-tight mb-3 group-hover:text-amber-600 transition-colors">{data.item} (PREVISTO)</h3>
+                                <div className="flex items-center justify-between pt-3 border-t border-amber-100">
+                                    <div className="space-y-0.5">
+                                        <p className="text-[7px] text-amber-400 font-bold uppercase tracking-tighter">Peso Previsto</p>
+                                        <p className="text-[12px] font-black text-slate-900">{data.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-[8px] text-amber-400">Kg</span></p>
+                                    </div>
+                                    <div className="space-y-0.5 text-right">
+                                        <p className="text-[7px] text-amber-400 font-bold uppercase tracking-tighter">Valor Estimado</p>
+                                        <p className="text-[12px] font-black text-amber-600">{data.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
 
+            {/* TABELA DE MOVIMENTAÇÕES OU PROJEÇÕES */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div 
-                        ref={topScrollRef} 
-                        className="overflow-x-auto overflow-y-hidden custom-scrollbar border-b border-gray-50" 
-                        style={{ height: '8px' }}
-                    >
-                        <div style={{ height: '1px' }}></div>
+                {projectionData.length > 0 && filteredLog.length === 0 ? (
+                    <div className="p-0">
+                        <div className="bg-amber-50/50 p-4 border-b border-amber-100 italic">
+                            <p className="text-[10px] font-black uppercase text-amber-700 tracking-widest flex items-center gap-2">
+                                <Clock className="h-4 w-4" />
+                                Projeção de Abastecimento para {monthNamesInOrder[parseInt(activeMonthTab.split('-')[1])]} / {activeMonthTab.split('-')[0]}
+                            </p>
+                            <p className="text-[8px] text-amber-600 font-bold uppercase mt-1">Valores baseados no planejamento per capita e cronograma de fornecedores</p>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-[10px] border-separate border-spacing-0">
+                                <thead className="bg-gray-50/80 backdrop-blur-md sticky top-0 z-10">
+                                    <tr className="italic">
+                                        <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Fornecedor</th>
+                                        <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Item</th>
+                                        <th className="p-3 text-center font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Semanas Previstas</th>
+                                        <th className="p-3 text-right font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Peso Previsto</th>
+                                        <th className="p-3 text-right font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Valor Estimado</th>
+                                        <th className="p-3 text-center font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {projectionData.map((proj: any, idx: number) => (
+                                        <tr key={idx} className="hover:bg-amber-50/30 transition-colors group">
+                                            <td className="p-3">
+                                                <span className="font-black text-zinc-900 uppercase">{proj.supplier}</span>
+                                            </td>
+                                            <td className="p-3 font-bold text-gray-600 uppercase italic">{proj.item}</td>
+                                            <td className="p-3 text-center">
+                                                <div className="flex justify-center gap-1">
+                                                    {(proj.weeks || []).map((w: number) => (
+                                                        <span key={w} className="bg-amber-100 text-amber-700 text-[8px] font-black px-1.5 py-0.5 rounded border border-amber-200">S{w}</span>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            <td className="p-3 text-right font-mono font-black text-gray-900">
+                                                {proj.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} KG
+                                            </td>
+                                            <td className="p-3 text-right font-mono font-black text-emerald-600">
+                                                {formatCurrency(proj.totalValue)}
+                                            </td>
+                                            <td className="p-3 text-center">
+                                                <span className="bg-zinc-100 text-zinc-400 text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest border border-zinc-200">AGUARDANDO</span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <div ref={bottomScrollRef} className="overflow-x-auto max-h-[50vh] custom-scrollbar scrollbar-thin scrollbar-thumb-gray-200">
-                        <table ref={tableRef} className="w-full text-[10px] border-separate border-spacing-0">
-                            <thead className="bg-gray-50/80 backdrop-blur-md sticky top-0 z-10">
-                            <tr className="italic">
+                ) : (
+                    <>
+                        <div 
+                            ref={topScrollRef} 
+                            className="overflow-x-auto overflow-y-hidden custom-scrollbar border-b border-gray-50" 
+                            style={{ height: '8px' }}
+                        >
+                            <div style={{ height: '1px' }}></div>
+                        </div>
+                        <div ref={bottomScrollRef} className="overflow-x-auto max-h-[50vh] custom-scrollbar scrollbar-thin scrollbar-thumb-gray-200">
+                            <table ref={tableRef} className="w-full text-[10px] border-separate border-spacing-0">
+                                <thead className="bg-gray-50/80 backdrop-blur-md sticky top-0 z-10">
+                                <tr className="italic">
                                 <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Tipo</th>
                                 <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100 whitespace-nowrap">Data Doc.</th>
                                 <th className="p-3 text-left font-black uppercase text-gray-400 tracking-tighter border-b border-gray-100">Produto / Origem</th>
@@ -617,7 +753,9 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         </tbody>
                     </table>
                     </div>
-                </div>
+                    </>
+                )}
+            </div>
 
             {editingLog && (
                 <EditWarehouseMovementModal 
