@@ -209,7 +209,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') {
                              return { 
                                  weight: roundToTwoDecimalPlaces(it.totalKg / 4), 
-                                 value: roundToTwoDecimalPlaces((it.totalKg * (it.valuePerKg || 0)) / 4) 
+                                 value: (it.totalKg * (it.valuePerKg || 0)) / 4 
                              };
                         }
                         
@@ -217,13 +217,13 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                             // Buscar diretamente da estrutura do contrato, dividir por 8 meses (maio a dezembro)
                             return { 
                                 weight: roundToTwoDecimalPlaces(it.totalKg / 8), 
-                                value: roundToTwoDecimalPlaces((it.totalKg * (it.valuePerKg || 0)) / 8) 
+                                value: (it.totalKg * (it.valuePerKg || 0)) / 8 
                             };
                         }
 
                         return { 
                             weight: roundToTwoDecimalPlaces(it.totalKg / 12), 
-                            value: roundToTwoDecimalPlaces((it.totalKg * (it.valuePerKg || 0)) / 12) 
+                            value: (it.totalKg * (it.valuePerKg || 0)) / 12 
                         };
                     };
 
@@ -580,7 +580,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-mono font-bold text-green-600">
                                                     {formatCurrency(prod.monthlyValue)}
-                                                    <div className="text-[7px] text-zinc-400 italic">(valor arredondado)</div>
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-mono text-zinc-400 font-bold">{prod.totalContractWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} KG</td>
                                                 <td className="px-4 py-3 text-right font-mono text-zinc-400 font-bold">{formatCurrency(prod.totalContractValue)}</td>
