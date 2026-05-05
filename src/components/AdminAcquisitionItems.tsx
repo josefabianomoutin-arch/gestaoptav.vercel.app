@@ -677,13 +677,13 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                             return sum + (contractItem?.monthlyValue || 0);
                                         }, 0);
 
-                                        // Prioritize calculation according to Per Capita logic (total / divisor)
-                                        // Unless it is PPAIS, then we use the summed values from suppliers/producers as requested
-                                        const totalMonthlyWeight = (category === 'PPAIS' && summedMonthlyWeight > 0) ? summedMonthlyWeight : (totalQuantity / divisor);
-                                        const totalMonthlyValue = (category === 'PPAIS' && summedMonthlyValue > 0) ? summedMonthlyValue : (totalQuantity * unitVal / divisor);
-
                                         const weightPerSupplier = suppliersAssigned.length > 0 ? totalQuantity / suppliersAssigned.length : 0;
                                         const valuePerSupplier = unitVal * weightPerSupplier;
+
+                                        // Prioritize calculation according to Per Capita logic per supplier
+                                        // Unless it is PPAIS, then we use the summed values from suppliers/producers as requested, averaged per supplier
+                                        const totalMonthlyWeight = (category === 'PPAIS' && summedMonthlyWeight > 0) ? (summedMonthlyWeight / suppliersAssigned.length) : (weightPerSupplier / divisor);
+                                        const totalMonthlyValue = (category === 'PPAIS' && summedMonthlyValue > 0) ? (summedMonthlyValue / suppliersAssigned.length) : (valuePerSupplier / divisor);
 
                                         return (
                                             <>
