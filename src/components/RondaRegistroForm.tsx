@@ -132,8 +132,7 @@ const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ onSave, systemPas
                     { key: 'embriagues', label: 'Indicio de enbriagues' },
                     { key: 'drogas', label: 'Uso de drogas' },
                     { key: 'agressividade', label: 'Agressividade ou desobediencia' },
-                    { key: 'pendenciasAnterior', label: 'Verificação de pendências da ronda anterior' },
-                    { key: 'outros', label: 'Outros' }
+                    { key: 'pendenciasAnterior', label: 'Verificação de pendências da ronda anterior' }
                 ].map(item => (
                     <div key={item.key} className="flex items-center gap-2">
                         <span>{item.label}:</span>
@@ -146,6 +145,15 @@ const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ onSave, systemPas
                         <span className="ml-2">Obs:</span> <input className="border-b w-1/3" value={getObsValue(item.key)} onChange={e => setObsValue(item.key, e.target.value)} />
                     </div>
                 ))}
+                <div className="flex items-center gap-2 mt-4">
+                    <span>Outros:</span>
+                    <input 
+                        className="border-b flex-1" 
+                        value={checkList.obsOutros} 
+                        onChange={e => setCheckList({...checkList, obsOutros: e.target.value})} 
+                        placeholder="Descrever outros itens..."
+                    />
+                </div>
             </div>
 
             {digitalSignature && (
