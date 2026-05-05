@@ -11,6 +11,7 @@ import AdminAtaGenerator from './AdminAtaGenerator';
 import AdminContractGenerator from './AdminContractGenerator';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import type { PerCapitaSupplier } from '../types';
+import { roundToTwoDecimalPlaces } from '../lib/utils';
 
 interface AdminPerCapitaProps {
   suppliers: Supplier[];
@@ -492,7 +493,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
                 else if (cat === 'PPAIS') divisor = 1;
                 
-                return sum + (weight / divisor);
+                return sum + roundToTwoDecimalPlaces(weight / divisor);
             }, 0);
 
             // Adicionar itens que estão no contrato mas não no planejamento
@@ -508,7 +509,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
                     else if (cat === 'PPAIS') divisor = 1;
                     
-                    return sum + ((id.totalQuantity || 0) / divisor);
+                    return sum + roundToTwoDecimalPlaces((id.totalQuantity || 0) / divisor);
                 }, 0);
 
             totalMonthlyWeight += catWeight + onlyContractWeight;
@@ -540,7 +541,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
                 else if (cat === 'PPAIS') divisor = 1;
 
-                return sum + (value / divisor);
+                return sum + roundToTwoDecimalPlaces(value / divisor);
             }, 0);
 
             // Adicionar itens que estão no contrato mas não no planejamento
@@ -553,7 +554,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
                     else if (cat === 'PPAIS') divisor = 1;
                     
-                    return sum + ((id.totalValue || 0) / divisor);
+                    return sum + roundToTwoDecimalPlaces((id.totalValue || 0) / divisor);
                 }, 0);
 
             totalMonthlyValue += totalFromAcq + totalOnlyInContract;

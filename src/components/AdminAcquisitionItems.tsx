@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import type { AcquisitionItem, Supplier } from '../types';
 import { ManageContractSuppliersModal } from './AdminContractItems';
 import ConfirmModal from './ConfirmModal';
+import { roundToTwoDecimalPlaces } from '../lib/utils';
 
 interface AdminAcquisitionItemsProps {
     items: AcquisitionItem[];
@@ -690,8 +691,9 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                                     <div className="flex flex-col items-end">
                                                         <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1">Peso/Forn.</span>
                                                         <span className="font-mono text-sm font-bold text-zinc-600">
-                                                            {weightPerSupplier.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                            {roundToTwoDecimalPlaces(weightPerSupplier).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                                         </span>
+                                                        <span className="text-[7px] italic text-zinc-400"> (valor arredondado)</span>
                                                     </div>
                                                 </td>
                                                 <td className="p-6 text-right border-r border-zinc-50 bg-indigo-50/10">
