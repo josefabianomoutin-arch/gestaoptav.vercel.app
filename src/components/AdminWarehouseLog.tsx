@@ -202,28 +202,10 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     }
                     
                     const getMonthlyValues = (itemName: string) => {
-                        const norm = (itemName || '').trim().toUpperCase().replace(/\s+/g, ' ');
-                        const sItem = (perCapitaConfig?.standardMenu?.rows || []).find((r: any) => (r.contractedItem || '').trim().toUpperCase().replace(/\s+/g, ' ') === norm);
-                        const cat = s.sourceCategory || sItem?.category || (perCapitaConfig?.contractedItems || []).find((c: any) => (c.name || '').trim().toUpperCase().replace(/\s+/g, ' ') === norm)?.category || 'OUTROS';
-                        
-                        if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') {
-                             return { 
-                                 weight: roundToTwoDecimalPlaces(it.totalKg / 4), 
-                                 value: (it.totalKg * (it.valuePerKg || 0)) / 4 
-                             };
-                        }
-                        
-                        if (cat === 'PPAIS') {
-                            // Buscar diretamente da estrutura do contrato, dividir por 8 meses (maio a dezembro)
-                            return { 
-                                weight: roundToTwoDecimalPlaces(it.totalKg / 8), 
-                                value: (it.totalKg * (it.valuePerKg || 0)) / 8 
-                            };
-                        }
-
+                        // User specifically requested the system to use "dividido por 8 (maio a dezembro)" for all standard items
                         return { 
-                            weight: roundToTwoDecimalPlaces(it.totalKg / 12), 
-                            value: (it.totalKg * (it.valuePerKg || 0)) / 12 
+                            weight: roundToTwoDecimalPlaces(it.totalKg / 8), 
+                            value: (it.totalKg * (it.valuePerKg || 0)) / 8 
                         };
                     };
 

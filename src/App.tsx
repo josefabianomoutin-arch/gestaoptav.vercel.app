@@ -963,7 +963,7 @@ const App: React.FC = () => {
 
   // --- GERENCIAMENTO DE NOTAS FISCAIS (ADMIN) ---
 
-  const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string) => {
+  const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string) => {
     const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
     if (isMainSupplier) {
       const supplierRef = child(suppliersRef, supplierCpf);
@@ -997,6 +997,7 @@ const App: React.FC = () => {
                 value: item.value,
                 invoiceUploaded: true,
                 invoiceNumber: String(finalInvoiceNumber || '').trim(),
+                barcode: item.barcode || barcode || '',
                 lots: [{
                   id: lotId,
                   lotNumber: item.lotNumber || 'EDITADO',
@@ -1047,7 +1048,7 @@ const App: React.FC = () => {
                 lotNumber: item.lotNumber || 'EDITADO',
                 quantity: item.kg,
                 value: item.value,
-                barcode: barcode || '',
+                barcode: item.barcode || barcode || '',
                 lotId: lotId,
                 deliveryId: deliveryId,
                 inboundInvoice: String(newInvoiceNumber || invoiceNumber).trim(),
@@ -1459,7 +1460,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleManualInvoiceEntry = async (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string, type: 'entrada' | 'saída' = 'entrada', invoiceUrl?: string) => {
+  const handleManualInvoiceEntry = async (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string, type: 'entrada' | 'saída' = 'entrada', invoiceUrl?: string) => {
     let supplierName = '';
     const mainSupplier = suppliers.find(s => s.cpf === supplierCpf);
     if (mainSupplier) {
@@ -1488,7 +1489,7 @@ const App: React.FC = () => {
             lotNumber: item.lotNumber || 'MANUAL',
             quantity: item.kg,
             value: item.value || 0,
-            barcode: barcode || '',
+            barcode: item.barcode || barcode || '',
             lotId: lotId,
             deliveryId: ''
         };
@@ -2676,6 +2677,10 @@ const App: React.FC = () => {
           onDeleteThirdPartyEntry={async (id) => {
             await remove(child(thirdPartyEntriesRef, id));
             return { success: true, message: 'Excluído' };
+          }}
+          systemPasswords={systemPasswords}
+          onUpdateSystemPassword={async (key: string, value: string) => {
+            await update(systemPasswordsRef, { [key]: value });
           }}
         />
       );

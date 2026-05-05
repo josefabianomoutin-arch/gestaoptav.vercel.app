@@ -548,8 +548,7 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
     }, [allSuppliers, assignments]);
 
     const getDivisor = (cat: string) => {
-        if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') return 4;
-        if (cat === 'PPAIS') return 8;
+        // User explicitly requested the formula to use 8 (maio a dezembro)
         return 8;
     };
 

@@ -22,6 +22,8 @@ interface SubportariaDashboardProps {
   driverAssets: DriverAsset[];
   validationRoles: ValidationRole[];
   onUpdateVehicleExitOrder: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
+  systemPasswords?: Record<string, string>;
+  onUpdateSystemPassword?: (key: string, value: string) => Promise<void>;
 }
 
 const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({ 
@@ -38,7 +40,9 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     vehicleAssets,
     driverAssets,
     validationRoles,
-    onUpdateVehicleExitOrder
+    onUpdateVehicleExitOrder,
+    systemPasswords = {},
+    onUpdateSystemPassword = async () => {}
 }) => {
     const [activeTab, setActiveTab] = useState<'agenda' | 'vehicles' | 'seguranca' | 'rondas'>('agenda');
     const [activeSubTab, setActiveSubTab] = useState<'registro' | 'cadastro'>('registro');
@@ -153,11 +157,11 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                             </div>
                             
                             {activeSubTab === 'registro' ? (
-                                <RondaRegistroForm />
+                                <RondaRegistroForm systemPasswords={systemPasswords} />
                             ) : (
                                 <AdminPasswordManager 
-                                    passwords={{ 'Vigilancia': '****', 'Ronda Nível 1': '****' }} 
-                                    onUpdatePassword={async () => {}} 
+                                    passwords={systemPasswords} 
+                                    onUpdatePassword={onUpdateSystemPassword} 
                                 />
                             )}
                         </motion.div>

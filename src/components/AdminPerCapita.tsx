@@ -490,8 +490,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 if (['litro', 'embalagem', 'caixa', 'dz'].some(u => unitType.includes(u))) return sum;
                 
                 let divisor = 8;
-                if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
-                else if (cat === 'PPAIS') divisor = 8;
                 
                 return sum + roundToTwoDecimalPlaces(weight / divisor);
             }, 0);
@@ -506,8 +504,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     if (id.monthlyWeight > 0) return sum + id.monthlyWeight;
 
                     let divisor = 8;
-                    if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
-                    else if (cat === 'PPAIS') divisor = 8;
                     
                     return sum + roundToTwoDecimalPlaces((id.totalQuantity || 0) / divisor);
                 }, 0);
@@ -538,8 +534,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 const value = (contracted && contracted.totalValue > 0) ? contracted.totalValue : ((ai.unitValue || 0) * (ai.acquiredQuantity || 0));
                 
                 let divisor = 8;
-                if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
-                else if (cat === 'PPAIS') divisor = 8;
 
                 return sum + roundToTwoDecimalPlaces(value / divisor);
             }, 0);
@@ -551,8 +545,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     if (id.monthlyValue > 0) return sum + id.monthlyValue;
                     
                     let divisor = 8;
-                    if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
-                    else if (cat === 'PPAIS') divisor = 8;
                     
                     return sum + roundToTwoDecimalPlaces((id.totalValue || 0) / divisor);
                 }, 0);
@@ -659,15 +651,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
             const total = totalFromAcq + totalOnlyInContract;
             
-            let divisor: number;
-            if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') {
-                divisor = 4; // Apenas Maio, Junho, Julho, Agosto
-            } else if (cat === 'PPAIS') {
-                divisor = 8; // was 1
-            } else {
-                // Média mensal: 8 meses
-                divisor = 8;
-            }
+            let divisor = 8; // requested by user (all categories 8 months)
             averages[cat] = total / divisor;
         });
         return averages;

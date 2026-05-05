@@ -269,7 +269,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             kg: it.kg,
             value: it.value,
             lotNumber: it.lotNumber || 'MANUAL',
-            expirationDate: it.expirationDate
+            expirationDate: it.expirationDate,
+            barcode: it.barcode
         })), 
         '', '', 
         manualEntryData.date, 
@@ -403,8 +404,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     {it.item} ({(it.kg || 0).toLocaleString('pt-BR')} Kg)
                                 </span>
                                 {it.barcode && (
-                                    <span className="text-[7px] font-mono text-blue-600 font-black tracking-tight mt-0.5 flex items-center gap-1">
-                                        <BarcodeIcon className="h-2 w-2" /> {it.barcode}
+                                    <span className="text-[10px] font-mono text-blue-700 font-bold bg-blue-50 px-1 rounded-sm tracking-tight mt-0.5 flex items-center gap-1 w-fit">
+                                        <BarcodeIcon className="h-3 w-3" /> {it.barcode}
                                     </span>
                                 )}
                             </div>
@@ -727,6 +728,19 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                       />
                                   </div>
                                   <div className="space-y-0.5">
+                                      <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest ml-0.5">Código de Barras</label>
+                                      <input 
+                                          type="text" 
+                                          value={item.barcode || ''} 
+                                          onChange={e => {
+                                              const newItems = [...editingInvoice.items];
+                                              newItems[idx] = { ...item, barcode: e.target.value };
+                                              setEditingInvoice({ ...editingInvoice, items: newItems });
+                                          }}
+                                          className="w-full h-9 px-3 rounded-lg border-2 border-blue-100 outline-none focus:border-blue-400 font-mono text-[10px]" 
+                                      />
+                                  </div>
+                                  <div className="space-y-0.5">
                                       <label className="text-[8px] font-black text-indigo-600 uppercase tracking-widest ml-0.5">Valor Total Item na NF (R$)</label>
                                       <input 
                                           type="number" 
@@ -756,7 +770,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                 editingInvoice.items.map((it: any) => ({
                                     name: it.item,
                                     kg: it.kg,
-                                    value: it.value
+                                    value: it.value,
+                                    barcode: it.barcode
                                 })),
                                 undefined, undefined, undefined, undefined,
                                 editingInvoice.date,

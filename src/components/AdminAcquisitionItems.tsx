@@ -133,7 +133,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                             <th class="text-center">Unid.</th>
                             <th class="text-right">Qtd. Adquirida</th>
                             <th class="text-right">Aditivo</th>
-                            ${category !== 'PPAIS' && category !== 'PERECÍVEIS' ? '<th class="text-right">Saldo Estoque</th>' : '<th class="text-right">Peso por Fornecedor</th><th class="text-right">Peso/Mês</th><th class="text-right">Valor por Fornecedor</th><th class="text-right">Vlr/Mês</th>'}
+                            ${category !== 'PPAIS' && category !== 'PERECÍVEIS' ? '<th class="text-right">Saldo Estoque</th>' : '<th class="text-right">Peso por Fornecedor</th><th class="text-right">Peso/Mês</th><th class="text-right">Valor por Fornecedor</th>'}
                             <th class="text-right">Valor da Mediana</th>
                             <th class="text-right">Valor Total</th>
                         </tr>
@@ -159,19 +159,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                 const valuePerSupplier = totalValue / numSuppliers;
 
                                 const getDivisor = (itemName: string) => {
-                                    const norm = normalize(itemName);
-                                    let cat = 'OUTROS';
-                                    const sItem = (perCapitaConfig?.standardMenu?.rows || []).find((r: any) => normalize(r.contractedItem) === norm);
-                                    if (sItem && sItem.category) {
-                                        cat = sItem.category;
-                                    } else {
-                                        const ci = (perCapitaConfig?.contractedItems || []).find((c: any) => normalize(c.name) === norm);
-                                        if (ci && ci.category) cat = ci.category;
-                                    }
-
-                                    if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') return 4;
-                                    if (cat === 'PPAIS') return 8;
-                                    return 8;
+                                    return 8; // requested by user
                                 };
                                 const divisor = getDivisor(item.name);
 
@@ -539,7 +527,6 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Peso/Forn.</th>
                                         <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case text-indigo-500">Peso/Mês</th>
                                         <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Vlr/Forn.</th>
-                                        <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case text-indigo-500">Vlr/Mês</th>
                                     </>
                                 )}
                                 <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Financeiro</th>
@@ -655,10 +642,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
 
                                         // Fallback Divisor Logic (informed in Per Capita calculation logic)
                                         const getDivisor = () => {
-                                            const cat = item.category || category;
-                                            if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') return 4;
-                                            if (cat === 'PPAIS') return 8;
-                                            return 8;
+                                            return 8; // requested by user: fixed to 8 (maio a dezembro)
                                         };
 
                                         const divisor = getDivisor();
@@ -680,10 +664,8 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         const weightPerSupplier = suppliersAssigned.length > 0 ? totalQuantity / suppliersAssigned.length : 0;
                                         const valuePerSupplier = unitVal * weightPerSupplier;
 
-                                        // Prioritize calculation according to Per Capita logic per supplier
-                                        // Unless it is PPAIS, then we use the summed values from suppliers/producers as requested, averaged per supplier
-                                        const totalMonthlyWeight = (category === 'PPAIS' && summedMonthlyWeight > 0) ? (summedMonthlyWeight / suppliersAssigned.length) : (weightPerSupplier / divisor);
-                                        const totalMonthlyValue = (category === 'PPAIS' && summedMonthlyValue > 0) ? (summedMonthlyValue / suppliersAssigned.length) : (valuePerSupplier / divisor);
+                                        // Calculate the monthly weight based on weightPerSupplier / 8 as requested
+                                        const totalMonthlyWeight = weightPerSupplier / divisor;
 
                                         return (
                                             <>
@@ -709,14 +691,6 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                                         <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1">Vlr/Forn.</span>
                                                         <span className="font-mono text-sm font-bold text-zinc-900">
                                                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valuePerSupplier)}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                <td className="p-6 text-right border-r border-zinc-50 bg-indigo-50/10">
-                                                    <div className="flex flex-col items-end">
-                                                        <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Vlr/Mês</span>
-                                                        <span className="font-mono text-sm font-black text-indigo-600">
-                                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalMonthlyValue)}
                                                         </span>
                                                     </div>
                                                 </td>
