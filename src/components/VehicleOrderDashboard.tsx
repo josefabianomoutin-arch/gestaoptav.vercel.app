@@ -98,71 +98,36 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
               <p className="text-[9px] text-indigo-500 font-bold uppercase tracking-widest">Gestão de Veículos</p>
             </div>
           </div>
-
-          <nav className="flex gap-2 bg-gray-50 p-1 rounded-xl border border-gray-200">
-            <button
-              onClick={() => setActiveTab('veiculos')}
-              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
-                activeTab === 'veiculos'
-                  ? 'bg-white text-indigo-600 shadow-sm border border-gray-200'
-                  : 'text-gray-500 hover:bg-gray-100'
-              }`}
-            >
-              Veículos
-            </button>
-            <button
-              onClick={() => setActiveTab('servicos')}
-              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
-                activeTab === 'servicos'
-                  ? 'bg-white text-indigo-600 shadow-sm border border-gray-200'
-                  : 'text-gray-500 hover:bg-gray-100'
-              }`}
-            >
-              Ordens de Serviço
-            </button>
-          </nav>
         </div>
 
         <button onClick={onLogout} className="bg-red-50 hover:bg-red-100 text-red-600 font-black py-2 px-4 rounded-xl text-[10px] uppercase transition-all border border-red-200">Sair</button>
       </header>
 
       <main className="p-4 max-w-7xl mx-auto">
-        {activeTab === 'veiculos' ? (
-          <AdminVehicleExitOrder 
-            orders={filteredOrders}
-            vehicleAssets={vehicleAssets}
-            driverAssets={driverAssets}
-            validationRoles={validationRoles}
-            inspections={vehicleInspections}
-            onRegister={handleRegister}
-            onUpdate={onUpdate}
-            onDelete={onDelete}
-            onRegisterVehicleAsset={onRegisterVehicleAsset}
-            onUpdateVehicleAsset={onUpdateVehicleAsset}
-            onDeleteVehicleAsset={onDeleteVehicleAsset}
-            onRegisterDriverAsset={onRegisterDriverAsset}
-            onUpdateDriverAsset={onUpdateDriverAsset}
-            onDeleteDriverAsset={onDeleteDriverAsset}
-            onRegisterInspection={onRegisterVehicleInspection}
-            onUpdateInspection={onUpdateVehicleInspection}
-            onDeleteInspection={onDeleteVehicleInspection}
-            readOnly={false}
-            hideAssets={true}
-            hideEdit={false}
-            showGateTab={true}
-            userRole={role}
-          />
-        ) : (
-          <AdminServiceOrder
-            orders={serviceOrders}
-            maintenanceSchedules={maintenanceSchedules}
-            onUpdate={onUpdateServiceOrder}
-            onDelete={onDeleteServiceOrder}
-            onRegisterMaintenanceSchedule={onRegisterMaintenanceSchedule}
-            onUpdateMaintenanceSchedule={onUpdateMaintenanceSchedule}
-            onDeleteMaintenanceSchedule={onDeleteMaintenanceSchedule}
-          />
-        )}
+        <AdminVehicleExitOrder 
+          orders={filteredOrders}
+          vehicleAssets={vehicleAssets}
+          driverAssets={driverAssets}
+          validationRoles={validationRoles}
+          inspections={vehicleInspections}
+          onRegister={handleRegister}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+          onRegisterVehicleAsset={onRegisterVehicleAsset}
+          onUpdateVehicleAsset={onUpdateVehicleAsset}
+          onDeleteVehicleAsset={onDeleteVehicleAsset}
+          onRegisterDriverAsset={onRegisterDriverAsset}
+          onUpdateDriverAsset={onUpdateDriverAsset}
+          onDeleteDriverAsset={onDeleteDriverAsset}
+          onRegisterInspection={onRegisterVehicleInspection}
+          onUpdateInspection={onUpdateVehicleInspection}
+          onDeleteInspection={onDeleteVehicleInspection}
+          readOnly={false}
+          hideAssets={true}
+          hideEdit={false}
+          showGateTab={true}
+          userRole={role}
+        />
       </main>
     </div>
   );
