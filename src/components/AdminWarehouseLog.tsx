@@ -535,7 +535,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                     <th className="px-4 py-2 text-left">Item / Fornecedor</th>
                                     <th className="px-4 py-2 text-center">Semanas</th>
                                     <th className="px-4 py-2 text-right">Entrega Mês (KG)</th>
-                                    <th className="px-4 py-2 text-right">Valor Mês</th>
                                     <th className="px-4 py-2 text-right">Total Contrato (KG)</th>
                                     <th className="px-4 py-2 text-right">Valor Total</th>
                                     <th className="px-4 py-2 text-center">Status</th>
@@ -549,7 +548,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                             <td colSpan={3} className="px-4 py-4">
                                                 <h4 className="text-[11px] font-black text-zinc-800 uppercase leading-snug max-w-2xl">{item.itemName}</h4>
                                             </td>
-                                            <td className="px-4 py-4"></td>
                                             <td className="px-4 py-4 text-right font-mono font-black text-zinc-900 bg-amber-50/50 rounded-l-xl">
                                                 {item.producers.reduce((acc: number, p: any) => acc + p.totalContractWeight, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} Kg
                                             </td>
@@ -577,9 +575,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                                             <span className="text-[7px] text-zinc-400">Entrega Real: {prod.deliveredWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                                                         )}
                                                     </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-right font-mono font-bold text-green-600">
-                                                    {formatCurrency(prod.monthlyValue)}
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-mono text-zinc-400 font-bold">{prod.totalContractWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} KG</td>
                                                 <td className="px-4 py-3 text-right font-mono text-zinc-400 font-bold">{formatCurrency(prod.totalContractValue)}</td>
