@@ -176,9 +176,9 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
         const monthName = monthNamesInOrder[monthIdx - 1];
         
         const allPCSupers = [
-            ...(perCapitaConfig.ppaisProducers || []),
-            ...(perCapitaConfig.pereciveisSuppliers || []),
-            ...(perCapitaConfig.estocaveisSuppliers || [])
+            ...(perCapitaConfig.ppaisProducers || []).map((p: any) => ({...p, sourceCategory: 'PPAIS'})),
+            ...(perCapitaConfig.pereciveisSuppliers || []).map((p: any) => ({...p, sourceCategory: 'PERECÍVEIS'})),
+            ...(perCapitaConfig.estocaveisSuppliers || []).map((p: any) => ({...p, sourceCategory: 'ESTOCÁVEIS'}))
         ];
 
         const grouped: Record<string, any> = {};
@@ -203,7 +203,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     const getMonthlyValues = (itemName: string) => {
                         const norm = (itemName || '').trim().toUpperCase().replace(/\s+/g, ' ');
                         const sItem = (perCapitaConfig?.standardMenu?.rows || []).find((r: any) => (r.contractedItem || '').trim().toUpperCase().replace(/\s+/g, ' ') === norm);
-                        const cat = sItem?.category || (perCapitaConfig?.contractedItems || []).find((c: any) => (c.name || '').trim().toUpperCase().replace(/\s+/g, ' ') === norm)?.category || 'OUTROS';
+                        const cat = s.sourceCategory || sItem?.category || (perCapitaConfig?.contractedItems || []).find((c: any) => (c.name || '').trim().toUpperCase().replace(/\s+/g, ' ') === norm)?.category || 'OUTROS';
                         
                         if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') {
                              return { weight: it.totalKg / 4, value: (it.totalKg * (it.valuePerKg || 0)) / 4 };
