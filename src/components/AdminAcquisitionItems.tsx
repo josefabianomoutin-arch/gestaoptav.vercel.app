@@ -170,8 +170,8 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                     }
 
                                     if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') return 4;
-                                    if (cat === 'PPAIS') return 12;
-                                    return 12;
+                                    if (cat === 'PPAIS') return 8;
+                                    return 8;
                                 };
                                 const divisor = getDivisor(item.name);
 
@@ -657,8 +657,8 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         const getDivisor = () => {
                                             const cat = item.category || category;
                                             if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') return 4;
-                                            if (cat === 'PPAIS') return 12;
-                                            return 12;
+                                            if (cat === 'PPAIS') return 8;
+                                            return 8;
                                         };
 
                                         const divisor = getDivisor();

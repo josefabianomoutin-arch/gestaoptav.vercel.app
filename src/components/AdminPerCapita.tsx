@@ -491,7 +491,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 
                 let divisor = 8;
                 if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
-                else if (cat === 'PPAIS') divisor = 1;
+                else if (cat === 'PPAIS') divisor = 8;
                 
                 return sum + roundToTwoDecimalPlaces(weight / divisor);
             }, 0);
@@ -507,7 +507,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
                     let divisor = 8;
                     if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
-                    else if (cat === 'PPAIS') divisor = 1;
+                    else if (cat === 'PPAIS') divisor = 8;
                     
                     return sum + roundToTwoDecimalPlaces((id.totalQuantity || 0) / divisor);
                 }, 0);
@@ -539,7 +539,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 
                 let divisor = 8;
                 if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
-                else if (cat === 'PPAIS') divisor = 1;
+                else if (cat === 'PPAIS') divisor = 8;
 
                 return sum + roundToTwoDecimalPlaces(value / divisor);
             }, 0);
@@ -552,7 +552,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     
                     let divisor = 8;
                     if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
-                    else if (cat === 'PPAIS') divisor = 1;
+                    else if (cat === 'PPAIS') divisor = 8;
                     
                     return sum + roundToTwoDecimalPlaces((id.totalValue || 0) / divisor);
                 }, 0);
@@ -663,7 +663,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') {
                 divisor = 4; // Apenas Maio, Junho, Julho, Agosto
             } else if (cat === 'PPAIS') {
-                divisor = 1; // Média mensal já carregada do contrato (não dividir)
+                divisor = 8; // was 1
             } else {
                 // Média mensal: 8 meses
                 divisor = 8;

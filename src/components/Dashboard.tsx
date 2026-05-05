@@ -179,7 +179,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             .reduce((sum, d) => sum + (d.kg || 0), 0);
         
         const isQ1 = currentMonth <= 3;
-        const divisor = isQ1 ? 4 : 12; // Everything uses 12 for the long period except specifically quadrimestral contracts
+        const divisor = isQ1 ? 4 : 8; // Everything uses 8 for the long period except specifically quadrimestral contracts
         const monthlyQuota = item.totalKg / divisor;
         return { name: item.name, monthlyQuota, deliveredThisMonth, remainingThisMonth: monthlyQuota - deliveredThisMonth, unit: 'Kg' };
     });

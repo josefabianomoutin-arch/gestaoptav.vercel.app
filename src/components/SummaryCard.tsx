@@ -136,7 +136,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                 });
             }
 
-            const divisor = 12; // Everything uses 12 for the long period for annual consistency
+            const divisor = 8; // Everything uses 8 for the long period (maio a dezembro, 8 meses)
             const qtyIntegerPart = Math.floor(totalQty / divisor);
             const valIntegerPart = Math.floor(totalVal / divisor);
 
