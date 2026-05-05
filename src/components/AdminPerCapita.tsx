@@ -489,7 +489,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 const [unitType] = (ai.unit || 'kg-1').split('-');
                 if (['litro', 'embalagem', 'caixa', 'dz'].some(u => unitType.includes(u))) return sum;
                 
-                let divisor = 12;
+                let divisor = 8;
                 if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
                 else if (cat === 'PPAIS') divisor = 1;
                 
@@ -505,7 +505,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     
                     if (id.monthlyWeight > 0) return sum + id.monthlyWeight;
 
-                    let divisor = 12;
+                    let divisor = 8;
                     if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
                     else if (cat === 'PPAIS') divisor = 1;
                     
@@ -537,7 +537,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
                 const value = (contracted && contracted.totalValue > 0) ? contracted.totalValue : ((ai.unitValue || 0) * (ai.acquiredQuantity || 0));
                 
-                let divisor = 12;
+                let divisor = 8;
                 if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
                 else if (cat === 'PPAIS') divisor = 1;
 
@@ -550,7 +550,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 .reduce((sum, id) => {
                     if (id.monthlyValue > 0) return sum + id.monthlyValue;
                     
-                    let divisor = 12;
+                    let divisor = 8;
                     if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') divisor = 4;
                     else if (cat === 'PPAIS') divisor = 1;
                     
@@ -665,8 +665,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             } else if (cat === 'PPAIS') {
                 divisor = 1; // Média mensal já carregada do contrato (não dividir)
             } else {
-                // Média mensal: 12 meses
-                divisor = 12;
+                // Média mensal: 8 meses
+                divisor = 8;
             }
             averages[cat] = total / divisor;
         });
