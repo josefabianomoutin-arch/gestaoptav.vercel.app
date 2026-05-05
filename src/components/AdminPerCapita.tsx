@@ -1410,6 +1410,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 {totalPerCapitaKg.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                                 <span className="text-lg ml-1 text-zinc-400 not-italic">kg</span>
                             </h3>
+                            <span className="text-[7px] text-zinc-400 italic">(valor arredondado p/ fim de dízima)</span>
                             <p className="text-[10px] font-bold text-zinc-400 mt-4 uppercase tracking-widest">Média Diária Projetada</p>
                         </div>
 
@@ -1418,6 +1419,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                             <h3 className="text-5xl font-black tracking-tighter italic font-mono text-emerald-600">
                                 {formatCurrency(totalPerCapitaValue)}
                             </h3>
+                            <span className="text-[7px] text-zinc-400 italic">(valor arredondado p/ fim de dízima)</span>
                             <p className="text-[10px] font-bold text-zinc-400 mt-4 uppercase tracking-widest">Custo Diário / Pessoa</p>
                         </div>
 

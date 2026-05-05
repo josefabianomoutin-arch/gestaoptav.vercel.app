@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import type { PerCapitaSupplier } from '../types';
+import { roundToTwoDecimalPlaces } from '../lib/utils';
 
 interface AdminContractGeneratorProps {
     producer: PerCapitaSupplier;
@@ -94,8 +95,8 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                                 <td className="p-1 border border-black align-middle text-center">{producer.name}</td>
                                 <td className="p-1 border border-black align-middle text-center">{producer.cpfCnpj}</td>
                                 <td className="p-1 border border-black align-middle text-justify leading-snug">{item.name}</td>
-                                <td className="p-1 text-center border border-black align-middle whitespace-nowrap">{item.totalKg.toLocaleString('pt-BR')} {item.unit || 'kg'}</td>
-                                <td className="p-1 text-right border border-black align-middle whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalKg * item.valuePerKg)}</td>
+                                <td className="p-1 text-center border border-black align-middle whitespace-nowrap">{roundToTwoDecimalPlaces(item.totalKg).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} {item.unit || 'kg'}</td>
+                                <td className="p-1 text-right border border-black align-middle whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(roundToTwoDecimalPlaces(item.totalKg) * item.valuePerKg)}</td>
                             </tr>
                         ))}
                         <tr className="font-bold">
@@ -104,6 +105,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         </tr>
                     </tbody>
                 </table>
+                <p className="text-[7pt] text-zinc-500 italic mb-4">* Os pesos e valores foram arredondados para duas casas decimais para evitar inconsistências de pagamento.</p>
 
                 <p className="text-justify mb-4">
                     em conformidade com as Especificações e Quantidades (Anexo I) e Proposta de Venda da CONTRATADA (Anexo II), que integram o presente contrato como se nele estivessem transcritos.

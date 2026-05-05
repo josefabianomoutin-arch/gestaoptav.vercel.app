@@ -12,6 +12,7 @@ import {
     ImageIcon
 } from 'lucide-react';
 import type { WarehouseMovement, Supplier } from '../types';
+import { roundToTwoDecimalPlaces } from '../lib/utils';
 import ConfirmModal from './ConfirmModal';
 
 const monthNamesInOrder = [
@@ -206,15 +207,24 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         const cat = s.sourceCategory || sItem?.category || (perCapitaConfig?.contractedItems || []).find((c: any) => (c.name || '').trim().toUpperCase().replace(/\s+/g, ' ') === norm)?.category || 'OUTROS';
                         
                         if (cat === 'PERECÍVEIS' || cat === 'ESTOCÁVEIS') {
-                             return { weight: it.totalKg / 4, value: (it.totalKg * (it.valuePerKg || 0)) / 4 };
+                             return { 
+                                 weight: roundToTwoDecimalPlaces(it.totalKg / 4), 
+                                 value: roundToTwoDecimalPlaces((it.totalKg * (it.valuePerKg || 0)) / 4) 
+                             };
                         }
                         
                         if (cat === 'PPAIS') {
                             // Buscar diretamente da estrutura do contrato, dividir por 8 meses (maio a dezembro)
-                            return { weight: it.totalKg / 8, value: (it.totalKg * (it.valuePerKg || 0)) / 8 };
+                            return { 
+                                weight: roundToTwoDecimalPlaces(it.totalKg / 8), 
+                                value: roundToTwoDecimalPlaces((it.totalKg * (it.valuePerKg || 0)) / 8) 
+                            };
                         }
 
-                        return { weight: it.totalKg / 12, value: (it.totalKg * (it.valuePerKg || 0)) / 12 };
+                        return { 
+                            weight: roundToTwoDecimalPlaces(it.totalKg / 12), 
+                            value: roundToTwoDecimalPlaces((it.totalKg * (it.valuePerKg || 0)) / 12) 
+                        };
                     };
 
                     const { weight: monthlyWeight, value: monthlyValue } = getMonthlyValues(it.name);
@@ -562,12 +572,16 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                                 <td className="px-4 py-3 text-right font-mono font-bold">
                                                     <div className="flex flex-col">
                                                         <span className="text-indigo-600">{prod.monthlyWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} KG</span>
+                                                        <span className="text-[7px] text-zinc-400 italic">(valor arredondado)</span>
                                                         {prod.deliveredWeight > 0 && (
                                                             <span className="text-[7px] text-zinc-400">Entrega Real: {prod.deliveredWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="px-4 py-3 text-right font-mono font-bold text-green-600">{formatCurrency(prod.monthlyValue)}</td>
+                                                <td className="px-4 py-3 text-right font-mono font-bold text-green-600">
+                                                    {formatCurrency(prod.monthlyValue)}
+                                                    <div className="text-[7px] text-zinc-400 italic">(valor arredondado)</div>
+                                                </td>
                                                 <td className="px-4 py-3 text-right font-mono text-zinc-400 font-bold">{prod.totalContractWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} KG</td>
                                                 <td className="px-4 py-3 text-right font-mono text-zinc-400 font-bold">{formatCurrency(prod.totalContractValue)}</td>
                                                 <td className="px-4 py-3 text-center">

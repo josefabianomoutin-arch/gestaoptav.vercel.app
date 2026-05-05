@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import type { Supplier, WarehouseMovement, Delivery } from '../types';
 import ConfirmModal from './ConfirmModal';
+import { roundToTwoDecimalPlaces } from '../lib/utils';
 
 interface AdminContractItemsProps {
   suppliers: Supplier[];
@@ -409,9 +410,18 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
                                         <td className="p-4 text-center">
                                             <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-[10px] font-bold uppercase">{item.unit.split('-')[0]}</span>
                                         </td>
-                                        <td className="p-4 text-right font-mono font-bold text-gray-600">{item.totalContracted.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                        <td className="p-4 text-right font-mono font-bold text-green-600">{item.totalDelivered.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                        <td className="p-4 text-right font-mono font-black text-blue-600">{balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                        <td className="p-4 text-right font-mono font-bold text-gray-600">
+                                            {roundToTwoDecimalPlaces(item.totalContracted).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            <span className="text-[7px] italic text-zinc-400 block">(arredondado)</span>
+                                        </td>
+                                        <td className="p-4 text-right font-mono font-bold text-green-600">
+                                            {roundToTwoDecimalPlaces(item.totalDelivered).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            <span className="text-[7px] italic text-zinc-400 block">(arredondado)</span>
+                                        </td>
+                                        <td className="p-4 text-right font-mono font-black text-blue-600">
+                                            {roundToTwoDecimalPlaces(balance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            <span className="text-[7px] italic text-zinc-400 block">(arredondado)</span>
+                                        </td>
                                         <td className="p-4 text-center">
                                             <div className="w-24 bg-gray-100 rounded-full h-2 mx-auto overflow-hidden">
                                                 <div className={`h-full transition-all duration-1000 ${pct >= 100 ? 'bg-green-500' : pct > 50 ? 'bg-blue-500' : 'bg-orange-500'}`} style={{ width: `${pct}%` }}></div>
