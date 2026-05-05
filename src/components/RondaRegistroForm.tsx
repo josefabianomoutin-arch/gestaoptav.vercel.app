@@ -11,7 +11,7 @@ interface RondaRegistroFormProps {
 
 const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ onSave, systemPasswords = {} }) => {
     const [header, setHeader] = useState({ data: new Date().toISOString().split('T')[0], turno: 'DIURNO', fctNumber: '', superior: '' });
-    const [rows, setRows] = useState(Array(11).fill(null).map(() => ({ policial: '', hInicio: '', kmInicio: '', hFinal: '', kmFinal: '', ocorrencias: '' })));
+    const [rows, setRows] = useState(Array(11).fill(null).map(() => ({ policial: '', hInicio: '', kmInicio: '', hFinal: '', kmFinal: '', ocorrencias: '', outros: '' })));
     
     const [checkList, setCheckList] = useState<{
         qtdCadastrados: string;
@@ -101,7 +101,8 @@ const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ onSave, systemPas
                             <td className="border-r border-black p-1">KM Inicial: <input className="p-1 w-12 text-center border-b" value={row.kmInicio} onChange={e => updateRow(i, 'kmInicio', e.target.value)} /></td>
                             <td className="border-r border-black p-1">Fim: <input className="p-1 w-12 text-center border-b" value={row.hFinal} onChange={e => updateRow(i, 'hFinal', e.target.value)} placeholder="00:00" /></td>
                             <td className="border-r border-black p-1">KM Final: <input className="p-1 w-12 text-center border-b" value={row.kmFinal} onChange={e => updateRow(i, 'kmFinal', e.target.value)} /></td>
-                            <td className="p-1">Ocorrência: <input className="p-1 w-full border-b" value={row.ocorrencias} onChange={e => updateRow(i, 'ocorrencias', e.target.value)} /></td>
+                            <td className="border-r border-black p-1">Ocorrência: <input className="p-1 w-24 border-b" value={row.ocorrencias} onChange={e => updateRow(i, 'ocorrencias', e.target.value)} /></td>
+                            <td className="p-1">Outros: <input className="p-1 w-full border-b" value={row.outros || ''} onChange={e => updateRow(i, 'outros', e.target.value)} /></td>
                         </tr>
                     ))}
                 </tbody>
@@ -132,7 +133,8 @@ const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ onSave, systemPas
                     { key: 'embriagues', label: 'Indicio de enbriagues' },
                     { key: 'drogas', label: 'Uso de drogas' },
                     { key: 'agressividade', label: 'Agressividade ou desobediencia' },
-                    { key: 'pendenciasAnterior', label: 'Verificação de pendências da ronda anterior' }
+                    { key: 'pendenciasAnterior', label: 'Verificação de pendências da ronda anterior' },
+                    { key: 'outros', label: 'Outros' }
                 ].map(item => (
                     <div key={item.key} className="flex items-center gap-2">
                         <span>{item.label}:</span>
@@ -145,7 +147,7 @@ const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ onSave, systemPas
                         <span className="ml-2">Obs:</span> <input className="border-b w-1/3" value={getObsValue(item.key)} onChange={e => setObsValue(item.key, e.target.value)} />
                     </div>
                 ))}
-                <div className="flex items-center gap-2 mt-4">
+                 {/* <div className="flex items-center gap-2 mt-4">
                     <span>Outros:</span>
                     <input 
                         className="border-b flex-1" 
@@ -153,7 +155,7 @@ const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ onSave, systemPas
                         onChange={e => setCheckList({...checkList, obsOutros: e.target.value})} 
                         placeholder="Descrever outros itens..."
                     />
-                </div>
+                </div> */}
             </div>
 
             {digitalSignature && (

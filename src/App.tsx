@@ -1008,7 +1008,6 @@ const App: React.FC = () => {
 
               if (existingInvoiceUrl !== undefined) newDelivery.invoiceUrl = existingInvoiceUrl;
               if (finalInvoiceDate !== undefined) newDelivery.invoiceDate = finalInvoiceDate;
-              if (barcode !== undefined) newDelivery.barcode = barcode;
               if (finalReceiptTerm !== undefined) newDelivery.receiptTermNumber = finalReceiptTerm;
               if (finalPd !== undefined) newDelivery.pd = finalPd;
               if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
@@ -1096,6 +1095,7 @@ const App: React.FC = () => {
                   value: item.value,
                   invoiceUploaded: true,
                   invoiceNumber: String(finalInvoiceNumber || '').trim(),
+                  barcode: item.barcode || barcode || '',
                   lots: [{
                     id: lotId,
                     lotNumber: item.lotNumber || 'EDITADO',
@@ -1106,7 +1106,6 @@ const App: React.FC = () => {
 
                 if (existingInvoiceUrl !== undefined) newDelivery.invoiceUrl = existingInvoiceUrl;
                 if (finalInvoiceDate !== undefined) newDelivery.invoiceDate = finalInvoiceDate;
-                if (barcode !== undefined) newDelivery.barcode = barcode;
                 if (finalReceiptTerm !== undefined) newDelivery.receiptTermNumber = finalReceiptTerm;
                 if (finalPd !== undefined) newDelivery.pd = finalPd;
                 if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
@@ -1155,7 +1154,7 @@ const App: React.FC = () => {
               lotNumber: item.lotNumber || 'EDITADO',
               quantity: item.kg,
               value: item.value,
-              barcode: barcode || '',
+              barcode: item.barcode || barcode || '',
               inboundInvoice: String(newInvoiceNumber || invoiceNumber).trim()
           };
           if (item.expirationDate !== undefined) (entry as any).expirationDate = item.expirationDate;
@@ -1524,6 +1523,7 @@ const App: React.FC = () => {
                 value: item.value,
                 invoiceUploaded: true,
                 invoiceNumber: String(invoiceNumber || '').trim(),
+                barcode: item.barcode || barcode || '',
                 type: type,
                 lots: [{
                   id: le.lotId,
@@ -1534,7 +1534,6 @@ const App: React.FC = () => {
               };
 
               if (invoiceDate !== undefined) newDelivery.invoiceDate = invoiceDate;
-              if (barcode !== undefined) newDelivery.barcode = barcode;
               if (receiptTermNumber !== undefined) newDelivery.receiptTermNumber = receiptTermNumber;
               if (pd !== undefined) newDelivery.pd = pd;
               if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
@@ -1563,6 +1562,7 @@ const App: React.FC = () => {
                     value: item.value,
                     invoiceUploaded: true,
                     invoiceNumber: String(invoiceNumber || '').trim(),
+                    barcode: item.barcode || barcode || '',
                     lots: [{
                       id: le.lotId,
                       lotNumber: item.lotNumber || 'MANUAL',
@@ -1572,7 +1572,6 @@ const App: React.FC = () => {
                   };
 
                   if (invoiceDate !== undefined) newDelivery.invoiceDate = invoiceDate;
-                  if (barcode !== undefined) newDelivery.barcode = barcode;
                   if (receiptTermNumber !== undefined) newDelivery.receiptTermNumber = receiptTermNumber;
                   if (pd !== undefined) newDelivery.pd = pd;
                   if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;

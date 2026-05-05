@@ -16,7 +16,7 @@ interface AdminInvoicesProps {
   onUpdateInvoiceItems: (
     supplierCpf: string, 
     invoiceNumber: string, 
-    items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], 
+    items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string }[], 
     barcode?: string, 
     newInvoiceNumber?: string, 
     newDate?: string, 
@@ -29,7 +29,7 @@ interface AdminInvoicesProps {
     supplierCpf: string, 
     date: string, 
     invoiceNumber: string, 
-    items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string }[], 
+    items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string }[], 
     barcode?: string, 
     receiptTermNumber?: string, 
     invoiceDate?: string, 

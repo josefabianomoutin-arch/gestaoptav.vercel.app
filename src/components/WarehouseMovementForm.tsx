@@ -1018,6 +1018,14 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                                 <span className="text-[7px] text-gray-400 font-bold uppercase tracking-tighter">
                                                     {item.quantity} kg • Unit: R$ {((item.value || 0) / (item.quantity || 1)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                                                 </span>
+                                                {item.barcode && (
+                                                    <>
+                                                        <div className="w-1 h-1 rounded-full bg-gray-200"></div>
+                                                        <span className="text-[7px] text-blue-500 font-bold uppercase flex items-center gap-0.5">
+                                                           <Barcode className="h-2 w-2" /> {item.barcode}
+                                                        </span>
+                                                    </>
+                                                )}
                                                 <div className="w-1 h-1 rounded-full bg-gray-200"></div>
                                                 <span className="text-[7px] text-indigo-500 font-black uppercase">
                                                     Tot: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.value || 0)}
