@@ -132,7 +132,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           });
 
           const itemValue = itemMovement?.value || d.value || 0;
-          acc[d.invoiceNumber].items.push({ ...d, value: itemValue });
+          const barcode = itemMovement?.barcode || d.barcode || '';
+          acc[d.invoiceNumber].items.push({ ...d, value: itemValue, barcode });
           
           if (new Date(d.date) < new Date(acc[d.invoiceNumber].date)) {
             acc[d.invoiceNumber].date = d.date;
@@ -143,6 +144,68 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
       
       Object.values(grouped).forEach(inv => invoices.push(inv));
     });
+
+    // Mirror entries from warehouseLog that might not be in supplier deliveries
+    warehouseLog.forEach(log => {
+      const invNum = log.invoiceNumber || log.inboundInvoice || log.outboundInvoice;
+      if (!invNum) return;
+
+      const isExit = log.type === 'saída' || log.type === 'saida';
+      if (mode === 'warehouse_entry' && isExit) return;
+      if (mode === 'warehouse_exit' && !isExit) return;
+
+      // Check if this invoice is already in our list
+      const existingInv = invoices.find(inv => 
+        String(inv.invoiceNumber).trim().replace(/^0+/, '') === String(invNum).trim().replace(/^0+/, '') &&
+        (inv.supplierName === log.supplierName || inv.supplierCpf === log.supplierCpf)
+      );
+
+      if (existingInv) {
+        // Check if item is already in existing invoice
+        const hasItem = existingInv.items.some((it: any) => 
+          (it.item === log.item || it.item === log.itemName) && 
+          it.kg === (log.kg || log.quantity) &&
+          it.barcode === log.barcode
+        );
+        if (!hasItem) {
+          existingInv.items.push({
+            id: log.id,
+            item: log.item || log.itemName,
+            kg: log.kg || log.quantity || 0,
+            value: log.value || 0,
+            date: log.date,
+            barcode: log.barcode,
+            lotNumber: log.lotNumber,
+            expirationDate: log.expirationDate,
+            pd: log.pdNumber,
+            isManual: true
+          });
+        }
+      } else {
+        // Create new invoice entry from log
+        invoices.push({
+          supplierName: log.supplierName,
+          supplierCpf: log.supplierCpf,
+          invoiceNumber: invNum,
+          date: log.date,
+          items: [{
+            id: log.id,
+            item: log.item || log.itemName,
+            kg: log.kg || log.quantity || 0,
+            value: log.value || 0,
+            date: log.date,
+            barcode: log.barcode,
+            lotNumber: log.lotNumber,
+            expirationDate: log.expirationDate,
+            pd: log.pdNumber,
+            isManual: true
+          }],
+          isOpened: true, // Manual logs are considered "handled"
+          isManualEntry: true
+        });
+      }
+    });
+
     return invoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [suppliers, warehouseLog, mode]);
 

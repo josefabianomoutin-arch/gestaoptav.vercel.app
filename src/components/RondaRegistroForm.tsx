@@ -34,6 +34,7 @@ const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ onSave, systemPas
         obsPendenciasAnterior: string;
         outros: boolean | null;
         obsOutros: string;
+        labelOutros: string;
     }>({
         qtdCadastrados: '',
         qtdLocal: '',
@@ -54,7 +55,8 @@ const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ onSave, systemPas
         pendenciasAnterior: null,
         obsPendenciasAnterior: '',
         outros: null,
-        obsOutros: ''
+        obsOutros: '',
+        labelOutros: ''
     });
 
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
@@ -136,15 +138,29 @@ const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ onSave, systemPas
                     { key: 'pendenciasAnterior', label: 'Verificação de pendências da ronda anterior' },
                     { key: 'outros', label: 'Outros' }
                 ].map(item => (
-                    <div key={item.key} className="flex items-center gap-2">
-                        <span>{item.label}:</span>
-                        <label className="flex items-center gap-1 cursor-pointer">
-                            <input type="radio" checked={checkList[item.key as keyof typeof checkList] === true} onChange={() => setCheckList(prev => ({...prev, [item.key]: true}))} /> OK
-                        </label>
-                        <label className="flex items-center gap-1 cursor-pointer">
-                            <input type="radio" checked={checkList[item.key as keyof typeof checkList] === false} onChange={() => setCheckList(prev => ({...prev, [item.key]: false}))} /> Não OK
-                        </label>
-                        <span className="ml-2">Obs:</span> <input className="border-b w-1/3" value={getObsValue(item.key)} onChange={e => setObsValue(item.key, e.target.value)} />
+                    <div key={item.key} className={`flex items-center gap-2 p-1.5 rounded-lg ${item.key === 'outros' ? 'bg-red-50 border border-red-200 text-red-700' : ''}`}>
+                        {item.key === 'outros' ? (
+                            <div className="flex items-center gap-1 font-bold">
+                                <span>Outros:</span>
+                                <input 
+                                    className="border-b border-red-300 bg-transparent w-40 px-1 focus:outline-none placeholder:text-red-300" 
+                                    value={checkList.labelOutros} 
+                                    onChange={e => setCheckList(prev => ({...prev, labelOutros: e.target.value}))} 
+                                    placeholder="Descrever campo..."
+                                />
+                            </div>
+                        ) : (
+                            <span className="font-medium">{item.label}:</span>
+                        )}
+                        <div className="flex gap-2 ml-auto">
+                            <label className="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" checked={checkList[item.key as keyof typeof checkList] === true} onChange={() => setCheckList(prev => ({...prev, [item.key]: true}))} /> OK
+                            </label>
+                            <label className="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" checked={checkList[item.key as keyof typeof checkList] === false} onChange={() => setCheckList(prev => ({...prev, [item.key]: false}))} /> Não OK
+                            </label>
+                        </div>
+                        <span className="ml-2 font-bold">Obs:</span> <input className={`border-b w-1/3 bg-transparent ${item.key === 'outros' ? 'border-red-300' : 'border-slate-300'}`} value={getObsValue(item.key)} onChange={e => setObsValue(item.key, e.target.value)} />
                     </div>
                 ))}
                  {/* <div className="flex items-center gap-2 mt-4">

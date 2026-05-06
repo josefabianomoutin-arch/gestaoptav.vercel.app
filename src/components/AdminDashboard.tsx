@@ -49,6 +49,8 @@ interface AdminDashboardProps {
   onUpdatePerCapitaConfig: (config: Partial<PerCapitaConfig>) => Promise<{ success: boolean; message?: string }>;
   onDeleteWarehouseEntry: (logEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
   onUpdateWarehouseEntry: (updatedEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
+  onRegisterEntry: (payload: any) => Promise<{ success: boolean; message: string; invoiceUrl?: string }>;
+  onRegisterWithdrawal: (payload: any) => Promise<{ success: boolean; message: string }>;
   onUpdateContractForItem: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string, commitmentNumber?: string, commitmentValue?: number }[]) => Promise<{ success: boolean, message: string }>;
   onUpdateAcquisitionItem: (item: AcquisitionItem) => Promise<{ success: boolean; message: string }>;
   onDeleteAcquisitionItem: (id: string) => Promise<{ success: boolean; message: string }>;
@@ -444,7 +446,35 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
         );
       case 'contracts': return <AdminContractItems suppliers={combinedSuppliers} warehouseLog={warehouseLog} onUpdateContractForItem={onUpdateContractForItem} />;
       case 'finance': return <AdminFinancialManager records={financialRecords} onSave={onSaveFinancialRecord} onDelete={onDeleteFinancialRecord} />;
-      case 'invoices': return <AdminInvoices suppliers={combinedSuppliers} warehouseLog={warehouseLog} onReopenInvoice={onReopenInvoice} onDeleteInvoice={onDeleteInvoice} onUpdateInvoiceItems={onUpdateInvoiceItems} onUpdateInvoiceUrl={onUpdateInvoiceUrl} onManualInvoiceEntry={onManualInvoiceEntry} onMarkInvoiceAsOpened={onMarkInvoiceAsOpened} perCapitaConfig={perCapitaConfig} />;
+      case 'invoices': 
+        return (
+          <div className="space-y-8 max-w-7xl mx-auto animate-fade-in">
+            <WarehouseMovementForm 
+              suppliers={combinedSuppliers} 
+              warehouseLog={warehouseLog} 
+              onRegisterEntry={props.onRegisterEntry}
+              onRegisterWithdrawal={props.onRegisterWithdrawal}
+              initialMode="entrada"
+              perCapitaConfig={perCapitaConfig}
+              acquisitionItems={acquisitionItems}
+            />
+            <div className="border-t border-gray-100 pt-8">
+              <AdminInvoices 
+                suppliers={combinedSuppliers} 
+                warehouseLog={warehouseLog} 
+                onReopenInvoice={onReopenInvoice} 
+                onDeleteInvoice={onDeleteInvoice} 
+                onUpdateInvoiceItems={onUpdateInvoiceItems} 
+                onUpdateInvoiceUrl={onUpdateInvoiceUrl} 
+                onManualInvoiceEntry={onManualInvoiceEntry} 
+                onMarkInvoiceAsOpened={onMarkInvoiceAsOpened} 
+                perCapitaConfig={perCapitaConfig}
+                mode="warehouse_entry"
+                acquisitionItems={acquisitionItems}
+              />
+            </div>
+          </div>
+        );
       case 'schedule': return <AdminScheduleView suppliers={combinedSuppliers} thirdPartyEntries={thirdPartyEntries} onCancelDeliveries={onCancelDeliveries} onDeleteThirdPartyEntry={onDeleteThirdPartyEntry} />;
       case 'perCapita': return <AdminPerCapita suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onUpdatePerCapitaConfig={onUpdatePerCapitaConfig} onUpdateContractForItem={onUpdateContractForItem} onUpdateAcquisitionItem={props.onUpdateAcquisitionItem} onDeleteAcquisitionItem={props.onDeleteAcquisitionItem} acquisitionItems={acquisitionItems} onUpdateSupplierObservations={props.onUpdateSupplierObservations} onSyncPPAISToAgenda={props.onSyncPPAISToAgenda} />;
       case 'cleaning': return <AdminCleaningLog logs={cleaningLogs} financialRecords={financialRecords} onRegister={props.onRegisterCleaningLog} onDelete={props.onDeleteCleaningLog} />;
