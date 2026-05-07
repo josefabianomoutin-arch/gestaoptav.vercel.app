@@ -437,6 +437,13 @@ const App: React.FC = () => {
 
   const handleLogout = () => setUser(null);
 
+  const handleUploadFile = async (file: File): Promise<string> => {
+    const fileId = `invoices/${Date.now()}_${file.name}`;
+    const fileRef = storageRef(storage, fileId);
+    await uploadBytes(fileRef, file);
+    return await getDownloadURL(fileRef);
+  };
+
   const handleSavePublicInfo = async (info: Omit<PublicInfo, 'id'> & { id?: string }) => {
     try {
       const id = info.id || push(publicInfoRef).key;
@@ -552,8 +559,9 @@ const App: React.FC = () => {
           const supplier = allSuppliers[cpf] as Supplier;
           const supplierRef = child(suppliersRef, cpf);
           
-          // Remove weeks > 18 (May-Dec)
-          const updatedWeeks = (supplier.allowedWeeks || []).filter(w => w <= 18);
+          // Remove weeks that are no longer valid (e.g., if contract period changed)
+          // For now, keep weeks that are > 18 if they were already there implicitly
+          const updatedWeeks = (supplier.allowedWeeks || []);
           
           // Remove Q2/Q3 items and tag legacy items as Q1 only to ensure they don't show in Q2/Q3
           const updatedItems = (supplier.contractItems || [])

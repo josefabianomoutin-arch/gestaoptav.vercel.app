@@ -23,7 +23,7 @@ interface DashboardProps {
   monthlySchedule?: Record<string, number[]>;
   isRegisteredForNextPeriod?: boolean;
   onLogout: () => void;
-  onScheduleDelivery: (supplierCpf: string, date: string, time: string) => void;
+  onScheduleDelivery: (supplierCpf: string, date: string, time: string, invoiceNumber?: string, invoiceUrl?: string) => void;
   onCancelDeliveries: (supplierCpf: string, deliveryIds: string[]) => void;
   onSaveInvoice: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => Promise<void>;
   emailModalData: {
