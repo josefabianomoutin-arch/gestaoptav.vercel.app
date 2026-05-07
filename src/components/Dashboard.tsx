@@ -15,7 +15,8 @@ import { app, storage } from '../firebaseConfig';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from 'sonner';
 
-const SIMULATED_TODAY = new Date('2026-04-30T00:00:00');
+// Definindo uma data simulada para garantir que o painel mostre o mês de Maio corretamente
+const SIMULATED_TODAY = new Date('2026-05-07T00:00:00');
 
 interface DashboardProps {
   supplier: Supplier;
@@ -156,17 +157,35 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [supplier.deliveries]);
 
   const uploadedInvoices = useMemo((): any[] => {
-    const uploaded = (Object.values(supplier.deliveries || {}) as any[]).filter((d: any) => d.invoiceUploaded && d.invoiceNumber);
-    const groupedByNf = uploaded.reduce((acc, delivery) => {
-        if (!acc[delivery.invoiceNumber]) {
-            acc[delivery.invoiceNumber] = {
-                invoiceNumber: delivery.invoiceNumber,
-                invoiceUrl: delivery.invoiceUrl,
-                date: delivery.date,
-                items: []
-            };
+    const deliveries = (Object.values(supplier.deliveries || {}) as any[]);
+    const groupedByNf = deliveries.reduce((acc, delivery) => {
+        if (delivery.invoiceNumber) {
+            if (!acc[delivery.invoiceNumber]) {
+                acc[delivery.invoiceNumber] = {
+                    invoiceNumber: delivery.invoiceNumber,
+                    invoiceUrl: delivery.invoiceUrl,
+                    date: delivery.date,
+                    items: [],
+                    isUploaded: true
+                };
+            }
+            acc[delivery.invoiceNumber].items.push(delivery);
+        } else {
+            // Delivery without invoice number - show it as a pending entry
+            // only if it's in the past
+            const deliveryDate = new Date(delivery.date + 'T00:00:00');
+            if (deliveryDate < SIMULATED_TODAY) {
+                const key = `pending-${delivery.id}`;
+                acc[key] = {
+                    invoiceNumber: 'PENDENTE',
+                    invoiceUrl: null,
+                    date: delivery.date,
+                    items: [delivery],
+                    isUploaded: false,
+                    isPending: true
+                };
+            }
         }
-        acc[delivery.invoiceNumber].items.push(delivery);
         return acc;
     }, {} as Record<string, any>);
     return Object.values(groupedByNf).sort((a: any, b: any) => b.date.localeCompare(a.date));
@@ -494,11 +513,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                               </thead>
                               <tbody>
                                   {uploadedInvoices.map((invoice, idx) => (
-                                      <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                                      <tr key={idx} className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${invoice.isPending ? 'bg-rose-50/30' : ''}`}>
                                           <td className="p-4 font-mono text-sm text-gray-600">
                                               {new Date(invoice.date + 'T00:00:00').toLocaleDateString('pt-BR')}
                                           </td>
-                                          <td className="p-4 font-black text-indigo-600 font-mono">
+                                          <td className={`p-4 font-black font-mono ${invoice.isPending ? 'text-rose-500' : 'text-indigo-600'}`}>
                                               {invoice.invoiceNumber}
                                           </td>
                                           <td className="p-4">
@@ -530,7 +549,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                                   <div className="relative group">
                                                       <input 
                                                           type="file" 
-                                                          id={`file-upload-${invoice.invoiceNumber}`} 
+                                                          id={`file-upload-${invoice.isPending ? invoice.items[0].id : invoice.invoiceNumber}`} 
                                                           className="hidden" 
                                                           accept="application/pdf"
                                                           onChange={async (e) => {
@@ -550,12 +569,18 @@ const Dashboard: React.FC<DashboardProps> = ({
                                                           }} 
                                                       />
                                                       <button 
-                                                          onClick={() => document.getElementById(`file-upload-${invoice.invoiceNumber}`)?.click()} 
+                                                          onClick={() => {
+                                                              if (invoice.isPending) {
+                                                                  handleOpenSendInvoiceModal({ date: invoice.date, deliveries: invoice.items });
+                                                              } else {
+                                                                  document.getElementById(`file-upload-${invoice.isPending ? invoice.items[0].id : invoice.invoiceNumber}`)?.click();
+                                                              }
+                                                          }} 
                                                           className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md active:scale-95 ${invoice.invoiceUrl ? 'bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white' : 'bg-rose-600 text-white hover:bg-rose-700'}`} 
                                                           title="Upload Nota"
                                                       >
                                                           <Upload className="h-3.5 w-3.5" />
-                                                          {invoice.invoiceUrl ? 'Reenviar' : 'Enviar PDF'}
+                                                          {invoice.invoiceUrl ? 'Reenviar' : invoice.isPending ? 'Vincular Nota' : 'Enviar PDF'}
                                                       </button>
                                                   </div>
                                               </div>
