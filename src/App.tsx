@@ -2653,6 +2653,7 @@ const App: React.FC = () => {
       return (
         <SubportariaDashboard 
           suppliers={suppliers} 
+          perCapitaConfig={perCapitaConfig}
           thirdPartyEntries={thirdPartyEntries}
           maintenanceSchedules={maintenanceSchedules}
           serviceOrders={serviceOrders}

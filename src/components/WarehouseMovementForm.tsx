@@ -455,7 +455,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                     window.onload = function() {
                         try {
                             JsBarcode("#barcode-item", "${item.barcode}", {
-                                format: "CODE128", width: 1.2, height: 40, displayValue: false, margin: 0
+                                format: "CODE128", width: 1.2, height: 40, displayValue: true, margin: 0
                             });
                         } catch (e) { console.error(e); }
                         setTimeout(() => { window.print(); window.close(); }, 500);

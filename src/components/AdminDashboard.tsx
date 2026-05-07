@@ -63,8 +63,6 @@ interface AdminDashboardProps {
   dailyMenus: DailyMenus;
   onUpdateStandardMenu: (menu: StandardMenu) => Promise<void | { success: boolean; message: string }>;
   onUpdateDailyMenu: (menus: DailyMenus) => Promise<void | { success: boolean; message: string }>;
-  onRegisterEntry: (payload: any) => Promise<{ success: boolean; message: string }>;
-  onRegisterWithdrawal: (payload: any) => Promise<{ success: boolean; message: string }>;
   onCancelDeliveries: (supplierCpf: string, deliveryIds: string[]) => void;
   financialRecords: FinancialRecord[];
   onSaveFinancialRecord: (record: Omit<FinancialRecord, 'id'> & { id?: string }) => Promise<{ success: boolean; message?: string }>;
@@ -521,9 +519,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           perCapitaConfig={perCapitaConfig}
           acquisitionItems={acquisitionItems}
       />;
-      case 'menu': return <AdminStandardMenu suppliers={suppliers} template={props.standardMenu} dailyMenus={props.dailyMenus} onUpdateDailyMenus={props.onUpdateDailyMenu} inmateCount={perCapitaConfig.inmateCount || 0} />;
+      case 'menu': return <AdminStandardMenu suppliers={combinedSuppliers} template={props.standardMenu} dailyMenus={props.dailyMenus} onUpdateDailyMenus={props.onUpdateDailyMenu} inmateCount={perCapitaConfig.inmateCount || 0} />;
       case 'publicInfo': return <AdminPublicInfo infoList={props.publicInfo} onSave={props.onSavePublicInfo} onDelete={props.onDeletePublicInfo} />;
-      case 'almoxarifado': return <WarehouseMovementForm suppliers={suppliers} warehouseLog={warehouseLog} onRegisterEntry={props.onRegisterEntry} onRegisterWithdrawal={props.onRegisterWithdrawal} perCapitaConfig={perCapitaConfig} />;
+      case 'almoxarifado': return <WarehouseMovementForm suppliers={combinedSuppliers} warehouseLog={warehouseLog} onRegisterEntry={props.onRegisterEntry} onRegisterWithdrawal={props.onRegisterWithdrawal} perCapitaConfig={perCapitaConfig} />;
       case 'info': 
         return (
             <div className="max-w-4xl mx-auto space-y-6 animate-fade-in p-4 md:p-0 pb-16">

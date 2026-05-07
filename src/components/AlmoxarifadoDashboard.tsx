@@ -1621,7 +1621,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     }} />
                 ) : activeTab === 'agenda' ? (
                     <AgendaChegadas 
-                        suppliers={suppliers} 
+                        suppliers={combinedSuppliers} 
                         thirdPartyEntries={thirdPartyEntries} 
                         embedded={true} 
                     />

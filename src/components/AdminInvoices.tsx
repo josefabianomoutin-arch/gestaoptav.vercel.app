@@ -88,24 +88,25 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
   const allInvoices = useMemo(() => {
     const invoices: any[] = [];
+    const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').toUpperCase();
+
     suppliers.forEach(supplier => {
       const deliveries = Object.values(supplier.deliveries || {}) as Delivery[];
       const grouped = deliveries.reduce((acc, d) => {
-        const cleanDInvoice = String(d.invoiceNumber || '').trim().replace(/^0+/, '');
-        if (cleanDInvoice) {
+        if (d.invoiceNumber) {
+          const cleanDInvoice = cleanStr(d.invoiceNumber);
           const movement = warehouseLog.find(log => {
-            const cleanInbound = String(log.inboundInvoice || '').trim().replace(/^0+/, '');
-            const cleanOutbound = String(log.outboundInvoice || '').trim().replace(/^0+/, '');
-            const cleanInv = String(log.invoiceNumber || '').trim().replace(/^0+/, '');
-            return cleanInbound === cleanDInvoice || cleanOutbound === cleanDInvoice || cleanInv === cleanDInvoice;
+            const cleanLogInv = cleanStr(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice);
+            return cleanLogInv === cleanDInvoice;
           });
           const isExit = (d as any).type === 'saída' || (movement && movement.type === 'saída');
           
           if (mode === 'warehouse_entry' && isExit) return acc;
           if (mode === 'warehouse_exit' && !isExit) return acc;
 
-          if (!acc[d.invoiceNumber]) {
-            acc[d.invoiceNumber] = {
+          const invKey = d.invoiceNumber;
+          if (!acc[invKey]) {
+            acc[invKey] = {
               supplierName: supplier.name,
               supplierCpf: supplier.cpf,
               invoiceNumber: d.invoiceNumber,
@@ -116,27 +117,34 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
               isOpened: d.isOpened || false,
               receiptTermNumber: d.receiptTermNumber,
               nl: d.nl,
-              pd: d.pd
+              pd: d.pd || movement?.pdNumber || ''
             };
           }
           
           // Tentar buscar o valor registrado no warehouseLog para este item específico desta nota
           const itemMovement = warehouseLog.find(log => {
-            const lInbound = String(log.inboundInvoice || '').trim().replace(/^0+/, '');
-            const lOutbound = String(log.outboundInvoice || '').trim().replace(/^0+/, '');
-            const lInv = String(log.invoiceNumber || '').trim().replace(/^0+/, '');
+            const cleanLogInv = cleanStr(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice);
+            const cleanLogItem = cleanStr(log.item || log.itemName);
+            const cleanDItem = cleanStr(d.item);
             
-            return (lInbound === cleanDInvoice || lOutbound === cleanDInvoice || lInv === cleanDInvoice) &&
-                   (log.item === d.item || log.itemName === d.item) &&
-                   (log.supplierCpf === supplier.cpf || log.supplierName === supplier.name);
+            return cleanLogInv === cleanDInvoice &&
+                   (cleanLogItem === cleanDItem) &&
+                   (cleanStr(log.supplierCpf) === cleanStr(supplier.cpf) || cleanStr(log.supplierName) === cleanStr(supplier.name));
           });
 
           const itemValue = itemMovement?.value || d.value || 0;
           const barcode = itemMovement?.barcode || d.barcode || '';
-          acc[d.invoiceNumber].items.push({ ...d, value: itemValue, barcode });
+          acc[invKey].items.push({ 
+            ...d, 
+            value: itemValue, 
+            barcode,
+            lotNumber: itemMovement?.lotNumber || d.lotNumber,
+            expirationDate: itemMovement?.expirationDate || d.expirationDate,
+            pd: itemMovement?.pdNumber || d.pd
+          });
           
-          if (new Date(d.date) < new Date(acc[d.invoiceNumber].date)) {
-            acc[d.invoiceNumber].date = d.date;
+          if (new Date(d.date) < new Date(acc[invKey].date)) {
+            acc[invKey].date = d.date;
           }
         }
         return acc;
@@ -154,18 +162,20 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
       if (mode === 'warehouse_entry' && isExit) return;
       if (mode === 'warehouse_exit' && !isExit) return;
 
+      const cleanLogInv = cleanStr(invNum);
+
       // Check if this invoice is already in our list
       const existingInv = invoices.find(inv => 
-        String(inv.invoiceNumber).trim().replace(/^0+/, '') === String(invNum).trim().replace(/^0+/, '') &&
-        (inv.supplierName === log.supplierName || inv.supplierCpf === log.supplierCpf)
+        cleanStr(inv.invoiceNumber) === cleanLogInv &&
+        (cleanStr(inv.supplierName) === cleanStr(log.supplierName) || cleanStr(inv.supplierCpf) === cleanStr(log.supplierCpf))
       );
 
       if (existingInv) {
         // Check if item is already in existing invoice
         const hasItem = existingInv.items.some((it: any) => 
-          (it.item === log.item || it.item === log.itemName) && 
+          cleanStr(it.item) === cleanStr(log.item || log.itemName) && 
           it.kg === (log.kg || log.quantity) &&
-          it.barcode === log.barcode
+          cleanStr(it.barcode) === cleanStr(log.barcode)
         );
         if (!hasItem) {
           existingInv.items.push({
@@ -180,6 +190,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             pd: log.pdNumber,
             isManual: true
           });
+          if (log.pdNumber && !existingInv.pd) existingInv.pd = log.pdNumber;
         }
       } else {
         // Create new invoice entry from log
@@ -200,6 +211,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             pd: log.pdNumber,
             isManual: true
           }],
+          pd: log.pdNumber,
           isOpened: true, // Manual logs are considered "handled"
           isManualEntry: true
         });
@@ -466,6 +478,11 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                 <span className="text-[9px] font-black text-indigo-900 leading-none uppercase">
                                     {it.item} ({(it.kg || 0).toLocaleString('pt-BR')} Kg)
                                 </span>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[7px] text-gray-400 font-bold uppercase">
+                                      Lote: {it.lotNumber || 'UNICO'} | Val: {it.expirationDate ? it.expirationDate.split('-').reverse().join('/') : 'N/A'}
+                                  </span>
+                                </div>
                                 {it.barcode && (
                                     <span className="text-[10px] font-mono text-blue-700 font-bold bg-blue-50 px-1 rounded-sm tracking-tight mt-0.5 flex items-center gap-1 w-fit">
                                         <BarcodeIcon className="h-3 w-3" /> {it.barcode}

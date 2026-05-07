@@ -67,7 +67,7 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
   onUpdateVehicleInspection,
   onDeleteVehicleInspection,
 }) => {
-  const [activeTab, setActiveTab] = React.useState<'veiculos' | 'servicos'>('veiculos');
+  const [activeTab, setActiveTab] = React.useState<'veiculos'>('veiculos');
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -127,16 +127,6 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
             >
               Veículos
             </button>
-            <button
-              onClick={() => setActiveTab('servicos')}
-              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
-                activeTab === 'servicos'
-                  ? 'bg-white text-indigo-600 shadow-sm border border-gray-200'
-                  : 'text-gray-500 hover:bg-gray-100'
-              }`}
-            >
-              Ordens de Serviço
-            </button>
           </nav>
         </div>
 
@@ -151,44 +141,32 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
       </header>
 
       <main className="p-4 max-w-7xl mx-auto">
-        {activeTab === 'veiculos' ? (
-          <AdminVehicleExitOrder 
-            orders={vehicleExitOrders}
-            inspections={vehicleInspections}
-            vehicleAssets={vehicleAssets}
-            driverAssets={driverAssets}
-            validationRoles={validationRoles}
-            onRegister={onRegisterVehicleExitOrder}
-            onUpdate={onUpdateVehicleExitOrder}
-            onDelete={onDeleteVehicleExitOrder}
-            onRegisterVehicleAsset={onRegisterVehicleAsset}
-            onUpdateVehicleAsset={onUpdateVehicleAsset}
-            onDeleteVehicleAsset={onDeleteVehicleAsset}
-            onRegisterDriverAsset={onRegisterDriverAsset}
-            onUpdateDriverAsset={onUpdateDriverAsset}
-            onDeleteDriverAsset={onDeleteDriverAsset}
-            onRegisterValidationRole={onRegisterValidationRole}
-            onUpdateValidationRole={onUpdateValidationRole}
-            onDeleteValidationRole={onDeleteValidationRole}
-            onRegisterInspection={onRegisterVehicleInspection}
-            onUpdateInspection={onUpdateVehicleInspection}
-            onDeleteInspection={onDeleteVehicleInspection}
-            hideAssets={false}
-            securityMode={false}
-            showGateTab={true}
-            userRole="julio"
-          />
-        ) : (
-          <AdminServiceOrder
-            orders={serviceOrders}
-            maintenanceSchedules={maintenanceSchedules}
-            onUpdate={onUpdateServiceOrder}
-            onDelete={onDeleteServiceOrder}
-            onRegisterMaintenanceSchedule={onRegisterMaintenanceSchedule}
-            onUpdateMaintenanceSchedule={onUpdateMaintenanceSchedule}
-            onDeleteMaintenanceSchedule={onDeleteMaintenanceSchedule}
-          />
-        )}
+        <AdminVehicleExitOrder 
+          orders={vehicleExitOrders}
+          inspections={vehicleInspections}
+          vehicleAssets={vehicleAssets}
+          driverAssets={driverAssets}
+          validationRoles={validationRoles}
+          onRegister={onRegisterVehicleExitOrder}
+          onUpdate={onUpdateVehicleExitOrder}
+          onDelete={onDeleteVehicleExitOrder}
+          onRegisterVehicleAsset={onRegisterVehicleAsset}
+          onUpdateVehicleAsset={onUpdateVehicleAsset}
+          onDeleteVehicleAsset={onDeleteVehicleAsset}
+          onRegisterDriverAsset={onRegisterDriverAsset}
+          onUpdateDriverAsset={onUpdateDriverAsset}
+          onDeleteDriverAsset={onDeleteDriverAsset}
+          onRegisterValidationRole={onRegisterValidationRole}
+          onUpdateValidationRole={onUpdateValidationRole}
+          onDeleteValidationRole={onDeleteValidationRole}
+          onRegisterInspection={onRegisterVehicleInspection}
+          onUpdateInspection={onUpdateVehicleInspection}
+          onDeleteInspection={onDeleteVehicleInspection}
+          hideAssets={false}
+          securityMode={false}
+          showGateTab={true}
+          userRole="julio"
+        />
       </main>
 
       <style>{`

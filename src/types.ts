@@ -19,6 +19,8 @@ export interface Delivery {
     invoiceNumber?: string;
     invoiceUrl?: string;
     invoiceDate?: string;
+    lotNumber?: string;
+    expirationDate?: string;
     isOpened?: boolean;
     barcode?: string;
     receiptTermNumber?: string;
