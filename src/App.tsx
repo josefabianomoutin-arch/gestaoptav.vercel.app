@@ -768,6 +768,22 @@ const App: React.FC = () => {
     });
   }, [suppliers]);
 
+  const handleUpdateInvoiceUrl = useCallback(async (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => {
+    const sRef = child(suppliersRef, supplierCpf);
+    await runTransaction(sRef, (currentData: Supplier) => {
+        if (currentData && currentData.deliveries) {
+            currentData.deliveries = currentData.deliveries.map((d: any) => {
+                if (String(d.invoiceNumber) === String(invoiceNumber)) {
+                    return { ...d, invoiceUrl: invoiceUrl, invoiceUploaded: true };
+                }
+                return d;
+            });
+        }
+        return currentData;
+    });
+    toast.success("Arquivo associado com sucesso!");
+  }, [suppliersRef]);
+
   const handleSaveInvoice = useCallback(async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => {
     const toastId = toast.loading('Enviando nota fiscal...');
     try {
@@ -874,6 +890,32 @@ const App: React.FC = () => {
           
           if (updated) {
             await update(supplierRef, { deliveries });
+            
+            // --- NOVO: Espelhar no warehouseLog ---
+            try {
+              const logSnapshot = await get(warehouseLogRef);
+              const allLogs = logSnapshot.val() || {};
+              const logUpdates: Record<string, any> = {};
+              let hasLogUpdates = false;
+
+              Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
+                if (
+                  entry.supplierCpf === supplierCpf &&
+                  String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)
+                ) {
+                  logUpdates[`${key}/invoiceUrl`] = finalInvoiceUrl;
+                  hasLogUpdates = true;
+                }
+              });
+
+              if (hasLogUpdates) {
+                await update(warehouseLogRef, logUpdates);
+                console.log('Main Supplier: Warehouse log updated with invoice URL');
+              }
+            } catch (e) {
+              console.error("Error syncing invoice URL to warehouse log:", e);
+            }
+
             console.log('Dados do Fornecedor Principal atualizados');
             toast.success('Nota fiscal enviada com sucesso!', { id: toastId });
             return;
@@ -953,7 +995,32 @@ const App: React.FC = () => {
           await updateList(currentPC.pereciveisSuppliers, 'pereciveisSuppliers');
         }
         
-        if (found) {
+    if (found) {
+          // --- NOVO: Espelhar no warehouseLog ---
+          try {
+            const logSnapshot = await get(warehouseLogRef);
+            const allLogs = logSnapshot.val() || {};
+            const updates: Record<string, any> = {};
+            let hasUpdates = false;
+
+            Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
+              if (
+                entry.supplierCpf === supplierCpf &&
+                String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)
+              ) {
+                updates[`${key}/invoiceUrl`] = finalInvoiceUrl;
+                hasUpdates = true;
+              }
+            });
+
+            if (hasUpdates) {
+              await update(warehouseLogRef, updates);
+              console.log('Warehouse log updated with invoice URL');
+            }
+          } catch (e) {
+            console.error("Error syncing invoice URL to warehouse log:", e);
+          }
+
           console.log('Dados PerCapita atualizados');
           toast.success('Nota fiscal enviada com sucesso!', { id: toastId });
         } else {
@@ -1233,6 +1300,32 @@ const App: React.FC = () => {
             return d;
           });
           await update(supplierRef, { deliveries });
+
+          // --- NOVO: Espelhar no warehouseLog ---
+          try {
+            const logSnapshot = await get(warehouseLogRef);
+            const allLogs = logSnapshot.val() || {};
+            const logUpdates: Record<string, any> = {};
+            let hasLogUpdates = false;
+
+            Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
+              if (
+                entry.supplierCpf === supplierCpf &&
+                String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)
+              ) {
+                logUpdates[`${key}/invoiceUrl`] = finalInvoiceUrl;
+                hasLogUpdates = true;
+              }
+            });
+
+            if (hasLogUpdates) {
+              await update(warehouseLogRef, logUpdates);
+              console.log('Main Supplier Update: Warehouse log updated with invoice URL');
+            }
+          } catch (e) {
+            console.error("Error syncing invoice URL to warehouse log:", e);
+          }
+
           return { success: true };
         }
         return { success: false, message: 'Dados do fornecedor não encontrados.' };
@@ -1261,6 +1354,32 @@ const App: React.FC = () => {
               return d;
             });
             await update(child(perCapitaConfigRef, `${listName}/${index}`), { deliveries: updatedDeliveries });
+            
+            // --- NOVO: Espelhar no warehouseLog ---
+            try {
+              const logSnapshot = await get(warehouseLogRef);
+              const allLogs = logSnapshot.val() || {};
+              const updates: Record<string, any> = {};
+              let hasUpdates = false;
+
+              Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
+                if (
+                  entry.supplierCpf === supplierCpf &&
+                  String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)
+                ) {
+                  updates[`${key}/invoiceUrl`] = finalInvoiceUrl;
+                  hasUpdates = true;
+                }
+              });
+
+              if (hasUpdates) {
+                await update(warehouseLogRef, updates);
+                console.log('Warehouse log updated with invoice URL');
+              }
+            } catch (e) {
+              console.error("Error syncing invoice URL to warehouse log:", e);
+            }
+
             found = true;
             return true;
           }
@@ -2852,6 +2971,7 @@ const App: React.FC = () => {
             supplier={supplierWithUpdatedData} 
             isRegisteredForNextPeriod={isRegisteredForNextPeriod}
             monthlySchedule={perCapitaEntry?.monthlySchedule}
+            onUpdateInvoiceUrl={handleUpdateInvoiceUrl}
             onLogout={handleLogout} 
             onScheduleDelivery={handleScheduleDelivery}
             onCancelDeliveries={handleCancelDeliveries}
@@ -2910,6 +3030,7 @@ const App: React.FC = () => {
             type={user.role === 'producer' ? 'PRODUTOR' : 'FORNECEDOR'}
             monthlySchedule={p.monthlySchedule}
             isRegisteredForNextPeriod={true}
+            onUpdateInvoiceUrl={handleUpdateInvoiceUrl}
             onLogout={handleLogout} 
             onScheduleDelivery={handleScheduleDelivery}
             onCancelDeliveries={handleCancelDeliveries}

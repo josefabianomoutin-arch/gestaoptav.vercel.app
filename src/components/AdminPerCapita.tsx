@@ -489,7 +489,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 const [unitType] = (ai.unit || 'kg-1').split('-');
                 if (['litro', 'embalagem', 'caixa', 'dz'].some(u => unitType.includes(u))) return sum;
                 
-                let divisor = 8;
+                const divisor = 8;
                 
                 return sum + roundToTwoDecimalPlaces(weight / divisor);
             }, 0);
@@ -503,7 +503,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     
                     if (id.monthlyWeight > 0) return sum + id.monthlyWeight;
 
-                    let divisor = 8;
+                    const divisor = 8;
                     
                     return sum + roundToTwoDecimalPlaces((id.totalQuantity || 0) / divisor);
                 }, 0);
@@ -533,7 +533,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
                 const value = (contracted && contracted.totalValue > 0) ? contracted.totalValue : ((ai.unitValue || 0) * (ai.acquiredQuantity || 0));
                 
-                let divisor = 8;
+                const divisor = 8;
 
                 return sum + roundToTwoDecimalPlaces(value / divisor);
             }, 0);
@@ -544,7 +544,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 .reduce((sum, id) => {
                     if (id.monthlyValue > 0) return sum + id.monthlyValue;
                     
-                    let divisor = 8;
+                    const divisor = 8;
                     
                     return sum + roundToTwoDecimalPlaces((id.totalValue || 0) / divisor);
                 }, 0);
@@ -651,7 +651,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
             const total = totalFromAcq + totalOnlyInContract;
             
-            let divisor = 8; // requested by user (all categories 8 months)
+            const divisor = 8; // requested by user (all categories 8 months)
             averages[cat] = total / divisor;
         });
         return averages;
