@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { X, Send, Plus, Trash2, FileText, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Delivery, ContractItem } from '../types';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { app } from '../firebaseConfig';
+
+const storage = getStorage(app);
 
 interface SendInvoiceModalProps {
   invoiceInfo: { date: string; deliveries: Delivery[] };
@@ -114,15 +118,39 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
 
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <div className="space-y-1">
+              <div className="space-y-1">
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">URL da Nota (Firebase Storage)</label>
-              <input 
-                type="text" 
-                value={invoiceUrl}
-                onChange={(e) => setInvoiceUrl(e.target.value)}
-                placeholder="https://firebasestorage.googleapis.com/..."
-                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-              />
+              <div className="flex gap-2">
+                <input 
+                    type="text" 
+                    value={invoiceUrl}
+                    onChange={(e) => setInvoiceUrl(e.target.value)}
+                    placeholder="https://firebasestorage.googleapis.com/..."
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                />
+                <label className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-xl cursor-pointer hover:bg-green-100 transition-colors">
+                    <FileText className="w-4 h-4" />
+                    <input type="file" accept="application/pdf" className="hidden" onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                            setLoading(true);
+                            try {
+                                // Use a path structure that is likely to be accessible: invoices/{supplierName or ID}/{fileName}
+                                // I don't have supplier ID easily here, but invoiceInfo.deliveries[0].supplierCpf might work if available or just use a generic path
+                                const fileRef = ref(storage, `invoices/${Date.now()}_${file.name}`);
+                                await uploadBytes(fileRef, file);
+                                const url = await getDownloadURL(fileRef);
+                                setInvoiceUrl(url);
+                            } catch(e) {
+                                console.error(e);
+                                alert("Erro ao fazer upload da nota fiscal.");
+                            } finally {
+                                setLoading(false);
+                            }
+                        }
+                    }} />
+                </label>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
                  <div className="space-y-1">
