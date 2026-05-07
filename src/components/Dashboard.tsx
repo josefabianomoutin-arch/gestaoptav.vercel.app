@@ -510,47 +510,55 @@ const Dashboard: React.FC<DashboardProps> = ({
                                                   ))}
                                               </div>
                                           </td>
-                                          <td className="p-4 text-center flex items-center justify-center gap-2">
-                                              {invoice.invoiceUrl ? (
-                                                  <button 
-                                                      onClick={() => handleOpenPdf(invoice.invoiceUrl)}
-                                                      className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
-                                                  >
-                                                      <Download className="h-3.5 w-3.5" />
-                                                      Baixar
-                                                  </button>
-                                              ) : (
-                                                  <span className="text-[10px] font-bold text-gray-300 uppercase">Sem Anexo</span>
-                                              )}
-                                              
-                                              <input 
-                                                 type="file" 
-                                                 id={`file-upload-${invoice.invoiceNumber}`} 
-                                                 className="hidden" 
-                                                 accept="application/pdf"
-                                                 onChange={async (e) => {
-                                                     if (e.target.files && e.target.files[0]) {
-                                                         try {
-                                                             const file = e.target.files[0];
-                                                             const fileRef = storageRef(storage, `invoices/${supplier.cpf}/${invoice.invoiceNumber}/${file.name}`);
-                                                             await uploadBytes(fileRef, file);
-                                                             const url = await getDownloadURL(fileRef);
-                                                             await onUpdateInvoiceUrl(supplier.cpf, invoice.invoiceNumber, url);
-                                                             toast.success('Nota enviada com sucesso!');
-                                                         } catch (error) {
-                                                             console.error(error);
-                                                             toast.error('Erro ao enviar a nota.');
-                                                         }
-                                                     }
-                                                 }} 
-                                               />
-                                               <button 
-                                                 onClick={() => document.getElementById(`file-upload-${invoice.invoiceNumber}`)?.click()} 
-                                                 className="p-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all" 
-                                                 title="Upload Nota"
-                                               >
-                                                 <Upload className="h-3.5 w-3.5" />
-                                               </button>
+                                          <td className="p-4 text-center">
+                                              <div className="flex items-center justify-center gap-3">
+                                                  {invoice.invoiceUrl ? (
+                                                      <button 
+                                                          onClick={() => handleOpenPdf(invoice.invoiceUrl)}
+                                                          className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-sm"
+                                                      >
+                                                          <Download className="h-3.5 w-3.5" />
+                                                          Baixar
+                                                      </button>
+                                                  ) : (
+                                                      <div className="flex flex-col items-center">
+                                                          <span className="text-[10px] font-black text-rose-500 uppercase tracking-tighter">Pendente Anexo</span>
+                                                          <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Envie o PDF abaixo</span>
+                                                      </div>
+                                                  )}
+                                                  
+                                                  <div className="relative group">
+                                                      <input 
+                                                          type="file" 
+                                                          id={`file-upload-${invoice.invoiceNumber}`} 
+                                                          className="hidden" 
+                                                          accept="application/pdf"
+                                                          onChange={async (e) => {
+                                                              if (e.target.files && e.target.files[0]) {
+                                                                  try {
+                                                                      const file = e.target.files[0];
+                                                                      const fileRef = storageRef(storage, `invoices/${supplier.cpf}/${invoice.invoiceNumber}/${file.name}`);
+                                                                      await uploadBytes(fileRef, file);
+                                                                      const url = await getDownloadURL(fileRef);
+                                                                      await onUpdateInvoiceUrl(supplier.cpf, invoice.invoiceNumber, url);
+                                                                      toast.success('Nota enviada com sucesso!');
+                                                                  } catch (error) {
+                                                                      console.error(error);
+                                                                      toast.error('Erro ao enviar a nota.');
+                                                                  }
+                                                              }
+                                                          }} 
+                                                      />
+                                                      <button 
+                                                          onClick={() => document.getElementById(`file-upload-${invoice.invoiceNumber}`)?.click()} 
+                                                          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md active:scale-95 ${invoice.invoiceUrl ? 'bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white' : 'bg-rose-600 text-white hover:bg-rose-700'}`} 
+                                                          title="Upload Nota"
+                                                      >
+                                                          <Upload className="h-3.5 w-3.5" />
+                                                          {invoice.invoiceUrl ? 'Reenviar' : 'Enviar PDF'}
+                                                      </button>
+                                                  </div>
+                                              </div>
                                           </td>
                                       </tr>
                                   ))}

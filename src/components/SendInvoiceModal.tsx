@@ -118,29 +118,32 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
 
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">URL da Nota (Firebase Storage)</label>
-              <div className="flex gap-2">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Link ou Arquivo da Nota Fiscal</label>
+              <div className="flex flex-col gap-2">
                 <input 
                     type="text" 
                     value={invoiceUrl}
                     onChange={(e) => setInvoiceUrl(e.target.value)}
-                    placeholder="https://firebasestorage.googleapis.com/..."
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    placeholder="URL da nota fiscal (opcional se enviar arquivo)"
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
                 />
-                <label className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-xl cursor-pointer hover:bg-green-100 transition-colors">
-                    <FileText className="w-4 h-4" />
+                <label className="flex items-center justify-center gap-3 px-4 py-3 bg-emerald-600 text-white rounded-xl cursor-pointer hover:bg-emerald-700 transition-all shadow-md group">
+                    <Plus className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
+                    <div className="text-left">
+                        <p className="text-[10px] font-black uppercase tracking-widest leading-none">Anexar PDF da Nota</p>
+                        <p className="text-[8px] font-bold opacity-80 uppercase tracking-tighter mt-1">Clique para selecionar o arquivo</p>
+                    </div>
                     <input type="file" accept="application/pdf" className="hidden" onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
                             setLoading(true);
                             try {
-                                // Use a path structure that is likely to be accessible: invoices/{supplierName or ID}/{fileName}
-                                // I don't have supplier ID easily here, but invoiceInfo.deliveries[0].supplierCpf might work if available or just use a generic path
                                 const fileRef = ref(storage, `invoices/${Date.now()}_${file.name}`);
                                 await uploadBytes(fileRef, file);
                                 const url = await getDownloadURL(fileRef);
                                 setInvoiceUrl(url);
+                                // Optional: Alert success
                             } catch(e) {
                                 console.error(e);
                                 alert("Erro ao fazer upload da nota fiscal.");
@@ -150,6 +153,9 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
                         }
                     }} />
                 </label>
+                {invoiceUrl && (
+                  <p className="text-[9px] text-green-600 font-bold uppercase truncate px-2">✓ Arquivo carregado ou link inserido</p>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
