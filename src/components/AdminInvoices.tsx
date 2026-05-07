@@ -2,9 +2,10 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import type { Supplier, Delivery, WarehouseMovement } from '../types';
-import { Download, Search, FileCheck, AlertCircle, Trash2, RotateCcw, Eye, Plus, X, Edit2, Printer, Barcode as BarcodeIcon } from 'lucide-react';
+import { Download, Search, FileCheck, AlertCircle, Trash2, RotateCcw, Eye, Plus, X, Edit2, Printer, Barcode as BarcodeIcon, Upload } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
-import { app } from '../firebaseConfig';
+import { app, storage } from '../firebaseConfig';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from 'sonner';
 import ConfirmModal from './ConfirmModal';
 
@@ -54,9 +55,12 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   onReopenInvoice,
   onDeleteInvoice,
   onUpdateInvoiceItems,
+  onUpdateInvoiceUrl,
   onManualInvoiceEntry,
   mode = 'admin',
-  perCapitaConfig
+  perCapitaConfig,
+  onMarkInvoiceAsOpened,
+  acquisitionItems
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter] = useState<'all' | 'pending' | 'opened'>('all');
@@ -555,6 +559,36 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                   <td className="px-3 py-1.5">
                     <div className="flex items-center justify-center gap-1">
                       <button onClick={() => handleOpenPdf(inv.invoiceUrl)} className="p-1 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-600 hover:text-white transition-all" title="Ver PDF"><Download className="h-3 w-3" /></button>
+                      
+                      {/* Upload Button */}
+                      <input 
+                        type="file" 
+                        id={`file-upload-${inv.supplierCpf}-${inv.invoiceNumber}`} 
+                        className="hidden" 
+                        onChange={async (e) => {
+                            if (e.target.files && e.target.files[0]) {
+                                try {
+                                    const file = e.target.files[0];
+                                    const fileRef = storageRef(storage, `invoices/${inv.supplierCpf}/${inv.invoiceNumber}/${file.name}`);
+                                    await uploadBytes(fileRef, file);
+                                    const url = await getDownloadURL(fileRef);
+                                    await onUpdateInvoiceUrl(inv.supplierCpf, inv.invoiceNumber, url);
+                                    toast.success('Nota enviada com sucesso!');
+                                } catch (error) {
+                                    console.error(error);
+                                    toast.error('Erro ao enviar a nota.');
+                                }
+                            }
+                        }} 
+                      />
+                      <button 
+                        onClick={() => document.getElementById(`file-upload-${inv.supplierCpf}-${inv.invoiceNumber}`)?.click()} 
+                        className="p-1 bg-amber-50 text-amber-600 rounded-md hover:bg-amber-600 hover:text-white transition-all" 
+                        title="Upload Nota"
+                      >
+                        <Upload className="h-3 w-3" />
+                      </button>
+
                       <button onClick={() => handleEditItems(inv)} className="p-1 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-600 hover:text-white transition-all" title="Editar Itens"><Edit2 className="h-3 w-3" /></button>
                       <button onClick={() => setConfirmConfig({
                           isOpen: true,
