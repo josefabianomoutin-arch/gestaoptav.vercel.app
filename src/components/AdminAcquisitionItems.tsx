@@ -212,10 +212,29 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
         const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
         const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
 
+        // Group data by supplier
+        const suppliersWithItems = suppliers
+            .map(s => {
+                const itemsSource = s.contractItems || {};
+                const supplierItemsList = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                
+                // Filter items that belong to the current category and are in filteredItems
+                const relevantItems = supplierItemsList
+                    .map(si => {
+                        const originalItem = filteredItems.find(fi => normalize(fi.name) === normalize(si.name));
+                        if (!originalItem) return null;
+                        return { ...si, originalItem };
+                    })
+                    .filter(Boolean) as any[];
+
+                return { ...s, relevantItems };
+            })
+            .filter(s => s.relevantItems.length > 0);
+
         const htmlContent = `
             <html>
             <head>
-                <title>Relatório Horizontal - ${category}</title>
+                <title>Mapa de Distribuição por Fornecedor - ${category}</title>
                 <style>
                     @page { size: A4 landscape; margin: 10mm; }
                     body { font-family: Arial, sans-serif; font-size: 10px; }
@@ -226,59 +245,38 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                     .text-right { text-align: right; }
                     h2 { text-align: center; text-transform: uppercase; margin-bottom: 5px; }
                     .header-info { text-align: center; color: #666; margin-bottom: 20px; font-size: 11px; }
+                    .supplier-row { background-color: #f9fafb; font-weight: bold; }
                 </style>
             </head>
             <body>
-                <h2>RELATÓRIO DE DISTRIBUIÇÃO POR ITEM - ${category}</h2>
+                <h2>MAPA DE DISTRIBUIÇÃO POR FORNECEDOR - ${category}</h2>
                 <div class="header-info">Data de emissão: ${new Date().toLocaleDateString('pt-BR')}</div>
                 <table>
                     <thead>
                         <tr>
+                            <th>FORNECEDOR</th>
                             <th>PRODUTO PARA AQUISIÇÃO</th>
-                            <th class="text-right">QTD CONTRATO</th>
-                            <th class="text-right">VALOR CONTRATO</th>
-                            <th>FORNECEDOR(ES) VINCULADO(S)</th>
+                            <th class="text-right">QTD VINCULADA</th>
+                            <th class="text-right">VALOR VINCULADO</th>
                             <th class="text-right">PESO/MÊS</th>
                             <th class="text-right">VALOR/MÊS</th>
                             <th class="text-center">SEMANA</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${filteredItems.flatMap((item) => {
-                            const totalQuantity = item.acquiredQuantity + (item.contractAddendum || 0);
-                            const totalValue = totalQuantity * (item.unitValue || 0);
-                            
-                            const suppliersForItem = suppliers.filter(s => {
-                                const itemsSource = s.contractItems || {};
-                                const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
-                                return supplierItems.some((ci: any) => normalize(ci.name) === normalize(item.name));
-                            });
+                        ${suppliersWithItems.map((s) => {
+                            return s.relevantItems.map((item: any, idx: number) => {
+                                const totalWeight = item.totalKg || 0;
+                                const totalValue = (item.totalKg || 0) * (item.valuePerKg || 0);
+                                const weightMonth = item.monthlyWeight || 0;
+                                const valueMonth = item.monthlyValue || 0;
 
-                            if (suppliersForItem.length === 0) {
                                 return `
                                     <tr>
-                                        <td>${item.name}</td>
-                                        <td class="text-right">${totalQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                        ${idx === 0 ? `<td rowspan="${s.relevantItems.length}" class="supplier-row">${s.name.toUpperCase()}<br><small>${s.cpf}</small></td>` : ''}
+                                        <td>${item.name.toUpperCase()}</td>
+                                        <td class="text-right">${totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                                         <td class="text-right">${formatCurrency(totalValue)}</td>
-                                        <td colspan="4" class="text-center italic text-gray-400">--- SEM VÍNCULO ---</td>
-                                    </tr>
-                                `;
-                            }
-
-                            return suppliersForItem.map((s, idx) => {
-                                const itemsSource = s.contractItems || {};
-                                const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
-                                const contractItem = supplierItems.find((ci: any) => normalize(ci.name) === normalize(item.name));
-                                
-                                const weightMonth = contractItem?.monthlyWeight || 0;
-                                const valueMonth = contractItem?.monthlyValue || 0;
-
-                                return `
-                                    <tr>
-                                        ${idx === 0 ? `<td rowspan="${suppliersForItem.length}">${item.name}</td>` : ''}
-                                        ${idx === 0 ? `<td rowspan="${suppliersForItem.length}" class="text-right">${totalQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>` : ''}
-                                        ${idx === 0 ? `<td rowspan="${suppliersForItem.length}" class="text-right">${formatCurrency(totalValue)}</td>` : ''}
-                                        <td>${s.name.toUpperCase()}</td>
                                         <td class="text-right">${weightMonth.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                                         <td class="text-right">${formatCurrency(valueMonth)}</td>
                                         <td class="text-center">${s.allowedWeeks?.length > 0 ? s.allowedWeeks.join(', ') : 'LIVRE'}</td>
