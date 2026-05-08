@@ -719,9 +719,14 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                 <div className="space-y-1">
                                     <label className="text-[8px] font-black text-emerald-600 uppercase tracking-widest ml-0.5">Valor Total Item na NF (R$)</label>
                                     <input 
-                                        type="number" 
-                                        value={newItem.value || ''} 
-                                        onChange={e => setNewItem({...newItem, value: Number(e.target.value)})}
+                                        type="text" 
+                                        value={newItem.value === 0 ? '' : newItem.value} 
+                                        onChange={e => {
+                                            const val = e.target.value.replace(',', '.');
+                                            if (val === '' || !isNaN(Number(val))) {
+                                                setNewItem({...newItem, value: val === '' ? 0 : Number(val)});
+                                            }
+                                        }}
                                         className="w-full bg-white border border-emerald-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-emerald-400 font-bold text-[10px]" 
                                     />
                                 </div>
@@ -818,8 +823,6 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                       </div>
 
                       {editingInvoice.items.map((item: any, idx: number) => {
-                          const totalPrice = item.value || 0;
-                          
                           return (
                           <div key={idx} className="bg-slate-50 p-4 rounded-xl space-y-3 border border-gray-100 shadow-sm relative group">
                               <div className="font-black text-[10px] text-indigo-900 uppercase tracking-tight flex justify-between">
@@ -857,16 +860,18 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                   <div className="space-y-0.5">
                                       <label className="text-[8px] font-black text-indigo-600 uppercase tracking-widest ml-0.5">Valor Total Item na NF (R$)</label>
                                       <input 
-                                          type="number" 
-                                          value={totalPrice.toFixed(2)} 
-                                          step="0.01"
+                                          type="text" 
+                                          value={item.value === 0 ? '' : item.value} 
                                           onChange={e => {
-                                              const newTotal = Number(e.target.value);
-                                              const newItems = [...editingInvoice.items];
-                                              newItems[idx] = { ...item, value: newTotal };
-                                              setEditingInvoice({ ...editingInvoice, items: newItems });
+                                              const val = e.target.value.replace(',', '.');
+                                              if (val === '' || !isNaN(Number(val))) {
+                                                  const newTotal = val === '' ? 0 : Number(val);
+                                                  const newItems = [...editingInvoice.items];
+                                                  newItems[idx] = { ...item, value: newTotal };
+                                                  setEditingInvoice({ ...editingInvoice, items: newItems });
+                                              }
                                           }}
-                                          className="w-full h-9 px-3 rounded-lg border-2 border-indigo-100 outline-none focus:border-indigo-400 font-bold text-[10px] bg-indigo-50/20" 
+                                          className="w-full h-9 px-3 rounded-lg border-2 border-indigo-100 outline-none focus:border-indigo-400 font-bold text-[10px] bg-white" 
                                       />
                                   </div>
                               </div>

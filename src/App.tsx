@@ -756,7 +756,7 @@ const App: React.FC = () => {
       }
       return currentData;
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSaveInvoice = useCallback(async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => {
     const toastId = toast.loading('Enviando nota fiscal...');
