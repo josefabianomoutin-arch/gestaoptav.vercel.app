@@ -364,7 +364,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             </head>
             <body>
                 <div class="label-card">
-                    <h1>${item.itemName}</h1>
+                    <h1>${item.itemName.split(' ').slice(0, 2).join(' ')}</h1>
                     <h2>${item.supplierName}</h2>
                     <div class="info">
                         <p><strong>LOTE:</strong> <span>${item.lotNumber}</span></p>

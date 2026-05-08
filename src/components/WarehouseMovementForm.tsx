@@ -437,7 +437,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             </head>
             <body>
                 <div class="label-card">
-                    <h1>${item.itemName}</h1>
+                    <h1>${item.itemName.split(' ').slice(0, 2).join(' ')}</h1>
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <h2>${selectedSupplier?.name || 'FORNECEDOR'}</h2>
                         ${balanceAfter !== null ? `<div class="balance-box"><strong>SALDO RESTANTE:</strong> ${balanceAfter.toFixed(2)} kg</div>` : ''}

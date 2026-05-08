@@ -214,7 +214,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
               </div>
               <div class="page-container">
                   <div class="label-card">
-                      <h1>${lot.itemName}</h1>
+                      <h1>${lot.itemName.split(' ').slice(0, 2).join(' ')}</h1>
                       <h2>${lot.supplierName || 'FORNECEDOR NÃO INFORMADO'}</h2>
                       <div class="info">
                           <p><strong>LOTE:</strong> <span>${lot.lotNumber}</span></p>
