@@ -545,13 +545,17 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                         {formatCurrency(inv.items.reduce((sum: number, it: any) => sum + (it.value || 0), 0))}
                     </div>
                   </td>
-                  <td className="px-3 py-1.5">
-                    {inv.isOpened ? (
-                      <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border border-blue-100 flex items-center justify-center gap-1 w-fit">
+                  <td className="px-3 py-1.5 text-center">
+                    {!inv.pd ? (
+                      <span className="bg-red-600 text-white px-2 py-1 rounded-md text-[7px] font-black uppercase tracking-widest flex items-center justify-center gap-1 w-fit mx-auto shadow-sm animate-pulse">
+                        <AlertCircle className="h-2 w-2" /> PENDENTE DE PAGAMENTO
+                      </span>
+                    ) : inv.isOpened ? (
+                      <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border border-blue-100 flex items-center justify-center gap-1 w-fit mx-auto">
                         <Eye className="h-2 w-2" /> OK
                       </span>
                     ) : (
-                      <span className="bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border border-amber-100 flex items-center justify-center gap-1 w-fit">
+                      <span className="bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border border-amber-100 flex items-center justify-center gap-1 w-fit mx-auto">
                         <AlertCircle className="h-2 w-2" /> PEND
                       </span>
                     )}
