@@ -20,9 +20,9 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({ date, deliveries,
   const formattedDate = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
   const invoiceNumber = deliveries.find(d => d.invoiceNumber)?.invoiceNumber;
   
-  const placeholderDeliveries = deliveries.filter(d => d.item === 'AGENDAMENTO PENDENTE');
-  const isPast = date < simulatedToday;
-  const canCancel = !invoiceNumber && placeholderDeliveries.length > 0;
+  const placeholderDeliveries = deliveries.filter(d => !d.invoiceNumber);
+  const isPast = date <= simulatedToday;
+  const canCancel = !invoiceNumber && deliveries.some(d => d.item === 'AGENDAMENTO PENDENTE');
   const needsInvoice = isPast && placeholderDeliveries.length > 0;
 
 
@@ -112,18 +112,19 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({ date, deliveries,
             <div className="space-y-4">
                 {deliveries.length > 0 ? (
                     deliveries.map(delivery => {
+                        const hasInvoice = delivery.invoiceNumber;
                         if (delivery.item === 'AGENDAMENTO PENDENTE') {
                             return (
                                 <div key={delivery.id} className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
                                     <div className="flex justify-between items-center">
                                         <div>
                                             <p className="font-black text-blue-900 text-sm uppercase">Agendado p/ {delivery.time}</p>
-                                            <p className="text-[10px] text-blue-600 font-bold uppercase mt-1">{isPast ? 'Aguardando Lançamento NF' : 'Entrega Futura'}</p>
+                                            <p className="text-[10px] text-blue-600 font-bold uppercase mt-1">{isPast && !hasInvoice ? 'Aguardando Lançamento NF' : hasInvoice ? 'Faturado' : 'Entrega Futura'}</p>
                                         </div>
-                                        {isPast && (
+                                        {isPast && !hasInvoice && (
                                             <button 
                                                 onClick={() => onFulfill({ date: dateString, deliveries: [delivery] })}
-                                                className="bg-green-500 hover:bg-green-600 text-white text-[10px] font-black uppercase px-4 py-2 rounded-xl shadow-lg active:scale-95 transition-all"
+                                                className="bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-xl shadow-lg active:scale-95 transition-all"
                                             >
                                                 Faturar
                                             </button>
@@ -133,12 +134,29 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({ date, deliveries,
                             );
                         }
                         return (
-                            <div key={delivery.id} className="p-4 bg-gray-50 rounded-2xl flex justify-between items-start text-sm border border-gray-100 shadow-sm">
-                                <div>
-                                    <p className="font-black text-gray-800 uppercase text-xs">{delivery.item}</p>
-                                    <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">{(delivery.kg || 0).toFixed(2).replace('.', ',')} Kg</p>
+                            <div key={delivery.id} className="p-4 bg-gray-50 rounded-2xl flex flex-col gap-2 border border-gray-100 shadow-sm relative overflow-hidden">
+                                {isPast && !hasInvoice && (
+                                    <div className="absolute top-0 right-0 p-1">
+                                        <button 
+                                            onClick={() => onFulfill({ date: dateString, deliveries: [delivery] })}
+                                            className="bg-rose-600 hover:bg-rose-700 text-white text-[8px] font-black uppercase px-2 py-1 rounded-lg shadow-sm transition-all"
+                                        >
+                                            Faturar
+                                        </button>
+                                    </div>
+                                )}
+                                <div className="flex justify-between items-start text-sm">
+                                    <div>
+                                        <p className="font-black text-gray-800 uppercase text-xs">{delivery.item}</p>
+                                        <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">{(delivery.kg || 0).toFixed(2).replace('.', ',')} Kg</p>
+                                    </div>
+                                    <span className="font-black text-green-700 whitespace-nowrap pl-4">{formatCurrency(delivery.value || 0)}</span>
                                 </div>
-                                <span className="font-black text-green-700 whitespace-nowrap pl-4">{formatCurrency(delivery.value || 0)}</span>
+                                {hasInvoice && (
+                                    <div className="flex items-center gap-2 mt-1">
+                                         <span className="text-[8px] font-black text-indigo-400 uppercase">NF: {delivery.invoiceNumber}</span>
+                                    </div>
+                                )}
                             </div>
                         );
                     })

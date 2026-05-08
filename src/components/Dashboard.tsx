@@ -146,7 +146,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const pendingDailyInvoices = useMemo((): {date: string, deliveries: Delivery[]}[] => {
     const pending = (Object.values(supplier.deliveries || {}) as any[]).filter(d => {
         const deliveryDate = new Date(d.date + 'T00:00:00');
-        return d.item === 'AGENDAMENTO PENDENTE' && deliveryDate < SIMULATED_TODAY;
+        return !d.invoiceNumber && deliveryDate <= SIMULATED_TODAY;
     });
     const groupedByDate = pending.reduce((acc, delivery) => {
         if (!acc[delivery.date]) acc[delivery.date] = [];
@@ -174,7 +174,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             // Delivery without invoice number - show it as a pending entry
             // only if it's in the past
             const deliveryDate = new Date(delivery.date + 'T00:00:00');
-            if (deliveryDate < SIMULATED_TODAY) {
+            if (deliveryDate <= SIMULATED_TODAY) {
                 const key = `pending-${delivery.id}`;
                 acc[key] = {
                     invoiceNumber: 'PENDENTE',
