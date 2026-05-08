@@ -875,6 +875,36 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                       />
                                   </div>
                               </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                                  <div className="space-y-0.5">
+                                      <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Lote</label>
+                                      <input 
+                                          type="text" 
+                                          value={item.lotNumber || ''} 
+                                          onChange={e => {
+                                              const newItems = [...editingInvoice.items];
+                                              newItems[idx] = { ...item, lotNumber: e.target.value.toUpperCase() };
+                                              setEditingInvoice({ ...editingInvoice, items: newItems });
+                                          }}
+                                          placeholder="LOTE..."
+                                          className="w-full h-9 px-3 rounded-lg border-2 border-gray-100 outline-none focus:border-indigo-400 font-bold text-[10px]" 
+                                      />
+                                  </div>
+                                  <div className="space-y-0.5">
+                                      <label className="text-[8px] font-black text-amber-600 uppercase tracking-widest ml-0.5">Validade</label>
+                                      <input 
+                                          type="date" 
+                                          value={item.expirationDate || ''} 
+                                          onChange={e => {
+                                              const newItems = [...editingInvoice.items];
+                                              newItems[idx] = { ...item, expirationDate: e.target.value };
+                                              setEditingInvoice({ ...editingInvoice, items: newItems });
+                                          }}
+                                          className="w-full h-9 px-3 rounded-lg border-2 border-amber-100 outline-none focus:border-amber-400 font-bold text-[10px]" 
+                                      />
+                                  </div>
+                              </div>
                           </div>
                           );
                       })}
@@ -890,6 +920,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     name: it.item,
                                     kg: it.kg,
                                     value: it.value,
+                                    lotNumber: it.lotNumber,
+                                    expirationDate: it.expirationDate,
                                     barcode: it.barcode
                                 })),
                                 undefined, undefined, undefined, undefined,
