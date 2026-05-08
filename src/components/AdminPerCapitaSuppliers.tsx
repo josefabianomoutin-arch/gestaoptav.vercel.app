@@ -1,15 +1,15 @@
 
 import React, { useState, useRef } from 'react';
 import { toast } from 'sonner';
-import type { PerCapitaSupplier } from '../types';
+import type { PerCapitaSupplier, Delivery } from '../types';
 import ConfirmModal from './ConfirmModal';
 import html2pdf from 'html2pdf.js';
-import { FileText, Upload, CheckCircle2, AlertCircle, X, Download, Plus, Trash2, Calendar, Hash } from 'lucide-react';
+import { FileText, Upload, AlertCircle, X, Download, Trash2, Calendar } from 'lucide-react';
 
 interface AdminPerCapitaSuppliersProps {
     suppliers: PerCapitaSupplier[];
     onUpdate: (suppliers: PerCapitaSupplier[]) => void;
-    onSaveInvoice?: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string, items: any[]) => Promise<any>;
+    onSaveInvoice?: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => Promise<any>;
     onDeleteDelivery?: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean }>;
     type: 'PRODUTOR' | 'FORNECEDOR';
     colorScheme?: 'emerald' | 'indigo';
@@ -548,9 +548,11 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                                                                         const base64 = reader.result as string;
                                                                         const res = await onSaveInvoice(
                                                                             selectedSupplierForInvoices.cpfCnpj, 
+                                                                            [delivery.id],
                                                                             delivery.invoiceNumber || '0', 
                                                                             base64, 
-                                                                            []
+                                                                            [delivery],
+                                                                            delivery.invoiceDate
                                                                         );
                                                                         if (res.success) {
                                                                             toast.success("Nota salva com sucesso!");
@@ -560,7 +562,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                                                                         }
                                                                         setIsUploading(null);
                                                                     };
-                                                                } catch (err) {
+                                                                } catch {
                                                                     toast.error("Erro ao processar arquivo");
                                                                     setIsUploading(null);
                                                                 }

@@ -24,7 +24,7 @@ interface AdminPerCapitaProps {
   acquisitionItems: AcquisitionItem[];
   onUpdateSupplierObservations?: (cpf: string, observations: string) => Promise<{ success: boolean; message?: string }>;
   onSyncPPAISToAgenda?: () => Promise<void>;
-  onSaveInvoice?: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string, items: any[]) => Promise<any>;
+  onSaveInvoice?: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => Promise<any>;
   onDeleteDelivery?: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean }>;
 }
 

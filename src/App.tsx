@@ -437,13 +437,6 @@ const App: React.FC = () => {
 
   const handleLogout = () => setUser(null);
 
-  const handleUploadFile = async (file: File): Promise<string> => {
-    const fileId = `invoices/${Date.now()}_${file.name}`;
-    const fileRef = storageRef(storage, fileId);
-    await uploadBytes(fileRef, file);
-    return await getDownloadURL(fileRef);
-  };
-
   const handleSavePublicInfo = async (info: Omit<PublicInfo, 'id'> & { id?: string }) => {
     try {
       const id = info.id || push(publicInfoRef).key;
@@ -763,7 +756,7 @@ const App: React.FC = () => {
       }
       return currentData;
     });
-  }, [suppliersRef, perCapitaConfigRef]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSaveInvoice = useCallback(async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => {
     const toastId = toast.loading('Enviando nota fiscal...');
@@ -1020,13 +1013,13 @@ const App: React.FC = () => {
   const handleDeleteDelivery = useCallback(async (supplierCpf: string, deliveryId: string) => {
     const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
     if (isMainSupplier) {
-      const supplierRef = child(suppliersRef, supplierCpf);
+      const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
       try {
-        await runTransaction(supplierRef, (currentData: Supplier) => {
-          if (currentData && currentData.deliveries) {
-            currentData.deliveries = currentData.deliveries.filter(d => d.id !== deliveryId);
+        await runTransaction(deliveriesRef, (currentDeliveries) => {
+          if (Array.isArray(currentDeliveries)) {
+            return currentDeliveries.filter(d => d.id !== deliveryId);
           }
-          return currentData;
+          return currentDeliveries;
         });
         toast.success('Entrega excluída com sucesso!');
         return { success: true };
@@ -1038,30 +1031,43 @@ const App: React.FC = () => {
     }
 
     try {
-      await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
-        if (currentData) {
-          const findAndDelete = (list: any[] | undefined) => {
-            const s = list?.find(p => p.cpfCnpj === supplierCpf);
-            if (s && s.deliveries) {
-              s.deliveries = s.deliveries.filter((d: any) => d.id !== deliveryId);
-              return true;
-            }
-            return false;
-          };
-          if (!findAndDelete(currentData.ppaisProducers)) {
-            findAndDelete(currentData.pereciveisSuppliers);
+      // Optimized: Search for the producer index first
+      let listKey: 'ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers' | null = null;
+      let producerIdx = -1;
+
+      if (perCapitaConfig.ppaisProducers) {
+        producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => p.cpfCnpj === supplierCpf);
+        if (producerIdx !== -1) listKey = 'ppaisProducers';
+      }
+      if (listKey === null && perCapitaConfig.pereciveisSuppliers) {
+        producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => p.cpfCnpj === supplierCpf);
+        if (producerIdx !== -1) listKey = 'pereciveisSuppliers';
+      }
+      if (listKey === null && perCapitaConfig.estocaveisSuppliers) {
+        producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => p.cpfCnpj === supplierCpf);
+        if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
+      }
+
+      if (listKey && producerIdx !== -1) {
+        const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${producerIdx}/deliveries`);
+        await runTransaction(deliveriesRef, (currentDeliveries) => {
+          if (Array.isArray(currentDeliveries)) {
+            return currentDeliveries.filter((d: any) => d.id !== deliveryId);
           }
-        }
-        return currentData;
-      });
-      toast.success('Entrega excluída com sucesso!');
-      return { success: true };
+          return currentDeliveries;
+        });
+        toast.success('Entrega excluída com sucesso!');
+        return { success: true };
+      }
+      
+      toast.error('Fornecedor não encontrado.');
+      return { success: false };
     } catch (e) {
       console.error("Error deleting per capita delivery:", e);
       toast.error('Erro ao excluir entrega.');
       return { success: false };
     }
-  }, [suppliers]);
+  }, [suppliers, perCapitaConfig]);
 
   // --- GERENCIAMENTO DE NOTAS FISCAIS (ADMIN) ---
 
@@ -1483,62 +1489,69 @@ const App: React.FC = () => {
   const handleReopenInvoice = async (supplierCpf: string, invoiceNumber: string) => {
     const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
     if (isMainSupplier) {
-      const supplierRef = child(suppliersRef, supplierCpf);
-      await runTransaction(supplierRef, (currentData: Supplier) => {
-        if (currentData && currentData.deliveries) {
-          const entriesForNf = currentData.deliveries.filter(d => d.invoiceNumber === invoiceNumber);
-          if (entriesForNf.length === 0) return currentData;
-
-          const baseDate = entriesForNf[0].date;
-          const baseTime = entriesForNf[0].time;
-
-          // Remove itens faturados
-          currentData.deliveries = currentData.deliveries.filter(d => d.invoiceNumber !== invoiceNumber);
-
-          // Volta para um agendamento pendente
-          currentData.deliveries.push({
-            id: `reopen-${Date.now()}`,
-            date: baseDate,
-            time: baseTime,
-            item: 'AGENDAMENTO PENDENTE',
-            invoiceUploaded: false
-          });
-        }
-        return currentData;
-      });
-      return;
-    }
-
-    await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
-      if (currentData) {
-        const findAndReopen = (list: any[] | undefined) => {
-          const s = list?.find(p => p.cpfCnpj === supplierCpf);
-          if (s && s.deliveries) {
-            const entriesForNf = s.deliveries.filter((d: any) => d.invoiceNumber === invoiceNumber);
-            if (entriesForNf.length === 0) return false;
-
+      const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
+      await runTransaction(deliveriesRef, (currentDeliveries) => {
+        if (Array.isArray(currentDeliveries)) {
+          const deliveries = currentDeliveries as any[];
+          const entriesForNf = deliveries.filter(d => d.invoiceNumber === invoiceNumber);
+          if (entriesForNf.length > 0) {
             const baseDate = entriesForNf[0].date;
             const baseTime = entriesForNf[0].time;
-
-            s.deliveries = s.deliveries.filter((d: any) => d.invoiceNumber !== invoiceNumber);
-
-            s.deliveries.push({
+            const filtered = deliveries.filter(d => d.invoiceNumber !== invoiceNumber);
+            filtered.push({
               id: `reopen-${Date.now()}`,
               date: baseDate,
               time: baseTime,
               item: 'AGENDAMENTO PENDENTE',
               invoiceUploaded: false
             });
-            return true;
+            return filtered;
           }
-          return false;
-        };
-        if (!findAndReopen(currentData.ppaisProducers)) {
-          findAndReopen(currentData.pereciveisSuppliers);
         }
-      }
-      return currentData;
-    });
+        return currentDeliveries;
+      });
+      return;
+    }
+
+    let listKey: 'ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers' | null = null;
+    let producerIdx = -1;
+
+    if (perCapitaConfig.ppaisProducers) {
+      producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => p.cpfCnpj === supplierCpf);
+      if (producerIdx !== -1) listKey = 'ppaisProducers';
+    }
+    if (listKey === null && perCapitaConfig.pereciveisSuppliers) {
+      producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => p.cpfCnpj === supplierCpf);
+      if (producerIdx !== -1) listKey = 'pereciveisSuppliers';
+    }
+    if (listKey === null && perCapitaConfig.estocaveisSuppliers) {
+      producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => p.cpfCnpj === supplierCpf);
+      if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
+    }
+
+    if (listKey && producerIdx !== -1) {
+      const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${producerIdx}/deliveries`);
+      await runTransaction(deliveriesRef, (currentDeliveries) => {
+        if (Array.isArray(currentDeliveries)) {
+          const deliveries = currentDeliveries as any[];
+          const entriesForNf = deliveries.filter((d: any) => d.invoiceNumber === invoiceNumber);
+          if (entriesForNf.length > 0) {
+            const baseDate = entriesForNf[0].date;
+            const baseTime = entriesForNf[0].time;
+            const filtered = deliveries.filter((d: any) => d.invoiceNumber !== invoiceNumber);
+            filtered.push({
+              id: `reopen-${Date.now()}`,
+              date: baseDate,
+              time: baseTime,
+              item: 'AGENDAMENTO PENDENTE',
+              invoiceUploaded: false
+            });
+            return filtered;
+          }
+        }
+        return currentDeliveries;
+      });
+    }
   };
 
   const handleDeleteInvoice = async (supplierCpf: string, invoiceNumber: string, retries = 5) => {
@@ -1562,39 +1575,45 @@ const App: React.FC = () => {
         }
 
         if (isMainSupplier) {
-          const supplierRef = child(suppliersRef, supplierCpf);
+          const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
           console.log(`Iniciando transação MainSupplier (tentativa ${i + 1}):`, supplierCpf);
-          await runTransaction(supplierRef, (currentData: Supplier) => {
-            if (currentData && currentData.deliveries) {
-              console.log('MainSupplier - deliveries antes:', currentData.deliveries.length);
-              currentData.deliveries = currentData.deliveries.filter(d => d.invoiceNumber !== invoiceNumber);
-              console.log('MainSupplier - deliveries depois:', currentData.deliveries.length);
+          await runTransaction(deliveriesRef, (currentDeliveries) => {
+            if (Array.isArray(currentDeliveries)) {
+              return currentDeliveries.filter(d => d.invoiceNumber !== invoiceNumber);
             }
-            return currentData;
+            return currentDeliveries;
           });
           console.log('Transação de exclusão concluída para MainSupplier');
           return { success: true };
         }
 
-        console.log(`Iniciando transação PerCapita (tentativa ${i + 1})`);
-        await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
-          if (currentData) {
-            const findAndDelete = (list: any[] | undefined) => {
-              const s = list?.find(p => p.cpfCnpj === supplierCpf);
-              if (s && s.deliveries) {
-                console.log('PerCapita - deliveries antes:', s.deliveries.length);
-                s.deliveries = s.deliveries.filter((d: any) => d.invoiceNumber !== invoiceNumber);
-                console.log('PerCapita - deliveries depois:', s.deliveries.length);
-                return true;
-              }
-              return false;
-            };
-            if (!findAndDelete(currentData.ppaisProducers)) {
-              findAndDelete(currentData.pereciveisSuppliers);
+        let listKey: 'ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers' | null = null;
+        let producerIdx = -1;
+
+        if (perCapitaConfig.ppaisProducers) {
+          producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => p.cpfCnpj === supplierCpf);
+          if (producerIdx !== -1) listKey = 'ppaisProducers';
+        }
+        if (listKey === null && perCapitaConfig.pereciveisSuppliers) {
+          producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => p.cpfCnpj === supplierCpf);
+          if (producerIdx !== -1) listKey = 'pereciveisSuppliers';
+        }
+        if (listKey === null && perCapitaConfig.estocaveisSuppliers) {
+          producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => p.cpfCnpj === supplierCpf);
+          if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
+        }
+
+        if (listKey && producerIdx !== -1) {
+          const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${producerIdx}/deliveries`);
+          await runTransaction(deliveriesRef, (currentDeliveries) => {
+            if (Array.isArray(currentDeliveries)) {
+              return currentDeliveries.filter((d: any) => d.invoiceNumber !== invoiceNumber);
             }
-          }
-          return currentData;
-        });
+            return currentDeliveries;
+          });
+          console.log('Transação de exclusão concluída para PerCapita indexada');
+          return { success: true };
+        }
         console.log('Transação de exclusão concluída para PerCapita');
         return { success: true };
       } catch (error) {

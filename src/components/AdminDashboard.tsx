@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import type { Supplier, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, UserRole, ServiceOrder, VehicleInspection, MaintenanceSchedule, PublicInfo } from '../types';
+import type { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, UserRole, ServiceOrder, VehicleInspection, MaintenanceSchedule, PublicInfo } from '../types';
 import AdminAnalytics from './AdminAnalytics';
 import AdminContractItems from './AdminContractItems';
 import EditSupplierModal from './EditSupplierModal';
@@ -48,7 +48,7 @@ interface AdminDashboardProps {
   perCapitaConfig: PerCapitaConfig;
   onUpdatePerCapitaConfig: (config: Partial<PerCapitaConfig>) => Promise<{ success: boolean; message?: string }>;
   onDeleteWarehouseEntry: (logEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
-  onDeleteDelivery: (supplierCpf: string, deliveryId: string) => Promise<void>;
+  onDeleteDelivery: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean }>;
   onUpdateWarehouseEntry: (updatedEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
   onRegisterEntry: (payload: any) => Promise<{ success: boolean; message: string; invoiceUrl?: string }>;
   onRegisterWithdrawal: (payload: any) => Promise<{ success: boolean; message: string }>;
@@ -102,7 +102,7 @@ interface AdminDashboardProps {
   publicInfo: PublicInfo[];
   onSavePublicInfo: (info: Omit<PublicInfo, 'id'> & { id?: string }) => Promise<void>;
   onDeletePublicInfo: (id: string) => Promise<void>;
-  onSaveInvoice?: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string, items: any[]) => Promise<any>;
+  onSaveInvoice?: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => Promise<any>;
 }
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
