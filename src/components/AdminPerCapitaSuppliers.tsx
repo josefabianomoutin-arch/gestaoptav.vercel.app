@@ -4,21 +4,29 @@ import { toast } from 'sonner';
 import type { PerCapitaSupplier } from '../types';
 import ConfirmModal from './ConfirmModal';
 import html2pdf from 'html2pdf.js';
+import { FileText, Upload, CheckCircle2, AlertCircle, X, Download, Plus, Trash2, Calendar, Hash } from 'lucide-react';
 
 interface AdminPerCapitaSuppliersProps {
     suppliers: PerCapitaSupplier[];
     onUpdate: (suppliers: PerCapitaSupplier[]) => void;
+    onSaveInvoice?: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string, items: any[]) => Promise<any>;
+    onDeleteDelivery?: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean }>;
     type: 'PRODUTOR' | 'FORNECEDOR';
     colorScheme?: 'emerald' | 'indigo';
 }
 
 const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppliers, onUpdate, type, colorScheme = 'emerald' }) => {
+const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppliers, onUpdate, onSaveInvoice, onDeleteDelivery, type, colorScheme = 'emerald' }) => {
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const tableRef = useRef<HTMLDivElement>(null);
+    
+    // Invoices Modal State
+    const [showInvoicesModal, setShowInvoicesModal] = useState(false);
+    const [selectedSupplierForInvoices, setSelectedSupplierForInvoices] = useState<PerCapitaSupplier | null>(null);
+    const [isUploading, setIsUploading] = useState<string | null>(null); // NF number being uploaded
 
     // Form state
     const [name, setName] = useState('');
@@ -408,6 +416,14 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                                         <td className="p-6 text-right">
                                             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button 
+                                                    onClick={() => { setSelectedSupplierForInvoices(supplier); setShowInvoicesModal(true); }}
+                                                    className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-md active:scale-95 flex items-center gap-2 px-3"
+                                                    title="Gerenciar Notas e Entregas"
+                                                >
+                                                    <Upload className="h-4 w-4" />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">Notas</span>
+                                                </button>
+                                                <button 
                                                     onClick={() => handleEdit(supplier)}
                                                     className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
                                                     title="Editar"
@@ -447,6 +463,171 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                 onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
                 variant={confirmConfig.variant}
             />
+
+            {/* Invoices Modal */}
+            {showInvoicesModal && selectedSupplierForInvoices && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[2rem] shadow-2xl flex flex-col overflow-hidden animate-fade-in border-4 border-emerald-600">
+                        <div className="bg-emerald-600 p-6 flex justify-between items-center">
+                            <div className="flex items-center gap-3 text-white">
+                                <FileText className="h-8 w-8" />
+                                <div>
+                                    <h3 className="text-xl font-black uppercase tracking-tighter leading-none">{selectedSupplierForInvoices.name}</h3>
+                                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mt-1">Gestão de Entregas e Notas Fiscais</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setShowInvoicesModal(false)}
+                                className="bg-white/20 p-2 rounded-full text-white hover:bg-white/30 transition-colors"
+                            >
+                                <X className="h-6 w-6" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                            {selectedSupplierForInvoices.deliveries && selectedSupplierForInvoices.deliveries.length > 0 ? (
+                                <div className="space-y-4">
+                                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2">Entregas Registradas</h4>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {selectedSupplierForInvoices.deliveries.map((delivery: any, idx: number) => (
+                                            <div key={delivery.id || idx} className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all hover:bg-emerald-50/30">
+                                                <div className="flex gap-4">
+                                                    <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center min-w-[70px]">
+                                                        <Calendar className="h-4 w-4 text-emerald-600 mb-1" />
+                                                        <span className="text-[10px] font-black text-gray-900">{new Date(delivery.date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-black text-emerald-900 uppercase">{delivery.item}</span>
+                                                            <span className="text-[10px] bg-white border border-gray-200 px-1.5 py-0.5 rounded font-mono text-gray-500">#{delivery.invoiceNumber || 'S/N'}</span>
+                                                        </div>
+                                                        <div className="text-[10px] text-gray-400 font-bold uppercase mt-1">
+                                                            Qtd: <span className="text-gray-700 font-black">{delivery.kg.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span> {delivery.unit || 'UN'} | 
+                                                            Valor: <span className="text-gray-700 font-black">R$ {delivery.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-3 ml-auto md:ml-0">
+                                                    {delivery.invoiceUrl ? (
+                                                        <a 
+                                                            href={delivery.invoiceUrl} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-200 transition-all border border-emerald-200 shadow-sm"
+                                                        >
+                                                            <Download className="h-3.5 w-3.5" />
+                                                            Ver PDF
+                                                        </a>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 rounded-xl text-[10px] font-black uppercase tracking-widest border border-amber-200">
+                                                            <AlertCircle className="h-3.5 w-3.5" />
+                                                            Sem Nota
+                                                        </div>
+                                                    )}
+
+                                                    <input 
+                                                        type="file" 
+                                                        id={`nf-file-${delivery.id || idx}`}
+                                                        className="hidden"
+                                                        accept="application/pdf"
+                                                        onChange={async (e) => {
+                                                            if (e.target.files && e.target.files[0] && onSaveInvoice) {
+                                                                const file = e.target.files[0];
+                                                                if (file.size > 5 * 1024 * 1024) {
+                                                                    toast.error("O arquivo é muito grande (máximo 5MB)");
+                                                                    return;
+                                                                }
+                                                                
+                                                                setIsUploading(delivery.invoiceNumber || String(idx));
+                                                                
+                                                                try {
+                                                                    const reader = new FileReader();
+                                                                    reader.readAsDataURL(file);
+                                                                    reader.onload = async () => {
+                                                                        const base64 = reader.result as string;
+                                                                        const res = await onSaveInvoice(
+                                                                            selectedSupplierForInvoices.cpfCnpj, 
+                                                                            delivery.invoiceNumber || '0', 
+                                                                            base64, 
+                                                                            []
+                                                                        );
+                                                                        if (res.success) {
+                                                                            toast.success("Nota salva com sucesso!");
+                                                                            // Update local state temporarily or trigger parent refresh
+                                                                            // Since we don't have a direct way to update parent without a full refresh, 
+                                                                            // we just hope handleSaveInvoice worked and parent will refresh.
+                                                                        }
+                                                                        setIsUploading(null);
+                                                                    };
+                                                                } catch (err) {
+                                                                    toast.error("Erro ao processar arquivo");
+                                                                    setIsUploading(null);
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
+                                                    <button 
+                                                        disabled={isUploading === (delivery.invoiceNumber || String(idx))}
+                                                        onClick={() => document.getElementById(`nf-file-${delivery.id || idx}`)?.click()}
+                                                        className={`flex items-center gap-2 px-4 py-2 ${isUploading === (delivery.invoiceNumber || String(idx)) ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-emerald-600 hover:bg-emerald-50 border-2 border-emerald-600'} rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95`}
+                                                    >
+                                                        {isUploading === (delivery.invoiceNumber || String(idx)) ? (
+                                                            <div className="h-3.5 w-3.5 border-2 border-emerald-500 border-t-transparent animate-spin rounded-full"></div>
+                                                        ) : (
+                                                            <Upload className="h-3.5 w-3.5" />
+                                                        )}
+                                                        {delivery.invoiceUrl ? 'Substituir NF' : 'Upload NF'}
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => {
+                                                            setConfirmConfig({
+                                                                isOpen: true,
+                                                                title: 'Excluir Entrega/Agendamento',
+                                                                message: `Tem certeza que deseja excluir esta entrega do dia ${new Date(delivery.date + 'T00:00:00').toLocaleDateString()}?`,
+                                                                variant: 'danger',
+                                                                onConfirm: async () => {
+                                                                    if (onDeleteDelivery) {
+                                                                        await onDeleteDelivery(selectedSupplierForInvoices.cpfCnpj, delivery.id);
+                                                                        // Parent will refresh
+                                                                        setShowInvoicesModal(false);
+                                                                    }
+                                                                    setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                                                                }
+                                                            });
+                                                        }}
+                                                        className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-md active:scale-95"
+                                                        title="Excluir Entrega/Agendamento"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center p-12 text-gray-300 gap-4">
+                                    <div className="bg-gray-50 p-6 rounded-full border-2 border-dashed border-gray-200">
+                                        <AlertCircle className="h-16 w-16" />
+                                    </div>
+                                    <p className="text-center font-black uppercase tracking-widest text-xs">Nenhuma entrega registrada para este {type.toLowerCase()}.</p>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase text-center max-w-xs">As entregas são geradas automaticamente através do módulo de almoxarifado quando uma entrada é realizada.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="bg-gray-50 p-6 border-t border-gray-100 flex justify-end">
+                            <button 
+                                onClick={() => setShowInvoicesModal(false)}
+                                className="px-10 py-4 bg-white border-2 border-zinc-200 text-zinc-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-zinc-50 transition-all shadow-sm"
+                            >
+                                Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

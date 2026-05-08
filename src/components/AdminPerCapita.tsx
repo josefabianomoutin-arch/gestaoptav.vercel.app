@@ -24,6 +24,8 @@ interface AdminPerCapitaProps {
   acquisitionItems: AcquisitionItem[];
   onUpdateSupplierObservations?: (cpf: string, observations: string) => Promise<{ success: boolean; message?: string }>;
   onSyncPPAISToAgenda?: () => Promise<void>;
+  onSaveInvoice?: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string, items: any[]) => Promise<any>;
+  onDeleteDelivery?: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean }>;
 }
 
 const formatCurrency = (value: number) => {
@@ -54,7 +56,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     onDeleteAcquisitionItem, 
     acquisitionItems, 
     onUpdateSupplierObservations,
-    onSyncPPAISToAgenda
+    onSyncPPAISToAgenda,
+    onSaveInvoice,
+    onDeleteDelivery
 }) => {
     const [selectedProducer, setSelectedProducer] = useState<PerCapitaSupplier | null>(null);
     const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'ADIANTAMENTOS' | 'CONTROLE' | 'AUDIT'>('CALCULO');
@@ -78,6 +82,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [comparisonFilter, setComparisonFilter] = useState<'TODOS' | 'SEM_ENTREGA' | 'ATENCAO' | 'AVANCADO' | 'CONCLUIDO' | 'COM_EMPENHO'>('TODOS');
+    const [scheduleView, setScheduleView] = useState<'CALENDAR' | 'SUPPLIER'>('CALENDAR');
 
     useEffect(() => {
         if (!perCapitaConfig) return;
@@ -1890,6 +1895,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                             <AdminPerCapitaSuppliers 
                                 suppliers={ppaisProducers}
                                 onUpdate={handleUpdateProducers}
+                                onSaveInvoice={onSaveInvoice}
+                                onDeleteDelivery={onDeleteDelivery}
                                 type="PRODUTOR"
                                 colorScheme="emerald"
                             />
@@ -1897,6 +1904,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                             <AdminPerCapitaSuppliers 
                                 suppliers={pereciveisSuppliers}
                                 onUpdate={handleUpdatePereciveisSuppliers}
+                                onSaveInvoice={onSaveInvoice}
+                                onDeleteDelivery={onDeleteDelivery}
                                 type="FORNECEDOR"
                                 colorScheme="indigo"
                             />
@@ -1904,6 +1913,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                             <AdminPerCapitaSuppliers 
                                 suppliers={estocaveisSuppliers}
                                 onUpdate={handleUpdateEstocaveisSuppliers}
+                                onSaveInvoice={onSaveInvoice}
+                                onDeleteDelivery={onDeleteDelivery}
                                 type="FORNECEDOR"
                                 colorScheme="indigo"
                             />
@@ -1939,103 +1950,194 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                             />
                         ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS' || activeSubTab === 'ESTOCÁVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'SCHEDULE' : activeSubTab === 'PERECÍVEIS' ? pereciveisSubTab === 'SCHEDULE' : estocaveisSubTab === 'SCHEDULE') ? (
                             <div className="p-8 space-y-8">
-                                <div className="flex justify-end gap-3">
-                                    {activeSubTab === 'PPAIS' && onSyncPPAISToAgenda && (
+                                <div className="flex flex-wrap gap-4 items-center justify-between mb-8">
+                                    <div className="flex bg-zinc-100 p-1 rounded-xl">
                                         <button 
-                                            onClick={onSyncPPAISToAgenda}
-                                            className="px-8 py-3 bg-emerald-600 text-white font-black rounded-xl uppercase text-xs tracking-widest hover:bg-emerald-700 shadow-lg transition-all active:scale-95 flex items-center gap-2"
+                                            onClick={() => setScheduleView('CALENDAR')}
+                                            className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${scheduleView === 'CALENDAR' ? 'bg-white text-indigo-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`}
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                                            Sincronizar com Agenda
+                                            Visão Calendário
                                         </button>
-                                    )}
-                                    <button 
-                                        onClick={() => {
-                                            const element = document.getElementById('delivery-schedule-print');
-                                            if (!element) return;
-                                            
-                                            const scrollPos = window.scrollY;
-                                            window.scrollTo(0, 0);
+                                        <button 
+                                            onClick={() => setScheduleView('SUPPLIER')}
+                                            className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${scheduleView === 'SUPPLIER' ? 'bg-white text-indigo-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`}
+                                        >
+                                            Visão Fornecedor
+                                        </button>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        {activeSubTab === 'PPAIS' && onSyncPPAISToAgenda && (
+                                            <button 
+                                                onClick={onSyncPPAISToAgenda}
+                                                className="px-8 py-3 bg-emerald-600 text-white font-black rounded-xl uppercase text-xs tracking-widest hover:bg-emerald-700 shadow-lg transition-all active:scale-95 flex items-center gap-2"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                                Sincronizar Agenda
+                                            </button>
+                                        )}
+                                        <button 
+                                            onClick={() => {
+                                                const element = document.getElementById('delivery-schedule-print');
+                                                if (!element) return;
+                                                
+                                                const scrollPos = window.scrollY;
+                                                window.scrollTo(0, 0);
 
-                                            const opt = {
-                                                margin: [10, 10, 10, 10] as [number, number, number, number],
-                                                filename: `Cronograma_Entrega_${activeSubTab}.pdf`,
-                                                image: { type: 'jpeg' as const, quality: 0.98 },
-                                                html2canvas: { 
-                                                    scale: 2, 
-                                                    useCORS: true,
-                                                    letterRendering: false,
-                                                    scrollY: 0,
-                                                    windowWidth: element.clientWidth
-                                                },
-                                                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' as const },
-                                                pagebreak: { mode: ['css', 'legacy'] }
-                                            };
-                                            html2pdf()
-                                                .set(opt)
-                                                .from(element)
-                                                .save()
-                                                .then(() => {
-                                                    window.scrollTo(0, scrollPos);
-                                                });
-                                        }}
-                                        className="px-8 py-3 bg-indigo-600 text-white font-black rounded-xl uppercase text-xs tracking-widest hover:bg-indigo-700 shadow-lg transition-all active:scale-95 flex items-center gap-2"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                        Gerar Cronograma PDF
-                                    </button>
+                                                const opt = {
+                                                    margin: [10, 10, 10, 10] as [number, number, number, number],
+                                                    filename: `Cronograma_Entrega_${activeSubTab}.pdf`,
+                                                    image: { type: 'jpeg' as const, quality: 0.98 },
+                                                    html2canvas: { 
+                                                        scale: 2, 
+                                                        useCORS: true,
+                                                        letterRendering: false,
+                                                        scrollY: 0,
+                                                        windowWidth: element.clientWidth
+                                                    },
+                                                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' as const },
+                                                    pagebreak: { mode: ['css', 'legacy'] }
+                                                };
+                                                html2pdf()
+                                                    .set(opt)
+                                                    .from(element)
+                                                    .save()
+                                                    .then(() => {
+                                                        window.scrollTo(0, scrollPos);
+                                                    });
+                                            }}
+                                            className="px-8 py-3 bg-indigo-600 text-white font-black rounded-xl uppercase text-xs tracking-widest hover:bg-indigo-700 shadow-lg transition-all active:scale-95 flex items-center gap-2"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                            Gerar PDF
+                                        </button>
+                                    </div>
                                 </div>
-                                <div id="delivery-schedule-print" className="bg-white p-8 rounded-[2rem] border border-zinc-100">
+                                <div id="delivery-schedule-print" className="bg-white p-8 rounded-[2rem] border border-zinc-100 italic">
                                     <h3 className="text-xl font-black text-zinc-800 uppercase tracking-tighter mb-8 text-center">
                                         Cronograma de Entrega - {activeSubTab}
                                     </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {months.map(month => {
-                                            const currentSuppliers = activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers);
-                                            const suppliersInMonth = currentSuppliers.filter(s => (s.monthlySchedule?.[month] || []).length > 0);
-                                            if (suppliersInMonth.length === 0) return null;
+                                    
+                                    {scheduleView === 'CALENDAR' ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            {months.map(month => {
+                                                const currentSuppliers = activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers);
+                                                const suppliersInMonth = currentSuppliers.filter(s => (s.monthlySchedule?.[month] || []).length > 0);
+                                                if (suppliersInMonth.length === 0) return null;
 
-                                            return (
-                                                <div key={month} className="bg-zinc-50 p-6 rounded-2xl border border-zinc-100">
-                                                    <h4 className="text-sm font-black text-indigo-600 uppercase mb-4 border-b border-indigo-100 pb-2">{month}</h4>
-                                                    <div className="space-y-4">
-                                                        {[1, 2, 3, 4, 5].map(week => {
-                                                            const suppliersInWeek = suppliersInMonth.filter(s => (s.monthlySchedule?.[month] || []).includes(week));
-                                                            if (suppliersInWeek.length === 0) return null;
+                                                return (
+                                                    <div key={month} className="bg-zinc-50 p-6 rounded-2xl border border-zinc-100">
+                                                        <h4 className="text-sm font-black text-indigo-600 uppercase mb-4 border-b border-indigo-100 pb-2">{month}</h4>
+                                                        <div className="space-y-4">
+                                                            {[1, 2, 3, 4, 5].map(week => {
+                                                                const suppliersInWeek = suppliersInMonth.filter(s => (s.monthlySchedule?.[month] || []).includes(week));
+                                                                if (suppliersInWeek.length === 0) return null;
 
-                                                            return (
-                                                                <div key={week} className="space-y-1">
-                                                                    <div className="text-[10px] font-black text-zinc-400 uppercase">Semana {week}</div>
-                                                                    <div className="flex flex-col gap-1">
-                                                                        {suppliersInWeek.map(s => {
-                                                                            const items = Object.values(s.contractItems || {}) as any[];
-                                                                            return (
-                                                                                <div key={s.id} className="bg-white px-3 py-2 rounded-lg border border-zinc-200 shadow-sm">
-                                                                                    <div className="flex justify-between items-center mb-1">
-                                                                                        <span className="text-xs font-black text-zinc-900 uppercase">{s.name}</span>
-                                                                                        <span className="text-[9px] text-zinc-400 font-mono">{s.cpfCnpj}</span>
-                                                                                    </div>
-                                                                                    {items.length > 0 && (
-                                                                                        <div className="flex flex-wrap gap-1">
-                                                                                            {items.map((it, i) => (
-                                                                                                <span key={i} className="text-[8px] bg-zinc-50 text-zinc-500 px-1.5 py-0.5 rounded border border-zinc-100 uppercase font-bold">
-                                                                                                    {it.name} ({it.totalKg} {it.unit || 'KG'})
-                                                                                                </span>
-                                                                                            ))}
+                                                                return (
+                                                                    <div key={week} className="space-y-1">
+                                                                        <div className="text-[10px] font-black text-zinc-400 uppercase">Semana {week}</div>
+                                                                        <div className="flex flex-col gap-1">
+                                                                            {suppliersInWeek.map(s => {
+                                                                                const items = (s.contractItems || []) as any[];
+                                                                                return (
+                                                                                    <div key={s.id} className="bg-white px-3 py-2 rounded-lg border border-zinc-200 shadow-sm">
+                                                                                        <div className="flex justify-between items-center mb-1">
+                                                                                            <span className="text-xs font-black text-zinc-900 uppercase leading-none">{s.name}</span>
+                                                                                            <span className="text-[9px] text-zinc-400 font-mono">{s.cpfCnpj}</span>
                                                                                         </div>
-                                                                                    )}
-                                                                                </div>
-                                                                            );
-                                                                        })}
+                                                                                        {items.length > 0 && (
+                                                                                            <div className="flex flex-wrap gap-1">
+                                                                                                {items.map((it, i) => (
+                                                                                                    <span key={i} className="text-[8px] bg-zinc-50 text-zinc-500 px-1.5 py-0.5 rounded border border-zinc-100 uppercase font-bold">
+                                                                                                        {it.name} ({it.totalKg} {it.unit || 'KG'})
+                                                                                                    </span>
+                                                                                                ))}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            );
-                                                        })}
+                                                                );
+                                                            })}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            {(activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers)).sort((a, b) => a.name.localeCompare(b.name)).map(s => {
+                                                const scheduledMonths = months.filter(m => (s.monthlySchedule?.[m] || []).length > 0);
+                                                if (scheduledMonths.length === 0) return null;
+
+                                                const items = (s.contractItems || []) as any[];
+
+                                                return (
+                                                    <div key={s.id} className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm hover:border-indigo-200 transition-all">
+                                                        <div className="flex justify-between items-start mb-6 border-b border-zinc-100 pb-4">
+                                                            <div>
+                                                                <h4 className="text-md font-black text-zinc-900 uppercase tracking-tighter leading-none">{s.name}</h4>
+                                                                <p className="text-[10px] text-zinc-400 font-mono mt-1 uppercase tracking-widest">{s.cpfCnpj}</p>
+                                                            </div>
+                                                            <div className="bg-indigo-50 px-3 py-1 rounded-lg">
+                                                                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{scheduledMonths.length} Meses</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                                            <div>
+                                                                <h5 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                                    <div className="w-1 h-3 bg-emerald-400 rounded-full"></div>
+                                                                    Itens Contratados
+                                                                </h5>
+                                                                <div className="space-y-1.5">
+                                                                    {items.map((it, i) => (
+                                                                        <div key={i} className="flex justify-between items-center bg-zinc-50 px-3 py-1.5 rounded-lg border border-zinc-100">
+                                                                            <span className="text-[10px] font-bold text-zinc-700 uppercase">{it.name}</span>
+                                                                            <span className="text-[10px] font-black text-indigo-700">{it.totalKg} {it.unit || 'KG'}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+
+                                                            <div>
+                                                                <h5 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                                    <div className="w-1 h-3 bg-indigo-400 rounded-full"></div>
+                                                                    Cronograma Mensal
+                                                                </h5>
+                                                                <div className="space-y-2">
+                                                                    {scheduledMonths.map(m => (
+                                                                        <div key={m} className="flex items-center justify-between group">
+                                                                            <span className="text-[11px] font-black text-zinc-800 uppercase w-20">{m}</span>
+                                                                            <div className="flex gap-1">
+                                                                                {[1, 2, 3, 4, 5].map(w => {
+                                                                                    const isScheduled = (s.monthlySchedule?.[m] || []).includes(w);
+                                                                                    return (
+                                                                                        <div 
+                                                                                            key={w} 
+                                                                                            className={`w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-black transition-all ${
+                                                                                                isScheduled 
+                                                                                                ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-100' 
+                                                                                                : 'bg-zinc-100 text-zinc-300'
+                                                                                            }`}
+                                                                                            title={`Semana ${w}`}
+                                                                                        >
+                                                                                            {w}
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ) : (

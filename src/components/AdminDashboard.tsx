@@ -48,6 +48,7 @@ interface AdminDashboardProps {
   perCapitaConfig: PerCapitaConfig;
   onUpdatePerCapitaConfig: (config: Partial<PerCapitaConfig>) => Promise<{ success: boolean; message?: string }>;
   onDeleteWarehouseEntry: (logEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
+  onDeleteDelivery: (supplierCpf: string, deliveryId: string) => Promise<void>;
   onUpdateWarehouseEntry: (updatedEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
   onRegisterEntry: (payload: any) => Promise<{ success: boolean; message: string; invoiceUrl?: string }>;
   onRegisterWithdrawal: (payload: any) => Promise<{ success: boolean; message: string }>;
@@ -101,6 +102,7 @@ interface AdminDashboardProps {
   publicInfo: PublicInfo[];
   onSavePublicInfo: (info: Omit<PublicInfo, 'id'> & { id?: string }) => Promise<void>;
   onDeletePublicInfo: (id: string) => Promise<void>;
+  onSaveInvoice?: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string, items: any[]) => Promise<any>;
 }
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
@@ -167,7 +169,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     onUpdateInvoiceUrl,
     onUpdateInvoiceItems,
     onDeleteInvoice,
-    onReopenInvoice
+    onReopenInvoice,
+    onSaveInvoice
   } = props;
   const [activeTab, setActiveTab] = useState<AdminTab>(() => {
     const currentMonth = new Date().getMonth();
@@ -474,7 +477,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           </div>
         );
       case 'schedule': return <AdminScheduleView suppliers={combinedSuppliers} thirdPartyEntries={thirdPartyEntries} onCancelDeliveries={onCancelDeliveries} onDeleteThirdPartyEntry={onDeleteThirdPartyEntry} />;
-      case 'perCapita': return <AdminPerCapita suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onUpdatePerCapitaConfig={onUpdatePerCapitaConfig} onUpdateContractForItem={onUpdateContractForItem} onUpdateAcquisitionItem={props.onUpdateAcquisitionItem} onDeleteAcquisitionItem={props.onDeleteAcquisitionItem} acquisitionItems={acquisitionItems} onUpdateSupplierObservations={props.onUpdateSupplierObservations} onSyncPPAISToAgenda={props.onSyncPPAISToAgenda} />;
+      case 'perCapita': return <AdminPerCapita suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onUpdatePerCapitaConfig={onUpdatePerCapitaConfig} onUpdateContractForItem={onUpdateContractForItem} onUpdateAcquisitionItem={props.onUpdateAcquisitionItem} onDeleteAcquisitionItem={props.onDeleteAcquisitionItem} acquisitionItems={acquisitionItems} onUpdateSupplierObservations={props.onUpdateSupplierObservations} onSyncPPAISToAgenda={props.onSyncPPAISToAgenda} onSaveInvoice={onSaveInvoice} onDeleteDelivery={props.onDeleteDelivery} />;
       case 'cleaning': return <AdminCleaningLog logs={cleaningLogs} financialRecords={financialRecords} onRegister={props.onRegisterCleaningLog} onDelete={props.onDeleteCleaningLog} />;
       case 'thirdPartyEntry': return <AdminThirdPartyEntry logs={thirdPartyEntries} onRegister={onRegisterThirdPartyEntry} onUpdate={onUpdateThirdPartyEntry} onDelete={onDeleteThirdPartyEntry} />;
       case 'vehicleExitOrder': return <AdminVehicleExitOrder 
