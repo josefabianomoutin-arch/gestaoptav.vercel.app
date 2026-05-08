@@ -768,22 +768,6 @@ const App: React.FC = () => {
     });
   }, [suppliers]);
 
-  const handleUpdateInvoiceUrl = useCallback(async (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => {
-    const sRef = child(suppliersRef, supplierCpf);
-    await runTransaction(sRef, (currentData: Supplier) => {
-        if (currentData && currentData.deliveries) {
-            currentData.deliveries = currentData.deliveries.map((d: any) => {
-                if (String(d.invoiceNumber) === String(invoiceNumber)) {
-                    return { ...d, invoiceUrl: invoiceUrl, invoiceUploaded: true };
-                }
-                return d;
-            });
-        }
-        return currentData;
-    });
-    toast.success("Arquivo associado com sucesso!");
-  }, [suppliersRef]);
-
   const handleSaveInvoice = useCallback(async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => {
     const toastId = toast.loading('Enviando nota fiscal...');
     try {

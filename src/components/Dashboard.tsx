@@ -9,7 +9,7 @@ import EmailConfirmationModal from './EmailConfirmationModal';
 import SendInvoiceModal from './SendInvoiceModal';
 import ConfirmModal from './ConfirmModal';
 import { speechService } from '../services/speechService';
-import { HelpCircle, Volume2, Calendar as CalendarIcon, FileText, Search, Download, Upload } from 'lucide-react';
+import { HelpCircle, Volume2, Calendar as CalendarIcon, FileText, Search, Download, Upload, Plus } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app, storage } from '../firebaseConfig';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -27,7 +27,7 @@ interface DashboardProps {
   onScheduleDelivery: (supplierCpf: string, date: string, time: string, invoiceNumber?: string, invoiceUrl?: string) => void;
   onCancelDeliveries: (supplierCpf: string, deliveryIds: string[]) => void;
   onSaveInvoice: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => Promise<void>;
-  onUpdateInvoiceUrl: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => Promise<void>;
+  onUpdateInvoiceUrl: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => Promise<{ success: boolean; message?: string }>;
   emailModalData: {
     recipient: string;
     cc: string;
@@ -175,15 +175,18 @@ const Dashboard: React.FC<DashboardProps> = ({
             // only if it's in the past
             const deliveryDate = new Date(delivery.date + 'T00:00:00');
             if (deliveryDate <= SIMULATED_TODAY) {
-                const key = `pending-${delivery.id}`;
-                acc[key] = {
-                    invoiceNumber: 'PENDENTE',
-                    invoiceUrl: null,
-                    date: delivery.date,
-                    items: [delivery],
-                    isUploaded: false,
-                    isPending: true
-                };
+                const key = `pending-${delivery.date}`;
+                if (!acc[key]) {
+                    acc[key] = {
+                        invoiceNumber: 'PENDENTE',
+                        invoiceUrl: null,
+                        date: delivery.date,
+                        items: [],
+                        isUploaded: false,
+                        isPending: true
+                    };
+                }
+                acc[key].items.push(delivery);
             }
         }
         return acc;
@@ -477,6 +480,19 @@ const Dashboard: React.FC<DashboardProps> = ({
                   />
               </div>
               <div className="space-y-6">
+                <button 
+                  onClick={() => handleOpenSendInvoiceModal({ date: new Date().toISOString().split('T')[0], deliveries: [] })}
+                  className="w-full flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-700 text-white p-5 rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-200 transition-all active:scale-95 group"
+                >
+                  <div className="bg-white/20 p-2 rounded-xl group-hover:scale-110 transition-transform">
+                    <Upload className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <p className="leading-none">Cadastrar Nota PDF</p>
+                    <p className="text-[9px] font-bold opacity-70 mt-1">Vincular arquivos aos agendamentos</p>
+                  </div>
+                </button>
+
                 <SummaryCard 
                   supplier={supplier} 
                   activeContractPeriod={activeContractPeriod} 
@@ -495,9 +511,18 @@ const Dashboard: React.FC<DashboardProps> = ({
           </>
         ) : (
           <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden animate-fade-in">
-              <div className="p-6 md:p-8 bg-gray-50 border-b border-gray-100">
-                  <h2 className="text-xl font-black text-gray-900 uppercase tracking-tighter italic">Minhas Notas Fiscais</h2>
-                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">Histórico de notas enviadas e processadas</p>
+              <div className="p-6 md:p-8 bg-gray-50 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div>
+                    <h2 className="text-xl font-black text-gray-900 uppercase tracking-tighter italic">Minhas Notas Fiscais</h2>
+                    <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">Histórico de notas enviadas e processadas</p>
+                  </div>
+                  <button 
+                    onClick={() => handleOpenSendInvoiceModal({ date: new Date().toISOString().split('T')[0], deliveries: [] })}
+                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-200 transition-all active:scale-95"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Enviar Nova Nota Fiscal
+                  </button>
               </div>
               <div className="p-4 md:p-8">
                   {uploadedInvoices.length > 0 ? (
@@ -596,7 +621,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                               <Search className="h-8 w-8 text-gray-300" />
                           </div>
                           <h3 className="text-lg font-black text-gray-400 uppercase tracking-tighter italic">Nenhuma nota encontrada</h3>
-                          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Suas notas aparecerão aqui após o envio</p>
+                          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1 mb-8">Suas notas aparecerão aqui após o envio</p>
+                          <button 
+                            onClick={() => handleOpenSendInvoiceModal({ date: new Date().toISOString().split('T')[0], deliveries: [] })}
+                            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-200 transition-all active:scale-95"
+                          >
+                            <Plus className="w-5 h-5" />
+                            Enviar Primeira Nota Fiscal
+                          </button>
                       </div>
                   )}
               </div>
