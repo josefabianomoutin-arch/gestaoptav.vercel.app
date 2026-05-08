@@ -649,8 +649,8 @@ const Dashboard: React.FC<DashboardProps> = ({
             onCancel={(ids) => { 
                 setConfirmConfig({
                     isOpen: true,
-                    title: 'Excluir',
-                    message: 'Excluir?',
+                    title: ids.length > 1 ? 'Excluir Agendamentos' : 'Excluir Agendamento',
+                    message: ids.length > 1 ? `Deseja realmente excluir os ${ids.length} agendamentos selecionados? Esta ação não pode ser desfeita.` : 'Deseja realmente excluir este agendamento? Esta ação não pode ser desfeita.',
                     onConfirm: () => {
                         onCancelDeliveries(supplier.cpf, ids); 
                         handleCloseViewModal();

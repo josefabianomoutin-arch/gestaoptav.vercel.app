@@ -738,18 +738,16 @@ const App: React.FC = () => {
   };
 
   const handleCancelDeliveries = useCallback(async (supplierCpf: string, deliveryIds: string[]) => {
-    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-    if (isMainSupplier) {
-      const supplierRef = child(suppliersRef, supplierCpf);
-      await runTransaction(supplierRef, (currentData: Supplier) => {
-        if (currentData) {
-          currentData.deliveries = (currentData.deliveries || []).filter(d => !deliveryIds.includes(d.id));
-        }
-        return currentData;
-      });
-      return;
-    }
+    // 1. Try to cancel in main suppliers
+    const supplierRef = child(suppliersRef, supplierCpf);
+    await runTransaction(supplierRef, (currentData: Supplier) => {
+      if (currentData) {
+        currentData.deliveries = (currentData.deliveries || []).filter(d => !deliveryIds.includes(d.id));
+      }
+      return currentData;
+    });
 
+    // 2. Try to cancel in perCapitaConfig (always check both for robustness)
     await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
       if (currentData) {
         const findAndCancel = (list: any[] | undefined) => {
@@ -760,13 +758,12 @@ const App: React.FC = () => {
           }
           return false;
         };
-        if (!findAndCancel(currentData.ppaisProducers)) {
-          findAndCancel(currentData.pereciveisSuppliers);
-        }
+        findAndCancel(currentData.ppaisProducers);
+        findAndCancel(currentData.pereciveisSuppliers);
       }
       return currentData;
     });
-  }, [suppliers]);
+  }, [suppliersRef, perCapitaConfigRef]);
 
   const handleSaveInvoice = useCallback(async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => {
     const toastId = toast.loading('Enviando nota fiscal...');

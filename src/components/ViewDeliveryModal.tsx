@@ -21,9 +21,12 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({ date, deliveries,
   const invoiceNumber = deliveries.find(d => d.invoiceNumber)?.invoiceNumber;
   
   const placeholderDeliveries = deliveries.filter(d => !d.invoiceNumber);
-  const isPast = date <= simulatedToday;
+  const isPastStrict = date < simulatedToday;
+  const isToday = date.toISOString().split('T')[0] === simulatedToday.toISOString().split('T')[0];
+  const isPastOrToday = isPastStrict || isToday;
+  
   const canCancel = !invoiceNumber && deliveries.some(d => d.item === 'AGENDAMENTO PENDENTE');
-  const needsInvoice = isPast && placeholderDeliveries.length > 0;
+  const needsInvoice = isPastOrToday && placeholderDeliveries.length > 0;
 
 
   const formatCurrency = (value: number) => {
@@ -119,32 +122,50 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({ date, deliveries,
                                     <div className="flex justify-between items-center">
                                         <div>
                                             <p className="font-black text-blue-900 text-sm uppercase">Agendado p/ {delivery.time}</p>
-                                            <p className="text-[10px] text-blue-600 font-bold uppercase mt-1">{isPast && !hasInvoice ? 'Aguardando Lançamento NF' : hasInvoice ? 'Faturado' : 'Entrega Futura'}</p>
+                                            <p className="text-[10px] text-blue-600 font-bold uppercase mt-1">{isPastOrToday && !hasInvoice ? 'Aguardando Lançamento NF' : hasInvoice ? 'Faturado' : 'Entrega Futura'}</p>
                                         </div>
-                                        {isPast && !hasInvoice && (
-                                            <button 
-                                                onClick={() => onFulfill({ date: dateString, deliveries: [delivery] })}
-                                                className="bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-xl shadow-lg active:scale-95 transition-all"
-                                            >
-                                                Faturar
-                                            </button>
+                                        {!hasInvoice && (
+                                            <div className="flex gap-2">
+                                                <button 
+                                                    onClick={() => onCancel([delivery.id])}
+                                                    className="bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-black uppercase px-3 py-2 rounded-xl border border-red-100 transition-all active:scale-95"
+                                                >
+                                                    Excluir
+                                                </button>
+                                                {isPastOrToday && (
+                                                    <button 
+                                                        onClick={() => onFulfill({ date: dateString, deliveries: [delivery] })}
+                                                        className="bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-xl shadow-lg active:scale-95 transition-all"
+                                                    >
+                                                        Faturar
+                                                    </button>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                 </div>
                             );
                         }
                         return (
-                            <div key={delivery.id} className="p-4 bg-gray-50 rounded-2xl flex flex-col gap-2 border border-gray-100 shadow-sm relative overflow-hidden">
-                                {isPast && !hasInvoice && (
-                                    <div className="absolute top-0 right-0 p-1">
-                                        <button 
-                                            onClick={() => onFulfill({ date: dateString, deliveries: [delivery] })}
-                                            className="bg-rose-600 hover:bg-rose-700 text-white text-[8px] font-black uppercase px-2 py-1 rounded-lg shadow-sm transition-all"
-                                        >
-                                            Faturar
-                                        </button>
-                                    </div>
-                                )}
+                                <div key={delivery.id} className="p-4 bg-gray-50 rounded-2xl flex flex-col gap-2 border border-gray-100 shadow-sm relative overflow-hidden">
+                                    {!hasInvoice && (
+                                        <div className="absolute top-0 right-0 p-1 flex gap-1">
+                                            <button 
+                                                onClick={() => onCancel([delivery.id])}
+                                                className="bg-red-50 hover:bg-red-100 text-red-600 text-[8px] font-black uppercase px-2 py-1 rounded-lg border border-red-100 shadow-sm transition-all"
+                                            >
+                                                Excluir
+                                            </button>
+                                            {isPastOrToday && (
+                                                <button 
+                                                    onClick={() => onFulfill({ date: dateString, deliveries: [delivery] })}
+                                                    className="bg-rose-600 hover:bg-rose-700 text-white text-[8px] font-black uppercase px-2 py-1 rounded-lg shadow-sm transition-all"
+                                                >
+                                                    Faturar
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
                                 <div className="flex justify-between items-start text-sm">
                                     <div>
                                         <p className="font-black text-gray-800 uppercase text-xs">{delivery.item}</p>
@@ -196,13 +217,13 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({ date, deliveries,
                 )}
                 
                 <div className="grid grid-cols-2 gap-3">
-                    {!isPast && (
+                    {(!isPastStrict || isToday) && (
                         <button type="button" onClick={onAddNew} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-2xl text-[10px] uppercase tracking-widest shadow-md">Novo Horário</button>
                     )}
                     {canCancel && (
                         <button type="button" onClick={() => onCancel(placeholderDeliveries.map(d => d.id))} className="bg-red-50 hover:bg-red-100 text-red-600 font-black py-3 rounded-2xl text-[10px] uppercase tracking-widest border border-red-100">Excluir Tudo</button>
                     )}
-                    <button type="button" onClick={onClose} className={`bg-gray-100 hover:bg-gray-200 text-gray-500 font-black py-3 rounded-2xl text-[10px] uppercase tracking-widest ${!canCancel && isPast ? 'col-span-2' : ''}`}>Fechar</button>
+                    <button type="button" onClick={onClose} className={`bg-gray-100 hover:bg-gray-200 text-gray-500 font-black py-3 rounded-2xl text-[10px] uppercase tracking-widest ${!canCancel && isPastOrToday ? 'col-span-2' : ''}`}>Fechar</button>
                 </div>
             </div>
         </div>
