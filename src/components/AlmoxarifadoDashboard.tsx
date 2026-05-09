@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
 import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, ImageIcon } from 'lucide-react';
+import { HOLIDAYS_2026 } from '../constants';
 import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus } from '../types';
 import AdminInvoices from './AdminInvoices';
 import AgendaChegadas from './AgendaChegadas';
@@ -350,62 +351,60 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             cpfCnpj: pcSupplier?.cpfCnpj || mainSupplier?.cpf || selectedCronogramaSupplier
         };
 
-        // Obter todas as entregas do fornecedor para o mês selecionado
-        const allDeliveries = [
-            ...(Object.values(pcSupplier?.deliveries || {}) as any[]),
-            ...(Object.values(mainSupplier?.deliveries || {}) as any[])
-        ];
+        const activeContractPeriod = perCapitaConfig?.activeContractPeriod || '1_QUAD';
+        const isQ1 = activeContractPeriod === '1_QUAD' ? (monthIndex <= 3) : (monthIndex <= 3 ? true : false); // fallback
+        const divisor = (monthIndex <= 3) ? 4 : 8;
 
-        const supplierDeliveries = allDeliveries.filter(d => {
-            const dateStr = d.invoiceDate || d.date;
-            if (!dateStr) return false;
-            const deliveryDate = new Date(dateStr + 'T12:00:00');
-            return deliveryDate.getMonth() === monthIndex && deliveryDate.getFullYear() === selectedYear;
-        });
+        const itemsSource = supplier.contractItems || {};
+        const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
 
-        // Agrupar por item para o romaneio
-        const groupedDeliveriesMap = supplierDeliveries.reduce((acc: any, d: any) => {
-            const itemName = d.item || 'PRODUTO NÃO INFORMADO';
-            if (!acc[itemName]) acc[itemName] = [];
+        const availableDatesList: string[] = [];
+        const daysInMonthObj = new Date(selectedYear, monthIndex + 1, 0).getDate();
+        const validWeeksForPC = supplier.monthlySchedule?.[selectedMonth.toLowerCase()];
+        const allowedWeeksArray = supplier.allowedWeeks || [];
+
+        for (let d = 1; d <= daysInMonthObj; d++) {
+            const date = new Date(selectedYear, monthIndex, d);
+            // Corrige fuso horário
+            const dateStrRaw = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
             
-            // Tentar buscar o valor no warehouseLog
-            const cleanInv = String(d.invoiceNumber || '').trim().replace(/^0+/, '');
-            const logEntry = warehouseLog.find(log => {
-                const lInbound = String(log.inboundInvoice || '').trim().replace(/^0+/, '');
-                const lOutbound = String(log.outboundInvoice || '').trim().replace(/^0+/, '');
-                const lInvLog = String(log.invoiceNumber || '').trim().replace(/^0+/, '');
-                
-                return (lInbound === cleanInv || lOutbound === cleanInv || lInvLog === cleanInv) &&
-                       (log.item === d.item || log.itemName === d.item) &&
-                       (String(log.supplierCpf || '').replace(/\D/g, '') === String(selectedCronogramaSupplier).replace(/\D/g, ''));
-            });
+            const dayOfWeek = date.getDay();
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            const isHoliday = !!HOLIDAYS_2026[dateStrRaw];
+            
+            if (!isWeekend && !isHoliday) {
+                if (validWeeksForPC && validWeeksForPC.length > 0) {
+                    const wNum = getWeekNumber(new Date(dateStrRaw + 'T12:00:00'));
+                    if (validWeeksForPC.includes(wNum)) {
+                        availableDatesList.push(date.toLocaleDateString('pt-BR'));
+                    }
+                } else if (allowedWeeksArray.length > 0) {
+                    const wNum = getWeekNumber(new Date(dateStrRaw + 'T12:00:00'));
+                    if (allowedWeeksArray.includes(wNum)) {
+                        availableDatesList.push(date.toLocaleDateString('pt-BR'));
+                    }
+                } else {
+                    availableDatesList.push(date.toLocaleDateString('pt-BR'));
+                }
+            }
+        }
 
-            acc[itemName].push({
-                date: d.invoiceDate || d.date,
-                kg: d.kg || d.quantity || 0,
-                value: logEntry?.value || d.value || 0,
-                invoiceNumber: d.invoiceNumber
-            });
-            return acc;
-        }, {} as Record<string, any[]>);
+        const datesScheduled = availableDatesList.length > 0 ? availableDatesList.join(', ') : 'NENHUM DIA DISPONÍVEL';
 
-        const deliveriesByItem = Object.entries(groupedDeliveriesMap).map(([item, deliveriesArray]) => ({
-            item,
-            deliveries: deliveriesArray as any[],
-            totalKg: (deliveriesArray as any[]).reduce((sum, it) => sum + (it.kg || 0), 0)
-        })).sort((a, b) => a.item.localeCompare(b.item));
+        const printItems = supplierItems.map(item => {
+            const quota = (item.totalKg || 0) / divisor;
+            return {
+                item: item.name,
+                totalKg: quota,
+                datesScheduled: datesScheduled
+            };
+        }).sort((a, b) => a.item.localeCompare(b.item));
 
-        // Pegar número de empenho único dos itens agendados
         const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
-        const commitmentNumbers = [...new Set(deliveriesByItem.map(d => {
+        const commitmentNumbers = [...new Set(printItems.map(d => {
             const normIt = normalize(d.item);
-            // Tentar buscar em acquisitionItems primeiro
-            const acqItem = acquisitionItems.find(ai => normalize(ai.name) === normIt || normalize(ai.nickname) === normIt);
+            const acqItem = acquisitionItems?.find(ai => normalize(ai.name) === normIt || normalize(ai.nickname) === normIt);
             if (acqItem?.commitmentNumber) return acqItem.commitmentNumber;
-            
-            // Fallback para itens do contrato do fornecedor
-            const itemsSource = supplier.contractItems || {};
-            const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
             const contractItem = supplierItems.find(ci => normalize(ci.name) === normIt);
             return contractItem?.commitmentNumber;
         }).filter(Boolean))];
@@ -443,8 +442,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     .text-center { text-align: center; }
                     .text-right { text-align: right; }
                     .font-bold { font-weight: bold; }
-                    
-                    .item-badge { background: #f9f9f9; padding: 4px 8px; border: 1px solid #ddd; border-radius: 6px; display: inline-block; margin: 2px; font-size: 8.5pt; }
+                    .text-xs { font-size: 8pt; }
                 </style>
             </head>
             <body>
@@ -478,38 +476,44 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         </tr>
                     </thead>
                     <tbody>
-                        ${deliveriesByItem.length > 0 ? deliveriesByItem.map((itemGroup: any) => {
-                            const datesScheduled = Array.from(new Set(itemGroup.deliveries.map((it:any) => it.date ? it.date.split('-').reverse().join('/') : 'N/A'))).sort().join(', ');
+                        ${printItems.length > 0 ? printItems.map((itemGroup: any) => {
                             return `
                             <tr>
                                 <td><strong>${itemGroup.item}</strong></td>
                                 <td class="text-center font-bold">${(itemGroup.totalKg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</td>
-                                <td class="text-center">${datesScheduled}</td>
+                                <td class="text-center text-xs">${itemGroup.datesScheduled}</td>
                                 <td></td>
                             </tr>
                             `;
                         }).join('') : `
                             <tr>
-                                <td colspan="4" class="text-center italic" style="padding: 20px;">Nenhum agendamento para este período</td>
+                                <td colspan="4" class="text-center italic" style="padding: 20px;">Nenhum item contratual cadastrado para este fornecedor</td>
                             </tr>
                         `}
                     </tbody>
                     <tfoot>
                         <tr class="font-bold uppercase" style="background-color: #f2f2f2;">
                             <td class="text-right">TOTAIS DO PERÍODO</td>
-                            <td class="text-center">${deliveriesByItem.reduce((acc: number, curr: any) => acc + (curr.totalKg || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
+                            <td class="text-center">${printItems.reduce((acc: number, curr: any) => acc + (curr.totalKg || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
                             <td colspan="2"></td>
                         </tr>
                     </tfoot>
                 </table>
-                
+
+                <div style="display: flex; justify-content: space-between; margin-top: 50px;">
+                    <div style="text-align: center; flex: 1;">
+                        <div style="border-top: 1.5px solid #000; width: 250px; margin: 0 auto 5px auto;"></div>
+                        <div style="font-weight: bold; font-size: 8pt;">${supplier.name.toUpperCase()}</div>
+                        <div style="font-size: 9pt;">Contratado</div>
+                    </div>
+                </div>
+
                 <div class="footer-location">
                     Taiuva, ${firstBusinessDay.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </div>
                 
-                <div class="signature-section">
+                <div class="signature-section" style="margin-top: 50px;">
                     <div class="signature-line"></div>
-                    <div class="signature-name">JOSÉ FABIANO MOUTIN</div>
                     <div class="signature-role">Responsável pelo Almoxarifado</div>
                 </div>
             </body>

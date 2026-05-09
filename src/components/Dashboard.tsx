@@ -10,6 +10,7 @@ import SendInvoiceModal from './SendInvoiceModal';
 import ConfirmModal from './ConfirmModal';
 import { speechService } from '../services/speechService';
 import { HelpCircle, Volume2, Calendar as CalendarIcon, FileText, Search, Download, Upload, Plus } from 'lucide-react';
+import { HOLIDAYS_2026 } from '../constants';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app, storage } from '../firebaseConfig';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -264,33 +265,71 @@ const Dashboard: React.FC<DashboardProps> = ({
     const targetMonthDate = new Date(targetMonthKey + '-15');
     const targetMonthName = targetMonthDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
 
-    const deliveriesArray = Object.values(supplier.deliveries || {}) as any[];
-    const monthDeliveries = deliveriesArray
-      .filter(d => d.date.startsWith(targetMonthKey))
-      .sort((a, b) => a.date.localeCompare(b.date));
+    const monthIndex = targetMonthDate.getMonth();
+    const selectedYear = targetMonthDate.getFullYear();
 
-    // Filter commitment numbers from the items in this month's deliveries
-    const commitmentNumbers = [...new Set(monthDeliveries.map(d => {
-        const contractItem = (supplier.contractItems || []).find((ci: any) => ci.name === d.item);
-        return contractItem?.commitmentNumber;
-    }).filter(Boolean))];
-    const commitmentStr = commitmentNumbers.join(' / ') || 'NÃO INFORMADO';
+    const isQ1 = monthIndex <= 3;
+    const divisor = isQ1 ? 4 : 8;
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString + 'T00:00:00');
-        return date.toLocaleDateString('pt-BR');
+    const contractItems = Object.values(supplier.contractItems || {}) as any[];
+
+    const availableDatesList: string[] = [];
+    const daysInMonthObj = new Date(selectedYear, monthIndex + 1, 0).getDate();
+    const validWeeksForPC = supplier.monthlySchedule?.[targetMonthName.split(' ')[0].toLowerCase()];
+    const allowedWeeksArray = supplier.allowedWeeks || [];
+
+    const getWeekNumberLocal = (d: Date): number => {
+        d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+        return weekNo;
     };
 
-    const groupedByItem = new Map<string, any[]>();
-    monthDeliveries.forEach(item => {
-        const name = item.item || 'PRODUTO NÃO INFORMADO';
-        if (!groupedByItem.has(name)) groupedByItem.set(name, []);
-        groupedByItem.get(name)!.push(item);
-    });
+    for (let d = 1; d <= daysInMonthObj; d++) {
+        const date = new Date(selectedYear, monthIndex, d);
+        const dateStrRaw = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        
+        const dayOfWeek = date.getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const isHoliday = !!HOLIDAYS_2026[dateStrRaw];
+        
+        if (!isWeekend && !isHoliday) {
+            if (validWeeksForPC && validWeeksForPC.length > 0) {
+                const wNum = getWeekNumberLocal(new Date(dateStrRaw + 'T12:00:00'));
+                if (validWeeksForPC.includes(wNum)) {
+                    availableDatesList.push(date.toLocaleDateString('pt-BR'));
+                }
+            } else if (allowedWeeksArray.length > 0) {
+                const wNum = getWeekNumberLocal(new Date(dateStrRaw + 'T12:00:00'));
+                if (allowedWeeksArray.includes(wNum)) {
+                    availableDatesList.push(date.toLocaleDateString('pt-BR'));
+                }
+            } else {
+                availableDatesList.push(date.toLocaleDateString('pt-BR'));
+            }
+        }
+    }
 
-    const sortedItemNames = Array.from(groupedByItem.keys()).sort();
-    const totalWeight = monthDeliveries.reduce((sum, d) => sum + (d.kg || 0), 0);
+    const datesScheduled = availableDatesList.length > 0 ? availableDatesList.join(', ') : 'NENHUM DIA DISPONÍVEL';
+
+    const printItems = contractItems.map(item => {
+        const quota = (item.totalKg || 0) / divisor;
+        return {
+            item: item.name,
+            totalKg: quota,
+            datesScheduled: datesScheduled
+        };
+    }).sort((a, b) => a.item.localeCompare(b.item));
+
+    const commitmentNumbers = [...new Set(printItems.map(d => {
+        const contractItem = contractItems.find((ci: any) => ci.name === d.item);
+        return contractItem?.commitmentNumber;
+    }).filter(Boolean))];
+    const commitmentStr = commitmentNumbers.length > 0 ? commitmentNumbers.join(' / ') : 'NÃO INFORMADO';
+
     const now = new Date();
+    const totalWeight = printItems.reduce((sum, i) => sum + (i.totalKg || 0), 0);
 
     const htmlContent = `
         <!DOCTYPE html>
@@ -310,12 +349,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                 .text-right { text-align: right; }
                 .text-center { text-align: center; }
                 .item-tag { display: inline-block; background: #eee; padding: 2px 5px; border-radius: 3px; margin: 1px; border: 1px solid #ccc; font-size: 8pt; }
-                .signatures { margin-top: 30px; display: flex; justify-content: space-around; }
+                .signatures { margin-top: 50px; display: flex; justify-content: space-around; }
                 .signature-block { text-align: center; width: 300px; }
                 .signature-line { border-top: 1px solid #000; margin-bottom: 5px; }
                 .signature-name { font-weight: bold; text-transform: uppercase; font-size: 9pt; }
                 .signature-title { font-size: 8pt; }
                 .location-date { margin-top: 20px; text-align: right; font-weight: bold; }
+                .text-xs { font-size: 7.5pt; }
             </style>
         </head>
         <body>
@@ -328,7 +368,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
                 <div class="info-box">
                     <strong>PROCESSO SEI:</strong> ${supplier.processNumber || 'NÃO INFORMADO'}<br>
-                    <strong>UNIDADE:</strong> PENITENCIÁRIA DE TAIUVA<br>
+                    <strong>UNIDADE:</strong> PENITENCIÁRIA DE TAIÚVA<br>
                     <strong>PERÍODO:</strong> ${targetMonthName}<br>
                     <strong>Nº EMPENHO:</strong> ${commitmentStr}
                 </div>
@@ -346,29 +386,26 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </tr>
                 </thead>
                 <tbody>
-                    ${sortedItemNames.length > 0 ? sortedItemNames.map(itemName => {
-                        const items = groupedByItem.get(itemName)!;
-                        const itemWeight = items.reduce((sum, i) => sum + (i.kg || 0), 0);
-                        const datesScheduled = Array.from(new Set(items.map(i => formatDate(i.date)))).sort().join(', ');
+                    ${printItems.length > 0 ? printItems.map(itemGroup => {
                         return `
                             <tr>
-                                <td><strong>${itemName}</strong></td>
-                                <td class="text-center font-bold">${itemWeight.toFixed(3).replace('.',',')}</td>
-                                <td class="text-center">${datesScheduled}</td>
+                                <td><strong>${itemGroup.item}</strong></td>
+                                <td class="text-center font-bold">${itemGroup.totalKg.toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</td>
+                                <td class="text-center text-xs">${itemGroup.datesScheduled}</td>
                                 <td></td>
                             </tr>
                         `;
-                    }).join('') : '<tr><td colspan="4" class="text-center">Nenhuma entrega agendada para este mês.</td></tr>'}
+                    }).join('') : '<tr><td colspan="4" class="text-center">Nenhum item contratual cadastrado.</td></tr>'}
                 </tbody>
                 <tfoot>
                     <tr style="background-color: #f2f2f2; font-weight: bold; font-size: 11pt;">
                         <td class="text-right">TOTAIS DO PERÍODO</td>
-                        <td class="text-center">${totalWeight.toFixed(3).replace('.',',')} Kg</td>
+                        <td class="text-center">${totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
                         <td colspan="2"></td>
                     </tr>
                 </tfoot>
             </table>
-            <div class="location-date">Taiuva, ${now.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+            <div class="location-date">Taiúva, ${now.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
             <div class="signatures">
                 <div class="signature-block">
                     <div class="signature-line"></div>
@@ -377,11 +414,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
                 <div class="signature-block">
                     <div class="signature-line"></div>
-                    <div class="signature-name">JOSÉ FABIANO MOUTIN</div>
-                    <div class="signature-title">Responsável pelo Almoxarifado</div>
+                    <div class="signature-title text-black font-bold uppercase" style="margin-top: 4px;">Responsável pelo Almoxarifado</div>
                 </div>
             </div>
-            <script>window.onload = function() { window.print(); window.close(); }</script>
+            <script>window.onload = function() { setTimeout(function(){ window.print(); window.close(); }, 500); }</script>
         </body>
         </html>
     `;

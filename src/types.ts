@@ -53,6 +53,7 @@ export interface Supplier {
     contractItems: ContractItem[];
     deliveries: any; // flexible to allow array methods or object access as seen in current code
     allowedWeeks: number[];
+    monthlySchedule?: Record<string, number[]>;
     address?: string;
     city?: string;
     processNumber?: string;
