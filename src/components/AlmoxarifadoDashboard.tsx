@@ -363,10 +363,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             return deliveryDate.getMonth() === monthIndex && deliveryDate.getFullYear() === selectedYear;
         });
 
-        // Agrupar por data para o cronograma
+        // Agrupar por item para o romaneio
         const groupedDeliveriesMap = supplierDeliveries.reduce((acc: any, d: any) => {
-            const displayDate = d.invoiceDate || d.date;
-            if (!acc[displayDate]) acc[displayDate] = [];
+            const itemName = d.item || 'PRODUTO NÃO INFORMADO';
+            if (!acc[itemName]) acc[itemName] = [];
             
             // Tentar buscar o valor no warehouseLog
             const cleanInv = String(d.invoiceNumber || '').trim().replace(/^0+/, '');
@@ -380,8 +380,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                        (String(log.supplierCpf || '').replace(/\D/g, '') === String(selectedCronogramaSupplier).replace(/\D/g, ''));
             });
 
-            acc[displayDate].push({
-                item: d.item,
+            acc[itemName].push({
+                date: d.invoiceDate || d.date,
                 kg: d.kg || d.quantity || 0,
                 value: logEntry?.value || d.value || 0,
                 invoiceNumber: d.invoiceNumber
@@ -389,29 +389,26 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             return acc;
         }, {} as Record<string, any[]>);
 
-        const deliveries = Object.entries(groupedDeliveriesMap).map(([date, items]) => ({
-            date,
-            items: items as any[],
-            totalKg: (items as any[]).reduce((sum, it) => sum + (it.kg || 0), 0),
-            totalValue: (items as any[]).reduce((sum, it) => sum + ((it.kg || 0) * (it.value || 0)), 0)
-        })).sort((a, b) => a.date.localeCompare(b.date));
+        const deliveriesByItem = Object.entries(groupedDeliveriesMap).map(([item, deliveriesArray]) => ({
+            item,
+            deliveries: deliveriesArray as any[],
+            totalKg: (deliveriesArray as any[]).reduce((sum, it) => sum + (it.kg || 0), 0)
+        })).sort((a, b) => a.item.localeCompare(b.item));
 
         // Pegar número de empenho único dos itens agendados
         const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
-        const commitmentNumbers = [...new Set(deliveries.flatMap(d => 
-            d.items.map(it => {
-                const normIt = normalize(it.item);
-                // Tentar buscar em acquisitionItems primeiro
-                const acqItem = acquisitionItems.find(ai => normalize(ai.name) === normIt || normalize(ai.nickname) === normIt);
-                if (acqItem?.commitmentNumber) return acqItem.commitmentNumber;
-                
-                // Fallback para itens do contrato do fornecedor
-                const itemsSource = supplier.contractItems || {};
-                const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
-                const contractItem = supplierItems.find(ci => normalize(ci.name) === normIt);
-                return contractItem?.commitmentNumber;
-            }).filter(Boolean)
-        ))];
+        const commitmentNumbers = [...new Set(deliveriesByItem.map(d => {
+            const normIt = normalize(d.item);
+            // Tentar buscar em acquisitionItems primeiro
+            const acqItem = acquisitionItems.find(ai => normalize(ai.name) === normIt || normalize(ai.nickname) === normIt);
+            if (acqItem?.commitmentNumber) return acqItem.commitmentNumber;
+            
+            // Fallback para itens do contrato do fornecedor
+            const itemsSource = supplier.contractItems || {};
+            const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+            const contractItem = supplierItems.find(ci => normalize(ci.name) === normIt);
+            return contractItem?.commitmentNumber;
+        }).filter(Boolean))];
         const commitmentStr = commitmentNumbers.length > 0 ? commitmentNumbers.join(' / ') : 'N/A';
 
         const printWindow = window.open('', '_blank');
@@ -420,7 +417,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         const htmlContent = `
             <html>
             <head>
-                <title>Cronograma de Entrega - ${selectedMonth} de ${selectedYear}</title>
+                <title>Romaneio - ${selectedMonth} de ${selectedYear}</title>
                 <style>
                     @page { size: A4 portrait; margin: 15mm; }
                     body { font-family: Arial, sans-serif; font-size: 10pt; line-height: 1.4; color: #000; }
@@ -433,7 +430,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     
                     .intro-text { text-align: justify; margin-bottom: 20px; font-size: 9pt; }
                     
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; text-transform: uppercase; }
                     th, td { border: 1.5px solid #000; padding: 6px; text-align: left; vertical-align: middle; }
                     th { font-weight: bold; text-transform: uppercase; background-color: #f2f2f2; text-align: center; }
                     
@@ -451,7 +448,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 </style>
             </head>
             <body>
-                <div class="header-title">CRONOGRAMA DE ENTREGA - ${selectedMonth} DE ${selectedYear}</div>
+                <div class="header-title">ROMANEIO - ${selectedMonth} DE ${selectedYear}</div>
                 
                 <div class="header-boxes">
                     <div class="header-box">
@@ -468,29 +465,30 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 </div>
                 
                 <div class="intro-text">
-                    Solicitamos as devidas providências no sentido de fornecer a esta Unidade Prisional os itens relacionados abaixo, conforme especificações contratuais. As entregas deverão ser efetuadas no endereço mencionado, das 08:00 às 11:00 horas e das 13:00 às 16:00 horas, conforme estipulado neste cronograma.
+                    Solicitamos as devidas providências no sentido de fornecer a esta Unidade Prisional os itens relacionados abaixo, conforme especificações contratuais. As entregas deverão ser efetuadas no endereço mencionado, das 08:00 às 11:00 horas e das 13:00 às 16:00 horas, conforme estipulado neste romaneio.
                 </div>
                 
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 80px;">DATA</th>
-                            <th>PRODUTO / ITEM</th>
-                            <th style="width: 80px;">QUANT.</th>
-                            <th style="width: 100px;">VALOR</th>
+                            <th>ITEM</th>
+                            <th style="width: 100px;">PESO DO MÊS (KG)</th>
+                            <th>DIAS DISPONÍVEIS PARA AGENDAMENTO</th>
+                            <th style="width: 120px;">PESO ENTREGUE</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${deliveries.length > 0 ? deliveries.map((day: any) => 
-                            day.items.map((it: any, itIdx: number) => `
+                        ${deliveriesByItem.length > 0 ? deliveriesByItem.map((itemGroup: any) => {
+                            const datesScheduled = Array.from(new Set(itemGroup.deliveries.map((it:any) => it.date ? it.date.split('-').reverse().join('/') : 'N/A'))).sort().join(', ');
+                            return `
                             <tr>
-                                ${itIdx === 0 ? `<td class="text-center font-bold" rowspan="${day.items.length}">${day.date.split('-').reverse().join('/')}</td>` : ''}
-                                <td>${(it.item || 'N/A').toUpperCase()}</td>
-                                <td class="text-center font-bold">${(it.kg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                <td class="text-right font-bold">R$ ${(it.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                <td><strong>${itemGroup.item}</strong></td>
+                                <td class="text-center font-bold">${(itemGroup.totalKg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</td>
+                                <td class="text-center">${datesScheduled}</td>
+                                <td></td>
                             </tr>
-                            `).join('')
-                        ).join('') : `
+                            `;
+                        }).join('') : `
                             <tr>
                                 <td colspan="4" class="text-center italic" style="padding: 20px;">Nenhum agendamento para este período</td>
                             </tr>
@@ -498,9 +496,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     </tbody>
                     <tfoot>
                         <tr class="font-bold uppercase" style="background-color: #f2f2f2;">
-                            <td colspan="2" class="text-right">TOTAIS DO PERÍODO</td>
-                            <td class="text-center">${deliveries.reduce((acc: number, curr: any) => acc + (curr.totalKg || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
-                            <td class="text-right">R$ ${deliveries.reduce((acc: number, curr: any) => acc + curr.items.reduce((sum: number, it: any) => sum + (it.value || 0), 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            <td class="text-right">TOTAIS DO PERÍODO</td>
+                            <td class="text-center">${deliveriesByItem.reduce((acc: number, curr: any) => acc + (curr.totalKg || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
+                            <td colspan="2"></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -512,7 +510,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 <div class="signature-section">
                     <div class="signature-line"></div>
                     <div class="signature-name">JOSÉ FABIANO MOUTIN</div>
-                    <div class="signature-role">Chefe de Seção de Finanças e Suprimentos</div>
+                    <div class="signature-role">Responsável pelo Almoxarifado</div>
                 </div>
             </body>
             </html>

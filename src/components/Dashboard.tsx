@@ -70,6 +70,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [deliveriesToShow, setDeliveriesToShow] = useState<Delivery[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [printMonth, setPrintMonth] = useState<string>('');
   
   const [confirmConfig, setConfirmConfig] = useState<{
       isOpen: boolean;
@@ -259,17 +260,14 @@ const Dashboard: React.FC<DashboardProps> = ({
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const now = new Date();
-    const currentMonthName = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
-    const currentMonthKey = now.toISOString().substring(0, 7);
+    const targetMonthKey = printMonth || new Date().toISOString().substring(0, 7);
+    const targetMonthDate = new Date(targetMonthKey + '-15');
+    const targetMonthName = targetMonthDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
 
     const deliveriesArray = Object.values(supplier.deliveries || {}) as any[];
     const monthDeliveries = deliveriesArray
-      .filter(d => d.date.startsWith(currentMonthKey))
+      .filter(d => d.date.startsWith(targetMonthKey))
       .sort((a, b) => a.date.localeCompare(b.date));
-
-    const totalWeight = monthDeliveries.reduce((sum, d) => sum + (d.kg || 0), 0);
-    const totalValue = monthDeliveries.reduce((sum, d) => sum + (d.value || 0), 0);
 
     // Filter commitment numbers from the items in this month's deliveries
     const commitmentNumbers = [...new Set(monthDeliveries.map(d => {
@@ -278,17 +276,27 @@ const Dashboard: React.FC<DashboardProps> = ({
     }).filter(Boolean))];
     const commitmentStr = commitmentNumbers.join(' / ') || 'NÃO INFORMADO';
 
-    const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
     const formatDate = (dateString: string) => {
         const date = new Date(dateString + 'T00:00:00');
         return date.toLocaleDateString('pt-BR');
     };
 
+    const groupedByItem = new Map<string, any[]>();
+    monthDeliveries.forEach(item => {
+        const name = item.item || 'PRODUTO NÃO INFORMADO';
+        if (!groupedByItem.has(name)) groupedByItem.set(name, []);
+        groupedByItem.get(name)!.push(item);
+    });
+
+    const sortedItemNames = Array.from(groupedByItem.keys()).sort();
+    const totalWeight = monthDeliveries.reduce((sum, d) => sum + (d.kg || 0), 0);
+    const now = new Date();
+
     const htmlContent = `
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Cronograma de Entrega - ${supplier.name}</title>
+            <title>Romaneio - ${supplier.name}</title>
             <style>
                 @page { size: A4 landscape; margin: 10mm; }
                 body { font-family: Arial, sans-serif; line-height: 1.3; color: #000; font-size: 10pt; margin: 0; padding: 0; }
@@ -311,7 +319,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </style>
         </head>
         <body>
-            <div class="header">CRONOGRAMA DE ENTREGA - ${currentMonthName}</div>
+            <div class="header">ROMANEIO - ${targetMonthName}</div>
             <div class="info-grid">
                 <div class="info-box">
                     <strong>FORNECEDOR:</strong> ${supplier.name.toUpperCase()}<br>
@@ -321,7 +329,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div class="info-box">
                     <strong>PROCESSO SEI:</strong> ${supplier.processNumber || 'NÃO INFORMADO'}<br>
                     <strong>UNIDADE:</strong> PENITENCIÁRIA DE TAIUVA<br>
-                    <strong>PERÍODO:</strong> ${currentMonthName}<br>
+                    <strong>PERÍODO:</strong> ${targetMonthName}<br>
                     <strong>Nº EMPENHO:</strong> ${commitmentStr}
                 </div>
             </div>
@@ -331,31 +339,32 @@ const Dashboard: React.FC<DashboardProps> = ({
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 100px;">DATA</th>
-                        <th>ITENS AGENDADOS (DESCRIÇÃO / QUANTIDADE / VALOR)</th>
-                        <th style="width: 100px;">PESO TOTAL (KG)</th>
-                        <th style="width: 120px;">VALOR TOTAL (R$)</th>
+                        <th>ITEM</th>
+                        <th style="width: 100px;">PESO DO MÊS (KG)</th>
+                        <th>DIAS DISPONÍVEIS PARA AGENDAMENTO</th>
+                        <th style="width: 120px;">PESO ENTREGUE</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${monthDeliveries.length > 0 ? monthDeliveries.map(d => `
-                        <tr>
-                            <td class="text-center font-bold">${formatDate(d.date)}</td>
-                            <td>
-                                <div class="item-tag">
-                                    <strong>${d.item || 'ENTREGA'}</strong>: ${d.kg?.toFixed(2).replace('.',',')}Kg - ${formatCurrency(d.value || 0)}
-                                </div>
-                            </td>
-                            <td class="text-center font-bold">${(d.kg || 0).toFixed(3).replace('.',',')}</td>
-                            <td class="text-right font-bold">${formatCurrency(d.value || 0)}</td>
-                        </tr>
-                    `).join('') : '<tr><td colspan="4" class="text-center">Nenhuma entrega agendada para este mês.</td></tr>'}
+                    ${sortedItemNames.length > 0 ? sortedItemNames.map(itemName => {
+                        const items = groupedByItem.get(itemName)!;
+                        const itemWeight = items.reduce((sum, i) => sum + (i.kg || 0), 0);
+                        const datesScheduled = Array.from(new Set(items.map(i => formatDate(i.date)))).sort().join(', ');
+                        return `
+                            <tr>
+                                <td><strong>${itemName}</strong></td>
+                                <td class="text-center font-bold">${itemWeight.toFixed(3).replace('.',',')}</td>
+                                <td class="text-center">${datesScheduled}</td>
+                                <td></td>
+                            </tr>
+                        `;
+                    }).join('') : '<tr><td colspan="4" class="text-center">Nenhuma entrega agendada para este mês.</td></tr>'}
                 </tbody>
                 <tfoot>
                     <tr style="background-color: #f2f2f2; font-weight: bold; font-size: 11pt;">
-                        <td colspan="2" class="text-right">TOTAIS DO PERÍODO</td>
+                        <td class="text-right">TOTAIS DO PERÍODO</td>
                         <td class="text-center">${totalWeight.toFixed(3).replace('.',',')} Kg</td>
-                        <td class="text-right">${formatCurrency(totalValue)}</td>
+                        <td colspan="2"></td>
                     </tr>
                 </tfoot>
             </table>
@@ -369,7 +378,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div class="signature-block">
                     <div class="signature-line"></div>
                     <div class="signature-name">JOSÉ FABIANO MOUTIN</div>
-                    <div class="signature-title">Chefe de Seção de Finanças e Suprimentos</div>
+                    <div class="signature-title">Responsável pelo Almoxarifado</div>
                 </div>
             </div>
             <script>window.onload = function() { window.print(); window.close(); }</script>
@@ -445,17 +454,30 @@ const Dashboard: React.FC<DashboardProps> = ({
                         <p className={`text-xs font-bold ${bannerTextColor} mt-1 uppercase tracking-widest`}>Agendamento disponível para todos os dias úteis</p>
                     </div>
                 </div>
-                <div className="flex flex-col items-center gap-3">
+                <div className="flex flex-col md:flex-row items-center gap-3">
                     <div className="flex flex-wrap justify-center gap-2">
                         <span className="bg-green-400 text-green-950 font-black px-6 py-2 rounded-xl text-sm shadow-md uppercase tracking-widest">Aberto para Agendamento</span>
                     </div>
-                    <button 
-                        onClick={handleGenerateReport}
-                        className="bg-white/10 hover:bg-white/20 text-white border border-white/30 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95"
-                    >
-                        <Download className="h-3.5 w-3.5" />
-                        Imprimir Cronograma
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <select 
+                            value={printMonth}
+                            onChange={(e) => setPrintMonth(e.target.value)}
+                            className="bg-white/10 hover:bg-white/20 text-white border border-white/30 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all outline-none"
+                        >
+                            <option value="" className="text-black">Mês Atual</option>
+                            {Array.from(new Set(Object.values(supplier.deliveries || {}).map((d: any) => d.date.substring(0, 7)).sort().reverse())).map(ym => {
+                                const d = new Date(ym + '-15');
+                                return <option key={ym} value={ym} className="text-black">{d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</option>
+                            })}
+                        </select>
+                        <button 
+                            onClick={handleGenerateReport}
+                            className="bg-white hover:bg-gray-100 text-blue-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-md active:scale-95"
+                        >
+                            <Download className="h-3.5 w-3.5" />
+                            Imprimir Romaneio
+                        </button>
+                    </div>
                 </div>
             </div>
 
