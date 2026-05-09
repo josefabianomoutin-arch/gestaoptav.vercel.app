@@ -162,21 +162,21 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
             return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
         };
 
-        // Agrupar itens por data para layout compacto
-        const groupedByDate = new Map<string, any[]>();
+        // Agrupar itens por item para novo layout Romaneio
+        const groupedByItem = new Map<string, any[]>();
         selectedReportItems.forEach(item => {
-            const date = item.date;
-            if (!groupedByDate.has(date)) groupedByDate.set(date, []);
-            groupedByDate.get(date)!.push(item);
+            const name = item.item;
+            if (!groupedByItem.has(name)) groupedByItem.set(name, []);
+            groupedByItem.get(name)!.push(item);
         });
 
-        const sortedDates = Array.from(groupedByDate.keys()).sort();
+        const sortedItemNames = Array.from(groupedByItem.keys()).sort();
 
         const htmlContent = `
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Cronograma de Entrega - ${supplier.name}</title>
+                <title>Romaneio - ${supplier.name}</title>
                 <style>
                     @page { 
                         size: A4 landscape; 
@@ -214,7 +214,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                 </style>
             </head>
             <body>
-                <div class="header">CRONOGRAMA DE ENTREGA - ${getMonthName(reportSelectedMonth)}</div>
+                <div class="header">ROMANEIO - ${getMonthName(reportSelectedMonth)}</div>
 
                 <div class="info-grid">
                     <div class="info-box">
@@ -231,46 +231,38 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                 </div>
 
                 <div class="opening-text">
-                    Solicitamos as devidas providências no sentido de fornecer a esta Unidade Prisional os itens relacionados abaixo, conforme especificações contratuais. As entregas deverão ser efetuadas no endereço mencionado, das 08:00 às 11:00 horas e das 13:00 às 16:00 horas, conforme estipulado neste cronograma.
+                    Solicitamos as devidas providências no sentido de fornecer a esta Unidade Prisional os itens relacionados abaixo, conforme especificações contratuais. As entregas deverão ser efetuadas no endereço mencionado, das 08:00 às 11:00 horas e das 13:00 às 16:00 horas, conforme estipulado neste romaneio.
                 </div>
 
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 100px;">DATA</th>
-                            <th>ITENS AGENDADOS (DESCRIÇÃO / QUANTIDADE / VALOR)</th>
-                            <th style="width: 100px;">PESO TOTAL (KG)</th>
-                            <th style="width: 120px;">VALOR TOTAL (R$)</th>
+                            <th>ITEM</th>
+                            <th style="width: 100px;">PESO DO MÊS (KG)</th>
+                            <th>DIAS DISPONÍVEIS PARA AGENDAMENTO</th>
+                            <th style="width: 120px;">PESO ENTREGUE</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${sortedDates.map(date => {
-                            const items = groupedByDate.get(date)!;
-                            const dayWeight = items.reduce((sum, i) => sum + (i.kg || 0), 0);
-                            const dayValue = items.reduce((sum, i) => sum + (i.value || 0), 0);
+                        ${sortedItemNames.map(itemName => {
+                            const items = groupedByItem.get(itemName)!;
+                            const itemWeight = items.reduce((sum, i) => sum + (i.kg || 0), 0);
+                            const datesScheduled = Array.from(new Set(items.map(i => formatDate(i.date)))).sort().join(', ');
                             return `
                                 <tr>
-                                    <td class="text-center font-bold">${formatDate(date)}</td>
-                                    <td>
-                                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                                            ${items.map(item => `
-                                                <div class="item-tag">
-                                                    <strong>${item.item}</strong>: ${item.kg?.toFixed(2).replace('.',',')}Kg - ${formatCurrency(item.value || 0)}
-                                                </div>
-                                            `).join('')}
-                                        </div>
-                                    </td>
-                                    <td class="text-center font-bold">${dayWeight.toFixed(3).replace('.',',')}</td>
-                                    <td class="text-right font-bold">${formatCurrency(dayValue)}</td>
+                                    <td><strong>${itemName}</strong></td>
+                                    <td class="text-center font-bold">${itemWeight.toFixed(3).replace('.',',')}</td>
+                                    <td class="text-center">${datesScheduled}</td>
+                                    <td></td>
                                 </tr>
                             `;
                         }).join('')}
                     </tbody>
                     <tfoot>
                         <tr style="background-color: #f2f2f2; font-weight: bold; font-size: 11pt;">
-                            <td colspan="2" class="text-right">TOTAIS DO PERÍODO</td>
+                            <td class="text-right">TOTAIS DO PERÍODO</td>
                             <td class="text-center">${reportTotals.totalWeight.toFixed(3).replace('.',',')} Kg</td>
-                            <td class="text-right">${formatCurrency(reportTotals.totalValue)}</td>
+                            <td colspan="2"></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -287,8 +279,8 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                     </div>
                     <div class="signature-block">
                         <div class="signature-line"></div>
-                        <div class="signature-name">JOSÉ FABIANO MOUTIN</div>
-                        <div class="signature-title">Chefe de Seção de Finanças e Suprimentos</div>
+                        <div class="signature-name">RESPONSÁVEL PELO ALMOXARIFADO</div>
+                        <div class="signature-title"></div>
                     </div>
                 </div>
 
@@ -383,7 +375,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                     onClick={() => setActiveSubTab('report')} 
                     className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${activeSubTab === 'report' ? 'bg-purple-600 text-white shadow-lg' : 'text-purple-400 hover:bg-purple-50'}`}
                 >
-                    Cronograma de Entrega
+                    Romaneio
                 </button>
             </div>
 
@@ -596,7 +588,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                 </div>
             ) : activeSubTab === 'report' ? (
                 <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-4xl mx-auto border-t-8 border-purple-600">
-                    <h2 className="text-2xl font-black text-purple-900 uppercase tracking-tighter mb-6">Gerador de Cronograma de Entrega</h2>
+                    <h2 className="text-2xl font-black text-purple-900 uppercase tracking-tighter mb-6">Gerador de Romaneio</h2>
                     
                     <div className="space-y-6">
                         <div>
@@ -661,7 +653,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                                 {reportItems.length > 0 && (
                                     <div className="animate-fade-in space-y-4">
                                         <div className="flex justify-between items-center">
-                                            <label className="block text-xs font-bold text-gray-500 uppercase ml-1">5. Selecione os Itens para o Cronograma</label>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase ml-1">5. Selecione os Itens para o Romaneio</label>
                                             <div className="flex gap-2">
                                                 <button 
                                                     onClick={() => setSelectedItemIds(reportItems.map(i => i.id))}
@@ -735,12 +727,12 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                                 <div className="mt-8 border-2 border-dashed border-purple-100 rounded-[2.5rem] p-8 bg-purple-50/30">
                                     <h3 className="text-sm font-black text-purple-900 uppercase tracking-widest mb-6 flex items-center gap-2">
                                         <div className="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></div>
-                                        Pré-visualização do Cronograma
+                                        Pré-visualização do Romaneio
                                     </h3>
                                     
                                     <div className="bg-white rounded-3xl shadow-sm border border-purple-100 p-8 space-y-6 text-[11px] font-serif overflow-x-auto relative">
                                         <div className="text-center font-bold uppercase text-sm border-b-2 border-black pb-4 mb-6">
-                                            CRONOGRAMA DE ENTREGA
+                                            ROMANEIO - ${getMonthName(reportSelectedMonth)}
                                         </div>
                                         
                                         <div className="grid grid-cols-2 gap-4 mb-6 text-[10px]">
@@ -768,27 +760,32 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                                         <table className="w-full border-collapse border border-black">
                                             <thead>
                                                 <tr className="bg-gray-100 uppercase font-bold">
-                                                    <th className="border border-black p-2">Data</th>
                                                     <th className="border border-black p-2">Item</th>
-                                                    <th className="border border-black p-2">Peso (Kg)</th>
-                                                    <th className="border border-black p-2">Valor (R$)</th>
+                                                    <th className="border border-black p-2 text-center">Peso do Mês (Kg)</th>
+                                                    <th className="border border-black p-2 text-center">Dias Disponíveis para Agendamento</th>
+                                                    <th className="border border-black p-2 text-center">Peso Entregue</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {selectedReportItems.map((item, idx) => (
-                                                    <tr key={idx}>
-                                                        <td className="border border-black p-2 text-center">{formatDate(item.date)}</td>
-                                                        <td className="border border-black p-2">{item.item}</td>
-                                                        <td className="border border-black p-2 text-center">{item.kg?.toFixed(3)}</td>
-                                                        <td className="border border-black p-2 text-right">{formatCurrency(item.value || 0)}</td>
-                                                    </tr>
-                                                ))}
+                                                {Array.from(new Set(selectedReportItems.map(i => i.item))).sort().map((itemName, idx) => {
+                                                    const itemsOfThis = selectedReportItems.filter(i => i.item === itemName);
+                                                    const weight = itemsOfThis.reduce((s, i) => s + (i.kg || 0), 0);
+                                                    const dates = Array.from(new Set(itemsOfThis.map(i => formatDate(i.date)))).sort().join(', ');
+                                                    return (
+                                                        <tr key={idx}>
+                                                            <td className="border border-black p-2 font-bold">{itemName}</td>
+                                                            <td className="border border-black p-2 text-center">{weight.toFixed(3)}</td>
+                                                            <td className="border border-black p-2 text-center">{dates}</td>
+                                                            <td className="border border-black p-2"></td>
+                                                        </tr>
+                                                    )
+                                                })}
                                             </tbody>
                                             <tfoot className="font-bold bg-gray-50">
                                                 <tr>
-                                                    <td colSpan={2} className="border border-black p-2 text-right uppercase">Totais</td>
+                                                    <td className="border border-black p-2 text-right uppercase">Totais</td>
                                                     <td className="border border-black p-2 text-center">{reportTotals.totalWeight.toFixed(3)} Kg</td>
-                                                    <td className="border border-black p-2 text-right">{formatCurrency(reportTotals.totalValue)}</td>
+                                                    <td colSpan={2} className="border border-black p-2"></td>
                                                 </tr>
                                             </tfoot>
                                         </table>
