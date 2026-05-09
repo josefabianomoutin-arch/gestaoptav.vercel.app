@@ -396,14 +396,12 @@ const Dashboard: React.FC<DashboardProps> = ({
                             </tr>
                         `;
                     }).join('') : '<tr><td colspan="4" class="text-center">Nenhum item contratual cadastrado.</td></tr>'}
-                </tbody>
-                <tfoot>
                     <tr style="background-color: #f2f2f2; font-weight: bold; font-size: 11pt;">
                         <td class="text-right">TOTAIS DO PERÍODO</td>
                         <td class="text-center">${totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
                         <td colspan="2"></td>
                     </tr>
-                </tfoot>
+                </tbody>
             </table>
             <div class="location-date">Taiúva, ${now.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
             <div class="signatures">
@@ -501,9 +499,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                             className="bg-white/10 hover:bg-white/20 text-white border border-white/30 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all outline-none"
                         >
                             <option value="" className="text-black">Mês Atual</option>
-                            {Array.from(new Set(Object.values(supplier.deliveries || {}).map((d: any) => d.date.substring(0, 7)).sort().reverse())).map(ym => {
+                            {['05','06','07','08','09','10','11','12'].map(m => {
+                                const ym = `2026-${m}`;
                                 const d = new Date(ym + '-15');
-                                return <option key={ym} value={ym} className="text-black">{d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</option>
+                                const label = `${d.toLocaleDateString('pt-BR', { month: 'long' })} DE 2026`.toUpperCase();
+                                return <option key={ym} value={ym} className="text-black">{label}</option>;
                             })}
                         </select>
                         <button 

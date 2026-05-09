@@ -490,14 +490,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 <td colspan="4" class="text-center italic" style="padding: 20px;">Nenhum item contratual cadastrado para este fornecedor</td>
                             </tr>
                         `}
-                    </tbody>
-                    <tfoot>
                         <tr class="font-bold uppercase" style="background-color: #f2f2f2;">
                             <td class="text-right">TOTAIS DO PERÍODO</td>
                             <td class="text-center">${printItems.reduce((acc: number, curr: any) => acc + (curr.totalKg || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
                             <td colspan="2"></td>
                         </tr>
-                    </tfoot>
+                    </tbody>
                 </table>
 
                 <div style="display: flex; justify-content: space-between; margin-top: 50px;">
