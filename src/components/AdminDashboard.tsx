@@ -240,86 +240,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     return tabs;
   }, []);
 
-  const combinedSuppliers = useMemo(() => {
-    const producers = perCapitaConfig.ppaisProducers || [];
-    const pereciveis = perCapitaConfig.pereciveisSuppliers || [];
-    const estocaveis = perCapitaConfig.estocaveisSuppliers || [];
-
-    const mapToSupplier = (p: any) => {
-        const weeks: number[] = [];
-        const year = 2026;
-        const monthNames = [
-            'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-            'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
-        ];
-
-        Object.entries(p.monthlySchedule || {}).forEach(([monthName, weekOfMonthList]) => {
-            const monthIndex = monthNames.indexOf(monthName.toLowerCase());
-            if (monthIndex === -1) return;
-
-            if ((weekOfMonthList as number[]).length > 0) {
-                const firstDayOfMonth = new Date(year, monthIndex, 1);
-                const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
-                
-                (weekOfMonthList as number[]).forEach(weekIdx => {
-                    weeks.push(firstWeekOfYear + (weekIdx - 1));
-                });
-            }
-        });
-
-        return {
-            ...p,
-            cpf: p.cpfCnpj, // Ensure cpf is set for Supplier type compatibility
-            deliveries: Object.values(p.deliveries || {}),
-            allowedWeeks: Array.from(new Set(weeks)),
-            initialValue: Object.values(p.contractItems || {}).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
-        } as Supplier;
-    };
-
-    const mappedProducers = producers.map(mapToSupplier);
-    const mappedPereciveis = pereciveis.map(mapToSupplier);
-    const mappedEstocaveis = estocaveis.map(mapToSupplier);
-
-    const all = [...suppliers, ...mappedProducers, ...mappedPereciveis, ...mappedEstocaveis];
-    const uniqueMap = new Map<string, Supplier>();
-    all.forEach(s => {
-        if (s.cpf) {
-            const existing = uniqueMap.get(s.cpf);
-            if (!existing) {
-                uniqueMap.set(s.cpf, { ...s });
-            } else {
-                // Merge deliveries
-                const mergedDeliveries = [...(existing.deliveries || []), ...(s.deliveries || [])];
-                const uniqueDeliveries = Array.from(new Map(mergedDeliveries.map(d => [d.id, d])).values());
-                
-                // Merge weeks
-                const mergedWeeks = Array.from(new Set([...(existing.allowedWeeks || []), ...(s.allowedWeeks || [])])).sort((a, b) => a - b);
-                
-                // Merge contract items
-                const getItems = (items: any) => {
-                    if (!items) return [];
-                    return Array.isArray(items) ? items : Object.values(items);
-                };
-                const mergedItems = [...getItems(existing.contractItems), ...getItems(s.contractItems)];
-                const uniqueItems = Array.from(new Map(mergedItems.map(item => [item.name + (item.period || ''), item])).values());
-
-                uniqueMap.set(s.cpf, {
-                    ...existing,
-                    deliveries: uniqueDeliveries,
-                    allowedWeeks: mergedWeeks,
-                    contractItems: uniqueItems,
-                    initialValue: uniqueItems.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0)
-                });
-            }
-        }
-    });
-
-    return Array.from(uniqueMap.values());
-  }, [suppliers, perCapitaConfig.ppaisProducers, perCapitaConfig.pereciveisSuppliers, perCapitaConfig.estocaveisSuppliers]);
-
   const filteredSuppliers = useMemo(() => {
-    return combinedSuppliers.filter(s => (s.name || '').toLowerCase().includes(supplierSearch.toLowerCase()));
-  }, [combinedSuppliers, supplierSearch]);
+    return suppliers.filter(s => (s.name || '').toLowerCase().includes(supplierSearch.toLowerCase()));
+  }, [suppliers, supplierSearch]);
 
   const handleExportFullBackup = () => {
     const fullBackup = {
@@ -445,13 +368,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
             )}
           </div>
         );
-      case 'contracts': return <AdminContractItems suppliers={combinedSuppliers} warehouseLog={warehouseLog} onUpdateContractForItem={onUpdateContractForItem} />;
+      case 'contracts': return <AdminContractItems suppliers={suppliers} warehouseLog={warehouseLog} onUpdateContractForItem={onUpdateContractForItem} />;
       case 'finance': return <AdminFinancialManager records={financialRecords} onSave={onSaveFinancialRecord} onDelete={onDeleteFinancialRecord} />;
       case 'invoices': 
         return (
           <div className="space-y-8 max-w-7xl mx-auto animate-fade-in">
             <WarehouseMovementForm 
-              suppliers={combinedSuppliers} 
+              suppliers={suppliers} 
               warehouseLog={warehouseLog} 
               onRegisterEntry={props.onRegisterEntry}
               onRegisterWithdrawal={props.onRegisterWithdrawal}
@@ -461,7 +384,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
             />
             <div className="border-t border-gray-100 pt-8">
               <AdminInvoices 
-                suppliers={combinedSuppliers} 
+                suppliers={suppliers} 
                 warehouseLog={warehouseLog} 
                 onReopenInvoice={onReopenInvoice} 
                 onDeleteInvoice={onDeleteInvoice} 
@@ -476,7 +399,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
             </div>
           </div>
         );
-      case 'schedule': return <AdminScheduleView suppliers={combinedSuppliers} thirdPartyEntries={thirdPartyEntries} onCancelDeliveries={onCancelDeliveries} onDeleteThirdPartyEntry={onDeleteThirdPartyEntry} />;
+      case 'schedule': return <AdminScheduleView suppliers={suppliers} thirdPartyEntries={thirdPartyEntries} onCancelDeliveries={onCancelDeliveries} onDeleteThirdPartyEntry={onDeleteThirdPartyEntry} />;
       case 'perCapita': return <AdminPerCapita suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onUpdatePerCapitaConfig={onUpdatePerCapitaConfig} onUpdateContractForItem={onUpdateContractForItem} onUpdateAcquisitionItem={props.onUpdateAcquisitionItem} onDeleteAcquisitionItem={props.onDeleteAcquisitionItem} acquisitionItems={acquisitionItems} onUpdateSupplierObservations={props.onUpdateSupplierObservations} onSyncPPAISToAgenda={props.onSyncPPAISToAgenda} onSaveInvoice={onSaveInvoice} onDeleteDelivery={props.onDeleteDelivery} />;
       case 'cleaning': return <AdminCleaningLog logs={cleaningLogs} financialRecords={financialRecords} onRegister={props.onRegisterCleaningLog} onDelete={props.onDeleteCleaningLog} />;
       case 'thirdPartyEntry': return <AdminThirdPartyEntry logs={thirdPartyEntries} onRegister={onRegisterThirdPartyEntry} onUpdate={onUpdateThirdPartyEntry} onDelete={onDeleteThirdPartyEntry} />;
@@ -512,7 +435,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       />;
       case 'analytics': return <AdminAnalytics suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} />;
       case 'graphs': return <AdminGraphs 
-          suppliers={combinedSuppliers} 
+          suppliers={suppliers} 
           warehouseLog={warehouseLog}
           cleaningLogs={cleaningLogs}
           financialRecords={financialRecords}
@@ -522,9 +445,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           perCapitaConfig={perCapitaConfig}
           acquisitionItems={acquisitionItems}
       />;
-      case 'menu': return <AdminStandardMenu suppliers={combinedSuppliers} template={props.standardMenu} dailyMenus={props.dailyMenus} onUpdateDailyMenus={props.onUpdateDailyMenu} inmateCount={perCapitaConfig.inmateCount || 0} />;
+      case 'menu': return <AdminStandardMenu suppliers={suppliers} template={props.standardMenu} dailyMenus={props.dailyMenus} onUpdateDailyMenus={props.onUpdateDailyMenu} inmateCount={perCapitaConfig.inmateCount || 0} />;
       case 'publicInfo': return <AdminPublicInfo infoList={props.publicInfo} onSave={props.onSavePublicInfo} onDelete={props.onDeletePublicInfo} />;
-      case 'almoxarifado': return <WarehouseMovementForm suppliers={combinedSuppliers} warehouseLog={warehouseLog} onRegisterEntry={props.onRegisterEntry} onRegisterWithdrawal={props.onRegisterWithdrawal} perCapitaConfig={perCapitaConfig} />;
+      case 'almoxarifado': return <WarehouseMovementForm suppliers={suppliers} warehouseLog={warehouseLog} onRegisterEntry={props.onRegisterEntry} onRegisterWithdrawal={props.onRegisterWithdrawal} perCapitaConfig={perCapitaConfig} />;
       case 'info': 
         return (
             <div className="max-w-4xl mx-auto space-y-6 animate-fade-in p-4 md:p-0 pb-16">

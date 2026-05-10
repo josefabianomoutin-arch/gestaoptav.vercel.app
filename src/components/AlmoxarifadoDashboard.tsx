@@ -11,6 +11,7 @@ import AdminWarehouseLog from './AdminWarehouseLog';
 import ValidityAnalysisPanel from './ValidityAnalysisPanel';
 import SynchronizationModule from './SynchronizationModule';
 import AdminStandardMenu from './AdminStandardMenu';
+import { getWeekNumber } from '../lib/supplierUtils';
 
 interface AlmoxarifadoDashboardProps {
     suppliers: Supplier[];
@@ -125,80 +126,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [cronogramaType, setCronogramaType] = useState<'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS'>('PPAIS');
     const [selectedCronogramaSupplier, setSelectedCronogramaSupplier] = useState('');
 
-    const getWeekNumber = (d: Date): number => {
-        d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-        const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-        return weekNo;
-    };
-
-    const combinedSuppliers = useMemo(() => {
-        const producers = perCapitaConfig?.ppaisProducers || [];
-        const pereciveis = perCapitaConfig?.pereciveisSuppliers || [];
-        const estocaveis = perCapitaConfig?.estocaveisSuppliers || [];
-
-        const mapToSupplier = (p: any) => {
-            const weeks: number[] = [];
-            const year = 2026;
-            const monthNames = [
-                'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-                'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
-            ];
-
-            Object.entries(p.monthlySchedule || {}).forEach(([monthName, weekOfMonthList]) => {
-                const monthIndex = monthNames.indexOf(monthName.toLowerCase());
-                if (monthIndex === -1) return;
-
-                if ((weekOfMonthList as number[]).length > 0) {
-                    const firstDayOfMonth = new Date(year, monthIndex, 1);
-                    const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
-                    
-                    (weekOfMonthList as number[]).forEach(weekIdx => {
-                        weeks.push(firstWeekOfYear + (weekIdx - 1));
-                    });
-                }
-            });
-
-            return {
-                ...p,
-                cpf: p.cpfCnpj,
-                deliveries: Object.values(p.deliveries || {}),
-                allowedWeeks: Array.from(new Set(weeks)),
-                initialValue: Object.values(p.contractItems || {}).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
-            } as Supplier;
-        };
-
-        const mappedProducers = producers.map(mapToSupplier);
-        const mappedPereciveis = pereciveis.map(mapToSupplier);
-        const mappedEstocaveis = estocaveis.map(mapToSupplier);
-
-        const all = [...suppliers, ...mappedProducers, ...mappedPereciveis, ...mappedEstocaveis];
-        const uniqueMap = new Map<string, Supplier>();
-        all.forEach(s => {
-            if (s.cpf) {
-                const existing = uniqueMap.get(s.cpf);
-                if (!existing) {
-                    uniqueMap.set(s.cpf, { ...s });
-                } else {
-                    const mergedDeliveries = [...(existing.deliveries || []), ...(s.deliveries || [])];
-                    const uniqueDeliveries = Array.from(new Map(mergedDeliveries.map(d => [d.id, d])).values());
-                    const mergedWeeks = Array.from(new Set([...(existing.allowedWeeks || []), ...(s.allowedWeeks || [])])).sort((a, b) => a - b);
-                    const mergedItems = [...(existing.contractItems || []), ...(s.contractItems || [])];
-                    const uniqueItems = Array.from(new Map(mergedItems.map(item => [item.name + (item.period || ''), item])).values());
-
-                    uniqueMap.set(s.cpf, {
-                        ...existing,
-                        deliveries: uniqueDeliveries,
-                        allowedWeeks: mergedWeeks,
-                        contractItems: uniqueItems as any[]
-                    });
-                }
-            }
-        });
-        return Array.from(uniqueMap.values());
-    }, [suppliers, perCapitaConfig]);
-
     const weeklyDeliveries = useMemo(() => {
         const list: { date: string; supplierName: string; time: string; status: 'AGENDADO' | 'CONCLUÍDO' | 'TERCEIRO' | 'CANCELADO'; id: string; type: 'FORNECEDOR' | 'TERCEIRO'; itemName?: string }[] = [];
         
@@ -214,7 +141,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             weekDates.push(d.toISOString().split('T')[0]);
         }
 
-        combinedSuppliers.forEach(s => {
+        suppliers.forEach(s => {
             Object.values((s.deliveries as any) || {}).forEach((d: any) => {
                 if (weekDates.includes(d.date)) {
                     const isFaturado = d.item !== 'AGENDAMENTO PENDENTE';
@@ -627,14 +554,14 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
 
     const receiptSupplier = useMemo(() => {
-        const main = combinedSuppliers.find(s => s.cpf === receiptSupplierCpf);
+        const main = suppliers.find(s => s.cpf === receiptSupplierCpf);
         if (!main) return null;
         
         return {
             ...main,
             deliveries: Object.values(main.deliveries || {})
         };
-    }, [combinedSuppliers, receiptSupplierCpf]);
+    }, [suppliers, receiptSupplierCpf]);
 
     const supplierInvoices = useMemo(() => {
         if (!receiptSupplier) return [];
@@ -1214,7 +1141,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     <div className="space-y-8">
                         <WarehouseMovementForm 
                             key="warehouse-movement-form"
-                            suppliers={combinedSuppliers} 
+                            suppliers={suppliers} 
                             warehouseLog={warehouseLog} 
                             onRegisterEntry={onRegisterEntry}
                             onRegisterWithdrawal={onRegisterWithdrawal}
@@ -1225,7 +1152,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
                         <div className="border-t border-gray-100 pt-8">
                             <AdminInvoices 
-                                suppliers={combinedSuppliers} 
+                                suppliers={suppliers} 
                                 warehouseLog={warehouseLog}
                                 onReopenInvoice={onReopenInvoice} 
                                 onDeleteInvoice={onDeleteInvoice} 
@@ -1242,7 +1169,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 ) : activeTab === 'movement_history' ? (
                     <AdminWarehouseLog 
                         warehouseLog={warehouseLog}
-                        suppliers={combinedSuppliers}
+                        suppliers={suppliers}
                         onDeleteEntry={onDeleteWarehouseEntry!}
                         onUpdateWarehouseEntry={onUpdateWarehouseEntry!}
                         perCapitaConfig={perCapitaConfig}
@@ -1621,7 +1548,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     }} />
                 ) : activeTab === 'agenda' ? (
                     <AgendaChegadas 
-                        suppliers={combinedSuppliers} 
+                        suppliers={suppliers} 
                         thirdPartyEntries={thirdPartyEntries} 
                         embedded={true} 
                     />
@@ -1677,7 +1604,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                           (perCapitaConfig?.estocaveisSuppliers || [])).map((s: any) => (
                                             <option key={s.cpfCnpj} value={s.cpfCnpj}>{s.name.toUpperCase()}</option>
                                           ))}
-                                        {cronogramaType === 'ESTOCÁVEIS' && combinedSuppliers.filter(s => !(perCapitaConfig?.estocaveisSuppliers || []).some((p: any) => p.cpfCnpj === s.cpf)).map(s => (
+                                        {cronogramaType === 'ESTOCÁVEIS' && suppliers.filter(s => !(perCapitaConfig?.estocaveisSuppliers || []).some((p: any) => p.cpfCnpj === s.cpf)).map(s => (
                                             <option key={s.cpf} value={s.cpf}>{s.name.toUpperCase()}</option>
                                         ))}
                                     </select>
@@ -1773,7 +1700,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     </div>
                 ) : activeTab === 'menu' ? (
                     <AdminStandardMenu 
-                        suppliers={combinedSuppliers} 
+                        suppliers={suppliers} 
                         template={standardMenu} 
                         dailyMenus={dailyMenus} 
                         onUpdateDailyMenus={onUpdateDailyMenu} 
@@ -1843,7 +1770,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                         className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-teal-400 transition-all text-[10px] uppercase cursor-pointer"
                                     >
                                         <option value="">-- SELECIONE --</option>
-                                        {combinedSuppliers.sort((a, b) => a.name.localeCompare(b.name)).map(s => <option key={s.cpf} value={s.cpf}>{s.name.toUpperCase()}</option>)}
+                                        {suppliers.sort((a, b) => a.name.localeCompare(b.name)).map(s => <option key={s.cpf} value={s.cpf}>{s.name.toUpperCase()}</option>)}
                                     </select>
                                 </div>
                                 <div className="space-y-1 md:col-span-1">

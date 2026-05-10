@@ -657,7 +657,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
               
               <div className="p-6 flex-1 space-y-4">
                 {groupedMenu[period] && groupedMenu[period].length > 0 ? (
-                  groupedMenu[period].map((row, idx) => (
+                  groupedMenu[period].map((row) => (
                     <div 
                       key={row.id} 
                       onClick={() => toggleRowSelection(row.id)}

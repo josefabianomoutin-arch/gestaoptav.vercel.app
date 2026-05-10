@@ -195,7 +195,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
             });
         });
         return data;
-    }, [contractItems, deliveries, visibleMonths, isPpaisProducer]);
+    }, [contractItems, deliveries, visibleMonths]);
 
     const uniqueItemNames = useMemo(() => {
         return Array.from(new Set(contractItems.map(item => item.name)));

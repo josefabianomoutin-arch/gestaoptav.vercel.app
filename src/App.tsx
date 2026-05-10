@@ -17,6 +17,7 @@ import InfobarTicker from './components/InfobarTicker';
 import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
 import { ref as storageRef, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { app, storage } from './firebaseConfig';
+import { getCombinedSuppliers } from './lib/supplierUtils';
 
 let database: any;
 let rootRef: any;
@@ -2522,6 +2523,10 @@ const App: React.FC = () => {
       return { success: true, message: 'Atualizado' };
   };
 
+  const combinedSuppliers = React.useMemo(() => {
+    return getCombinedSuppliers(suppliers, perCapitaConfig);
+  }, [suppliers, perCapitaConfig]);
+
   const renderContent = () => {
     if (!user) {
       return <LoginScreen onLogin={handleLogin} publicInfoList={publicInfo} />;
@@ -2531,7 +2536,7 @@ const App: React.FC = () => {
       return (
         <AdminDashboard 
           user={user}
-          suppliers={suppliers} 
+          suppliers={combinedSuppliers} 
           onRegister={handleRegisterSupplier}
           onSyncPPAISToAgenda={handleSyncPPAISToAgenda}
           onUpdateSupplier={handleUpdateSupplier}
@@ -2678,7 +2683,7 @@ const App: React.FC = () => {
                user={user}
                standardMenu={standardMenu}
                dailyMenus={dailyMenus}
-               suppliers={suppliers}
+               suppliers={combinedSuppliers}
                thirdPartyEntries={thirdPartyEntries}
                vehicleExitOrders={vehicleExitOrders}
                vehicleAssets={vehicleAssets}
@@ -2688,12 +2693,12 @@ const App: React.FC = () => {
     }
 
     if (user.role === 'cardapio') {
-      return <MenuDashboard standardMenu={standardMenu} dailyMenus={dailyMenus} suppliers={suppliers} onLogout={handleLogout} />;
+      return <MenuDashboard standardMenu={standardMenu} dailyMenus={dailyMenus} suppliers={combinedSuppliers} onLogout={handleLogout} />;
     }
 
     if (user.role === 'almoxarifado') {
       return <AlmoxarifadoDashboard 
-               suppliers={suppliers} 
+               suppliers={combinedSuppliers} 
                warehouseLog={warehouseLog} 
                onLogout={handleLogout} 
                publicInfoList={publicInfo}
@@ -2855,13 +2860,13 @@ const App: React.FC = () => {
     }
 
     if (user.role === 'itesp') {
-      return <ItespDashboard suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onLogout={handleLogout} />;
+      return <ItespDashboard suppliers={combinedSuppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onLogout={handleLogout} />;
     }
 
     if (user.role === 'subportaria') {
       return (
         <SubportariaDashboard 
-          suppliers={suppliers} 
+          suppliers={combinedSuppliers} 
           perCapitaConfig={perCapitaConfig}
           thirdPartyEntries={thirdPartyEntries}
           maintenanceSchedules={maintenanceSchedules}
