@@ -70,11 +70,152 @@ const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ onSave, systemPas
         setRows(newRows);
     };
 
-    const handlePrint = () => window.print();
-
-    const getObsValue = (key: string): string => {
+    const getObsValueString = (key: string): string => {
         const obsKey = `obs${key.charAt(0).toUpperCase() + key.slice(1)}` as keyof typeof checkList;
-        return checkList[obsKey] as string;
+        return (checkList[obsKey] as string) || '';
+    };
+
+    const executePrint = (signatureData: { name: string; timestamp: string; hash: string } | null) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            toast.error('Por favor, permita popups para imprimir.');
+            return;
+        }
+
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Registro de Rondas</title>
+                <style>
+                    @page { size: A4 portrait; margin: 10mm; }
+                    body { font-family: Arial, sans-serif; font-size: 11px; line-height: 1.3; margin: 0; padding: 0; color: #000; box-sizing: border-box; }
+                    h2 { margin: 5px 0 15px 0; text-align: center; font-size: 15px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 5px; }
+                    table { border-collapse: collapse; width: 100%; margin: 10px 0 15px 0; }
+                    th, td { border: 1px solid #000; padding: 4px; text-align: left; }
+                    th { background-color: #e2e8f0; font-size: 10px; color: #000; text-transform: uppercase; }
+                    td { font-size: 10px; height: 18px; }
+                    .grid-2 { display: flex; justify-content: space-between; margin-bottom: 10px; }
+                    .checklist-item { margin-bottom: 4px; display: flex; align-items: flex-start; }
+                    .checklist-item > .label { width: 300px; font-weight: bold; }
+                    .checklist-item > .status { width: 100px; }
+                    .checklist-item > .obs { flex: 1; }
+                    .signature-box { margin-top: 30px; text-align: center; page-break-inside: avoid; }
+                    .header-box { border: 1px solid #000; padding: 8px; margin-bottom: 10px; border-radius: 4px; background: #fafafa; }
+                    .mb-2 { margin-bottom: 8px; }
+                </style>
+            </head>
+            <body>
+                <h2>REGISTRO DE RONDAS - PENITENCIÁRIA DE TAIÚVA</h2>
+                
+                <div class="header-box grid-2">
+                    <div><strong>Superior Responsável:</strong> ${header.superior || '_________________________________'}</div>
+                    <div>
+                       <strong>Data:</strong> ${header.data.split('-').reverse().join('/')} 
+                       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                       <strong>Turno:</strong> ${header.turno}
+                    </div>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 25%">Policial</th>
+                            <th style="width: 10%; text-align: center;">Início</th>
+                            <th style="width: 10%; text-align: center;">KM Inicial</th>
+                            <th style="width: 10%; text-align: center;">Fim</th>
+                            <th style="width: 10%; text-align: center;">KM Final</th>
+                            <th style="width: 15%">Ocorrência</th>
+                            <th style="width: 25%">Outros</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(row => `
+                            <tr>
+                                <td>${row.policial}</td>
+                                <td style="text-align: center;">${row.hInicio}</td>
+                                <td style="text-align: center;">${row.kmInicio}</td>
+                                <td style="text-align: center;">${row.hFinal}</td>
+                                <td style="text-align: center;">${row.kmFinal}</td>
+                                <td>${row.ocorrencias}</td>
+                                <td>${row.outros}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <div class="header-box">
+                    <h3 style="margin: 0 0 10px 0; font-size: 12px; border-bottom: 1px solid #ccc; padding-bottom: 4px; text-transform: uppercase;">Inspeção Geral</h3>
+                    <div class="checklist-item mb-2" style="display: block;">
+                        <strong>Quantidade de PPL:</strong> Cadastrados: ${checkList.qtdCadastrados || '_____'} | No local da Inspeção: ${checkList.qtdLocal || '_____'}
+                    </div>
+                    <div class="checklist-item mb-2" style="display: block;">
+                        <strong>Todos PPL alocados estão presentes:</strong> ${checkList.todosPresentes === true ? 'Sim' : (checkList.todosPresentes === false ? 'Não' : 'N/A')}
+                        &nbsp; | &nbsp; <strong>Obs:</strong> ${checkList.obsPPL}
+                    </div>
+                    
+                    <div style="margin-top: 15px;">
+                        ${[
+                            { key: 'trabalho', label: 'Trabalho' },
+                            { key: 'uniforme', label: 'Uniforme' },
+                            { key: 'conduta', label: 'Conduta' },
+                            { key: 'embriagues', label: 'Indício de embriaguez' },
+                            { key: 'drogas', label: 'Uso de drogas' },
+                            { key: 'agressividade', label: 'Agressividade ou desobediência' },
+                            { key: 'pendenciasAnterior', label: 'Verificação de pendências da ronda anterior' },
+                            { key: 'outros', label: `Outros (${checkList.labelOutros || '_________________'})` }
+                        ].map(item => `
+                            <div class="checklist-item">
+                                <div class="label">${item.label}:</div>
+                                <div class="status">${(checkList as any)[item.key] === true ? '<b>[ X ] OK</b>' : ((checkList as any)[item.key] === false ? '<b>[ X ] Não OK</b>' : '[  ] OK &nbsp; [  ] Não')}</div>
+                                <div class="obs"><strong>Obs:</strong> ${getObsValueString(item.key)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                ${signatureData ? `
+                    <div class="signature-box" style="margin-top: 40px;">
+                        <div style="font-size: 11px; font-weight: bold; border-top: 1.5px solid #000; width: 350px; margin: 0 auto; padding-top: 5px;">
+                            ASSINATURA DIGITAL - VALIDADO PELO SISTEMA
+                        </div>
+                        <div style="margin-top:5px; font-size: 12px; text-transform: uppercase;"><strong>Responsável:</strong> ${signatureData.name}</div>
+                        <div style="font-size:9px; color:#444; margin-top:2px;">Autenticado em: ${signatureData.timestamp}</div>
+                        <div style="font-size:8px; font-family: monospace; color:#666; margin-top:2px;">HASH: ${signatureData.hash}</div>
+                    </div>
+                ` : `
+                    <div class="signature-box" style="margin-top: 60px;">
+                        <div style="border-top: 1.5px solid #000; width: 350px; margin: 0 auto; padding-top: 5px; font-weight: bold;">
+                            Assinatura do Responsável
+                        </div>
+                    </div>
+                `}
+                <script>window.onload = function() { setTimeout(function(){ window.print(); window.close(); }, 500); }</script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
+    const handlePrint = () => {
+        executePrint(digitalSignature);
+    };
+
+    const resetForm = () => {
+        setHeader({ data: new Date().toISOString().split('T')[0], turno: 'DIURNO', fctNumber: '', superior: '' });
+        setRows(Array(11).fill(null).map(() => ({ policial: '', hInicio: '', kmInicio: '', hFinal: '', kmFinal: '', ocorrencias: '', outros: '' })));
+        setCheckList({
+            qtdCadastrados: '', qtdLocal: '', todosPresentes: null, obsPPL: '',
+            trabalho: null, obsTrabalho: '', uniforme: null, obsUniforme: '',
+            conduta: null, obsConduta: '', embriagues: null, obsEmbriagues: '',
+            drogas: null, obsDrogas: '', agressividade: null, obsAgressividade: '',
+            pendenciasAnterior: null, obsPendenciasAnterior: '', outros: null, obsOutros: '', labelOutros: ''
+        });
+        setSignName('');
+        setSignPassword('');
+        setDigitalSignature(null);
     };
 
     const setObsValue = (key: string, value: string) => {
@@ -160,7 +301,7 @@ const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ onSave, systemPas
                                 <input type="radio" checked={checkList[item.key as keyof typeof checkList] === false} onChange={() => setCheckList(prev => ({...prev, [item.key]: false}))} /> Não OK
                             </label>
                         </div>
-                        <span className="ml-2 font-bold">Obs:</span> <input className={`border-b w-1/3 bg-transparent ${item.key === 'outros' ? 'border-red-300' : 'border-slate-300'}`} value={getObsValue(item.key)} onChange={e => setObsValue(item.key, e.target.value)} />
+                        <span className="ml-2 font-bold">Obs:</span> <input className={`border-b w-1/3 bg-transparent ${item.key === 'outros' ? 'border-red-300' : 'border-slate-300'}`} value={getObsValueString(item.key)} onChange={e => setObsValue(item.key, e.target.value)} />
                     </div>
                 ))}
                  {/* <div className="flex items-center gap-2 mt-4">
@@ -250,16 +391,20 @@ const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ onSave, systemPas
                                             return;
                                         }
                                         const now = new Date();
-                                        setDigitalSignature({
+                                        const sig = {
                                             name: signName,
                                             timestamp: now.toLocaleString('pt-BR'),
-                                            hash: (Math.random() + 1).toString(36).substring(2)
-                                        });
+                                            hash: (Math.random() + 1).toString(36).substring(2).toUpperCase()
+                                        };
+                                        setDigitalSignature(sig);
                                         setIsSignatureModalOpen(false);
-                                        toast.success("Assinatura validada! Baixando PDF...");
-                                        setTimeout(() => {
-                                            window.print();
-                                        }, 500);
+                                        toast.success("Assinatura validada! Gerando relatório...");
+                                        
+                                        // Execute print in popup with the generated signature
+                                        executePrint(sig);
+                                        
+                                        // Reset form for a new entry
+                                        resetForm();
                                     }}
                                     className="w-full bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-md active:scale-95"
                                 >
