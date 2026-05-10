@@ -192,9 +192,43 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     }, [weeklyDeliveries]);
     */
 
+    const imageDeliveries = useMemo(() => {
+        const deliveries: any[] = [];
+        const seenUrls = new Set<string>();
+        
+        suppliers.forEach(s => {
+            Object.values((s.deliveries as any) || {}).forEach((d: any) => {
+                if (d.invoiceUrl && !seenUrls.has(d.invoiceUrl)) {
+                    seenUrls.add(d.invoiceUrl);
+                    deliveries.push({
+                        id: d.id,
+                        invoiceUrl: d.invoiceUrl,
+                        date: d.invoiceDate || d.date,
+                        timestamp: d.timestamp || d.date ? new Date(d.date + 'T00:00:00').getTime() : Date.now(),
+                        type: 'entrada',
+                        supplierName: s.name,
+                        supplierCpf: s.cpf,
+                        itemName: d.item,
+                        quantity: d.kg || 0,
+                        inboundInvoice: d.invoiceNumber,
+                    });
+                }
+            });
+        });
+
+        warehouseLog.forEach(l => {
+            if (l.invoiceUrl && !seenUrls.has(l.invoiceUrl)) {
+                seenUrls.add(l.invoiceUrl);
+                deliveries.push(l);
+            }
+        });
+
+        return deliveries;
+    }, [suppliers, warehouseLog]);
+
     const availableImageMonths = useMemo(() => {
         const months = new Set<string>();
-        warehouseLog.filter(l => l.invoiceUrl).forEach(log => {
+        imageDeliveries.forEach(log => {
             const dateStr = log.date || (typeof log.timestamp === 'number' ? new Date(log.timestamp).toISOString().split('T')[0] : (log.timestamp as any)?.split?.('T')?.[0]);
             if (dateStr) {
                 const d = new Date(dateStr + 'T00:00:00');
@@ -209,12 +243,11 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             const [yB, mB] = b.split('-').map(Number);
             return (yB * 12 + mB) - (yA * 12 + mA);
         });
-    }, [warehouseLog]);
+    }, [imageDeliveries]);
 
     const [activeImageMonth, setActiveImageMonth] = useState<string>(() => {
-        // Find if there's any month data available initially
         const months = new Set<string>();
-        warehouseLog.filter(l => l.invoiceUrl).forEach(log => {
+        imageDeliveries.forEach(log => {
             const dateStr = log.date || (typeof log.timestamp === 'number' ? new Date(log.timestamp).toISOString().split('T')[0] : (log.timestamp as any)?.split?.('T')?.[0]);
             if (dateStr) {
                 const d = new Date(dateStr + 'T00:00:00');
@@ -239,7 +272,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     }, [availableImageMonths, activeImageMonth]);
 
     const filteredImages = useMemo(() => {
-        return warehouseLog.filter(l => {
+        return imageDeliveries.filter(l => {
             if (!l.invoiceUrl) return false;
             if (!activeImageMonth) return true;
             
@@ -249,7 +282,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             const d = new Date(dateStr + 'T00:00:00');
             return `${d.getFullYear()}-${d.getMonth()}` === activeImageMonth;
         }).sort((a, b) => b.timestamp - a.timestamp);
-    }, [warehouseLog, activeImageMonth]);
+    }, [imageDeliveries, activeImageMonth]);
 
     const handlePrintCronograma = () => {
         const monthIndex = MONTHS_PT.indexOf(selectedMonth);
@@ -1122,7 +1155,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                                 {tab === 'history' ? 'Consulta & Gestão' : 
                                  tab === 'movement_history' ? 'Log de Movimentação' : 
-                                 tab === 'image_history' ? 'Histórico (Imagem)' : 
+                                 tab === 'image_history' ? 'Notas Fiscais' : 
                                  tab === 'validity' ? 'Validade' : 
                                  tab === 'agenda' ? 'Agenda' : 
                                  tab === 'cronograma' ? 'Cronograma' : 
@@ -1183,8 +1216,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                         <FileIcon className="h-6 w-6" />
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-black uppercase tracking-tighter leading-none italic">Histórico de Imagens</h2>
-                                        <p className="text-zinc-400 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Visualização por Mês das Notas(PDF) Cadastradas</p>
+                                        <h2 className="text-lg font-black uppercase tracking-tighter leading-none italic">Notas Fiscais</h2>
+                                        <p className="text-zinc-400 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Visualização por Mês das Notas (PDF) Cadastradas</p>
                                     </div>
                                 </div>
                             </div>
