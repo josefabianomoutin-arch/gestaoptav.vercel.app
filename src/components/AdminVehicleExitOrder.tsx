@@ -112,7 +112,8 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         water: null as boolean | null,
         oil: null as boolean | null,
         tires: null as boolean | null,
-        lights: null as boolean | null
+        lights: null as boolean | null,
+        bypassed: false
     });
     const [isChecklistCompleted, setIsChecklistCompleted] = useState(false);
 
@@ -563,10 +564,13 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             order.exitTime || '-',
             order.returnTime || '-',
             order.checklist ? 
-                `ÁGUA: ${order.checklist.water ? 'OK' : 'NÃO OK'}\n` +
-                `ÓLEO: ${order.checklist.oil ? 'OK' : 'NÃO OK'}\n` +
-                `PNEUS: ${order.checklist.tires ? 'OK' : 'NÃO OK'}\n` +
-                `LUZES: ${order.checklist.lights ? 'OK' : 'NÃO OK'}` : 'N/A'
+                (order.checklist.bypassed ? 
+                    'INSPEÇÃO NÃO REALIZADA\n(Responsável assumiu os riscos\nsem checagem dos itens)' :
+                    `ÁGUA: ${order.checklist.water ? 'OK' : 'NÃO OK'}\n` +
+                    `ÓLEO: ${order.checklist.oil ? 'OK' : 'NÃO OK'}\n` +
+                    `PNEUS: ${order.checklist.tires ? 'OK' : 'NÃO OK'}\n` +
+                    `LUZES: ${order.checklist.lights ? 'OK' : 'NÃO OK'}`
+                ) : 'N/A'
         ]);
 
         autoTable(doc, {
@@ -858,7 +862,8 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                     water: vehicleChecklist.water || false,
                     oil: vehicleChecklist.oil || false,
                     tires: vehicleChecklist.tires || false,
-                    lights: vehicleChecklist.lights || false
+                    lights: vehicleChecklist.lights || false,
+                    bypassed: vehicleChecklist.bypassed || false
                 }
             };
 
@@ -890,7 +895,8 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 water: null,
                 oil: null,
                 tires: null,
-                lights: null
+                lights: null,
+                bypassed: false
             });
             setIsModalOpen(false); // Fecha o modal da ordem para não travar
             setIsChecklistModalOpen(true);
@@ -2274,6 +2280,34 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                     </div>
                                 ))}
                             </div>
+                            
+                            <div className="flex items-start gap-3 p-4 bg-orange-50/50 rounded-2xl border border-orange-100 mt-4">
+                                <input 
+                                    type="checkbox" 
+                                    id="bypassChecklist"
+                                    checked={vehicleChecklist.bypassed}
+                                    onChange={(e) => {
+                                        if (e.target.checked) {
+                                            setConfirmConfig({
+                                                isOpen: true,
+                                                title: 'Assumir Riscos',
+                                                message: 'Você está prestes a liberar o veículo sem a verificação dos itens de segurança. O cadastro será salvo apontando que o cadastrante não realizou o checklist, assumindo o veículo sem a checagem dos itens. Tem certeza que deseja assumir estes riscos?',
+                                                variant: 'warning',
+                                                onConfirm: () => {
+                                                    setVehicleChecklist(prev => ({...prev, bypassed: true}));
+                                                    setConfirmConfig(prev => ({...prev, isOpen: false}));
+                                                }
+                                            });
+                                        } else {
+                                            setVehicleChecklist(prev => ({...prev, bypassed: false}));
+                                        }
+                                    }}
+                                    className="mt-1 w-4 h-4 text-orange-600 rounded bg-white border-orange-300 focus:ring-orange-500"
+                                />
+                                <label htmlFor="bypassChecklist" className="text-[10px] text-orange-900 font-bold leading-tight uppercase tracking-widest cursor-pointer">
+                                    Não realizar inspeção e assumir os riscos (o registro será salvo com aviso de liberação sem checagem)
+                                </label>
+                            </div>
 
                             <div className="flex gap-3 pt-4">
                                 <button 
@@ -2286,10 +2320,19 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                     Voltar
                                 </button>
                                 <button 
-                                    onClick={handleConfirmChecklist}
-                                    disabled={!(vehicleChecklist.water !== null && vehicleChecklist.oil !== null && vehicleChecklist.tires !== null && vehicleChecklist.lights !== null) || !(vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights)}
+                                    onClick={() => {
+                                        if (vehicleChecklist.bypassed) {
+                                            handleConfirmChecklist();
+                                        } else {
+                                            handleConfirmChecklist();
+                                        }
+                                    }}
+                                    disabled={
+                                        !vehicleChecklist.bypassed && 
+                                        (!(vehicleChecklist.water !== null && vehicleChecklist.oil !== null && vehicleChecklist.tires !== null && vehicleChecklist.lights !== null) || !(vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights))
+                                    }
                                     className={`flex-1 px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl active:scale-95 ${
-                                        (vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights) 
+                                        (vehicleChecklist.bypassed || (vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights)) 
                                         ? 'bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700' 
                                         : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
                                     }`}
@@ -2298,7 +2341,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                 </button>
                             </div>
                             
-                            {(!(vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights) && (vehicleChecklist.water !== null && vehicleChecklist.oil !== null && vehicleChecklist.tires !== null && vehicleChecklist.lights !== null)) && (
+                            {!vehicleChecklist.bypassed && (!(vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights) && (vehicleChecklist.water !== null && vehicleChecklist.oil !== null && vehicleChecklist.tires !== null && vehicleChecklist.lights !== null)) && (
                                 <div className="bg-red-50 p-3 rounded-xl border border-red-100 animate-pulse">
                                     <p className="text-center text-[9px] text-red-600 font-black uppercase tracking-widest">
                                         Atenção: Todos os itens devem estar OK para liberar a saída do veículo.
