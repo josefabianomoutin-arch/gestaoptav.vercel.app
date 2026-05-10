@@ -2225,8 +2225,8 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
             {/* Checklist Modal */}
             {isChecklistModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 border border-white/20">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-3xl my-8 overflow-hidden animate-in fade-in zoom-in duration-200 border border-white/20">
                         <div className="bg-indigo-600 p-8 text-white relative overflow-hidden">
                             <div className="absolute top-[-20%] right-[-10%] w-32 h-32 bg-white/10 rounded-full blur-2xl" />
                             <h3 className="text-2xl font-black uppercase tracking-tighter italic flex items-center gap-3 relative z-10">
@@ -2254,25 +2254,25 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                 </p>
                             </div>
 
-                            <div className="space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {[
                                     { id: 'water', label: 'Nível da água do radiador' },
                                     { id: 'oil', label: 'Nível do óleo' },
                                     { id: 'tires', label: 'Calibragem dos pneus' },
                                     { id: 'lights', label: 'Luzes de sinalização' }
                                 ].map((item) => (
-                                    <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100 group hover:bg-indigo-50/30 transition-all">
-                                        <span className="text-[11px] font-black text-gray-600 uppercase tracking-tight group-hover:text-indigo-900 transition-colors">{item.label}</span>
-                                        <div className="flex gap-1.5">
+                                    <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100 group hover:bg-indigo-50/30 transition-all gap-3">
+                                        <span className="text-[11px] font-black text-gray-600 uppercase tracking-tight group-hover:text-indigo-900 transition-colors w-full sm:w-auto">{item.label}</span>
+                                        <div className="flex gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
                                             <button 
                                                 onClick={() => setVehicleChecklist(prev => ({ ...prev, [item.id]: true }))}
-                                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${vehicleChecklist[item.id as keyof typeof vehicleChecklist] === true ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100 scale-105' : 'bg-white text-gray-400 border border-gray-200 hover:border-emerald-200 hover:text-emerald-600'}`}
+                                                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${vehicleChecklist[item.id as keyof typeof vehicleChecklist] === true ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100 scale-105' : 'bg-white text-gray-400 border border-gray-200 hover:border-emerald-200 hover:text-emerald-600'}`}
                                             >
                                                 OK
                                             </button>
                                             <button 
                                                 onClick={() => setVehicleChecklist(prev => ({ ...prev, [item.id]: false }))}
-                                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${vehicleChecklist[item.id as keyof typeof vehicleChecklist] === false ? 'bg-red-600 text-white shadow-lg shadow-red-100 scale-105' : 'bg-white text-gray-400 border border-gray-200 hover:border-red-200 hover:text-red-600'}`}
+                                                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${vehicleChecklist[item.id as keyof typeof vehicleChecklist] === false ? 'bg-red-600 text-white shadow-lg shadow-red-100 scale-105' : 'bg-white text-gray-400 border border-gray-200 hover:border-red-200 hover:text-red-600'}`}
                                             >
                                                 NÃO OK
                                             </button>
