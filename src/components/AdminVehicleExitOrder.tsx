@@ -130,6 +130,8 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         onConfirm: () => {},
     });
 
+    const [printMonth, setPrintMonth] = useState('');
+
     const pendingValidationCount = useMemo(() => {
         return orders.filter(o => !o.validationRole && !o.exitTime).length;
     }, [orders]);
@@ -532,19 +534,28 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     };
 
     const handleGenerateReportPDF = () => {
+        const filteredOrders = printMonth 
+            ? orders.filter(o => o.date.startsWith(printMonth))
+            : orders;
+
+        if (filteredOrders.length === 0) {
+            alert("Nenhuma ordem encontrada para o mês selecionado.");
+            return;
+        }
+
         const doc = new jsPDF();
         
         // Header
         doc.setFontSize(16);
         doc.setTextColor(79, 70, 229); // Indigo-600
-        doc.text('RELATÓRIO DE ORDENS DE SAÍDA E CHECKLIST', 105, 15, { align: 'center' });
+        doc.text(`RELATÓRIO DE ORDENS DE SAÍDA E CHECKLIST${printMonth ? ` - ${printMonth.split('-').reverse().join('/')}` : ''}`, 105, 15, { align: 'center' });
         
         doc.setFontSize(10);
         doc.setTextColor(100, 100, 100);
         doc.text('PENITENCIÁRIA DE TAIÚVA', 105, 22, { align: 'center' });
         doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 105, 28, { align: 'center' });
 
-        const tableData = orders.map(order => [
+        const tableData = filteredOrders.map(order => [
             order.date.split('-').reverse().join('/'),
             `${order.vehicle}\n(${order.plate})`,
             order.responsibleServer,
@@ -634,11 +645,15 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     };
 
     const groupedOrders = useMemo(() => {
+        const filteredOrders = printMonth 
+            ? orders.filter(o => o.date.startsWith(printMonth))
+            : orders;
+
         return {
-            withPdf: orders.filter(o => o.pdfUrl),
-            withoutPdf: orders.filter(o => !o.pdfUrl)
+            withPdf: filteredOrders.filter(o => o.pdfUrl),
+            withoutPdf: filteredOrders.filter(o => !o.pdfUrl)
         };
-    }, [orders]);
+    }, [orders, printMonth]);
 
     const renderOrderRow = (order: VehicleExitOrder) => (
         <tr key={order.id} className={`hover:bg-gray-50 transition-colors ${!order.validationRole && !order.exitTime ? 'bg-red-50/30' : ''}`}>
@@ -1078,26 +1093,43 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                             </div>
                         </div>
                     )}
-                    {!readOnly && !securityMode && (
-                        <div className="flex justify-end gap-3">
-                            {(userRole === 'julio' || userRole === 'infraestrutura') && (
-                                <button 
-                                    onClick={() => handleGenerateReportPDF()}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 px-10 rounded-2xl transition-all shadow-xl shadow-emerald-100 active:scale-95 uppercase text-xs tracking-widest flex items-center gap-2 group"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m3.243-4.243a4 4 0 015.657 0L12 14.142l1.101-1.101a4 4 0 015.657 0M12 12V3" /></svg>
-                                    Relatório PDF
-                                </button>
-                            )}
-                            <button 
-                                onClick={() => { setEditingOrder(null); setIsModalOpen(true); }}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 px-10 rounded-2xl transition-all shadow-xl shadow-indigo-100 active:scale-95 uppercase text-xs tracking-widest flex items-center gap-2 group"
+                    
+                    <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <select
+                                value={printMonth}
+                                onChange={(e) => setPrintMonth(e.target.value)}
+                                className="bg-white hover:bg-gray-50 text-indigo-900 border border-indigo-200 px-4 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all outline-none"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                                Nova Ordem de Saída
+                                <option value="" className="text-black">Todos os Meses</option>
+                                {['05','06','07','08','09','10','11','12'].map(m => {
+                                    const ym = `2026-${m}`;
+                                    const d = new Date(ym + '-15');
+                                    const label = `${d.toLocaleDateString('pt-BR', { month: 'long' })} DE 2026`.toUpperCase();
+                                    return <option key={ym} value={ym} className="text-black">{label}</option>;
+                                })}
+                            </select>
+                            <button 
+                                onClick={() => handleGenerateReportPDF()}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 px-6 rounded-2xl transition-all shadow-xl shadow-emerald-100 active:scale-95 uppercase text-xs tracking-widest flex items-center gap-2 group"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m3.243-4.243a4 4 0 015.657 0L12 14.142l1.101-1.101a4 4 0 015.657 0M12 12V3" /></svg>
+                                Relatório PDF
                             </button>
                         </div>
-                    )}
+                        
+                        {!readOnly && !securityMode && (
+                            <div className="flex justify-end gap-3">
+                                <button 
+                                    onClick={() => { setEditingOrder(null); setIsModalOpen(true); }}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 px-10 rounded-2xl transition-all shadow-xl shadow-indigo-100 active:scale-95 uppercase text-xs tracking-widest flex items-center gap-2 group"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                    Nova Ordem de Saída
+                                </button>
+                            </div>
+                        )}
+                    </div>
 
                     <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] shadow-xl border border-white/20 overflow-hidden">
                         <div className="overflow-x-auto">
@@ -1119,7 +1151,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {orders.length > 0 ? (
+                                    {(groupedOrders.withPdf.length > 0 || groupedOrders.withoutPdf.length > 0) ? (
                                         <>
                                             {/* Ordens com Anexo */}
                                             {groupedOrders.withPdf.length > 0 && (
