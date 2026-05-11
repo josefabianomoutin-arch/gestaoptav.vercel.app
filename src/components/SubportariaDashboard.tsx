@@ -20,6 +20,7 @@ interface SubportariaDashboardProps {
   onUpdateVehicleExitOrder: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
   systemPasswords?: Record<string, string>;
   onUpdateSystemPassword?: (key: string, value: string) => Promise<void>;
+  [key: string]: any;
 }
 
 const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({ 
@@ -32,6 +33,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     vehicleAssets,
     driverAssets,
     validationRoles,
+    onUpdateVehicleExitOrder,
     systemPasswords = {},
     onUpdateSystemPassword = async () => {}
 }) => {

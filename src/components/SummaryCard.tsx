@@ -5,6 +5,7 @@ import { MONTHS_2026 } from '../constants';
 
 interface SummaryCardProps {
     supplier: Supplier;
+    [key: string]: any;
 }
 
 const getContractItemDisplayInfo = (item: Supplier['contractItems'][0]): { quantity: number; unit: string } => {

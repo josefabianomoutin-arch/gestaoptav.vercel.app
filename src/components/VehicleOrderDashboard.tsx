@@ -25,6 +25,7 @@ interface VehicleOrderDashboardProps {
   onDeleteVehicleInspection?: (id: string) => Promise<{ success: boolean; message: string }>;
   onLogout: () => void;
   role?: 'infraestrutura' | 'ordem_saida';
+  [key: string]: any;
 }
 
 const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({

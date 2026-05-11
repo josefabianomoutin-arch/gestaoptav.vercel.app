@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
-import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Layers } from 'lucide-react';
+import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search } from 'lucide-react';
 import { HOLIDAYS_2026 } from '../constants';
 import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus } from '../types';
 import AdminInvoices from './AdminInvoices';
@@ -1233,13 +1233,13 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             )}
 
                             <div className="p-4 min-h-[400px]">
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
                                     {filteredImages.length > 0 ? (
                                         filteredImages.map(log => (
-                                            <div key={log.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-2xl hover:border-indigo-200 transition-all group flex flex-col h-full relative">
-                                                {/* Smaller Thumbnail */}
+                                            <div key={log.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-xl hover:border-indigo-200 transition-all group flex flex-col h-full relative">
+                                                {/* Smaller Thumbnail - Aspect Document */}
                                                 <div 
-                                                    className="aspect-video bg-slate-100 flex items-center justify-center cursor-pointer relative overflow-hidden border-b border-gray-50"
+                                                    className="aspect-[3/4] bg-slate-100 flex items-center justify-center cursor-pointer relative overflow-hidden border-b border-gray-50"
                                                     onClick={() => {
                                                         if (log.invoiceUrl) {
                                                             const win = window.open();
@@ -1250,49 +1250,43 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                     }}
                                                 >
                                                     {log.invoiceUrl?.startsWith('data:image') ? (
-                                                        <img src={log.invoiceUrl} alt="NF" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 blur-[0.5px] group-hover:blur-0" />
+                                                        <img src={log.invoiceUrl} alt="NF" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                                                     ) : (
                                                         <div className="flex flex-col items-center gap-1 text-slate-300 group-hover:text-indigo-400 transition-colors">
-                                                            <FileText className="h-6 w-6" />
-                                                            <span className="text-[7px] font-black uppercase tracking-[0.2em] italic">PDF</span>
+                                                            <FileText className="h-5 w-5" />
+                                                            <span className="text-[6px] font-black uppercase tracking-widest italic">PDF</span>
                                                         </div>
                                                     )}
                                                     <div className="absolute inset-0 bg-indigo-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                                                        <Eye className="text-white h-5 w-5 animate-pulse" />
+                                                        <Eye className="text-white h-4 w-4 animate-pulse" />
                                                     </div>
                                                     
                                                     {/* Floating Date Badge */}
-                                                    <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-md px-1.5 py-0.5 rounded-md shadow-sm border border-white/20">
-                                                        <span className="text-[7px] font-mono font-bold text-indigo-950">{(log.date || '').split('-').reverse().join('/')}</span>
+                                                    <div className="absolute top-1 right-1 bg-white/90 backdrop-blur-md px-1 py-0.5 rounded shadow-sm border border-white/20">
+                                                        <span className="text-[6px] font-mono font-bold text-indigo-950">{(log.date || '').split('-').reverse().join('/')}</span>
                                                     </div>
                                                 </div>
 
-                                                <div className="p-3 flex flex-col flex-grow">
-                                                    <div className="mb-2">
-                                                        <div className="flex flex-wrap gap-1 mb-1.5">
-                                                            <span className="text-[6px] font-black bg-zinc-900 text-white px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">{log.type}</span>
-                                                            {log.nl && <span className="text-[6px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">NL {log.nl}</span>}
-                                                            {log.pd && <span className="text-[6px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">PD {log.pd}</span>}
+                                                <div className="p-2 flex flex-col flex-grow">
+                                                    <div className="mb-1">
+                                                        <div className="flex flex-wrap gap-0.5 mb-1">
+                                                            <span className={`text-[5px] font-black ${log.type === 'entrada' ? 'bg-emerald-500' : 'bg-rose-500'} text-white px-1 py-0.5 rounded uppercase tracking-tighter shadow-sm`}>{log.type}</span>
+                                                            {log.pd && <span className="text-[5px] font-black bg-indigo-500 text-white px-1 py-0.5 rounded uppercase tracking-tighter shadow-sm">PD {log.pd}</span>}
                                                         </div>
-                                                        <h4 className="text-[9px] font-black text-slate-800 uppercase leading-tight mb-1 line-clamp-2 h-7 group-hover:text-indigo-600 transition-colors">{log.itemName}</h4>
+                                                        <h4 className="text-[8px] font-black text-slate-800 uppercase leading-tight mb-0.5 line-clamp-2 h-7 group-hover:text-indigo-600 transition-colors">{log.itemName}</h4>
                                                     </div>
 
-                                                    <div className="mt-auto space-y-1.5">
-                                                        <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                                                            <div className="h-4 w-4 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                                                                <Layers className="h-2 w-2 text-slate-400" />
-                                                            </div>
-                                                            <p className="text-[7px] text-slate-500 font-bold uppercase truncate">{log.supplierName}</p>
-                                                        </div>
-
-                                                        <div className="pt-2 border-t border-slate-50 grid grid-cols-2 gap-2">
+                                                    <div className="mt-auto">
+                                                        <p className="text-[6px] text-slate-400 font-bold uppercase truncate mb-1">{log.supplierName}</p>
+                                                        
+                                                        <div className="pt-1 border-t border-slate-50 grid grid-cols-2 gap-1">
                                                             <div className="flex flex-col">
-                                                                <span className="text-slate-400 text-[6px] uppercase font-black tracking-tighter">Nota Fiscal</span>
-                                                                <span className="text-slate-900 font-mono text-[8px] font-black">{log.inboundInvoice || log.outboundInvoice || log.invoiceNumber || '-'}</span>
+                                                                <span className="text-slate-400 text-[5px] uppercase font-black tracking-tighter">NF</span>
+                                                                <span className="text-slate-900 font-mono text-[7px] font-black truncate">{log.inboundInvoice || log.outboundInvoice || log.invoiceNumber || '-'}</span>
                                                             </div>
                                                             <div className="text-right flex flex-col">
-                                                                <span className="text-slate-400 text-[6px] uppercase font-black tracking-tighter block">Volume</span>
-                                                                <span className="text-indigo-700 font-black text-[8px] italic">{Number(log.quantity).toFixed(1)} <span className="text-[6px]">KG/UN</span></span>
+                                                                <span className="text-slate-400 text-[5px] uppercase font-black tracking-tighter block">QTD</span>
+                                                                <span className="text-indigo-700 font-black text-[7px] italic">{Number(log.quantity).toFixed(1)}</span>
                                                             </div>
                                                         </div>
                                                     </div>

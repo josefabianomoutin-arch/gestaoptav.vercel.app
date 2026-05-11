@@ -26,6 +26,7 @@ interface JulioDashboardProps {
   onRegisterVehicleInspection: (inspection: Omit<VehicleInspection, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateVehicleInspection: (inspection: VehicleInspection) => Promise<{ success: boolean; message: string }>;
   onDeleteVehicleInspection: (id: string) => Promise<{ success: boolean; message: string }>;
+  [key: string]: any;
 }
 
 const JulioDashboard: React.FC<JulioDashboardProps> = ({

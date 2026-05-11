@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import type { Supplier, Delivery, WarehouseMovement } from '../types';
-import { Download, Search, FileCheck, AlertCircle, Trash2, RotateCcw, Eye, Plus, X, Edit2, Printer, Barcode as BarcodeIcon, Upload } from 'lucide-react';
+import type { Supplier, Delivery, WarehouseMovement, AcquisitionItem } from '../types';
+import { Download, Search, FileCheck, Trash2, RotateCcw, Plus, X, Edit2, Printer, Barcode as BarcodeIcon, Upload, Calendar, FileText, Package } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app, storage } from '../firebaseConfig';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -40,6 +40,8 @@ interface AdminInvoicesProps {
   mode?: 'admin' | 'warehouse_entry' | 'warehouse_exit';
   onRegisterExit?: (payload: any) => Promise<{ success: boolean; message: string }>;
   perCapitaConfig?: any;
+  acquisitionItems?: AcquisitionItem[];
+  onMarkInvoiceAsOpened?: (supplierCpf: string, invoiceNumber: string) => Promise<{ success: boolean }>;
 }
 
 const MONTHS = [
@@ -439,55 +441,79 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse table-fixed min-w-[1000px]">
-            <thead>
-              <tr className="bg-slate-50 border-b border-gray-100">
-                <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">PD</th>
-                <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">NF # / Data</th>
-                <th className="w-[18%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Fornecedor</th>
-                <th className="w-[30%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Itens / Etiquetas</th>
-                <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Valor Total</th>
-                <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
-                <th className="w-[10%] px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Ações</th>
+        <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-250px)] custom-scrollbar">
+          <table className="w-full text-left border-collapse table-fixed min-w-[1200px]">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-zinc-900 border-b border-zinc-800">
+                <th className="w-[8%] px-3 py-4 text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] text-center italic">Status PD</th>
+                <th className="w-[12%] px-4 py-4 text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] italic">NF / Data / NL</th>
+                <th className="w-[18%] px-4 py-4 text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] italic">Fornecedor</th>
+                <th className="w-[32%] px-4 py-4 text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] italic">Itens, Lotes e Códigos</th>
+                <th className="w-[10%] px-4 py-4 text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] italic">Financeiro</th>
+                <th className="w-[10%] px-4 py-4 text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] text-center italic">Processo</th>
+                <th className="w-[10%] px-4 py-4 text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] text-center italic">Ações</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-100 bg-white">
               {filteredInvoices.length > 0 ? filteredInvoices.map((inv) => {
                 const hasPd = !!inv.pd;
                 return (
-                <tr key={`${inv.supplierCpf}-${inv.invoiceNumber}`} className={`border-b border-gray-50 transition-colors group ${hasPd ? 'bg-green-50/50 hover:bg-green-50' : 'bg-red-50/70 hover:bg-red-50'}`}>
-                  <td className="px-3 py-1.5 text-center">
-                    <span className={`text-[10px] font-black uppercase tracking-tighter px-2 py-1 rounded shadow-sm ${inv.pd ? 'bg-green-600 text-white' : 'bg-red-600 text-white animate-pulse'}`}>
-                      {inv.pd ? inv.pd : 'S/PD'}
-                    </span>
+                <tr key={`${inv.supplierCpf}-${inv.invoiceNumber}`} className={`transition-all group ${!hasPd ? 'bg-rose-50/30 hover:bg-rose-50/60' : 'hover:bg-slate-50'}`}>
+                  <td className="px-3 py-3 text-center">
+                    <div className="flex flex-col items-center gap-1">
+                        <span className={`text-[10px] font-black uppercase tracking-tighter px-2.5 py-1 rounded-lg border-2 shadow-sm min-w-[65px] text-center ${inv.pd ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-rose-600 border-rose-500 text-white animate-pulse'}`}>
+                        {inv.pd ? inv.pd : 'S/PD'}
+                        </span>
+                        {!inv.pd && <span className="text-[6px] font-black text-rose-500 uppercase">Aguardando PD</span>}
+                    </div>
                   </td>
-                  <td className="px-3 py-1.5">
-                    <div className={`font-black tracking-tighter text-[11px] ${!hasPd ? 'text-red-700' : 'text-green-900'}`}>#{inv.invoiceNumber}</div>
-                    <div className="text-[8px] text-gray-400 font-bold uppercase tracking-tight">{new Date(inv.date + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col">
+                        <div className={`font-black tracking-tighter text-[12px] ${!hasPd ? 'text-rose-700' : 'text-zinc-900'} leading-none`}>#{inv.invoiceNumber}</div>
+                        <div className="text-[8px] text-zinc-400 font-bold uppercase tracking-tight mt-1.5 flex items-center gap-1">
+                            <Calendar className="h-2.5 w-2.5" />
+                            {new Date(inv.date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                        </div>
+                        {inv.nl && (
+                            <div className="mt-1.5 flex items-center gap-1 text-[8px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-sm w-fit">
+                                <FileText className="h-2.5 w-2.5" /> NL {inv.nl}
+                            </div>
+                        )}
+                    </div>
                   </td>
-                  <td className="px-3 py-1.5">
-                    <div className="text-[10px] font-black text-gray-800 uppercase line-clamp-1 leading-tight">{inv.supplierName}</div>
-                    <div className="text-[7px] text-gray-400 font-bold tracking-widest leading-none mt-0.5">{inv.supplierCpf}</div>
+                  <td className="px-4 py-3">
+                    <div className="text-[11px] font-black text-zinc-900 uppercase line-clamp-1 leading-tight mb-1">{inv.supplierName}</div>
+                    <div className="text-[7.5px] text-zinc-400 font-bold tracking-widest leading-none flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-zinc-200"></div>
+                        {inv.supplierCpf}
+                    </div>
                   </td>
-                  <td className="px-3 py-1.5">
-                    <div className="flex flex-col gap-1.5">
+                  <td className="px-4 py-3">
+                    <div className="grid grid-cols-1 gap-2">
                       {inv.items.map((it: any, i: number) => (
-                        <div key={i} className="flex items-center gap-2 group/item">
-                            <div className="flex flex-col border-l-2 border-indigo-100 pl-2">
-                                <span className="text-[9px] font-black text-indigo-900 leading-none uppercase">
-                                    {it.item} ({(it.kg || 0).toLocaleString('pt-BR')} Kg)
-                                </span>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className="text-[7px] text-gray-400 font-bold uppercase">
-                                      Lote: {it.lotNumber || 'UNICO'} | Val: {it.expirationDate ? it.expirationDate.split('-').reverse().join('/') : 'N/A'}
-                                  </span>
-                                </div>
-                                {it.barcode && (
-                                    <span className="text-[10px] font-mono text-blue-700 font-bold bg-blue-50 px-1 rounded-sm tracking-tight mt-0.5 flex items-center gap-1 w-fit">
-                                        <BarcodeIcon className="h-3 w-3" /> {it.barcode}
+                        <div key={i} className="flex items-center justify-between gap-3 p-2 rounded-xl bg-white border border-gray-100 group/item hover:border-indigo-200 hover:shadow-sm transition-all">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-baseline gap-2 mb-1">
+                                    <span className="text-[9.5px] font-black text-indigo-950 uppercase truncate leading-none">
+                                        {it.item}
                                     </span>
-                                )}
+                                    <span className="text-[8px] font-bold text-indigo-500 italic shrink-0">
+                                        {(it.kg || 0).toLocaleString('pt-BR')} Kg
+                                    </span>
+                                </div>
+                                <div className="flex flex-wrap gap-x-3 gap-y-1 items-center">
+                                    <span className="text-[7px] text-zinc-400 font-black uppercase tracking-tight flex items-center gap-1">
+                                        <Package className="h-2 w-2" /> LOTE: {it.lotNumber || 'UNICO'}
+                                    </span>
+                                    <span className="text-[7px] text-amber-500 font-black uppercase tracking-tight flex items-center gap-1">
+                                        <Calendar className="h-2 w-2" /> VAL: {it.expirationDate ? it.expirationDate.split('-').reverse().join('/') : 'N/A'}
+                                    </span>
+                                    {it.barcode && (
+                                        <span className="text-[8px] font-mono font-black text-emerald-600 bg-emerald-50 px-1 border border-emerald-100 rounded flex items-center gap-1">
+                                            <BarcodeIcon className="h-2 w-2" /> {it.barcode}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                             <button 
                                 onClick={() => {
@@ -502,59 +528,78 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                                 @page { size: 100mm 50mm; margin: 0; }
                                                 body { font-family: sans-serif; margin: 0; padding: 5mm; }
                                                 .label { width: 90mm; height: 40mm; border: 1px solid #000; padding: 2mm; display: flex; flex-direction: column; justify-content: space-between; }
-                                                h1 { font-size: 12pt; margin: 0; font-weight: 800; }
-                                                h2 { font-size: 10pt; margin: 0; }
-                                                p { font-size: 8pt; margin: 1pt 0; }
-                                                .barcode { width: 100%; height: 10mm; }
+                                                h1 { font-size: 14pt; margin: 0; font-weight: 800; text-transform: uppercase; }
+                                                h2 { font-size: 10pt; margin: 0; color: #333; }
+                                                p { font-size: 8pt; margin: 1pt 0; font-weight: 600; }
+                                                .barcode-container { text-align: center; margin-top: 2mm; }
+                                                .barcode { width: 100%; height: 12mm; }
                                             </style>
                                         </head>
                                         <body>
                                             <div class="label">
                                                 <div>
-                                                    <h1>${it.item.split(' ').slice(0, 2).join(' ')}</h1>
+                                                    <h1>${it.item}</h1>
                                                     <h2>Fornecedor: ${inv.supplierName}</h2>
                                                     <p>NF: ${inv.invoiceNumber} | Data: ${new Date(inv.date).toLocaleDateString()}</p>
                                                     <p>Lote: ${it.lotNumber || 'N/A'} | Validade: ${it.expirationDate ? it.expirationDate.split('-').reverse().join('/') : 'N/A'}</p>
                                                 </div>
-                                                <svg id="barcode" class="barcode"></svg>
+                                                <div class="barcode-container">
+                                                    <svg id="barcode" class="barcode"></svg>
+                                                </div>
                                             </div>
                                             <script>
-                                                JsBarcode("#barcode", "${it.barcode || 'N/A'}", { height: 40, width: 1.5, fontSize: 12, displayValue: true });
-                                                setTimeout(() => { window.print(); window.close(); }, 500);
+                                                JsBarcode("#barcode", "${it.barcode || 'N/A'}", { 
+                                                    height: 35, 
+                                                    width: 1.8, 
+                                                    fontSize: 14, 
+                                                    displayValue: true,
+                                                    fontOptions: "bold"
+                                                });
+                                                setTimeout(() => { window.print(); window.close(); }, 700);
                                             </script>
                                         </body>
                                         </html>
                                     `);
                                     printWindow.document.close();
                                 }}
-                                className="opacity-0 group-hover/item:opacity-100 p-1 bg-amber-50 text-amber-600 rounded hover:bg-amber-600 hover:text-white transition-all ml-auto"
+                                className="p-2 bg-zinc-100 text-zinc-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all shadow-sm active:scale-90"
                                 title="Imprimir Etiqueta"
                             >
-                                <Printer className="h-2.5 w-2.5" />
+                                <Printer className="h-3 w-3" />
                             </button>
                         </div>
                       ))}
                     </div>
                   </td>
-                  <td className="px-3 py-1.5">
-                    <div className={`text-[10px] font-black ${!hasPd ? 'text-red-600' : 'text-green-700'}`}>
-                        {formatCurrency(inv.items.reduce((sum: number, it: any) => sum + (it.value || 0), 0))}
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col">
+                        <div className={`text-[12px] font-black ${!hasPd ? 'text-rose-700' : 'text-emerald-700'} leading-none`}>
+                            {formatCurrency(inv.items.reduce((sum: number, it: any) => sum + (it.value || 0), 0))}
+                        </div>
+                        <div className="text-[7.5px] text-zinc-400 font-bold uppercase mt-1 flex items-center gap-1">
+                            <div className={`w-1 h-1 rounded-full ${inv.isOpened ? 'bg-blue-500' : 'bg-amber-500 animate-pulse'}`}></div>
+                            {inv.isOpened ? 'Conciliado' : 'Aguardando'}
+                        </div>
                     </div>
                   </td>
-                  <td className="px-3 py-1.5 text-center">
-                    {!inv.pd ? (
-                      <span className="bg-red-600 text-white px-2 py-1 rounded-md text-[7px] font-black uppercase tracking-widest flex items-center justify-center gap-1 w-fit mx-auto shadow-sm animate-pulse">
-                        <AlertCircle className="h-2 w-2" /> PENDENTE DE PAGAMENTO
-                      </span>
-                    ) : inv.isOpened ? (
-                      <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border border-blue-100 flex items-center justify-center gap-1 w-fit mx-auto">
-                        <Eye className="h-2 w-2" /> OK
-                      </span>
-                    ) : (
-                      <span className="bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border border-amber-100 flex items-center justify-center gap-1 w-fit mx-auto">
-                        <AlertCircle className="h-2 w-2" /> PEND
-                      </span>
-                    )}
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex flex-col items-center gap-1.5">
+                        {inv.isOpened ? (
+                        <div className="flex flex-col items-center">
+                            <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest shadow-sm">
+                                CONCLUÍDO
+                            </span>
+                            <span className="text-[6px] text-zinc-400 font-bold mt-0.5">NOTADO E CONFERIDO</span>
+                        </div>
+                        ) : (
+                        <div className="flex flex-col items-center">
+                            <span className="bg-amber-500 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest shadow-sm animate-pulse">
+                                PROCESSANDO
+                            </span>
+                            <span className="text-[6px] text-amber-600 font-black mt-0.5 uppercase tracking-tighter">Falta Autorização</span>
+                        </div>
+                        )}
+                    </div>
                   </td>
                   <td className="px-3 py-1.5">
                     <div className="flex items-center justify-center gap-1">

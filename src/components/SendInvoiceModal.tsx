@@ -67,7 +67,6 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
       
       if (data.number) setInvoiceNumber(data.number);
       if (data.date) setInvoiceDate(data.date);
-      if (data.supplier) setSupplierName(data.supplier);
       
       if (data.items) {
         const extractedDeliveries = data.items.map((item: any) => ({

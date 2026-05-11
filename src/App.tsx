@@ -1090,6 +1090,12 @@ const App: React.FC = () => {
             const finalPd = pd !== undefined ? pd : existingForNf[0].pd;
             const existingInvoiceUrl = existingForNf.find(d => d.invoiceUrl)?.invoiceUrl;
 
+            // Preservar códigos de barras originais caso não venham no payload
+            const existingBarcodesMatch = (itemName: string) => {
+                const match = existingForNf.find(e => String(e.item || '').trim().toUpperCase() === String(itemName || '').trim().toUpperCase());
+                return match?.barcode || '';
+            };
+
             // Remove itens antigos daquela nota
             currentData.deliveries = currentData.deliveries.filter(d => d.invoiceNumber !== invoiceNumber);
 
@@ -1106,7 +1112,7 @@ const App: React.FC = () => {
                 value: item.value,
                 invoiceUploaded: true,
                 invoiceNumber: String(finalInvoiceNumber || '').trim(),
-                barcode: item.barcode || barcode || '',
+                barcode: item.barcode || barcode || existingBarcodesMatch(item.name),
                 lots: [{
                   id: lotId,
                   lotNumber: item.lotNumber || 'EDITADO',
@@ -1156,7 +1162,7 @@ const App: React.FC = () => {
                 lotNumber: item.lotNumber || 'EDITADO',
                 quantity: item.kg,
                 value: item.value,
-                barcode: item.barcode || barcode || '',
+                barcode: item.barcode || barcode || '', 
                 lotId: lotId,
                 deliveryId: deliveryId,
                 inboundInvoice: String(newInvoiceNumber || invoiceNumber).trim(),
@@ -1190,6 +1196,12 @@ const App: React.FC = () => {
               const finalPd = pd !== undefined ? pd : existingForNf[0].pd;
               const existingInvoiceUrl = existingForNf.find((d: any) => d.invoiceUrl)?.invoiceUrl;
 
+              // Preservar códigos de barras originais caso não venham no payload
+              const existingBarcodesMatchPC = (itemName: string) => {
+                const match = existingForNf.find((e: any) => String(e.item || '').trim().toUpperCase() === String(itemName || '').trim().toUpperCase());
+                return match?.barcode || '';
+              };
+
               s.deliveries = s.deliveries.filter((d: any) => d.invoiceNumber !== invoiceNumber);
 
               items.forEach((item, idx) => {
@@ -1204,7 +1216,7 @@ const App: React.FC = () => {
                   value: item.value,
                   invoiceUploaded: true,
                   invoiceNumber: String(finalInvoiceNumber || '').trim(),
-                  barcode: item.barcode || barcode || '',
+                  barcode: item.barcode || barcode || existingBarcodesMatchPC(item.name),
                   lots: [{
                     id: lotId,
                     lotNumber: item.lotNumber || 'EDITADO',
