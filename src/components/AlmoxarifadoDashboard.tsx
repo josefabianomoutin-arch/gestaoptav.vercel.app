@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
-import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, ImageIcon } from 'lucide-react';
+import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, ImageIcon, Search, Calendar, Layers } from 'lucide-react';
 import { HOLIDAYS_2026 } from '../constants';
 import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus } from '../types';
 import AdminInvoices from './AdminInvoices';
@@ -125,6 +125,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [cronogramaType, setCronogramaType] = useState<'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS'>('PPAIS');
     const [selectedCronogramaSupplier, setSelectedCronogramaSupplier] = useState('');
+    const [invoiceSearch, setInvoiceSearch] = useState('');
 
     const weeklyDeliveries = useMemo(() => {
         const list: { date: string; supplierName: string; time: string; status: 'AGENDADO' | 'CONCLUÍDO' | 'TERCEIRO' | 'CANCELADO'; id: string; type: 'FORNECEDOR' | 'TERCEIRO'; itemName?: string }[] = [];
@@ -211,6 +212,11 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         itemName: d.item,
                         quantity: d.kg || 0,
                         inboundInvoice: d.invoiceNumber,
+                        receiptTermNumber: d.receiptTermNumber,
+                        nl: d.nl,
+                        pd: d.pd,
+                        lotNumber: d.lotNumber,
+                        expirationDate: d.expirationDate,
                     });
                 }
             });
@@ -219,7 +225,14 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         warehouseLog.forEach(l => {
             if (l.invoiceUrl && !seenUrls.has(l.invoiceUrl)) {
                 seenUrls.add(l.invoiceUrl);
-                deliveries.push(l);
+                deliveries.push({
+                    ...l,
+                    itemName: l.itemName || l.item,
+                    quantity: l.quantity || l.kg || l.weight || 0,
+                    inboundInvoice: l.inboundInvoice || l.invoiceNumber,
+                    nl: l.nlNumber || (l as any).nl,
+                    pd: l.pdNumber || (l as any).pd,
+                });
             }
         });
 
@@ -274,15 +287,31 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const filteredImages = useMemo(() => {
         return imageDeliveries.filter(l => {
             if (!l.invoiceUrl) return false;
-            if (!activeImageMonth) return true;
             
-            const dateStr = l.date || (typeof l.timestamp === 'number' ? new Date(l.timestamp).toISOString().split('T')[0] : (l.timestamp as any)?.split?.('T')?.[0]);
-            if (!dateStr) return false;
-            
-            const d = new Date(dateStr + 'T00:00:00');
-            return `${d.getFullYear()}-${d.getMonth()}` === activeImageMonth;
+            // Apply month filter
+            let monthMatch = true;
+            if (activeImageMonth) {
+                const dateStr = l.date || (typeof l.timestamp === 'number' ? new Date(l.timestamp).toISOString().split('T')[0] : (l.timestamp as any)?.split?.('T')?.[0]);
+                if (dateStr) {
+                    const d = new Date(dateStr + 'T00:00:00');
+                    monthMatch = `${d.getFullYear()}-${d.getMonth()}` === activeImageMonth;
+                } else {
+                    monthMatch = false;
+                }
+            }
+
+            // Apply search filter (supplierName, itemName, invoiceNumber)
+            const searchLower = invoiceSearch.toLowerCase();
+            const searchMatch = !invoiceSearch || 
+                (l.supplierName || '').toLowerCase().includes(searchLower) ||
+                (l.itemName || '').toLowerCase().includes(searchLower) ||
+                (l.inboundInvoice || '').toLowerCase().includes(searchLower) ||
+                (l.outboundInvoice || '').toLowerCase().includes(searchLower) ||
+                (l.invoiceNumber || '').toLowerCase().includes(searchLower);
+
+            return monthMatch && searchMatch;
         }).sort((a, b) => b.timestamp - a.timestamp);
-    }, [imageDeliveries, activeImageMonth]);
+    }, [imageDeliveries, activeImageMonth, invoiceSearch]);
 
     const handlePrintCronograma = () => {
         const monthIndex = MONTHS_PT.indexOf(selectedMonth);
@@ -1208,37 +1237,59 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         perCapitaConfig={perCapitaConfig}
                     />
                 ) : activeTab === 'image_history' ? (
-                    <div className="space-y-6">
-                        <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in mb-8">
-                            <div className="p-4 md:p-6 border-b border-gray-100 bg-zinc-900 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="space-y-6 animate-fade-in">
+                        {/* Compact Modern Header */}
+                        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+                            <div className="p-4 bg-zinc-900 flex flex-col md:flex-row justify-between items-center gap-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="bg-indigo-500 text-white p-2 rounded-[1rem]">
-                                        <FileIcon className="h-6 w-6" />
+                                    <div className="bg-indigo-600 text-white p-2 rounded-xl shadow-lg">
+                                        <FileIcon className="h-5 w-5" />
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-black uppercase tracking-tighter leading-none italic">Notas Fiscais</h2>
-                                        <p className="text-zinc-400 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Visualização por Mês das Notas (PDF) Cadastradas</p>
+                                        <h2 className="text-base font-black uppercase tracking-tighter leading-none text-white italic">Notas Fiscais</h2>
+                                        <p className="text-zinc-400 font-bold text-[7px] uppercase tracking-widest mt-0.5 opacity-80">Gestão Documental e Visualização</p>
                                     </div>
                                 </div>
+
+                                <div className="relative w-full md:w-64 group">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" />
+                                    <input 
+                                        type="text"
+                                        placeholder="BUSCAR FORNECEDOR OU NOTA..."
+                                        value={invoiceSearch}
+                                        onChange={e => setInvoiceSearch(e.target.value)}
+                                        className="w-full h-9 pl-9 pr-4 bg-zinc-800 border-none rounded-xl text-[9px] font-black uppercase tracking-widest text-white placeholder:text-zinc-600 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:italic"
+                                    />
+                                </div>
                             </div>
-                            
-                            {/* Month Selector Tabs */}
+
+                            {/* Dense Month Selector */}
                             {availableImageMonths.length > 0 && (
-                                <div className="px-6 py-4 flex flex-wrap gap-2 bg-gray-50/50 border-b border-gray-100 overflow-x-auto scrollbar-hide">
+                                <div className="px-4 py-3 flex gap-2 bg-gray-50 border-b border-gray-100 overflow-x-auto scrollbar-hide">
+                                    <button
+                                        onClick={() => setActiveImageMonth('')}
+                                        className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                                            activeImageMonth === '' 
+                                            ? 'bg-zinc-900 text-white shadow-md' 
+                                            : 'bg-white text-zinc-400 border border-zinc-200 hover:border-zinc-300'
+                                        }`}
+                                    >
+                                        VER TUDO
+                                    </button>
                                     {availableImageMonths.map(monthKey => {
                                         const [year, monthIdx] = monthKey.split('-').map(Number);
                                         const monthName = [
-                                            'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                                            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+                                            'JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN',
+                                            'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'
                                         ][monthIdx];
                                         return (
                                             <button
                                                 key={monthKey}
                                                 onClick={() => setActiveImageMonth(monthKey)}
-                                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                                                className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
                                                     activeImageMonth === monthKey 
-                                                    ? 'bg-zinc-900 text-white shadow-lg' 
-                                                    : 'bg-white text-zinc-400 border border-zinc-100 hover:border-zinc-300'
+                                                    ? 'bg-indigo-600 text-white shadow-md' 
+                                                    : 'bg-white text-zinc-400 border border-zinc-200 hover:border-zinc-300'
                                                 }`}
                                             >
                                                 {monthName} / {year}
@@ -1248,13 +1299,14 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 </div>
                             )}
 
-                            <div className="p-6">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                            <div className="p-4 min-h-[400px]">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-4">
                                     {filteredImages.length > 0 ? (
                                         filteredImages.map(log => (
-                                            <div key={log.id} className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all group flex flex-col h-full">
+                                            <div key={log.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-2xl hover:border-indigo-200 transition-all group flex flex-col h-full relative">
+                                                {/* Smaller Thumbnail */}
                                                 <div 
-                                                    className="aspect-[3/4] bg-zinc-200 flex items-center justify-center cursor-pointer relative overflow-hidden"
+                                                    className="aspect-video bg-slate-100 flex items-center justify-center cursor-pointer relative overflow-hidden border-b border-gray-50"
                                                     onClick={() => {
                                                         if (log.invoiceUrl) {
                                                             const win = window.open();
@@ -1265,44 +1317,62 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                     }}
                                                 >
                                                     {log.invoiceUrl?.startsWith('data:image') ? (
-                                                        <img src={log.invoiceUrl} alt="Comprovante" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                        <img src={log.invoiceUrl} alt="NF" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 blur-[0.5px] group-hover:blur-0" />
                                                     ) : (
-                                                        <div className="flex flex-col items-center gap-2 text-zinc-400 group-hover:text-indigo-500 transition-colors">
-                                                            <FileText className="h-12 w-12" />
-                                                            <span className="text-[10px] font-black uppercase tracking-widest">Documento PDF</span>
+                                                        <div className="flex flex-col items-center gap-1 text-slate-300 group-hover:text-indigo-400 transition-colors">
+                                                            <FileText className="h-6 w-6" />
+                                                            <span className="text-[7px] font-black uppercase tracking-[0.2em] italic">PDF</span>
                                                         </div>
                                                     )}
-                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                        <Eye className="text-white h-8 w-8" />
+                                                    <div className="absolute inset-0 bg-indigo-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                                                        <Eye className="text-white h-5 w-5 animate-pulse" />
+                                                    </div>
+                                                    
+                                                    {/* Floating Date Badge */}
+                                                    <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-md px-1.5 py-0.5 rounded-md shadow-sm border border-white/20">
+                                                        <span className="text-[7px] font-mono font-bold text-indigo-950">{(log.date || '').split('-').reverse().join('/')}</span>
                                                     </div>
                                                 </div>
-                                                <div className="p-4 flex flex-col flex-grow">
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <span className="text-[8px] font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded uppercase">{log.type}</span>
-                                                        <span className="text-[9px] font-mono font-bold text-gray-400">{(log.date || '').split('-').reverse().join('/')}</span>
-                                                    </div>
-                                                    <h4 className="text-[10px] font-black text-gray-900 uppercase leading-tight mb-1">{log.itemName}</h4>
-                                                    <p className="text-[8px] text-gray-500 font-bold uppercase truncate mb-1">{log.supplierName}</p>
-                                                    
-                                                    <div className="mt-auto pt-3 border-t border-gray-100 flex justify-between items-center text-[9px] font-mono font-bold">
-                                                        <div className="flex flex-col">
-                                                            <span className="text-gray-400 text-[7px] uppercase tracking-tighter">Nota Fiscal</span>
-                                                            <span className="text-zinc-600">{log.inboundInvoice || log.outboundInvoice || '-'}</span>
+
+                                                <div className="p-3 flex flex-col flex-grow">
+                                                    <div className="mb-2">
+                                                        <div className="flex flex-wrap gap-1 mb-1.5">
+                                                            <span className="text-[6px] font-black bg-zinc-900 text-white px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">{log.type}</span>
+                                                            {log.nl && <span className="text-[6px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">NL {log.nl}</span>}
+                                                            {log.pd && <span className="text-[6px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">PD {log.pd}</span>}
                                                         </div>
-                                                        <div className="text-right">
-                                                            <span className="text-gray-400 text-[7px] uppercase tracking-tighter block">Quantidade</span>
-                                                            <span className="text-zinc-900 font-black">{log.quantity.toFixed(2)} Kg</span>
+                                                        <h4 className="text-[9px] font-black text-slate-800 uppercase leading-tight mb-1 line-clamp-2 h-7 group-hover:text-indigo-600 transition-colors">{log.itemName}</h4>
+                                                    </div>
+
+                                                    <div className="mt-auto space-y-1.5">
+                                                        <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                                                            <div className="h-4 w-4 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                                                                <Layers className="h-2 w-2 text-slate-400" />
+                                                            </div>
+                                                            <p className="text-[7px] text-slate-500 font-bold uppercase truncate">{log.supplierName}</p>
+                                                        </div>
+
+                                                        <div className="pt-2 border-t border-slate-50 grid grid-cols-2 gap-2">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-slate-400 text-[6px] uppercase font-black tracking-tighter">Nota Fiscal</span>
+                                                                <span className="text-slate-900 font-mono text-[8px] font-black">{log.inboundInvoice || log.outboundInvoice || log.invoiceNumber || '-'}</span>
+                                                            </div>
+                                                            <div className="text-right flex flex-col">
+                                                                <span className="text-slate-400 text-[6px] uppercase font-black tracking-tighter block">Volume</span>
+                                                                <span className="text-indigo-700 font-black text-[8px] italic">{Number(log.quantity).toFixed(1)} <span className="text-[6px]">KG/UN</span></span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         ))
                                     ) : (
-                                        <div className="col-span-full py-20 text-center">
-                                            <div className="inline-block p-6 bg-gray-50 rounded-full mb-4">
-                                                <ImageIcon className="h-12 w-12 text-gray-200" />
+                                        <div className="col-span-full py-24 flex flex-col items-center justify-center">
+                                            <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-4 border-2 border-dashed border-slate-200">
+                                                <Search className="h-10 w-10 text-slate-200" />
                                             </div>
-                                            <p className="text-gray-400 font-bold uppercase tracking-[0.2em] italic">Nenhum comprovante para este mês</p>
+                                            <h3 className="text-slate-300 font-black uppercase tracking-[0.3em] text-xs italic">Nenhuma nota encontrada</h3>
+                                            <p className="text-slate-400 text-[8px] font-bold uppercase mt-2">Tente ajustar seus filtros ou busca</p>
                                         </div>
                                     )}
                                 </div>
