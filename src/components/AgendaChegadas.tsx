@@ -64,11 +64,6 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({ suppliers, thirdPartyEn
             .sort((a, b) => a.time.localeCompare(b.time));
     }, [suppliers, thirdPartyEntries, selectedAgendaDate, searchTerm]);
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString + 'T12:00:00');
-        return date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-    };
-
     return (
         <div className={`space-y-6 animate-fade-in ${embedded ? '' : 'p-4 md:p-8 max-w-6xl mx-auto'}`}>
             {/* Header / Selector */}

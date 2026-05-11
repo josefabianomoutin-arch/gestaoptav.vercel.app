@@ -16,7 +16,7 @@ interface AdminAcquisitionItemsProps {
     perCapitaConfig?: any;
 }
 
-const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, category, onUpdate, onDelete, contractItems = [], suppliers = [], onUpdateContractForItem, perCapitaConfig }) => {
+const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, category, onUpdate, onDelete, contractItems = [], suppliers = [], onUpdateContractForItem }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -158,10 +158,10 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                 const weightPerSupplier = totalQuantity / numSuppliers;
                                 const valuePerSupplier = totalValue / numSuppliers;
 
-                                const getDivisor = (itemName: string) => {
+                                const getDivisor = () => {
                                     return 8; // requested by user
                                 };
-                                const divisor = getDivisor(item.name);
+                                const divisor = getDivisor();
 
                                 extraCols = `
                                     <td class="text-right">${weightPerSupplier.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
@@ -644,20 +644,6 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         };
 
                                         const divisor = getDivisor();
-
-                                        const summedMonthlyWeight = suppliersAssigned.reduce((sum, s) => {
-                                            const itemsSource = s.contractItems || {};
-                                            const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
-                                            const contractItem = supplierItems.find((ci: any) => normalize(ci.name) === normalizedName);
-                                            return sum + (contractItem?.monthlyWeight || 0);
-                                        }, 0);
-
-                                        const summedMonthlyValue = suppliersAssigned.reduce((sum, s) => {
-                                            const itemsSource = s.contractItems || {};
-                                            const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
-                                            const contractItem = supplierItems.find((ci: any) => normalize(ci.name) === normalizedName);
-                                            return sum + (contractItem?.monthlyValue || 0);
-                                        }, 0);
 
                                         const weightPerSupplier = suppliersAssigned.length > 0 ? totalQuantity / suppliersAssigned.length : 0;
                                         const valuePerSupplier = unitVal * weightPerSupplier;

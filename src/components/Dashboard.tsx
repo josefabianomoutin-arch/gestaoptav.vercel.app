@@ -90,7 +90,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   const headerColor = type === 'PRODUTOR' ? 'text-green-800' : 'text-indigo-800';
   const bannerColor = type === 'PRODUTOR' ? 'bg-indigo-600 border-indigo-800' : 'bg-emerald-600 border-emerald-800';
   const bannerTextColor = type === 'PRODUTOR' ? 'text-indigo-200' : 'text-emerald-100';
-  const weekBadgeColor = type === 'PRODUTOR' ? 'bg-white text-indigo-800' : 'bg-white text-emerald-800';
 
   const handleDayClick = (date: Date) => {
     const dateString = date.toISOString().split('T')[0];

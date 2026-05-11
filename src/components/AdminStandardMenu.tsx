@@ -451,7 +451,11 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
         const baseTemplateRows = template[dayName] || [];
         const paddedTemplateRows = Array.from({ length: ROWS_PER_DAY }, (_, i) => baseTemplateRows[i] || {});
         
-        const copiesWithoutIds = (paddedTemplateRows as Partial<MenuRow>[]).map(({ id: _id, ...rest }) => rest);
+        const copiesWithoutIds = (paddedTemplateRows as Partial<MenuRow>[]).map((row) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { id, ...rest } = row;
+            return rest;
+        });
 
         rowsToSet = normalize(copiesWithoutIds, selectedDate);
     }

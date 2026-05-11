@@ -338,7 +338,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
                         </div>
                     </div>
                 </div>
-                <MovementsGrid allRecords={records} filteredRecords={filteredRecords} viewMode="recursos" />
+                <MovementsGrid allRecords={records} filteredRecords={filteredRecords} />
             </div>
         )}
 
@@ -355,7 +355,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
                         </div>
                     </div>
                 </div>
-                <MovementsGrid allRecords={records} filteredRecords={filteredRecords} viewMode="pagamentos" />
+                <MovementsGrid allRecords={records} filteredRecords={filteredRecords} />
             </div>
         )}
 
@@ -480,7 +480,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
   );
 };
 
-const MovementsGrid: React.FC<{ allRecords: FinancialRecord[], filteredRecords: FinancialRecord[], viewMode: 'recursos' | 'pagamentos' }> = ({ allRecords, filteredRecords, viewMode }) => {
+const MovementsGrid: React.FC<{ allRecords: FinancialRecord[], filteredRecords: FinancialRecord[] }> = ({ allRecords, filteredRecords }) => {
     return (
         <div className="space-y-16">
             {PTRES_OPTIONS.map(ptres => {

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
-import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, ImageIcon, Search, Calendar, Layers } from 'lucide-react';
+import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Layers } from 'lucide-react';
 import { HOLIDAYS_2026 } from '../constants';
 import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus } from '../types';
 import AdminInvoices from './AdminInvoices';
@@ -102,7 +102,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     onUpdateDailyMenu
 }) => {
     const [activeTab, setActiveTab] = useState<string>('history');
-    const [selectedAgendaDate] = useState(new Date().toISOString().split('T')[0]);
     const [receiptSupplierCpf, setReceiptSupplierCpf] = useState('');
     const [receiptInvoice, setReceiptInvoice] = useState('');
     const [receiptProcessoSei, setReceiptProcessoSei] = useState('');
@@ -127,71 +126,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [selectedCronogramaSupplier, setSelectedCronogramaSupplier] = useState('');
     const [invoiceSearch, setInvoiceSearch] = useState('');
 
-    const weeklyDeliveries = useMemo(() => {
-        const list: { date: string; supplierName: string; time: string; status: 'AGENDADO' | 'CONCLUÍDO' | 'TERCEIRO' | 'CANCELADO'; id: string; type: 'FORNECEDOR' | 'TERCEIRO'; itemName?: string }[] = [];
-        
-        const current = new Date(selectedAgendaDate + 'T12:00:00');
-        const day = current.getDay();
-        const diff = current.getDate() - day;
-        const startOfWeek = new Date(current.setDate(diff));
-        
-        const weekDates: string[] = [];
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(startOfWeek);
-            d.setDate(startOfWeek.getDate() + i);
-            weekDates.push(d.toISOString().split('T')[0]);
-        }
 
-        suppliers.forEach(s => {
-            Object.values((s.deliveries as any) || {}).forEach((d: any) => {
-                if (weekDates.includes(d.date)) {
-                    const isFaturado = d.item !== 'AGENDAMENTO PENDENTE';
-                    list.push({
-                        id: d.id,
-                        date: d.date,
-                        supplierName: s.name,
-                        time: d.time,
-                        status: isFaturado ? 'CONCLUÍDO' : 'AGENDADO',
-                        type: 'FORNECEDOR',
-                        itemName: d.item
-                    });
-                }
-            });
-        });
-
-        (thirdPartyEntries || []).forEach(log => {
-            if (weekDates.includes(log.date)) {
-                let status: 'AGENDADO' | 'CONCLUÍDO' | 'TERCEIRO' | 'CANCELADO' = 'TERCEIRO';
-                if (log.status === 'concluido') status = 'CONCLUÍDO';
-                else if (log.status === 'cancelado') status = 'CANCELADO';
-                else if (log.status === 'agendado') status = 'AGENDADO';
-
-                list.push({
-                    id: log.id,
-                    date: log.date,
-                    supplierName: log.companyName,
-                    time: log.time || '00:00',
-                    status: status,
-                    type: 'TERCEIRO',
-                    itemName: 'ENTRADA DE TERCEIROS'
-                });
-            }
-        });
-
-        return list.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-    }, [suppliers, thirdPartyEntries, selectedAgendaDate]);
-
-    /* 
-    const uniqueWeeklySuppliers = useMemo(() => {
-        const suppliersMap = new Set<string>();
-        weeklyDeliveries.forEach(d => {
-            if (d.type === 'FORNECEDOR') {
-                suppliersMap.add(d.supplierName);
-            }
-        });
-        return Array.from(suppliersMap).sort();
-    }, [weeklyDeliveries]);
-    */
 
     const imageDeliveries = useMemo(() => {
         const deliveries: any[] = [];
@@ -340,8 +275,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             cpfCnpj: pcSupplier?.cpfCnpj || mainSupplier?.cpf || selectedCronogramaSupplier
         };
 
-        const activeContractPeriod = perCapitaConfig?.activeContractPeriod || '1_QUAD';
-        const isQ1 = activeContractPeriod === '1_QUAD' ? (monthIndex <= 3) : (monthIndex <= 3 ? true : false); // fallback
         const divisor = (monthIndex <= 3) ? 4 : 8;
 
         const itemsSource = supplier.contractItems || {};

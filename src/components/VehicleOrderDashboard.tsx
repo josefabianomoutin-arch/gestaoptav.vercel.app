@@ -1,29 +1,19 @@
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React from 'react';
 import InfobarTicker from './InfobarTicker';
-import type { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, ServiceOrder, VehicleInspection, MaintenanceSchedule, PublicInfo } from '../types';
+import type { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, VehicleInspection, PublicInfo } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
-import AdminServiceOrder from './AdminServiceOrder';
 
 interface VehicleOrderDashboardProps {
   orders: VehicleExitOrder[];
   vehicleAssets: VehicleAsset[];
   driverAssets: DriverAsset[];
   validationRoles: ValidationRole[];
-  serviceOrders: ServiceOrder[];
-  maintenanceSchedules: MaintenanceSchedule[];
   vehicleInspections?: VehicleInspection[];
   publicInfoList: PublicInfo[];
-  onUpdateServiceOrder: (order: ServiceOrder) => Promise<{ success: boolean; message: string }>;
-  onDeleteServiceOrder: (id: string) => Promise<{ success: boolean; message: string }>;
-  onRegisterMaintenanceSchedule: (schedule: Omit<MaintenanceSchedule, 'id'>) => Promise<{ success: boolean; message: string }>;
-  onUpdateMaintenanceSchedule: (idOrSchedule: string | MaintenanceSchedule, updates?: Partial<MaintenanceSchedule>) => Promise<{ success: boolean; message: string }>;
-  onDeleteMaintenanceSchedule: (id: string) => Promise<{ success: boolean; message: string }>;
   onRegister: (order: Omit<VehicleExitOrder, 'id'>) => Promise<{ success: boolean; message: string; id?: string }>;
   onUpdate: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
   onDelete: (id: string) => Promise<{ success: boolean; message: string }>;
-  onValidateOrder?: (id: string, validatedBy: string, validationRole: string) => Promise<{ success: boolean; message: string }>;
   onRegisterVehicleAsset: (asset: Omit<VehicleAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateVehicleAsset: (asset: VehicleAsset) => Promise<{ success: boolean; message: string }>;
   onDeleteVehicleAsset: (id: string) => Promise<{ success: boolean; message: string }>;
@@ -42,15 +32,8 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
   vehicleAssets = [],
   driverAssets = [],
   validationRoles = [],
-  serviceOrders = [],
-  maintenanceSchedules = [],
   vehicleInspections = [],
   publicInfoList = [],
-  onUpdateServiceOrder,
-  onDeleteServiceOrder,
-  onRegisterMaintenanceSchedule,
-  onUpdateMaintenanceSchedule,
-  onDeleteMaintenanceSchedule,
   onRegister,
   onUpdate,
   onDelete,
@@ -66,8 +49,6 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
   onLogout,
   role
 }) => {
-  const [activeTab, setActiveTab] = useState<'veiculos' | 'servicos'>('veiculos');
-
   const filteredOrders = orders;
 
   const handleRegister = async (order: Omit<VehicleExitOrder, 'id'>) => {

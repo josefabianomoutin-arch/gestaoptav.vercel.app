@@ -1,9 +1,8 @@
 
 import React, { useMemo } from 'react';
 import { Truck } from 'lucide-react';
-import { VehicleExitOrder, DriverAsset, VehicleAsset, ValidationRole, VehicleInspection, ServiceOrder, MaintenanceSchedule } from '../types';
+import { VehicleExitOrder, DriverAsset, VehicleAsset, ValidationRole, VehicleInspection } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
-import AdminServiceOrder from './AdminServiceOrder';
 
 interface JulioDashboardProps {
   vehicleExitOrders: VehicleExitOrder[];
@@ -11,15 +10,7 @@ interface JulioDashboardProps {
   driverAssets: DriverAsset[];
   vehicleAssets: VehicleAsset[];
   validationRoles: ValidationRole[];
-  serviceOrders: ServiceOrder[];
-  maintenanceSchedules: MaintenanceSchedule[];
   onLogout: () => void;
-  onRegisterServiceOrder?: (order: Omit<ServiceOrder, 'id'>) => Promise<{ success: boolean; message: string }>;
-  onUpdateServiceOrder: (order: ServiceOrder) => Promise<{ success: boolean; message: string }>;
-  onDeleteServiceOrder: (id: string) => Promise<{ success: boolean; message: string }>;
-  onRegisterMaintenanceSchedule: (schedule: Omit<MaintenanceSchedule, 'id'>) => Promise<{ success: boolean; message: string }>;
-  onUpdateMaintenanceSchedule: (idOrSchedule: string | MaintenanceSchedule, updates?: Partial<MaintenanceSchedule>) => Promise<{ success: boolean; message: string }>;
-  onDeleteMaintenanceSchedule: (id: string) => Promise<{ success: boolean; message: string }>;
   onRegisterVehicleExitOrder: (order: Omit<VehicleExitOrder, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateVehicleExitOrder: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
   onDeleteVehicleExitOrder: (id: string) => Promise<{ success: boolean; message: string }>;
@@ -43,14 +34,7 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
   driverAssets,
   vehicleAssets,
   validationRoles,
-  serviceOrders,
-  maintenanceSchedules,
   onLogout,
-  onUpdateServiceOrder,
-  onDeleteServiceOrder,
-  onRegisterMaintenanceSchedule,
-  onUpdateMaintenanceSchedule,
-  onDeleteMaintenanceSchedule,
   onRegisterVehicleExitOrder,
   onUpdateVehicleExitOrder,
   onDeleteVehicleExitOrder,

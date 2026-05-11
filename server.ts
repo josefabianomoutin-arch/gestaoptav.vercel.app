@@ -1,7 +1,6 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
-import { fileURLToPath } from 'url';
 
 async function startServer() {
   console.log("Starting server...");

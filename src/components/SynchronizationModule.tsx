@@ -291,7 +291,7 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
                 } else {
                     toast.error("Erro na sincronização. Verifique os dados.");
                 }
-            } catch (err) {
+            } catch {
                 toast.error("Arquivo de sincronização inválido.");
             } finally {
                 setIsProcessing(false);

@@ -37,11 +37,9 @@ interface AdminInvoicesProps {
     pd?: string,
     type?: 'entrada' | 'saída'
   ) => Promise<{ success: boolean; message?: string }>;
-  onMarkInvoiceAsOpened: (supplierCpf: string, invoiceNumber: string) => Promise<{ success: boolean }>;
   mode?: 'admin' | 'warehouse_entry' | 'warehouse_exit';
   onRegisterExit?: (payload: any) => Promise<{ success: boolean; message: string }>;
   perCapitaConfig?: any;
-  acquisitionItems?: any[];
 }
 
 const MONTHS = [
@@ -59,8 +57,6 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   onManualInvoiceEntry,
   mode = 'admin',
   perCapitaConfig,
-  onMarkInvoiceAsOpened,
-  acquisitionItems
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter] = useState<'all' | 'pending' | 'opened'>('all');

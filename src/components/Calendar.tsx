@@ -20,14 +20,7 @@ const getWeekNumber = (d: Date): number => {
     return weekNo;
 };
 
-const getWeekOfMonth = (date: Date): number => {
-  const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-  const firstDayOfWeek = firstDayOfMonth.getDay();
-  const offsetDate = date.getDate() + firstDayOfWeek - 1;
-  return Math.floor(offsetDate / 7) + 1;
-};
-
-const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedToday, allowedWeeks, monthlySchedule, activeContractPeriod }) => {
+const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedToday, allowedWeeks, activeContractPeriod }) => {
 
   const deliveriesByDate = useMemo(() => {
     const map = new Map<string, Delivery[]>();

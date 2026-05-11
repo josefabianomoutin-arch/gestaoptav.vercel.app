@@ -4,7 +4,6 @@ import {
     Printer, 
     FileIcon, 
     Search, 
-    Edit2, 
     Trash2, 
     Clock,
     Eye,
@@ -42,7 +41,7 @@ const superNormalize = (text: string) => {
         .trim();
 };
 
-const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, suppliers, onDeleteEntry, onUpdateWarehouseEntry, perCapitaConfig }) => {
+const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, suppliers, onDeleteEntry, perCapitaConfig }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<'all' | 'entrada' | 'saída'>('all');
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -172,7 +171,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
     const groupedProjectionData = useMemo(() => {
         if (!perCapitaConfig) return [];
         
-        const [yearStr, monthStr] = activeMonthTab.split('-');
+        const [, monthStr] = activeMonthTab.split('-');
         const monthIdx = parseInt(monthStr);
         const monthName = monthNamesInOrder[monthIdx - 1];
         
@@ -201,7 +200,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         };
                     }
                     
-                    const getMonthlyValues = (itemName: string) => {
+                    const getMonthlyValues = () => {
                         // User specifically requested the system to use "dividido por 8 (maio a dezembro)" for all standard items
                         return { 
                             weight: roundToTwoDecimalPlaces(it.totalKg / 8), 
@@ -209,7 +208,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         };
                     };
 
-                    const { weight: monthlyWeight, value: monthlyValue } = getMonthlyValues(it.name);
+                    const { weight: monthlyWeight, value: monthlyValue } = getMonthlyValues();
 
                     // Find actual deliveries in this month for this item/supplier
                     const deliveredForThis = combinedLog.filter(l => 

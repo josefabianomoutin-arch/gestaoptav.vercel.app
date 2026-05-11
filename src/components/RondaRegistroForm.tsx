@@ -1,15 +1,14 @@
 
 import React, { useState } from 'react';
-import { Printer, ShieldCheck, PenTool, X } from 'lucide-react';
+import { Printer, PenTool, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 
 interface RondaRegistroFormProps {
-    onSave?: (data: any) => Promise<void>;
     systemPasswords?: Record<string, string>;
 }
 
-const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ onSave, systemPasswords = {} }) => {
+const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ systemPasswords = {} }) => {
     const [header, setHeader] = useState({ data: new Date().toISOString().split('T')[0], turno: 'DIURNO', fctNumber: '', superior: '' });
     const [rows, setRows] = useState(Array(11).fill(null).map(() => ({ policial: '', hInicio: '', kmInicio: '', hFinal: '', kmFinal: '', ocorrencias: '', outros: '' })));
     

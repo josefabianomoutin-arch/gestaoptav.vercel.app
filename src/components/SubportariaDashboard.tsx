@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import type { Supplier, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, MaintenanceSchedule, ServiceOrder, PublicInfo } from '../types';
+import type { Supplier, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, MaintenanceSchedule } from '../types';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 import AgendaChegadas from './AgendaChegadas';
 import RondaRegistroForm from './RondaRegistroForm';
 import AdminPasswordManager from './AdminPasswordManager';
-import { ClipboardList, Wrench, Calendar, Car, ShieldAlert } from 'lucide-react';
+import { ClipboardList, Wrench, Calendar, Car } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface SubportariaDashboardProps {
@@ -12,11 +12,6 @@ interface SubportariaDashboardProps {
   perCapitaConfig?: any;
   thirdPartyEntries: ThirdPartyEntryLog[];
   maintenanceSchedules: MaintenanceSchedule[];
-  serviceOrders: ServiceOrder[];
-  publicInfoList: PublicInfo[];
-  onUpdateMaintenanceSchedule: (id: string, updates: Partial<MaintenanceSchedule>) => Promise<{ success: boolean; message: string }>;
-  onUpdateThirdPartyEntry: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message: string }>;
-  onDeleteThirdPartyEntry: (id: string) => Promise<{ success: boolean; message: string }>;
   onLogout: () => void;
   vehicleExitOrders: VehicleExitOrder[];
   vehicleAssets: VehicleAsset[];
@@ -32,17 +27,11 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     perCapitaConfig,
     thirdPartyEntries,
     maintenanceSchedules,
-    serviceOrders,
-    publicInfoList,
-    onUpdateMaintenanceSchedule,
-    onUpdateThirdPartyEntry,
-    onDeleteThirdPartyEntry,
     onLogout,
     vehicleExitOrders,
     vehicleAssets,
     driverAssets,
     validationRoles,
-    onUpdateVehicleExitOrder,
     systemPasswords = {},
     onUpdateSystemPassword = async () => {}
 }) => {

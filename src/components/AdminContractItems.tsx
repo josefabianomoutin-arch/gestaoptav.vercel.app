@@ -547,13 +547,13 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
         return allSuppliers.filter(s => !assignments.some(a => a.supplierCpf === s.cpf)).sort((a,b) => a.name.localeCompare(b.name));
     }, [allSuppliers, assignments]);
 
-    const getDivisor = (cat: string) => {
+    const getDivisor = () => {
         // User explicitly requested the formula to use 8 (maio a dezembro)
         return 8;
     };
 
     const distributeMeta = (currentAssignments: typeof assignments, metaValue: string) => {
-        const divisor = getDivisor(itemCategory);
+        const divisor = getDivisor();
         if (itemCategory !== 'PPAIS' || currentAssignments.length === 0) {
             return currentAssignments.map(a => {
                 const kg = parseFloat(String(a.totalKg).replace(',', '.')) || 0;

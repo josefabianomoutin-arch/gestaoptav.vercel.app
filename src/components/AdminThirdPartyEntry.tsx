@@ -96,7 +96,7 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
             let stream;
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-            } catch (e) {
+            } catch {
                 console.log("User camera failed, trying default video");
                 stream = await navigator.mediaDevices.getUserMedia({ video: true });
             }

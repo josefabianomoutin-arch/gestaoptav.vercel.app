@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import type { Supplier, WarehouseMovement, PerCapitaConfig } from '../types';
+import type { Supplier, PerCapitaConfig } from '../types';
 import WeeklyScheduleControl from './WeeklyScheduleControl';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -8,7 +8,6 @@ import * as XLSX from 'xlsx';
 
 interface ItespDashboardProps {
   suppliers: Supplier[];
-  warehouseLog: WarehouseMovement[];
   perCapitaConfig?: PerCapitaConfig;
   onLogout: () => void;
 }
@@ -72,7 +71,7 @@ const ALLOWED_SUPPLIERS_RAW = [
     'SONIA REGINA COLOMBO CELESTINO', 'TANIA MARA BALDAO DE BARROS'
 ];
 
-const ItespDashboard: React.FC<ItespDashboardProps> = ({ suppliers = [], warehouseLog = [], perCapitaConfig, onLogout }) => {
+const ItespDashboard: React.FC<ItespDashboardProps> = ({ suppliers = [], perCapitaConfig, onLogout }) => {
     const [activeTab, setActiveTab] = useState<'audit' | 'schedule'>('audit');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedMonth, setSelectedMonth] = useState('all');
@@ -140,7 +139,7 @@ const ItespDashboard: React.FC<ItespDashboardProps> = ({ suppliers = [], warehou
                 if (!months.includes(dMonth)) return;
 
                 // Busca no mapa
-                for (const [key, entry] of consolidatedMap.entries()) {
+                for (const [, entry] of consolidatedMap.entries()) {
                     if (entry.month === dMonth && entry.sNorm === sNorm) {
                         // Match de item
                         const iMatch = entry.iNorm === dINorm || entry.iNorm.includes(dINorm) || dINorm.includes(entry.iNorm);

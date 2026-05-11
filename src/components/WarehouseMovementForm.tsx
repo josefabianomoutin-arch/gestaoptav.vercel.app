@@ -21,7 +21,6 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     onRegisterWithdrawal,
     initialMode = 'entrada',
     perCapitaConfig,
-    acquisitionItems = []
 }) => {
     const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -50,7 +49,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         return parseFloat(manualValue.replace(',', '.')) || 0;
     }, [manualValue]);
 
-    const updateManualValue = (itemName: string, period: '1_QUAD' | '2_3_QUAD', quantity?: string) => {
+    const updateManualValue = () => {
         // Removed automatic total calculation as requested
     };
 
@@ -229,7 +228,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         });
 
         return Object.entries(invoiceBalances)
-            .filter(([_, data]) => data.total > 0)
+            .filter(([, data]) => data.total > 0)
             .map(([number, data]) => ({ number, availableQuantity: data.total, lot: data.lot, exp: data.exp, timestamp: data.timestamp }))
             .sort((a, b) => a.timestamp - b.timestamp);
     }, [selectedSupplier, selectedItemName, warehouseLog]);

@@ -1,4 +1,4 @@
-import type { Supplier, PerCapitaConfig } from '../types';
+import type { Supplier } from '../types';
 
 export const getWeekNumber = (d: Date): number => {
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));

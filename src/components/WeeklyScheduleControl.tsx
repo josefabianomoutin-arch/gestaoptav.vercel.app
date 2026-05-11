@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import type { Supplier, Delivery, ThirdPartyEntryLog } from '../types';
+import type { Supplier, ThirdPartyEntryLog } from '../types';
 
 interface WeeklyScheduleControlProps {
     suppliers: Supplier[];

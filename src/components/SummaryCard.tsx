@@ -5,9 +5,6 @@ import { MONTHS_2026 } from '../constants';
 
 interface SummaryCardProps {
     supplier: Supplier;
-    activeContractPeriod?: '1_QUAD' | '2_3_QUAD';
-    isRegisteredForNextPeriod?: boolean;
-    isPpaisProducer?: boolean;
 }
 
 const getContractItemDisplayInfo = (item: Supplier['contractItems'][0]): { quantity: number; unit: string } => {
@@ -45,7 +42,7 @@ const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 };
 
-const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPeriod = '1_QUAD', isRegisteredForNextPeriod = false, isPpaisProducer = false }) => {
+const SummaryCard: React.FC<SummaryCardProps> = ({ supplier }) => {
     const deliveries = (Object.values(supplier.deliveries || {}) as any[]);
     const contractItems = (Object.values(supplier.contractItems || {}) as any[]);
 
@@ -77,31 +74,6 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
     }, [contractItems, deliveries]);
 
     const valueProgress = period2Totals.initialValue > 0 ? (period2Totals.deliveredValue / period2Totals.initialValue) * 100 : 0;
-
-    const aggregatedTotals = useMemo(() => {
-        const contracted = new Map<string, number>();
-        const delivered = new Map<string, number>();
-        contractItems.forEach(item => {
-            const { quantity, unit } = getContractItemDisplayInfo(item as any);
-            // Only count items for the current active period or yearly items
-            if (!item.period || item.period === activeContractPeriod) {
-                contracted.set(unit, (contracted.get(unit) || 0) + quantity);
-            }
-        });
-        deliveries.forEach(delivery => {
-            if (!delivery.item || (delivery.kg || 0) === 0) return;
-            const contractItem = contractItems.find(ci => ci.name === delivery.item);
-            if (contractItem) {
-                const { unit } = getContractItemDisplayInfo(contractItem as any);
-                delivered.set(unit, (delivered.get(unit) || 0) + (delivery.kg || 0));
-            }
-        });
-        return { contracted, delivered };
-    }, [contractItems, deliveries, activeContractPeriod]);
-
-    const totalContractedKgForProgress = aggregatedTotals.contracted.get('Kg') || 0;
-    const totalDeliveredKgForProgress = aggregatedTotals.delivered.get('Kg') || 0;
-    const kgProgress = totalContractedKgForProgress > 0 ? (totalDeliveredKgForProgress / totalContractedKgForProgress) * 100 : 0;
 
     const monthlyDataByItem = useMemo(() => {
         const data = new Map<string, { monthly: any[], totals: any }>();
@@ -140,7 +112,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
             const qtyIntegerPart = Math.floor(totalQty / divisor);
             const valIntegerPart = Math.floor(totalVal / divisor);
 
-            visibleMonths.forEach((month, index) => {
+            visibleMonths.forEach((month) => {
                 let monthlyValueQuota = 0;
                 let monthlyQuantityQuota = 0;
 
@@ -226,7 +198,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, activeContractPerio
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {itemMonthlyData.map((data, idx) => (
+                                    {itemMonthlyData.map((data) => (
                                         <tr key={data.monthNumber} className="border-t bg-white">
                                             <td className="p-1 font-bold align-top">{data.monthName}</td>
                                             <td className="p-1 text-right align-top">

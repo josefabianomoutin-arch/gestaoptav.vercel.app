@@ -48,7 +48,6 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     hideAssets = false,
     hideEdit = false,
     showGateTab = false,
-    userRole = ''
 }) => {
     const [activeSubTab, setActiveSubTab] = useState<'orders' | 'assets' | 'gate' | 'inspections'>('orders');
     const [activeAssetTab, setActiveAssetTab] = useState<'vehicles' | 'drivers' | 'roles'>('vehicles');
@@ -170,7 +169,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: 'environment' } 
                 });
-            } catch (e) {
+            } catch {
                 console.log("Environment camera failed, trying default video");
                 stream = await navigator.mediaDevices.getUserMedia({ 
                     video: true 

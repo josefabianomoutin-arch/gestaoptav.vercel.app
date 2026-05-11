@@ -18,7 +18,6 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
   const [loading, setLoading] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(invoiceInfo.date);
-  const [supplierName, setSupplierName] = useState('');
   const [deliveries, setDeliveries] = useState<any[]>(invoiceInfo.deliveries.map(d => ({ ...d })));
   const [invoiceUrl, setInvoiceUrl] = useState('');
 
