@@ -129,49 +129,77 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
 
     const imageDeliveries = useMemo(() => {
-        const deliveries: any[] = [];
-        const seenUrls = new Set<string>();
-        
-        suppliers.forEach(s => {
-            Object.values((s.deliveries as any) || {}).forEach((d: any) => {
-                if (d.invoiceUrl && !seenUrls.has(d.invoiceUrl)) {
-                    seenUrls.add(d.invoiceUrl);
+        try {
+            const deliveries: any[] = [];
+            const seenUrls = new Set<string>();
+            
+            (suppliers || []).forEach(s => {
+                if (!s) return;
+                const supplierDeliveries = s.deliveries as any;
+                const deliveriesToProcess = typeof supplierDeliveries === 'object' && supplierDeliveries !== null 
+                    ? Object.values(supplierDeliveries) 
+                    : [];
+
+                deliveriesToProcess.forEach((d: any) => {
+                    if (d && d.invoiceUrl && !seenUrls.has(d.invoiceUrl)) {
+                        seenUrls.add(d.invoiceUrl);
+                        let finalTimestamp = d.timestamp;
+                        if (!finalTimestamp && d.date) {
+                            const parsedDate = new Date(d.date + 'T12:00:00');
+                            finalTimestamp = isNaN(parsedDate.getTime()) ? 0 : parsedDate.getTime();
+                        } else if (!finalTimestamp) {
+                            finalTimestamp = 0;
+                        }
+
+                        deliveries.push({
+                            id: d.id || `del-${Math.random()}`,
+                            invoiceUrl: d.invoiceUrl,
+                            date: d.invoiceDate || d.date,
+                            timestamp: finalTimestamp,
+                            type: 'entrada',
+                            supplierName: s.name || 'Desconhecido',
+                            supplierCpf: s.cpf || '',
+                            itemName: d.item || 'Item s/ nome',
+                            quantity: Number(d.kg || d.quantity) || 0,
+                            inboundInvoice: d.invoiceNumber,
+                            receiptTermNumber: d.receiptTermNumber,
+                            nl: d.nl,
+                            pd: d.pd,
+                            lotNumber: d.lotNumber,
+                            expirationDate: d.expirationDate,
+                        });
+                    }
+                });
+            });
+
+            (warehouseLog || []).forEach(l => {
+                if (l && l.invoiceUrl && !seenUrls.has(l.invoiceUrl)) {
+                    seenUrls.add(l.invoiceUrl);
+                    let finalTimestamp = l.timestamp ? new Date(l.timestamp).getTime() : 0;
+                    if ((!finalTimestamp || isNaN(finalTimestamp)) && l.date) {
+                        const parsedDate = new Date(l.date + 'T12:00:00');
+                        finalTimestamp = isNaN(parsedDate.getTime()) ? 0 : parsedDate.getTime();
+                    } else if (!finalTimestamp || isNaN(finalTimestamp)) {
+                        finalTimestamp = 0;
+                    }
+
                     deliveries.push({
-                        id: d.id,
-                        invoiceUrl: d.invoiceUrl,
-                        date: d.invoiceDate || d.date,
-                        timestamp: d.timestamp || d.date ? new Date(d.date + 'T00:00:00').getTime() : Date.now(),
-                        type: 'entrada',
-                        supplierName: s.name,
-                        supplierCpf: s.cpf,
-                        itemName: d.item,
-                        quantity: d.kg || 0,
-                        inboundInvoice: d.invoiceNumber,
-                        receiptTermNumber: d.receiptTermNumber,
-                        nl: d.nl,
-                        pd: d.pd,
-                        lotNumber: d.lotNumber,
-                        expirationDate: d.expirationDate,
+                        ...l,
+                        itemName: l.itemName || l.item || 'Item s/ nome',
+                        quantity: Number(l.quantity || l.kg || l.weight) || 0,
+                        inboundInvoice: l.inboundInvoice || l.invoiceNumber,
+                        nl: l.nlNumber || (l as any).nl,
+                        pd: l.pdNumber || (l as any).pd,
+                        timestamp: finalTimestamp,
                     });
                 }
             });
-        });
 
-        warehouseLog.forEach(l => {
-            if (l.invoiceUrl && !seenUrls.has(l.invoiceUrl)) {
-                seenUrls.add(l.invoiceUrl);
-                deliveries.push({
-                    ...l,
-                    itemName: l.itemName || l.item,
-                    quantity: l.quantity || l.kg || l.weight || 0,
-                    inboundInvoice: l.inboundInvoice || l.invoiceNumber,
-                    nl: l.nlNumber || (l as any).nl,
-                    pd: l.pdNumber || (l as any).pd,
-                });
-            }
-        });
-
-        return deliveries;
+            return deliveries;
+        } catch (error) {
+            console.error("Critical error in imageDeliveries memo:", error);
+            return [];
+        }
     }, [suppliers, warehouseLog]);
 
     const availableImageMonths = useMemo(() => {
@@ -549,7 +577,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
 
     const receiptSupplier = useMemo(() => {
-        const main = suppliers.find(s => s.cpf === receiptSupplierCpf);
+        const main = (suppliers || []).find(s => s && s.cpf === receiptSupplierCpf);
         if (!main) return null;
         
         return {
@@ -563,15 +591,16 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         const invoices = new Set<string>();
         const monthIndex = MONTHS_PT.indexOf(selectedMonth);
         
-        Object.values((receiptSupplier.deliveries as any) || {}).forEach((d: any) => {
-            const dateStr = d.invoiceDate || d.date;
-            if (d.invoiceNumber && dateStr) {
-                const deliveryDate = new Date(dateStr + 'T12:00:00');
-                if (deliveryDate.getMonth() === monthIndex && deliveryDate.getFullYear() === selectedYear) {
-                    invoices.add(d.invoiceNumber);
+            Object.values((receiptSupplier.deliveries as any) || {}).forEach((d: any) => {
+                if (!d || !d.invoiceNumber) return;
+                const dateStr = d.invoiceDate || d.date;
+                if (dateStr) {
+                    const deliveryDate = new Date(dateStr + 'T12:00:00');
+                    if (deliveryDate.getMonth() === monthIndex && deliveryDate.getFullYear() === selectedYear) {
+                        invoices.add(d.invoiceNumber);
+                    }
                 }
-            }
-        });
+            });
         return Array.from(invoices).sort();
     }, [receiptSupplier, selectedMonth, selectedYear]);
 

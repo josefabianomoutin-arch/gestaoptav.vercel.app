@@ -1,5 +1,6 @@
 
 import React, { useMemo } from 'react';
+import { Upload } from 'lucide-react';
 import type { Supplier } from '../types';
 import { MONTHS_2026 } from '../constants';
 
@@ -175,8 +176,12 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, onOpenSendInvoiceMo
         return Array.from(new Set(contractItems.map(item => item.name)));
     }, [contractItems]);
 
+    const hasPendingInvoices = useMemo(() => {
+        return deliveries.some(d => !d.invoiceNumber && new Date(d.date + 'T00:00:00') <= new Date());
+    }, [deliveries]);
+
     return (
-        <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg">
+        <div className={`bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg border-l-4 transition-all ${hasPendingInvoices ? 'border-red-500 bg-red-50/50' : 'border-emerald-500'}`}>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 border-b pb-2 gap-2">
                 <h2 className="text-xl font-bold text-gray-700 uppercase">
                     Contrato 2º e 3º Quadr. 2026
@@ -184,10 +189,10 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, onOpenSendInvoiceMo
                 {onOpenSendInvoiceModal && (
                     <button 
                         onClick={() => onOpenSendInvoiceModal({ date: new Date().toISOString().split('T')[0], deliveries: [] })}
-                        className="text-[10px] font-black text-rose-600 hover:text-rose-700 underline uppercase tracking-widest bg-rose-50 px-2 py-1 rounded-md border border-rose-100 flex items-center gap-1 active:scale-95 transition-all"
+                        className={`text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-xl border flex items-center gap-2 active:scale-95 transition-all shadow-md ${hasPendingInvoices ? 'bg-red-600 text-white border-red-500 hover:bg-red-700 animate-bounce' : 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100'}`}
                     >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
-                        Inserir Nota Fiscal (PDF)
+                        <Upload className="w-3.5 h-3.5" />
+                        {hasPendingInvoices ? 'PENDÊNCIA: Inserir Nota Fiscal (PDF)' : 'Inserir Nota Fiscal (PDF)'}
                     </button>
                 )}
             </div>

@@ -13,6 +13,12 @@ export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any
     const pereciveis = perCapitaConfig?.pereciveisSuppliers || [];
     const estocaveis = perCapitaConfig?.estocaveisSuppliers || [];
 
+    const parseNum = (val: any) => {
+        if (typeof val === 'number') return val;
+        if (typeof val === 'string') return parseFloat(val.replace(',', '.')) || 0;
+        return 0;
+    };
+
     const mapToSupplier = (p: any) => {
         const weeks: number[] = [];
         const year = 2026;
@@ -21,26 +27,31 @@ export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any
             'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
         ];
 
-        Object.entries(p.monthlySchedule || {}).forEach(([monthName, weekOfMonthList]) => {
+        const schedule = p.monthlySchedule || {};
+        Object.entries(schedule).forEach(([monthName, weekOfMonthList]) => {
             const monthIndex = monthNames.indexOf(monthName.toLowerCase());
             if (monthIndex === -1) return;
 
-            if ((weekOfMonthList as number[]).length > 0) {
+            const weeksList = weekOfMonthList as number[];
+            if (weeksList && weeksList.length > 0) {
                 const firstDayOfMonth = new Date(year, monthIndex, 1);
                 const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
                 
-                (weekOfMonthList as number[]).forEach(weekIdx => {
-                    weeks.push(firstWeekOfYear + ((weekIdx as number) - 1));
+                weeksList.forEach(weekIdx => {
+                    weeks.push(firstWeekOfYear + (parseNum(weekIdx) - 1));
                 });
             }
         });
 
+        const deliveries = p.deliveries ? (typeof p.deliveries === 'object' ? Object.values(p.deliveries) : p.deliveries) : [];
+        const contractItems = p.contractItems ? (typeof p.contractItems === 'object' ? Object.values(p.contractItems) : p.contractItems) : [];
+
         return {
             ...p,
             cpf: p.cpfCnpj,
-            deliveries: Object.values(p.deliveries || {}),
+            deliveries: deliveries,
             allowedWeeks: Array.from(new Set(weeks)),
-            initialValue: Object.values(p.contractItems || {}).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
+            initialValue: contractItems.reduce((acc: any, curr: any) => acc + (parseNum(curr.totalKg) * parseNum(curr.valuePerKg || 0)), 0)
         } as Supplier;
     };
 

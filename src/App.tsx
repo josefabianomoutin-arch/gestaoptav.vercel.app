@@ -1152,48 +1152,55 @@ const App: React.FC = () => {
         const allLogs = logSnapshot.val() || {};
         const logKeysToDelete = Object.keys(allLogs).filter(key => {
             const entry = allLogs[key];
-            return String(entry.inboundInvoice) === String(invoiceNumber);
+            return String(entry.inboundInvoice || entry.invoiceNumber || '') === String(invoiceNumber);
         });
         
+        const updates: Record<string, any> = {};
         if (logKeysToDelete.length > 0) {
-            await Promise.all(logKeysToDelete.map(key => remove(child(warehouseLogRef, key))));
+            logKeysToDelete.forEach(key => {
+                updates[key] = null; // Mark for deletion
+            });
         }
 
-        // Adiciona novos itens ao Log
-        for (let idx = 0; idx < items.length; idx++) {
-            const item = items[idx];
-            const deliveryId = `inv-edit-${Date.now()}-${idx}`;
-            const lotId = `lot-edit-${Date.now()}-${idx}`;
-            
-            // Buscar barcode recém-salvo nas entregas
-            const sSnapshot = await get(child(suppliersRef, supplierCpf));
-            const sData = sSnapshot.val() as Supplier;
-            const currentDelivery = sData?.deliveries?.find((d: any) => 
+        // Adiciona novos itens ao Log em lote
+        const finalInvoices = (await get(child(suppliersRef, supplierCpf))).val()?.deliveries || [];
+
+        items.forEach((item) => {
+            const currentDelivery = finalInvoices.find((d: any) => 
                 String(d.invoiceNumber) === String(newInvoiceNumber || invoiceNumber) && 
                 d.item === item.name
             );
 
-            const newLogRef = push(warehouseLogRef);
-            const entry: any = {
-                id: newLogRef.key || `ent-upd-${Date.now()}-${idx}`,
-                type: 'entrada',
-                timestamp: new Date().toISOString(),
-                date: invoiceDate || newDate || new Date().toISOString().split('T')[0],
-                itemName: item.name,
-                supplierName: suppliers.find(s => s.cpf === supplierCpf)?.name || 'Fornecedor',
-                supplierCpf: supplierCpf,
-                lotNumber: item.lotNumber || 'EDITADO',
-                quantity: item.kg,
-                value: item.value,
-                barcode: item.barcode || barcode || currentDelivery?.barcode || '', 
-                lotId: lotId,
-                deliveryId: deliveryId,
-                inboundInvoice: String(newInvoiceNumber || invoiceNumber).trim(),
-                pdNumber: pd || '',
-                invoiceUrl: '' // URL será atualizada se existir
-            };
-            if (item.expirationDate !== undefined) entry.expirationDate = item.expirationDate;
-            await set(newLogRef, entry);
+            const newLogKey = push(warehouseLogRef).key;
+            if (newLogKey) {
+                const timestampVal = new Date().toISOString();
+                updates[newLogKey] = {
+                    id: newLogKey,
+                    type: (mode as any) === 'warehouse_exit' ? 'saída' : 'entrada',
+                    timestamp: timestampVal,
+                    item: item.name,
+                    itemName: item.name,
+                    kg: item.kg,
+                    quantity: item.kg,
+                    value: item.value,
+                    invoiceNumber: String(newInvoiceNumber || invoiceNumber).trim(),
+                    inboundInvoice: String(newInvoiceNumber || invoiceNumber).trim(),
+                    date: newDate || (currentDelivery?.date) || timestampVal.split('T')[0],
+                    supplierName: (suppliers.find(s => s.cpf === supplierCpf)?.name) || 'FORNECEDOR',
+                    supplierCpf: supplierCpf,
+                    barcode: item.barcode || currentDelivery?.barcode || '',
+                    lotNumber: item.lotNumber || 'EDITADO',
+                    expirationDate: item.expirationDate || currentDelivery?.expirationDate || '',
+                    pdNumber: pd || currentDelivery?.pd || '',
+                    invoiceDate: invoiceDate || currentDelivery?.invoiceDate || '',
+                    receiptTermNumber: receiptTermNumber || currentDelivery?.receiptTermNumber || '',
+                    invoiceUrl: currentDelivery?.invoiceUrl || ''
+                };
+            }
+        });
+
+        if (Object.keys(updates).length > 0) {
+            await update(warehouseLogRef, updates);
         }
 
         return { success: true };
@@ -2088,25 +2095,27 @@ const App: React.FC = () => {
                 const fileRef = storageRef(storage, `invoices/${invoiceId}`);
                 
                 const parts = finalInvoiceUrl.split(',');
-                const byteString = atob(parts[1]);
-                const mimeString = parts[0].split(':')[1].split(';')[0];
-                const ab = new ArrayBuffer(byteString.length);
-                const ia = new Uint8Array(ab);
-                for (let i = 0; i < byteString.length; i++) {
-                  ia[i] = byteString.charCodeAt(i);
+                if (parts.length > 1) {
+                    const byteString = atob(parts[1]);
+                    const mimeString = parts[0].split(':')[1].split(';')[0];
+                    const ab = new ArrayBuffer(byteString.length);
+                    const ia = new Uint8Array(ab);
+                    for (let i = 0; i < byteString.length; i++) {
+                      ia[i] = byteString.charCodeAt(i);
+                    }
+                    const blob = new Blob([ab], { type: mimeString });
+                    
+                    console.log("Blob criado, tamanho:", blob.size, "Enviando para storage...");
+                    
+                    const uploadPromise = uploadBytes(fileRef, blob);
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error("Timeout no upload do PDF para o Storage")), 60000)
+                    );
+                    
+                    await Promise.race([uploadPromise, timeoutPromise]);
+                    finalInvoiceUrl = await getDownloadURL(fileRef);
+                    console.log("Upload concluído com sucesso:", finalInvoiceUrl);
                 }
-                const blob = new Blob([ab], { type: mimeString });
-                
-                console.log("Blob criado, tamanho:", blob.size, "Enviando para storage...");
-                
-                const uploadPromise = uploadBytes(fileRef, blob);
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error("Timeout no upload do PDF para o Storage")), 60000)
-                );
-                
-                await Promise.race([uploadPromise, timeoutPromise]);
-                finalInvoiceUrl = await getDownloadURL(fileRef);
-                console.log("Upload concluído com sucesso:", finalInvoiceUrl);
             } catch (storageError) {
                 console.error("Storage upload failed for entry attachment:", storageError);
                 if (finalInvoiceUrl.length > 500000) {
@@ -2116,16 +2125,13 @@ const App: React.FC = () => {
                     console.log("Mantendo anexo em base64 no RTDB (menor que 500KB)");
                 }
             }
-        } else if (finalInvoiceUrl && !finalInvoiceUrl.startsWith('http') && !finalInvoiceUrl.startsWith('rtdb://')) {
-            // Se não é base64 e não é URL, algo está errado, mas vamos manter o que veio
-            console.warn("Formato de URL de NF desconhecido:", finalInvoiceUrl.substring(0, 50));
         }
 
         // Find supplier in both main list and perCapitaConfig
-        const ppaisProducer = perCapitaConfig.ppaisProducers?.find(p => p.cpfCnpj === payload.supplierCpf);
-        const pereciveisSupplier = perCapitaConfig.pereciveisSuppliers?.find(p => p.cpfCnpj === payload.supplierCpf);
-        const estocavelSupplier = perCapitaConfig.estocaveisSuppliers?.find(p => p.cpfCnpj === payload.supplierCpf);
-        const mainSupplier = suppliers.find(s => s.cpf === payload.supplierCpf);
+        const ppaisProducer = (perCapitaConfig.ppaisProducers || []).find(p => p.cpfCnpj === payload.supplierCpf);
+        const pereciveisSupplier = (perCapitaConfig.pereciveisSuppliers || []).find(p => p.cpfCnpj === payload.supplierCpf);
+        const estocavelSupplier = (perCapitaConfig.estocaveisSuppliers || []).find(p => p.cpfCnpj === payload.supplierCpf);
+        const mainSupplier = (suppliers || []).find(s => s.cpf === payload.supplierCpf);
         
         const supplier = mainSupplier || ppaisProducer || pereciveisSupplier || estocavelSupplier;
 
@@ -2138,11 +2144,11 @@ const App: React.FC = () => {
             itemName: payload.itemName,
             supplierName: supplier?.name || 'Desconhecido',
             supplierCpf: payload.supplierCpf,
-            lotNumber: payload.lotNumber,
-            quantity: payload.quantity,
-            value: payload.value || 0,
+            lotNumber: payload.lotNumber || 'UNICO',
+            quantity: Number(payload.quantity || 0),
+            value: Number(payload.value || 0),
             barcode: payload.barcode || '',
-            pdNumber: payload.pd || '',
+            pdNumber: payload.pdNumber || '',
             lotId: lotId,
             deliveryId: '',
             invoiceUrl: finalInvoiceUrl
@@ -2159,25 +2165,27 @@ const App: React.FC = () => {
                 date: payload.invoiceDate || new Date().toISOString().split('T')[0],
                 time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
                 item: payload.itemName,
-                kg: payload.quantity,
-                value: payload.value || 0,
+                kg: Number(payload.quantity || 0),
+                value: Number(payload.value || 0),
                 invoiceUploaded: !!finalInvoiceUrl,
                 invoiceNumber: String(payload.invoiceNumber || '').trim(),
                 barcode: payload.barcode || '',
                 invoiceUrl: finalInvoiceUrl,
                 lots: [{
                     id: lotId,
-                    lotNumber: payload.lotNumber,
-                    initialQuantity: payload.quantity,
-                    remainingQuantity: payload.quantity,
-                    expirationDate: payload.expirationDate
+                    lotNumber: payload.lotNumber || 'UNICO',
+                    initialQuantity: Number(payload.quantity || 0),
+                    remainingQuantity: Number(payload.quantity || 0),
+                    expirationDate: payload.expirationDate || ''
                 }]
             };
 
             if (mainSupplier) {
                 const deliveriesRef = child(suppliersRef, `${mainSupplier.cpf}/deliveries`);
                 await runTransaction(deliveriesRef, (currentDeliveries) => {
-                    const deliveries = Array.isArray(currentDeliveries) ? currentDeliveries : [];
+                    const deliveries = Array.isArray(currentDeliveries) 
+                        ? currentDeliveries 
+                        : (currentDeliveries ? Object.values(currentDeliveries) : []);
                     deliveries.push(newDelivery as any);
                     return deliveries;
                 });
@@ -2186,24 +2194,29 @@ const App: React.FC = () => {
                 let listKey: string | null = null;
                 let producerIdx = -1;
 
-                if (perCapitaConfig.ppaisProducers) {
-                    producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => p.cpfCnpj === payload.supplierCpf);
-                    if (producerIdx !== -1) listKey = 'ppaisProducers';
-                }
-                if (listKey === null && perCapitaConfig.pereciveisSuppliers) {
-                    producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => p.cpfCnpj === payload.supplierCpf);
-                    if (producerIdx !== -1) listKey = 'pereciveisSuppliers';
-                }
-                if (listKey === null && perCapitaConfig.estocaveisSuppliers) {
-                    producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => p.cpfCnpj === payload.supplierCpf);
-                    if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
+                const ppList = perCapitaConfig.ppaisProducers || [];
+                producerIdx = ppList.findIndex(p => p.cpfCnpj === payload.supplierCpf);
+                if (producerIdx !== -1) {
+                    listKey = 'ppaisProducers';
+                } else {
+                    const perecList = perCapitaConfig.pereciveisSuppliers || [];
+                    producerIdx = perecList.findIndex(p => p.cpfCnpj === payload.supplierCpf);
+                    if (producerIdx !== -1) {
+                        listKey = 'pereciveisSuppliers';
+                    } else {
+                        const estocList = perCapitaConfig.estocaveisSuppliers || [];
+                        producerIdx = estocList.findIndex(p => p.cpfCnpj === payload.supplierCpf);
+                        if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
+                    }
                 }
 
                 if (listKey && producerIdx !== -1) {
                     // Update only the specific producer's deliveries to avoid locking the entire config
                     const producerDeliveriesRef = child(perCapitaConfigRef, `${listKey}/${producerIdx}/deliveries`);
                     await runTransaction(producerDeliveriesRef, (currentDeliveries) => {
-                        const deliveries = Array.isArray(currentDeliveries) ? currentDeliveries : [];
+                        const deliveries = Array.isArray(currentDeliveries) 
+                            ? currentDeliveries 
+                            : (currentDeliveries ? Object.values(currentDeliveries) : []);
                         deliveries.push(newDelivery);
                         return deliveries;
                     });
@@ -2748,10 +2761,10 @@ const App: React.FC = () => {
 
     if (user.role === 'almoxarifado') {
       return <AlmoxarifadoDashboard 
-               suppliers={combinedSuppliers} 
-               warehouseLog={warehouseLog} 
+               suppliers={combinedSuppliers || []} 
+               warehouseLog={warehouseLog || []} 
                onLogout={handleLogout} 
-               publicInfoList={publicInfo}
+               publicInfoList={publicInfo || []}
                onRegisterEntry={handleRegisterWarehouseEntry} 
                onRegisterWithdrawal={handleRegisterWarehouseWithdrawal} 
                onResetExits={handleResetWarehouseExits}
@@ -2765,9 +2778,9 @@ const App: React.FC = () => {
                onMarkInvoiceAsOpened={handleMarkInvoiceAsOpened}
                onDeleteWarehouseEntry={handleDeleteWarehouseEntry}
                onUpdateWarehouseEntry={handleUpdateWarehouseEntry}
-               thirdPartyEntries={thirdPartyEntries}
-               perCapitaConfig={perCapitaConfig}
-               acquisitionItems={acquisitionItems}
+               thirdPartyEntries={thirdPartyEntries || []}
+               perCapitaConfig={perCapitaConfig || {}}
+               acquisitionItems={acquisitionItems || []}
                onRegisterThirdPartyEntry={async (l) => {
                    const r = push(thirdPartyEntriesRef);
                    await set(r, { ...l, id: r.key });

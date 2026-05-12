@@ -49,7 +49,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         return parseFloat(manualValue.replace(',', '.')) || 0;
     }, [manualValue]);
 
-    const updateManualValue = (..._args: any[]) => {
+    const updateManualValue = () => {
         // Removed automatic total calculation as requested
     };
 

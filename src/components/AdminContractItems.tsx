@@ -547,7 +547,7 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
         return allSuppliers.filter(s => !assignments.some(a => a.supplierCpf === s.cpf)).sort((a,b) => a.name.localeCompare(b.name));
     }, [allSuppliers, assignments]);
 
-    const getDivisor = (_cat?: string) => {
+    const getDivisor = () => {
         // User explicitly requested the formula to use 8 (maio a dezembro)
         return 8;
     };
