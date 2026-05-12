@@ -95,20 +95,24 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
                         <p className="text-[10px] font-black uppercase tracking-widest leading-none">Anexar PDF da Nota</p>
                         <p className="text-[8px] font-bold opacity-80 uppercase tracking-tighter mt-1">Clique para selecionar o arquivo</p>
                     </div>
-                    <input type="file" accept="application/pdf" className="hidden" onChange={async (e) => {
+                    <input type="file" accept="application/pdf" className="hidden" onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
                             setLoading(true);
                             try {
-                                const fileRef = ref(storage, `invoices/${Date.now()}_${file.name}`);
-                                await uploadBytes(fileRef, file);
-                                const url = await getDownloadURL(fileRef);
-                                setInvoiceUrl(url);
-                                // Optional: Alert success
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                    setInvoiceUrl(event.target?.result as string);
+                                    setLoading(false);
+                                };
+                                reader.onerror = () => {
+                                    alert("Erro ao ler o arquivo selecionado.");
+                                    setLoading(false);
+                                };
+                                reader.readAsDataURL(file);
                             } catch(e) {
                                 console.error(e);
-                                alert("Erro ao fazer upload da nota fiscal.");
-                            } finally {
+                                alert("Erro ao processar arquivo da nota fiscal.");
                                 setLoading(false);
                             }
                         }

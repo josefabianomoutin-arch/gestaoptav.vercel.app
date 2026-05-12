@@ -634,18 +634,26 @@ const Dashboard: React.FC<DashboardProps> = ({
                                                           id={`file-upload-${invoice.isPending ? invoice.items[0].id : invoice.invoiceNumber}`} 
                                                           className="hidden" 
                                                           accept="application/pdf"
-                                                          onChange={async (e) => {
+                                                          onChange={(e) => {
                                                               if (e.target.files && e.target.files[0]) {
                                                                   try {
                                                                       const file = e.target.files[0];
-                                                                      const fileRef = storageRef(storage, `invoices/${supplier.cpf}/${invoice.invoiceNumber}/${file.name}`);
-                                                                      await uploadBytes(fileRef, file);
-                                                                      const url = await getDownloadURL(fileRef);
-                                                                      await onUpdateInvoiceUrl(supplier.cpf, invoice.invoiceNumber, url);
-                                                                      toast.success('Nota enviada com sucesso!');
+                                                                      const reader = new FileReader();
+                                                                      reader.onload = async (event) => {
+                                                                          try {
+                                                                              await onUpdateInvoiceUrl(supplier.cpf, invoice.invoiceNumber, event.target?.result as string);
+                                                                              toast.success('Nota enviada com sucesso!');
+                                                                          } catch (err) {
+                                                                              toast.error('Erro ao enviar a nota.');
+                                                                          }
+                                                                      };
+                                                                      reader.onerror = () => {
+                                                                          toast.error('Erro ao ler o arquivo.');
+                                                                      };
+                                                                      reader.readAsDataURL(file);
                                                                   } catch (error) {
                                                                       console.error(error);
-                                                                      toast.error('Erro ao enviar a nota.');
+                                                                      toast.error('Erro ao processar o arquivo.');
                                                                   }
                                                               }
                                                           }} 

@@ -43,8 +43,10 @@ export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any
             }
         });
 
-        const deliveries = p.deliveries ? (typeof p.deliveries === 'object' ? Object.values(p.deliveries) : p.deliveries) : [];
-        const contractItems = p.contractItems ? (typeof p.contractItems === 'object' ? Object.values(p.contractItems) : p.contractItems) : [];
+        const deliveriesRaw = p.deliveries ? (typeof p.deliveries === 'object' ? Object.values(p.deliveries) : (Array.isArray(p.deliveries) ? p.deliveries : [])) : [];
+        const deliveries = deliveriesRaw.filter((d: any) => d && d.id);
+        const contractItemsRaw = p.contractItems ? (typeof p.contractItems === 'object' ? Object.values(p.contractItems) : (Array.isArray(p.contractItems) ? p.contractItems : [])) : [];
+        const contractItems = contractItemsRaw.filter((p: any) => p);
 
         return {
             ...p,
@@ -67,13 +69,18 @@ export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any
             if (!existing) {
                 uniqueMap.set(s.cpf, { ...s });
             } else {
-                const mergedDeliveries = [...(existing.deliveries || []), ...(s.deliveries || [])];
+                const sDeliveriesRaw = s.deliveries ? (typeof s.deliveries === 'object' ? Object.values(s.deliveries) : (Array.isArray(s.deliveries) ? s.deliveries : [])) : [];
+                const extDeliveriesRaw = existing.deliveries ? (typeof existing.deliveries === 'object' ? Object.values(existing.deliveries) : (Array.isArray(existing.deliveries) ? existing.deliveries : [])) : [];
+                
+                const mergedDeliveries = [...extDeliveriesRaw, ...sDeliveriesRaw].filter(d => d && d.id);
                 const uniqueDeliveries = Array.from(new Map(mergedDeliveries.map(d => [d.id, d])).values());
                 const mergedWeeks = Array.from(new Set([...(existing.allowedWeeks || []), ...(s.allowedWeeks || [])])).sort((a, b) => a - b);
                 
                 // Merge contractItems preserving details
-                const mergedItems = [...(existing.contractItems || []), ...(s.contractItems || [])];
-                const uniqueItems = Array.from(new Map(mergedItems.map(item => [item.name + (item.period || ''), item])).values());
+                const sItemsRaw = s.contractItems ? (typeof s.contractItems === 'object' ? Object.values(s.contractItems) : (Array.isArray(s.contractItems) ? s.contractItems : [])) : [];
+                const extItemsRaw = existing.contractItems ? (typeof existing.contractItems === 'object' ? Object.values(existing.contractItems) : (Array.isArray(existing.contractItems) ? existing.contractItems : [])) : [];
+                const mergedItems = [...extItemsRaw, ...sItemsRaw].filter(item => item && (item.name || item.itemName));
+                const uniqueItems = Array.from(new Map(mergedItems.map(item => [((item.name || item.itemName) + (item.period || '')), item])).values());
 
                 uniqueMap.set(s.cpf, {
                     ...existing,
