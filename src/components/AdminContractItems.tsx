@@ -621,7 +621,7 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
 
     const handleValueChange = (cpf: string, field: 'totalKg' | 'valuePerKg', value: string) => {
         const sanitizedValue = value.replace(/[^0-9,.]/g, '');
-        const divisor = getDivisor(itemCategory);
+        const divisor = getDivisor();
 
         setAssignments(prev => prev.map(a => {
             if (a.supplierCpf !== cpf) return a;

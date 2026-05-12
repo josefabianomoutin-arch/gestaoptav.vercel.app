@@ -580,9 +580,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         const main = (suppliers || []).find(s => s && s.cpf === receiptSupplierCpf);
         if (!main) return null;
         
+        const deliveriesData = main.deliveries || {};
         return {
             ...main,
-            deliveries: Object.values(main.deliveries || {})
+            deliveries: typeof deliveriesData === 'object' ? Object.values(deliveriesData) : (Array.isArray(deliveriesData) ? deliveriesData : [])
         };
     }, [suppliers, receiptSupplierCpf]);
 
@@ -591,16 +592,17 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         const invoices = new Set<string>();
         const monthIndex = MONTHS_PT.indexOf(selectedMonth);
         
-            Object.values((receiptSupplier.deliveries as any) || {}).forEach((d: any) => {
-                if (!d || !d.invoiceNumber) return;
-                const dateStr = d.invoiceDate || d.date;
-                if (dateStr) {
-                    const deliveryDate = new Date(dateStr + 'T12:00:00');
-                    if (deliveryDate.getMonth() === monthIndex && deliveryDate.getFullYear() === selectedYear) {
-                        invoices.add(d.invoiceNumber);
-                    }
+        const deliveries = (receiptSupplier.deliveries as any) || [];
+        deliveries.forEach((d: any) => {
+            if (!d || !d.invoiceNumber) return;
+            const dateStr = d.invoiceDate || d.date;
+            if (dateStr) {
+                const deliveryDate = new Date(dateStr + 'T12:00:00');
+                if (deliveryDate.getMonth() === monthIndex && deliveryDate.getFullYear() === selectedYear) {
+                    invoices.add(d.invoiceNumber);
                 }
-            });
+            }
+        });
         return Array.from(invoices).sort();
     }, [receiptSupplier, selectedMonth, selectedYear]);
 
@@ -610,7 +612,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         const cleanTargetInvoice = String(receiptInvoice).trim().replace(/^0+/, '');
         
         // Obter itens da nota fiscal diretamente das entregas do fornecedor (Fonte Primária)
-        const deliveries = (Object.values(receiptSupplier.deliveries || {}) as any[]).filter(d => {
+        const deliveriesData = receiptSupplier.deliveries || {};
+        const deliveriesList = (typeof deliveriesData === 'object' ? Object.values(deliveriesData) : (Array.isArray(deliveriesData) ? deliveriesData : []));
+        const deliveries = (deliveriesList as any[]).filter(d => {
+            if (!d) return false;
             const cleanDInv = String(d.invoiceNumber || '').trim().replace(/^0+/, '');
             return cleanDInv === cleanTargetInvoice;
         });
@@ -621,11 +626,13 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         const groupedItemsMap = new Map<string, any>();
 
         deliveries.forEach(d => {
+            if (!d) return;
             const itemName = d.item || 'N/A';
             const quantity = Number(d.kg || d.quantity || 0);
             
             // Tentar buscar o valor registrado no warehouseLog para este item específico
-            const itemMovement = warehouseLog.find(log => {
+            const itemMovement = (warehouseLog || []).find(log => {
+                if (!log) return false;
                 const lInbound = String(log.inboundInvoice || '').trim().replace(/^0+/, '');
                 const lOutbound = String(log.outboundInvoice || '').trim().replace(/^0+/, '');
                 const lInv = String(log.invoiceNumber || '').trim().replace(/^0+/, '');
@@ -635,7 +642,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                        (String(log.supplierCpf || '').replace(/\D/g, '') === String(receiptSupplier.cpf || '').replace(/\D/g, ''));
             });
 
-            const contractItem = (Object.values(receiptSupplier.contractItems || {}) as any[]).find((ci: any) => ci.name === itemName);
+            const contractItemsData = receiptSupplier.contractItems || {};
+            const contractItemsList = typeof contractItemsData === 'object' ? Object.values(contractItemsData) : (Array.isArray(contractItemsData) ? contractItemsData : []);
+            const contractItem = (contractItemsList as any[]).find((ci: any) => ci && ci.name === itemName);
             const unitPrice = Number(itemMovement?.value || d.value || 0);
             
             let unit = 'Kg';

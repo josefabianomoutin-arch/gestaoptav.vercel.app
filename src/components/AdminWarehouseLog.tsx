@@ -58,13 +58,13 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
     }, []);
 
     const combinedLog = useMemo(() => {
-        const mappedOffline = offlineEntries.map((off: any, idx: number) => ({
+        const mappedOffline = (offlineEntries || []).map((off: any, idx: number) => ({
             ...off,
             id: `offline-${idx}-${off.timestamp}`,
             isOffline: true,
-            supplierName: suppliers.find(s => s.cpf === off.supplierCpf)?.name || off.supplierName || 'FORNECEDOR OFFLINE'
+            supplierName: (suppliers || []).find(s => s && s.cpf === off.supplierCpf)?.name || off.supplierName || 'FORNECEDOR OFFLINE'
         }));
-        return [...warehouseLog, ...mappedOffline];
+        return [...(warehouseLog || []), ...mappedOffline];
     }, [warehouseLog, offlineEntries, suppliers]);
 
     const availableMonths = useMemo(() => {
@@ -140,25 +140,38 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
     }, []);
 
     const filteredLog = useMemo(() => {
-        return combinedLog
+        const searchLower = String(searchTerm || '').toLowerCase();
+        return (combinedLog || [])
             .filter(log => {
+                if (!log) return false;
                 const dateStr = log.date || (typeof log.timestamp === 'number' ? new Date(log.timestamp).toISOString().split('T')[0] : (log.timestamp as any)?.split?.('T')?.[0]);
                 // dateStr should be YYYY-MM-DD
                 const monthMatch = dateStr ? dateStr.substring(0, 7) : ''; // "2026-05"
-                const activeMonthKey = activeMonthTab.split('-').map((v, i) => i === 1 ? (parseInt(v) + 1).toString().padStart(2, '0') : v).join('-');
+                const activeMonthKey = (activeMonthTab || '').split('-').map((v, i) => i === 1 ? (parseInt(v) + 1).toString().padStart(2, '0') : v).join('-');
                 
                 const matchesMonth = monthMatch === activeMonthKey;
 
                 const typeMatch = filterType === 'all' || log.type === filterType;
-                const searchMatch = searchTerm === '' ||
-                    log.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    (log.lotNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    (log.barcode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    (log.nlNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    (log.pdNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    (log.inboundInvoice || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    (log.outboundInvoice || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    log.supplierName.toLowerCase().includes(searchTerm.toLowerCase());
+                
+                const itemName = String(log.itemName || '').toLowerCase();
+                const lotNumber = String(log.lotNumber || '').toLowerCase();
+                const barcode = String(log.barcode || '').toLowerCase();
+                const nlNumber = String(log.nlNumber || '').toLowerCase();
+                const pdNumber = String(log.pdNumber || '').toLowerCase();
+                const inboundInvoice = String(log.inboundInvoice || '').toLowerCase();
+                const outboundInvoice = String(log.outboundInvoice || '').toLowerCase();
+                const supplierName = String(log.supplierName || '').toLowerCase();
+
+                const searchMatch = searchLower === '' ||
+                    itemName.includes(searchLower) ||
+                    lotNumber.includes(searchLower) ||
+                    barcode.includes(searchLower) ||
+                    nlNumber.includes(searchLower) ||
+                    pdNumber.includes(searchLower) ||
+                    inboundInvoice.includes(searchLower) ||
+                    outboundInvoice.includes(searchLower) ||
+                    supplierName.includes(searchLower);
+
                 return matchesMonth && typeMatch && searchMatch;
             })
             .sort((a, b) => {

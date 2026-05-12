@@ -92,10 +92,12 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     const invoices: any[] = [];
     const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').toUpperCase();
 
-    suppliers.forEach(supplier => {
-      const deliveries = Object.values(supplier.deliveries || {}) as Delivery[];
+    (suppliers || []).forEach(supplier => {
+      if (!supplier) return;
+      const deliveriesData = supplier.deliveries || {};
+      const deliveries = (typeof deliveriesData === 'object' ? Object.values(deliveriesData) : (Array.isArray(deliveriesData) ? deliveriesData : [])) as Delivery[];
       const grouped = deliveries.reduce((acc, d) => {
-        if (d.invoiceNumber) {
+        if (!d || !d.invoiceNumber) return acc;
           const cleanDInvoice = cleanStr(d.invoiceNumber);
           const movement = warehouseLog.find(log => {
             const cleanLogInv = cleanStr(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice);
@@ -148,7 +150,6 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           if (new Date(d.date) < new Date(acc[invKey].date)) {
             acc[invKey].date = d.date;
           }
-        }
         return acc;
       }, {} as Record<string, any>);
       
@@ -156,7 +157,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     });
 
     // Mirror entries from warehouseLog that might not be in supplier deliveries
-    warehouseLog.forEach(log => {
+    (warehouseLog || []).forEach(log => {
+      if (!log) return;
       const invNum = log.invoiceNumber || log.inboundInvoice || log.outboundInvoice;
       if (!invNum) return;
 
@@ -225,7 +227,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
-    allInvoices.forEach(inv => {
+    (allInvoices || []).forEach(inv => {
+      if (!inv || !inv.date) return;
       const d = new Date(inv.date + 'T00:00:00');
       if (!isNaN(d.getTime())) {
         months.add(`${d.getFullYear()}-${d.getMonth()}`);
@@ -253,14 +256,28 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   }
 
     const filteredInvoices = useMemo(() => {
-        return allInvoices.filter(inv => {
+        const searchLower = String(searchTerm || '').toLowerCase();
+        return (allInvoices || []).filter(inv => {
+            if (!inv) return false;
             const invoiceDate = new Date(inv.date + 'T00:00:00');
             const monthKey = `${invoiceDate.getFullYear()}-${invoiceDate.getMonth()}`;
             const matchesMonth = monthKey === activeMonthTab;
             const matchesStatus = statusFilter === 'all' || (statusFilter === 'pending' && !inv.isOpened) || (statusFilter === 'opened' && inv.isOpened);
-            const matchesSearch = inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                 inv.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                 inv.items.some((it: any) => it.item.toLowerCase().includes(searchTerm.toLowerCase()) || (it.barcode && it.barcode.toLowerCase().includes(searchTerm.toLowerCase())));
+            
+            const invoiceNumber = String(inv.invoiceNumber || '').toLowerCase();
+            const supplierName = String(inv.supplierName || '').toLowerCase();
+            const hasItemMatch = (inv.items || []).some((it: any) => {
+                if (!it) return false;
+                const itemMatch = String(it.item || '').toLowerCase().includes(searchLower);
+                const barcodeMatch = it.barcode ? String(it.barcode).toLowerCase().includes(searchLower) : false;
+                return itemMatch || barcodeMatch;
+            });
+
+            const matchesSearch = searchLower === '' || 
+                                 invoiceNumber.includes(searchLower) || 
+                                 supplierName.includes(searchLower) || 
+                                 hasItemMatch;
+
             return matchesMonth && matchesStatus && matchesSearch;
         });
     }, [allInvoices, activeMonthTab, statusFilter, searchTerm]);

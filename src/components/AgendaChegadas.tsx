@@ -17,8 +17,11 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({ suppliers, thirdPartyEn
         const list: { supplierName: string; supplierCpf: string; time: string; arrivalTime?: string; status: 'AGENDADO' | 'CONCLUÍDO' | 'TERCEIRO' | 'CANCELADO'; id: string; type: 'FORNECEDOR' | 'TERCEIRO' }[] = [];
         
         suppliers.forEach(s => {
-            Object.values(s.deliveries || {}).forEach((d: any) => {
-                if (d.date === selectedAgendaDate) {
+            if (!s) return;
+            const deliveriesData = s.deliveries || {};
+            const deliveries = (typeof deliveriesData === 'object' ? Object.values(deliveriesData) : (Array.isArray(deliveriesData) ? deliveriesData : []));
+            deliveries.forEach((d: any) => {
+                if (d && d.date === selectedAgendaDate) {
                     const isFaturado = d.item !== 'AGENDAMENTO PENDENTE';
                     const status = isFaturado ? 'CONCLUÍDO' : 'AGENDADO';
                     const existing = list.find(l => l.supplierName === s.name && l.time === d.time && l.status === status);
@@ -138,9 +141,11 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({ suppliers, thirdPartyEn
                                 ? 'border-indigo-100 opacity-80' 
                                 : item.status === 'CANCELADO'
                                     ? 'border-red-100 opacity-50 grayscale'
-                                    : item.arrivalTime 
-                                        ? 'border-green-200 bg-green-50/30' 
-                                        : 'border-red-500 bg-red-50'
+                                    : item.status === 'AGENDADO' && !item.arrivalTime
+                                        ? 'border-red-500 bg-red-50'
+                                        : item.status === 'AGENDADO' && item.arrivalTime
+                                            ? 'border-orange-500 bg-orange-50/30'
+                                            : 'border-green-200 bg-green-50/30' 
                         }`}
                     >
                         <div className={`absolute top-0 left-0 w-2 h-full ${

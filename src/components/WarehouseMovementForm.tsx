@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, X, Package, Calendar, FileText, Barcode, Copy, Printer } from 'lucide-react';
+import { Plus, X, Package, Calendar, FileText, Barcode, Copy, Printer, Trash2 } from 'lucide-react';
 import type { Supplier, WarehouseMovement } from '../types';
 import { toast } from 'sonner';
 
@@ -49,7 +49,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         return parseFloat(manualValue.replace(',', '.')) || 0;
     }, [manualValue]);
 
-    const updateManualValue = () => {
+    const updateManualValue = (_itemName?: string, _period?: string, _qty?: string) => {
         // Removed automatic total calculation as requested
     };
 
@@ -85,8 +85,11 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             timestamp: number
         } } = {};
 
-        warehouseLog.forEach(log => {
-            const key = `${log.invoiceNumber || log.inboundInvoice}|${log.supplierName}|${log.itemName}`;
+        (warehouseLog || []).forEach(log => {
+            if (!log) return;
+            const logInv = log.invoiceNumber || log.inboundInvoice || log.outboundInvoice;
+            if (!logInv) return;
+            const key = `${logInv}|${log.supplierName}|${log.itemName}`;
             if (!stockMap[key]) {
                 const ts = log.timestamp || (log.date ? new Date(log.date + 'T12:00:00').getTime() : 0);
                 stockMap[key] = { 
@@ -148,7 +151,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             return false;
         }
 
-        const supplier = suppliers.find(s => s.name === nf.supplierName);
+        const supplier = (suppliers || []).find(s => s && s.name === nf.supplierName);
         if (supplier) setSelectedSupplierCpf(supplier.cpf);
         setSelectedItemName(nf.itemName);
         setManualInboundNf({
@@ -197,7 +200,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     const manualSupplierInvoices = useMemo(() => {
         if (!selectedSupplier || !selectedItemName) return [];
         // Filtra entradas do log que batem com o fornecedor e o item selecionado
-        const entries = warehouseLog.filter(l => l.supplierName === selectedSupplier.name && l.itemName === selectedItemName && l.type === 'entrada');
+        const entries = (warehouseLog || []).filter(l => l && l.supplierName === selectedSupplier.name && l.itemName === selectedItemName && l.type === 'entrada');
         
         // Agrupa por NF para saber o saldo disponível
         const invoiceBalances: { [key: string]: { total: number, lot: string, exp: string, timestamp: number } } = {};
@@ -221,7 +224,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         });
 
         // Subtrai as saídas dessa NF
-        warehouseLog.filter(l => l.supplierName === selectedSupplier.name && l.inboundInvoice && l.type === 'saída').forEach(e => {
+        (warehouseLog || []).filter(l => l && l.supplierName === selectedSupplier.name && l.inboundInvoice && l.type === 'saída').forEach(e => {
             if (invoiceBalances[e.inboundInvoice!]) {
                 invoiceBalances[e.inboundInvoice!].total -= (e.quantity || e.kg || 0);
             }
@@ -275,23 +278,27 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         if (barcode.length >= 8) {
             const timer = setTimeout(() => {
                 let foundMatch = false;
-                for (const s of suppliers) {
-                    const deliveries = (Object.values(s.deliveries || {}) as any[]).filter((d: any) => d.barcode === barcode);
-                    if (deliveries.length > 0) {
+                const supps = (suppliers || []);
+                for (const s of supps) {
+                    if (!s) continue;
+                    const deliveriesData = s.deliveries || {};
+                    const deliveries = (typeof deliveriesData === 'object' ? Object.values(deliveriesData) : (Array.isArray(deliveriesData) ? deliveriesData : [])) as any[];
+                    const filteredDeliveries = deliveries.filter((d: any) => d && d.barcode === barcode);
+                    if (filteredDeliveries.length > 0) {
                         if (!selectedSupplierCpf && s.cpf) {
                             setSelectedSupplierCpf(s.cpf);
                         }
                         if (manualType === 'saída' && !manualInboundNf) {
-                            const invNum = deliveries[0].invoiceNumber || '';
-                            const itName = deliveries[0].item || '';
+                            const invNum = filteredDeliveries[0].invoiceNumber || '';
+                            const itName = filteredDeliveries[0].item || '';
                             const supplierName = s.name;
                             const foundInStock = registeredInvoicesWithStock.find(st => st.nfNumber === invNum && st.itemName === itName && st.supplierName === supplierName);
                             if (foundInStock) validateAndSelectNf(foundInStock);
                         }
-                        if (deliveries.length === 1) {
-                            const itName = deliveries[0].item || '';
+                        if (filteredDeliveries.length === 1) {
+                            const itName = filteredDeliveries[0].item || '';
                             setSelectedItemName(itName);
-                            const entryLog = warehouseLog.find(l => l.barcode === barcode && l.type === 'entrada');
+                            const entryLog = (warehouseLog || []).find(l => l && l.barcode === barcode && l.type === 'entrada');
                             if (entryLog) {
                                 setManualLot(entryLog.lotNumber || '');
                                 setManualExp(entryLog.expirationDate || '');
@@ -303,9 +310,9 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                 }
                 
                 if (!foundMatch) {
-                    const entryLog = warehouseLog.find(l => l.barcode === barcode && l.type === 'entrada');
+                    const entryLog = (warehouseLog || []).find(l => l && l.barcode === barcode && l.type === 'entrada');
                     if (entryLog) {
-                        const supplier = suppliers.find(s => s.name === entryLog.supplierName);
+                        const supplier = supps.find(s => s && s.name === entryLog.supplierName);
                         if (supplier && !selectedSupplierCpf) setSelectedSupplierCpf(supplier.cpf);
                         setSelectedItemName(entryLog.itemName);
                         if (manualType === 'saída' && !manualInboundNf) {
@@ -1031,7 +1038,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                                 </span>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex items-center gap-1 ml-auto transition-opacity touch-auto">
                                             <button 
                                                 type="button"
                                                 onClick={() => handlePrintItemLabel(item)}
@@ -1048,10 +1055,12 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                                 <Copy className="h-3 w-3" />
                                             </button>
                                             <button 
+                                                type="button"
                                                 onClick={() => handleRemoveItem(item.id)} 
-                                                className="p-1 text-gray-400 hover:text-rose-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-rose-100"
+                                                className="p-1 text-rose-400 hover:text-rose-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-rose-100 active:scale-95"
+                                                title="Remover Item"
                                             >
-                                                <X className="h-3 w-3" />
+                                                <Trash2 className="h-3 w-3" />
                                             </button>
                                         </div>
                                     </div>

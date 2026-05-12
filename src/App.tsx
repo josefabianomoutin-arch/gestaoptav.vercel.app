@@ -1176,7 +1176,7 @@ const App: React.FC = () => {
                 const timestampVal = new Date().toISOString();
                 updates[newLogKey] = {
                     id: newLogKey,
-                    type: (mode as any) === 'warehouse_exit' ? 'saída' : 'entrada',
+                    type: (currentDelivery as any)?.type === 'saída' ? 'saída' : 'entrada',
                     timestamp: timestampVal,
                     item: item.name,
                     itemName: item.name,
