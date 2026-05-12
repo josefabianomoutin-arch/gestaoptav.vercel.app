@@ -105,6 +105,19 @@ const App: React.FC = () => {
 
   console.log("App mounted, user:", user);
 
+  const [hasError, setHasError] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error("Global Error Captured:", event.error);
+      setHasError(true);
+      setErrorDetails(event.error?.message || String(event.error));
+    };
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2638,9 +2651,40 @@ const App: React.FC = () => {
   }, [suppliers, perCapitaConfig]);
 
   const renderContent = () => {
-    if (!user) {
-      return <LoginScreen onLogin={handleLogin} publicInfoList={publicInfo} />;
+    if (hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
+          <div className="bg-white/5 backdrop-blur-2xl p-10 rounded-[2.5rem] border border-white/10 shadow-2xl text-center max-w-md">
+            <div className="bg-indigo-500/10 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-indigo-500/20">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-4">Erro de Transmissão</h2>
+            <p className="text-slate-400 text-sm font-medium leading-relaxed mb-8">
+              Ocorreu um erro ao carregar o seu perfil. Isso pode ser causado por oscilação na rede ou inconsistência nos dados de cache.
+            </p>
+            <div className="bg-black/20 p-4 rounded-2xl mb-8 border border-white/5">
+              <p className="text-[10px] font-mono text-slate-500 break-all">{errorDetails || 'Error code: 0x882'}</p>
+            </div>
+            <button 
+              onClick={() => {
+                localStorage.clear();
+                window.location.reload();
+              }} 
+              className="w-full bg-indigo-600 text-white font-black py-4 px-8 rounded-2xl text-xs uppercase tracking-widest hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-900/40"
+            >
+              Recarregar Sistema
+            </button>
+          </div>
+        </div>
+      );
     }
+
+    try {
+      if (!user) {
+        return <LoginScreen onLogin={handleLogin} publicInfoList={publicInfo} />;
+      }
 
     if (user.role === 'admin') {
       return (
@@ -3215,7 +3259,7 @@ const App: React.FC = () => {
           cpf: p.cpfCnpj,
           initialValue: (p.contractItems || []).reduce((acc: number, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0),
           contractItems: p.contractItems || [],
-          deliveries: Array.from(new Map([...(p.deliveries || []), ...(existingSupplier?.deliveries || [])].map(d => [d.id, d])).values()),
+          deliveries: Array.from(new Map([...(p.deliveries || []), ...(existingSupplier?.deliveries || [])].filter(d => d && d.id).map(d => [d.id, d])).values()),
           allowedWeeks: finalWeeks,
           address: p.address || '',
           city: p.city || '',
@@ -3260,6 +3304,14 @@ const App: React.FC = () => {
         </div>
       </div>
     );
+    } catch (e: any) {
+      console.error("RenderContent error:", e);
+      if (!hasError) {
+        setHasError(true);
+        setErrorDetails(e?.message || String(e));
+      }
+      return null;
+    }
   };
 
   return (
@@ -3273,7 +3325,18 @@ const App: React.FC = () => {
         />
       )}
       <div className="flex-1 overflow-auto">
-        {renderContent()}
+        {(() => {
+          try {
+            return renderContent();
+          } catch (e: any) {
+            console.error("Render error caught:", e);
+            if (!hasError) {
+              setHasError(true);
+              setErrorDetails(e?.message || String(e));
+            }
+            return null;
+          }
+        })()}
       </div>
     </div>
   );

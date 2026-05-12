@@ -10,7 +10,13 @@ interface SynchronizationModuleProps {
 const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWithFirebase }) => {
     const [pendingEntries, setPendingEntries] = useState<any[]>(() => {
         const saved = localStorage.getItem('offline_warehouse_entries');
-        return saved ? JSON.parse(saved) : [];
+        if (!saved) return [];
+        try {
+            return JSON.parse(saved);
+        } catch (e) {
+            console.error("Error parsing offline entries:", e);
+            return [];
+        }
     });
     const [isProcessing, setIsProcessing] = useState(false);
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
