@@ -870,9 +870,27 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                       {editingInvoice.items.map((item: any, idx: number) => {
                           return (
                           <div key={idx} className="bg-slate-50 p-4 rounded-xl space-y-3 border border-gray-100 shadow-sm relative group">
-                              <div className="font-black text-[10px] text-indigo-900 uppercase tracking-tight flex justify-between">
+                              <div className="font-black text-[10px] text-indigo-900 uppercase tracking-tight flex justify-between items-center">
                                   <span>Produto: {item.item}</span>
-                                  <span className="text-gray-400 font-bold">{idx + 1} de {editingInvoice.items.length}</span>
+                                  <div className="flex items-center gap-3">
+                                      <span className="text-gray-400 font-bold">{idx + 1} de {editingInvoice.items.length}</span>
+                                      <button 
+                                          onClick={() => {
+                                              if (editingInvoice.items.length <= 1) {
+                                                  toast.error("A nota precisa ter ao menos um item. Exclua a nota completa se desejar remover tudo.");
+                                                  return;
+                                              }
+                                              const newItems = [...editingInvoice.items];
+                                              newItems.splice(idx, 1);
+                                              setEditingInvoice({ ...editingInvoice, items: newItems });
+                                              toast.info("Item removido. Clique em 'Salvar Ajustes' para confirmar.");
+                                          }}
+                                          className="p-1.5 text-rose-500 hover:bg-rose-100 rounded-lg transition-colors group-hover:scale-110 active:scale-95"
+                                          title="Excluir Item"
+                                      >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                  </div>
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                   <div className="space-y-0.5">
