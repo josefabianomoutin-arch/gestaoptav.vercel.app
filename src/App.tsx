@@ -671,23 +671,23 @@ const App: React.FC = () => {
       await Promise.race([
         runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
           if (currentData) {
-            const findAndAdd = (list: any[] | undefined) => {
-              const s = list?.find(p => p.cpfCnpj === supplierCpf);
-              if (s) {
-                const deliveries = s.deliveries || [];
-                deliveries.push({
-                  id: `del-${Date.now()}`,
-                  date,
-                  time,
-                  item: 'AGENDAMENTO PENDENTE',
-                  invoiceUploaded: false
-                });
-                s.deliveries = deliveries;
-                pcFound = true;
-                return true;
-              }
-              return false;
-            };
+              const findAndAdd = (list: any[] | undefined) => {
+                const s = list?.find(p => p.cpfCnpj === supplierCpf);
+                if (s) {
+                  const deliveries = Array.isArray(s.deliveries) ? [...s.deliveries] : Object.values(s.deliveries || {});
+                  deliveries.push({
+                    id: `del-${Date.now()}`,
+                    date,
+                    time,
+                    item: 'AGENDAMENTO PENDENTE',
+                    invoiceUploaded: false
+                  });
+                  s.deliveries = deliveries;
+                  pcFound = true;
+                  return true;
+                }
+                return false;
+              };
             if (!findAndAdd(currentData.ppaisProducers)) {
               findAndAdd(currentData.pereciveisSuppliers);
             }
@@ -708,7 +708,7 @@ const App: React.FC = () => {
         await Promise.race([
           runTransaction(supplierRef, (currentData: Supplier) => {
             if (currentData) {
-              const deliveries = currentData.deliveries || [];
+              const deliveries = Array.isArray(currentData.deliveries) ? [...currentData.deliveries] : Object.values(currentData.deliveries || {});
               deliveries.push({
                 id: `del-${Date.now()}`,
                 date,
@@ -736,7 +736,8 @@ const App: React.FC = () => {
     const supplierRef = child(suppliersRef, supplierCpf);
     await runTransaction(supplierRef, (currentData: Supplier) => {
       if (currentData) {
-        currentData.deliveries = (currentData.deliveries || []).filter(d => !deliveryIds.includes(d.id));
+        const deliveries = Array.isArray(currentData.deliveries) ? [...currentData.deliveries] : Object.values(currentData.deliveries || {});
+        currentData.deliveries = deliveries.filter(d => !deliveryIds.includes(d.id));
       }
       return currentData;
     });
@@ -747,7 +748,8 @@ const App: React.FC = () => {
         const findAndCancel = (list: any[] | undefined) => {
           const s = list?.find(p => p.cpfCnpj === supplierCpf);
           if (s) {
-            s.deliveries = (s.deliveries || []).filter((d: any) => !deliveryIds.includes(d.id));
+            const deliveries = Array.isArray(s.deliveries) ? [...s.deliveries] : Object.values(s.deliveries || {});
+            s.deliveries = deliveries.filter((d: any) => !deliveryIds.includes(d.id));
             return true;
           }
           return false;
@@ -765,24 +767,20 @@ const App: React.FC = () => {
       console.log('Iniciando handleSaveInvoice:', { supplierCpf, deliveryIds, invoiceNumber, updatedDeliveries });
       let finalInvoiceUrl = invoiceUrl;
 
-      // 1. Upload do Arquivo
-      if (invoiceUrl.startsWith('data:')) {
+      // 1. Upload do Arquivo se estiver em base64
+      if (invoiceUrl && invoiceUrl.startsWith('data:')) {
         try {
           const invoiceId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.pdf`;
           const fileRef = storageRef(storage, `invoices/${invoiceId}`);
           
-          // Converter base64 para Blob para um upload mais estável
-          const base64Data = invoiceUrl.split(',')[1];
-          const contentType = invoiceUrl.split(',')[0].split(':')[1].split(';')[0];
-          const byteCharacters = atob(base64Data);
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          const blob = new Blob([byteArray], { type: contentType });
+          console.log('Convertendo base64 para Blob...');
+          toast.loading('Processando arquivo...', { id: toastId });
           
-          console.log('Fazendo upload para o Storage (Blob)...', blob.size);
+          // Melhor forma de converter dataUrl para Blob sem travar a UI
+          const response = await fetch(invoiceUrl);
+          const blob = await response.blob();
+          
+          console.log('Fazendo upload para o Storage...', blob.size);
           toast.loading('Fazendo upload do arquivo...', { id: toastId });
           
           // Timeout de 30s para o upload
@@ -796,7 +794,6 @@ const App: React.FC = () => {
           console.error("Storage failed, falling back to RTDB", storageError);
           toast.loading('Upload falhou, tentando backup...', { id: toastId });
           
-          // Se o storage falhar, tentamos salvar no RTDB apenas se o arquivo não for gigante
           if (invoiceUrl.length > 500000) { // ~500KB limit for RTDB strings to avoid hanging
              throw new Error("O arquivo é muito grande para o servidor de backup. Tente um arquivo menor ou verifique sua conexão.", { cause: storageError });
           }
@@ -817,11 +814,15 @@ const App: React.FC = () => {
         const currentData = snapshot.val() as Supplier;
         
         if (currentData) {
-          let deliveries = [...(currentData.deliveries || [])];
+          // Firebase RTDB pode retornar um objeto se as chaves forem numéricas com lacunas
+          let deliveries = Array.isArray(currentData.deliveries) 
+            ? [...currentData.deliveries] 
+            : Object.values(currentData.deliveries || {});
+          
           let updated = false;
           
           // 1. Update existing deliveries
-          deliveries.forEach(d => {
+          deliveries.forEach((d: any) => {
             if (deliveryIds.includes(d.id)) {
               const updatedDelivery = updatedDeliveries.find(ud => ud.id === d.id);
               d.invoiceUploaded = true;
@@ -829,7 +830,7 @@ const App: React.FC = () => {
               if (invoiceDate) d.invoiceDate = invoiceDate;
               if (finalInvoiceUrl !== undefined) d.invoiceUrl = finalInvoiceUrl;
               if (updatedDelivery) {
-                d.item = updatedDelivery.item;
+                d.item = updatedDelivery.item || updatedDelivery.itemName || d.item;
                 d.kg = updatedDelivery.kg;
                 d.value = updatedDelivery.value;
                 d.lots = updatedDelivery.lots;
@@ -839,11 +840,16 @@ const App: React.FC = () => {
           });
 
           // 2. Add new deliveries (items added manually in the modal)
-          const newItems = updatedDeliveries.filter(ud => ud.id.startsWith('new_') || ud.id.startsWith('manual-') || ud.id.startsWith('extracted-'));
+          const newItems = updatedDeliveries.filter(ud => 
+            String(ud.id || '').startsWith('new_') || 
+            String(ud.id || '').startsWith('manual-') || 
+            String(ud.id || '').startsWith('extracted-')
+          );
           if (newItems.length > 0) {
             newItems.forEach(ni => {
               const newDelivery: Delivery = {
                 ...ni,
+                item: ni.item || ni.itemName || 'ITEM SEM NOME',
                 id: `del_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
                 invoiceNumber,
                 invoiceDate,
@@ -912,7 +918,10 @@ const App: React.FC = () => {
           if (!list) return false;
           const index = list.findIndex(p => p.cpfCnpj === supplierCpf);
           if (index !== -1) {
-            let deliveries = [...(list[index].deliveries || [])];
+            let deliveries = Array.isArray(list[index].deliveries)
+              ? [...list[index].deliveries]
+              : Object.values(list[index].deliveries || {});
+            
             let updated = false;
             
             deliveries.forEach((d: any) => {
@@ -923,7 +932,7 @@ const App: React.FC = () => {
                 if (invoiceDate) d.invoiceDate = invoiceDate;
                 if (finalInvoiceUrl !== undefined) d.invoiceUrl = finalInvoiceUrl;
                 if (updatedDelivery) {
-                  d.item = updatedDelivery.item;
+                  d.item = updatedDelivery.item || updatedDelivery.itemName || d.item;
                   d.kg = updatedDelivery.kg;
                   d.value = updatedDelivery.value;
                   d.lots = updatedDelivery.lots;
@@ -932,11 +941,16 @@ const App: React.FC = () => {
               }
             });
 
-            const newItems = updatedDeliveries.filter(ud => ud.id.startsWith('new_') || ud.id.startsWith('manual-') || ud.id.startsWith('extracted-'));
+            const newItems = updatedDeliveries.filter(ud => 
+              String(ud.id || '').startsWith('new_') || 
+              String(ud.id || '').startsWith('manual-') || 
+              String(ud.id || '').startsWith('extracted-')
+            );
             if (newItems.length > 0) {
               newItems.forEach(ni => {
                 const newDelivery: Delivery = {
                   ...ni,
+                  item: ni.item || ni.itemName || 'ITEM SEM NOME',
                   id: `del_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
                   invoiceNumber,
                   invoiceDate,
@@ -971,22 +985,23 @@ const App: React.FC = () => {
     if (found) {
           // --- NOVO: Espelhar no warehouseLog ---
           try {
-            // Otimização: buscar apenas logs deste fornecedor
-            const q = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
-            const logSnapshot = await get(q);
-            const allLogs = logSnapshot.val() || {};
-            const updatesLog: Record<string, any> = {};
-            let hasUpdatesLog = false;
-
-            Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
-              if (String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)) {
-                updatesLog[`${key}/invoiceUrl`] = finalInvoiceUrl;
-                hasUpdatesLog = true;
+            if (warehouseLogRef) {
+              const q = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
+              const logSnapshot = await get(q);
+              const allLogs = logSnapshot.val() || {};
+              const updatesLog: Record<string, any> = {};
+              let hasUpdatesLog = false;
+  
+              Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
+                if (String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)) {
+                  updatesLog[`${key}/invoiceUrl`] = finalInvoiceUrl;
+                  hasUpdatesLog = true;
+                }
+              });
+  
+              if (hasUpdatesLog) {
+                await update(warehouseLogRef, updatesLog);
               }
-            });
-
-            if (hasUpdatesLog) {
-              await update(warehouseLogRef, updatesLog);
             }
           } catch (e) {
             console.error("Error syncing invoice URL to warehouse log:", e);
@@ -1712,7 +1727,10 @@ const App: React.FC = () => {
         const supplierRef = child(suppliersRef, supplierCpf);
         await runTransaction(supplierRef, (currentData: Supplier) => {
           if (currentData) {
-            const deliveries = currentData.deliveries || [];
+            const deliveries = Array.isArray(currentData.deliveries) 
+              ? [...currentData.deliveries] 
+              : Object.values(currentData.deliveries || {});
+            
             logEntries.forEach((le, idx) => {
               const item = items[idx];
               const newDelivery: any = {
@@ -1752,7 +1770,10 @@ const App: React.FC = () => {
             const findAndAdd = (list: any[] | undefined) => {
               const s = list?.find(p => p.cpfCnpj === supplierCpf);
               if (s) {
-                const deliveries = s.deliveries || [];
+                const deliveries = Array.isArray(s.deliveries)
+                  ? [...s.deliveries]
+                  : Object.values(s.deliveries || {});
+                
                 logEntries.forEach((le, idx) => {
                   const item = items[idx];
                   const newDelivery: any = {
@@ -1864,9 +1885,9 @@ const App: React.FC = () => {
           if (!current) return current;
           
           let changed = false;
-          const updatedPpais = [...(current.ppaisProducers || [])];
-          const updatedPereciveis = [...(current.pereciveisSuppliers || [])];
-          const updatedEstocaveis = [...(current.estocaveisSuppliers || [])];
+          const updatedPpais = Array.isArray(current.ppaisProducers) ? [...current.ppaisProducers] : Object.values(current.ppaisProducers || {});
+          const updatedPereciveis = Array.isArray(current.pereciveisSuppliers) ? [...current.pereciveisSuppliers] : Object.values(current.pereciveisSuppliers || {});
+          const updatedEstocaveis = Array.isArray(current.estocaveisSuppliers) ? [...current.estocaveisSuppliers] : Object.values(current.estocaveisSuppliers || {});
 
           const ppaisIndex = updatedPpais.findIndex(p => p.cpfCnpj === supplier.cpf);
           const pereciveisIndex = updatedPereciveis.findIndex(p => p.cpfCnpj === supplier.cpf);

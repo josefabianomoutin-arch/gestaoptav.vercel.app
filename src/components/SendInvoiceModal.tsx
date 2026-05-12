@@ -34,7 +34,10 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
         const updated = { ...d, [field]: val };
         if (field === 'itemId') {
           const item = contractItems.find(ci => ci.id === val);
-          if (item) updated.itemName = item.name;
+          if (item) {
+            updated.itemName = item.name;
+            updated.item = item.name; // Garante ambos para compatibilidade
+          }
         }
         return updated;
       }
@@ -78,6 +81,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
         const extractedDeliveries = data.items.map((item: any) => ({
           // IMPORTANTE: prefixo new_ para reconhecimento no backend
           id: `new_extracted-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          item: item.name,
           itemName: item.name,
           kg: item.quantity || 0,
           value: item.totalValue || 0,
@@ -103,14 +107,22 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
     if (file) extractDataFromPdf(file);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Basic validation
     if (!invoiceNumber) {
         alert("Número da nota é obrigatório");
         return;
     }
-    onSave(invoiceNumber, invoiceUrl, deliveries, invoiceDate);
-    onClose();
+    setLoading(true);
+    try {
+      await onSave(invoiceNumber, invoiceUrl, deliveries, invoiceDate);
+      onClose();
+    } catch (e) {
+      console.error("Erro ao salvar nota:", e);
+      // O erro já deve ter sido mostrado pelo toast no App.tsx
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
