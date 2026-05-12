@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import { X, Send, Plus, Trash2, FileText, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Delivery, ContractItem } from '../types';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { app } from '../firebaseConfig';
-
-const storage = getStorage(app);
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../firebaseConfig';
 
 interface SendInvoiceModalProps {
   invoiceInfo: { date: string; deliveries: Delivery[] };
@@ -22,7 +20,8 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
   const [invoiceUrl, setInvoiceUrl] = useState('');
 
   const handleAddDelivery = () => {
-    setDeliveries([...deliveries, { id: `manual-${Date.now()}`, itemId: '', itemName: '', kg: 0, value: 0 }]);
+    // IMPORTANTE: prefixo new_ para que o handleSaveInvoice no App.tsx reconheça como novo item
+    setDeliveries([...deliveries, { id: `new_manual-${Date.now()}`, itemId: '', itemName: '', kg: 0, value: 0 }]);
   };
 
   const handleRemoveDelivery = (id: string) => {
@@ -45,10 +44,14 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
 
   const extractDataFromPdf = async (file: File) => {
     setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout para IA
+
     try {
-      const base64 = await new Promise<string>((resolve) => {
+      const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
         reader.readAsDataURL(file);
       });
 
@@ -59,10 +62,13 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
           image: base64,
           mimeType: file.type,
           prompt: "Extract invoice data: number, date, supplier, and items (name, quantity, totalValue). Return JSON."
-        })
+        }),
+        signal: controller.signal
       });
 
-      if (!response.ok) throw new Error("Falha na chamada da API");
+      clearTimeout(timeoutId);
+
+      if (!response.ok) throw new Error(`Falha na extração (Status: ${response.status})`);
       const data = await response.json();
       
       if (data.number) setInvoiceNumber(data.number);
@@ -70,7 +76,8 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
       
       if (data.items) {
         const extractedDeliveries = data.items.map((item: any) => ({
-          id: `extracted-${Date.now()}-${Math.random()}`,
+          // IMPORTANTE: prefixo new_ para reconhecimento no backend
+          id: `new_extracted-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           itemName: item.name,
           kg: item.quantity || 0,
           value: item.totalValue || 0,
@@ -78,10 +85,16 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
         }));
         setDeliveries(prev => [...prev, ...extractedDeliveries]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Extraction error:", error);
+      if (error.name === 'AbortError') {
+        alert("O processamento da IA demorou muito. Você pode preencher os dados manualmente.");
+      } else {
+        alert("Não foi possível extrair dados automaticamente. Por favor, preencha manualmente.");
+      }
     } finally {
       setLoading(false);
+      clearTimeout(timeoutId);
     }
   };
 
@@ -274,9 +287,10 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
             </button>
             <button 
               onClick={handleSave}
-              className="flex items-center gap-2 px-8 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+              disabled={loading}
+              className={`flex items-center gap-2 px-8 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <Send className="w-4 h-4" />
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               Finalizar Envio
             </button>
           </div>

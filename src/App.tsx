@@ -14,7 +14,7 @@ import VehicleOrderDashboard from './components/VehicleOrderDashboard';
 import JulioDashboard from './components/JulioDashboard';
 import ServiceOrderDashboard from './components/ServiceOrderDashboard';
 import InfobarTicker from './components/InfobarTicker';
-import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
+import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get, query, orderByChild, equalTo } from 'firebase/database';
 import { ref as storageRef, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { app, storage } from './firebaseConfig';
 import { getCombinedSuppliers } from './lib/supplierUtils';
@@ -839,7 +839,7 @@ const App: React.FC = () => {
           });
 
           // 2. Add new deliveries (items added manually in the modal)
-          const newItems = updatedDeliveries.filter(ud => ud.id.startsWith('new_'));
+          const newItems = updatedDeliveries.filter(ud => ud.id.startsWith('new_') || ud.id.startsWith('manual-') || ud.id.startsWith('extracted-'));
           if (newItems.length > 0) {
             newItems.forEach(ni => {
               const newDelivery: Delivery = {
@@ -868,16 +868,15 @@ const App: React.FC = () => {
             
             // --- NOVO: Espelhar no warehouseLog ---
             try {
-              const logSnapshot = await get(warehouseLogRef);
+              // Otimização: buscar apenas logs deste fornecedor
+              const q = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
+              const logSnapshot = await get(q);
               const allLogs = logSnapshot.val() || {};
               const logUpdates: Record<string, any> = {};
               let hasLogUpdates = false;
 
               Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
-                if (
-                  entry.supplierCpf === supplierCpf &&
-                  String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)
-                ) {
+                if (String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)) {
                   logUpdates[`${key}/invoiceUrl`] = finalInvoiceUrl;
                   hasLogUpdates = true;
                 }
@@ -885,7 +884,6 @@ const App: React.FC = () => {
 
               if (hasLogUpdates) {
                 await update(warehouseLogRef, logUpdates);
-                console.log('Main Supplier: Warehouse log updated with invoice URL');
               }
             } catch (e) {
               console.error("Error syncing invoice URL to warehouse log:", e);
@@ -934,7 +932,7 @@ const App: React.FC = () => {
               }
             });
 
-            const newItems = updatedDeliveries.filter(ud => ud.id.startsWith('new_'));
+            const newItems = updatedDeliveries.filter(ud => ud.id.startsWith('new_') || ud.id.startsWith('manual-') || ud.id.startsWith('extracted-'));
             if (newItems.length > 0) {
               newItems.forEach(ni => {
                 const newDelivery: Delivery = {
@@ -973,24 +971,22 @@ const App: React.FC = () => {
     if (found) {
           // --- NOVO: Espelhar no warehouseLog ---
           try {
-            const logSnapshot = await get(warehouseLogRef);
+            // Otimização: buscar apenas logs deste fornecedor
+            const q = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
+            const logSnapshot = await get(q);
             const allLogs = logSnapshot.val() || {};
-            const updates: Record<string, any> = {};
-            let hasUpdates = false;
+            const updatesLog: Record<string, any> = {};
+            let hasUpdatesLog = false;
 
             Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
-              if (
-                entry.supplierCpf === supplierCpf &&
-                String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)
-              ) {
-                updates[`${key}/invoiceUrl`] = finalInvoiceUrl;
-                hasUpdates = true;
+              if (String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)) {
+                updatesLog[`${key}/invoiceUrl`] = finalInvoiceUrl;
+                hasUpdatesLog = true;
               }
             });
 
-            if (hasUpdates) {
-              await update(warehouseLogRef, updates);
-              console.log('Warehouse log updated with invoice URL');
+            if (hasUpdatesLog) {
+              await update(warehouseLogRef, updatesLog);
             }
           } catch (e) {
             console.error("Error syncing invoice URL to warehouse log:", e);
@@ -1136,11 +1132,12 @@ const App: React.FC = () => {
         });
 
         // --- NOVO: Limpar e Sincronizar com warehouseLog ---
-        const logSnapshot = await get(warehouseLogRef);
+        const qLogs = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
+        const logSnapshot = await get(qLogs);
         const allLogs = logSnapshot.val() || {};
         const logKeysToDelete = Object.keys(allLogs).filter(key => {
             const entry = allLogs[key];
-            return entry.supplierCpf === supplierCpf && String(entry.inboundInvoice) === String(invoiceNumber);
+            return String(entry.inboundInvoice) === String(invoiceNumber);
         });
         
         if (logKeysToDelete.length > 0) {
@@ -1372,16 +1369,14 @@ const App: React.FC = () => {
 
           // --- NOVO: Espelhar no warehouseLog ---
           try {
-            const logSnapshot = await get(warehouseLogRef);
+            const qLog = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
+            const logSnapshot = await get(qLog);
             const allLogs = logSnapshot.val() || {};
             const logUpdates: Record<string, any> = {};
             let hasLogUpdates = false;
 
             Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
-              if (
-                entry.supplierCpf === supplierCpf &&
-                String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)
-              ) {
+              if (String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)) {
                 logUpdates[`${key}/invoiceUrl`] = finalInvoiceUrl;
                 hasLogUpdates = true;
               }
@@ -1389,7 +1384,6 @@ const App: React.FC = () => {
 
             if (hasLogUpdates) {
               await update(warehouseLogRef, logUpdates);
-              console.log('Main Supplier Update: Warehouse log updated with invoice URL');
             }
           } catch (e) {
             console.error("Error syncing invoice URL to warehouse log:", e);
@@ -1426,24 +1420,21 @@ const App: React.FC = () => {
             
             // --- NOVO: Espelhar no warehouseLog ---
             try {
-              const logSnapshot = await get(warehouseLogRef);
+              const qLog = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
+              const logSnapshot = await get(qLog);
               const allLogs = logSnapshot.val() || {};
-              const updates: Record<string, any> = {};
-              let hasUpdates = false;
+              const updatesLog: Record<string, any> = {};
+              let hasUpdatesLog = false;
 
               Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
-                if (
-                  entry.supplierCpf === supplierCpf &&
-                  String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)
-                ) {
-                  updates[`${key}/invoiceUrl`] = finalInvoiceUrl;
-                  hasUpdates = true;
+                if (String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)) {
+                  updatesLog[`${key}/invoiceUrl`] = finalInvoiceUrl;
+                  hasUpdatesLog = true;
                 }
               });
 
-              if (hasUpdates) {
-                await update(warehouseLogRef, updates);
-                console.log('Warehouse log updated with invoice URL');
+              if (hasUpdatesLog) {
+                await update(warehouseLogRef, updatesLog);
               }
             } catch (e) {
               console.error("Error syncing invoice URL to warehouse log:", e);
@@ -1746,6 +1737,7 @@ const App: React.FC = () => {
               if (invoiceDate !== undefined) newDelivery.invoiceDate = invoiceDate;
               if (receiptTermNumber !== undefined) newDelivery.receiptTermNumber = receiptTermNumber;
               if (pd !== undefined) newDelivery.pd = pd;
+              if (invoiceUrl !== undefined) newDelivery.invoiceUrl = invoiceUrl;
               if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
 
               deliveries.push(newDelivery);
@@ -1784,8 +1776,8 @@ const App: React.FC = () => {
                   if (invoiceDate !== undefined) newDelivery.invoiceDate = invoiceDate;
                   if (receiptTermNumber !== undefined) newDelivery.receiptTermNumber = receiptTermNumber;
                   if (pd !== undefined) newDelivery.pd = pd;
-                  if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
                   if (invoiceUrl !== undefined) newDelivery.invoiceUrl = invoiceUrl;
+                  if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
 
                   deliveries.push(newDelivery);
                 });
