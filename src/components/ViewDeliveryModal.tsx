@@ -26,7 +26,7 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({ date, deliveries,
   const isPastOrToday = isPastStrict || isToday;
   
   const canCancel = !invoiceNumber && deliveries.some(d => d.item === 'AGENDAMENTO PENDENTE');
-  const needsInvoice = isPastOrToday && placeholderDeliveries.length > 0;
+  const needsInvoice = placeholderDeliveries.length > 0;
 
 
   const formatCurrency = (value: number) => {
@@ -122,7 +122,7 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({ date, deliveries,
                                     <div className="flex justify-between items-center">
                                         <div>
                                             <p className="font-black text-blue-900 text-sm uppercase">Agendado p/ {delivery.time}</p>
-                                            <p className="text-[10px] text-blue-600 font-bold uppercase mt-1">{isPastOrToday && !hasInvoice ? 'Aguardando Lançamento NF' : hasInvoice ? 'Faturado' : 'Entrega Futura'}</p>
+                                            <p className="text-[10px] text-blue-600 font-bold uppercase mt-1">{!hasInvoice ? 'Aguardando Lançamento NF' : 'Faturado'}</p>
                                         </div>
                                         {!hasInvoice && (
                                             <div className="flex gap-2">
@@ -132,14 +132,12 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({ date, deliveries,
                                                 >
                                                     Excluir
                                                 </button>
-                                                {isPastOrToday && (
-                                                    <button 
-                                                        onClick={() => onFulfill({ date: dateString, deliveries: [delivery] })}
-                                                        className="bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-xl shadow-lg active:scale-95 transition-all"
-                                                    >
-                                                        Faturar
-                                                    </button>
-                                                )}
+                                                <button 
+                                                    onClick={() => onFulfill({ date: dateString, deliveries: [delivery] })}
+                                                    className="bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-xl shadow-lg active:scale-95 transition-all"
+                                                >
+                                                    Faturar
+                                                </button>
                                             </div>
                                         )}
                                     </div>
@@ -156,14 +154,12 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({ date, deliveries,
                                             >
                                                 Excluir
                                             </button>
-                                            {isPastOrToday && (
-                                                <button 
-                                                    onClick={() => onFulfill({ date: dateString, deliveries: [delivery] })}
-                                                    className="bg-rose-600 hover:bg-rose-700 text-white text-[8px] font-black uppercase px-2 py-1 rounded-lg shadow-sm transition-all"
-                                                >
-                                                    Faturar
-                                                </button>
-                                            )}
+                                            <button 
+                                                onClick={() => onFulfill({ date: dateString, deliveries: [delivery] })}
+                                                className="bg-rose-600 hover:bg-rose-700 text-white text-[8px] font-black uppercase px-2 py-1 rounded-lg shadow-sm transition-all"
+                                            >
+                                                Faturar
+                                            </button>
                                         </div>
                                     )}
                                 <div className="flex justify-between items-start text-sm">

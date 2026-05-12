@@ -5,6 +5,7 @@ import { MONTHS_2026 } from '../constants';
 
 interface SummaryCardProps {
     supplier: Supplier;
+    onOpenSendInvoiceModal?: (invoiceInfo: { date: string; deliveries: any[] }) => void;
     [key: string]: any;
 }
 
@@ -43,7 +44,7 @@ const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 };
 
-const SummaryCard: React.FC<SummaryCardProps> = ({ supplier }) => {
+const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, onOpenSendInvoiceModal }) => {
     const deliveries = (Object.values(supplier.deliveries || {}) as any[]);
     const contractItems = (Object.values(supplier.contractItems || {}) as any[]);
 
@@ -176,9 +177,20 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier }) => {
 
     return (
         <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg">
-            <h2 className="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 uppercase">
-                Contrato 2º e 3º Quadr. 2026
-            </h2>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 border-b pb-2 gap-2">
+                <h2 className="text-xl font-bold text-gray-700 uppercase">
+                    Contrato 2º e 3º Quadr. 2026
+                </h2>
+                {onOpenSendInvoiceModal && (
+                    <button 
+                        onClick={() => onOpenSendInvoiceModal({ date: new Date().toISOString().split('T')[0], deliveries: [] })}
+                        className="text-[10px] font-black text-rose-600 hover:text-rose-700 underline uppercase tracking-widest bg-rose-50 px-2 py-1 rounded-md border border-rose-100 flex items-center gap-1 active:scale-95 transition-all"
+                    >
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+                        Inserir Nota Fiscal (PDF)
+                    </button>
+                )}
+            </div>
             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                 {uniqueItemNames.map(itemName => {
                     const itemData = monthlyDataByItem.get(itemName);

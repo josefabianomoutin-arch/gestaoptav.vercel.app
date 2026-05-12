@@ -6,7 +6,6 @@ import { MONTHS_2026, WEEK_DAYS, HOLIDAYS_2026 } from '../constants';
 interface CalendarProps {
   onDayClick: (date: Date) => void;
   deliveries: Delivery[];
-  simulatedToday: Date;
   allowedWeeks?: number[];
   monthlySchedule?: Record<string, number[]>;
   activeContractPeriod?: '1_QUAD' | '2_3_QUAD';
@@ -20,7 +19,7 @@ const getWeekNumber = (d: Date): number => {
     return weekNo;
 };
 
-const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedToday, allowedWeeks, activeContractPeriod }) => {
+const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeeks, activeContractPeriod }) => {
 
   const deliveriesByDate = useMemo(() => {
     const map = new Map<string, Delivery[]>();
@@ -87,9 +86,7 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedTo
         dayClasses += " bg-gray-100 text-gray-300 cursor-not-allowed";
       } else {
         dayClasses += " cursor-pointer";
-        const isPast = currentDate <= simulatedToday;
-        
-        const needsInvoice = hasDeliveries && isPast && deliveriesOnThisDate.some(d => !d.invoiceUploaded);
+        const needsInvoice = hasDeliveries && deliveriesOnThisDate.some(d => !d.invoiceUploaded);
         const allFulfilled = hasDeliveries && deliveriesOnThisDate.every(d => d.invoiceUploaded);
 
         if (needsInvoice) {
@@ -119,7 +116,7 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, simulatedTo
             </span>
           )}
           
-          {hasDeliveries && deliveriesOnThisDate.some(d => !d.invoiceUploaded) && currentDate <= simulatedToday && (
+          {hasDeliveries && deliveriesOnThisDate.some(d => !d.invoiceUploaded) && (
             <span className="absolute top-1 right-1 text-[8px] bg-yellow-400 text-black px-1 rounded font-black shadow-sm animate-pulse z-10">NF!</span>
           )}
         </div>

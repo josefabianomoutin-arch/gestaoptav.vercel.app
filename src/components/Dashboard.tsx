@@ -530,7 +530,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <Calendar 
                     onDayClick={handleDayClick} 
                     deliveries={Object.values(supplier.deliveries || {})} 
-                    simulatedToday={SIMULATED_TODAY} 
                     allowedWeeks={supplier.allowedWeeks}
                     monthlySchedule={monthlySchedule}
                     activeContractPeriod={activeContractPeriod}
@@ -555,6 +554,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   activeContractPeriod={activeContractPeriod} 
                   isRegisteredForNextPeriod={isRegisteredForNextPeriod}
                   isPpaisProducer={type === 'PRODUTOR'}
+                  onOpenSendInvoiceModal={handleOpenSendInvoiceModal}
                 />
                 {pendingDailyInvoices.length > 0 && (
                     <InvoiceUploader 
