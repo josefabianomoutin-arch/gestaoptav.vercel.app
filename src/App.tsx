@@ -1088,6 +1088,7 @@ const App: React.FC = () => {
             const finalReceiptTerm = receiptTermNumber !== undefined ? receiptTermNumber : existingForNf[0].receiptTermNumber;
             const finalInvoiceDate = invoiceDate !== undefined ? invoiceDate : existingForNf[0].invoiceDate;
             const finalPd = pd !== undefined ? pd : existingForNf[0].pd;
+            const finalIsOpened = existingForNf[0].isOpened || existingForNf[0].opened || false;
             const existingInvoiceUrl = existingForNf.find(d => d.invoiceUrl)?.invoiceUrl;
 
             // Preservar códigos de barras originais caso não venham no payload
@@ -1111,6 +1112,7 @@ const App: React.FC = () => {
                 kg: item.kg,
                 value: item.value,
                 invoiceUploaded: true,
+                isOpened: finalIsOpened,
                 invoiceNumber: String(finalInvoiceNumber || '').trim(),
                 barcode: item.barcode || barcode || existingBarcodesMatch(item.name),
                 lots: [{
@@ -1150,6 +1152,15 @@ const App: React.FC = () => {
             const item = items[idx];
             const deliveryId = `inv-edit-${Date.now()}-${idx}`;
             const lotId = `lot-edit-${Date.now()}-${idx}`;
+            
+            // Buscar barcode recém-salvo nas entregas
+            const sSnapshot = await get(child(suppliersRef, supplierCpf));
+            const sData = sSnapshot.val() as Supplier;
+            const currentDelivery = sData?.deliveries?.find((d: any) => 
+                String(d.invoiceNumber) === String(newInvoiceNumber || invoiceNumber) && 
+                d.item === item.name
+            );
+
             const newLogRef = push(warehouseLogRef);
             const entry: any = {
                 id: newLogRef.key || `ent-upd-${Date.now()}-${idx}`,
@@ -1162,10 +1173,11 @@ const App: React.FC = () => {
                 lotNumber: item.lotNumber || 'EDITADO',
                 quantity: item.kg,
                 value: item.value,
-                barcode: item.barcode || barcode || '', 
+                barcode: item.barcode || barcode || currentDelivery?.barcode || '', 
                 lotId: lotId,
                 deliveryId: deliveryId,
                 inboundInvoice: String(newInvoiceNumber || invoiceNumber).trim(),
+                pdNumber: pd || '',
                 invoiceUrl: '' // URL será atualizada se existir
             };
             if (item.expirationDate !== undefined) entry.expirationDate = item.expirationDate;
@@ -1194,6 +1206,7 @@ const App: React.FC = () => {
               const finalReceiptTerm = receiptTermNumber !== undefined ? receiptTermNumber : existingForNf[0].receiptTermNumber;
               const finalInvoiceDate = invoiceDate !== undefined ? invoiceDate : existingForNf[0].invoiceDate;
               const finalPd = pd !== undefined ? pd : existingForNf[0].pd;
+              const finalIsOpened = existingForNf[0].isOpened || existingForNf[0].opened || false;
               const existingInvoiceUrl = existingForNf.find((d: any) => d.invoiceUrl)?.invoiceUrl;
 
               // Preservar códigos de barras originais caso não venham no payload
@@ -1215,6 +1228,7 @@ const App: React.FC = () => {
                   kg: item.kg,
                   value: item.value,
                   invoiceUploaded: true,
+                  isOpened: finalIsOpened,
                   invoiceNumber: String(finalInvoiceNumber || '').trim(),
                   barcode: item.barcode || barcode || existingBarcodesMatchPC(item.name),
                   lots: [{
@@ -1262,8 +1276,16 @@ const App: React.FC = () => {
           const newLogRef = push(warehouseLogRef);
           const configSnapshot = await get(perCapitaConfigRef);
           const pcData = configSnapshot.val();
-          const supplierName = pcData.ppaisProducers?.find((p: any) => p.cpfCnpj === supplierCpf)?.name || 
-                               pcData.pereciveisSuppliers?.find((s: any) => s.cpfCnpj === supplierCpf)?.name || 'Fornecedor';
+          const pEntry = pcData.ppaisProducers?.find((p: any) => p.cpfCnpj === supplierCpf) || 
+                         pcData.pereciveisSuppliers?.find((s: any) => s.cpfCnpj === supplierCpf);
+          const supplierName = pEntry?.name || 'Fornecedor';
+          
+          // Buscar barcode recém-salvo nas entregas
+          const currentDelivery = pEntry?.deliveries?.find((d: any) => 
+            String(d.invoiceNumber) === String(newInvoiceNumber || invoiceNumber) && 
+            d.item === item.name
+          );
+
           const entry = {
               id: newLogRef.key,
               type: 'entrada',
@@ -1275,7 +1297,8 @@ const App: React.FC = () => {
               lotNumber: item.lotNumber || 'EDITADO',
               quantity: item.kg,
               value: item.value,
-              barcode: item.barcode || barcode || '',
+              barcode: item.barcode || barcode || currentDelivery?.barcode || '',
+              pdNumber: pd || '',
               inboundInvoice: String(newInvoiceNumber || invoiceNumber).trim()
           };
           if (item.expirationDate !== undefined) (entry as any).expirationDate = item.expirationDate;
@@ -1455,8 +1478,8 @@ const App: React.FC = () => {
         await runTransaction(supplierRef, (currentData: Supplier) => {
           if (currentData && currentData.deliveries) {
             currentData.deliveries = currentData.deliveries.map(d => {
-              if (d.invoiceNumber === invoiceNumber && !d.opened) {
-                return { ...d, opened: true };
+              if (d.invoiceNumber === invoiceNumber && !d.isOpened && !d.opened) {
+                return { ...d, isOpened: true, opened: true };
               }
               return d;
             });
@@ -1477,8 +1500,8 @@ const App: React.FC = () => {
             const s = list?.find(p => p.cpfCnpj === supplierCpf);
             if (s && s.deliveries) {
               s.deliveries = s.deliveries.map((d: any) => {
-                if (d.invoiceNumber === invoiceNumber && !d.opened) {
-                  return { ...d, opened: true };
+                if (d.invoiceNumber === invoiceNumber && !d.isOpened && !d.opened) {
+                  return { ...d, isOpened: true, opened: true };
                 }
                 return d;
               });
@@ -1675,6 +1698,7 @@ const App: React.FC = () => {
             quantity: item.kg,
             value: item.value || 0,
             barcode: item.barcode || barcode || '',
+            pdNumber: pd || '',
             lotId: lotId,
             deliveryId: ''
         };
@@ -2105,6 +2129,7 @@ const App: React.FC = () => {
             quantity: payload.quantity,
             value: payload.value || 0,
             barcode: payload.barcode || '',
+            pdNumber: payload.pd || '',
             lotId: lotId,
             deliveryId: '',
             invoiceUrl: finalInvoiceUrl
