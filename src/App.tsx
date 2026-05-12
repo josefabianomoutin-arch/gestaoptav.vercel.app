@@ -677,7 +677,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleScheduleDelivery = async (supplierCpf: string, date: string, time: string) => {
+  const handleScheduleDelivery = useCallback(async (supplierCpf: string, date: string, time: string) => {
     try {
       // Check Per Capita suppliers FIRST to prioritize Per Capita scheduling
       const timeoutPromisePC = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao agendar entrega Per Capita')), 10000));
@@ -715,9 +715,13 @@ const App: React.FC = () => {
       ]);
 
       if (pcFound) return;
+    } catch (error) {
+      console.error('Erro ao agendar entrega:', error);
+      toast.error('Erro ao agendar entrega.');
+    }
+  }, [suppliers, suppliersRef, warehouseLogRef, perCapitaConfigRef]);
 
-      // Check main suppliers only if not found in Per Capita
-          // Check Per Capita FIRST
+  const handleUpdateInvoiceUrl = useCallback(async (supplierCpf: string, invoiceNumber: string, finalInvoiceUrl: string) => {
     try {
       const snapshotPC = await get(perCapitaConfigRef);
       const currentData = snapshotPC.val() as PerCapitaConfig;
@@ -730,39 +734,13 @@ const App: React.FC = () => {
             const deliveries = list[index].deliveries || [];
             let updatedAny = false;
             const updatedDeliveries = deliveries.map((d: any) => {
-              if (d.invoiceNumber === invoiceNumber) {
-                const updated = { ...d };
-                if (finalInvoiceUrl !== undefined) updated.invoiceUrl = finalInvoiceUrl;
-                updatedAny = true;
-                return updated;
+              if (String(d.invoiceNumber) === String(invoiceNumber)) {
+                return { ...d, invoiceUrl: finalInvoiceUrl };
               }
               return d;
             });
             if (updatedAny) {
               await update(child(perCapitaConfigRef, `${listName}/${index}`), { deliveries: updatedDeliveries });
-              
-              // --- NOVO: Espelhar no warehouseLog ---
-              try {
-                const qLog = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
-                const logSnapshot = await get(qLog);
-                const allLogs = logSnapshot.val() || {};
-                const updatesLog: Record<string, any> = {};
-                let hasUpdatesLog = false;
-
-                Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
-                  if (String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)) {
-                    updatesLog[`${key}/invoiceUrl`] = finalInvoiceUrl;
-                    hasUpdatesLog = true;
-                  }
-                });
-
-                if (hasUpdatesLog) {
-                  await update(warehouseLogRef, updatesLog);
-                }
-              } catch (e) {
-                console.error("Error syncing invoice URL to warehouse log:", e);
-              }
-
               found = true;
               return true;
             }
@@ -770,102 +748,31 @@ const App: React.FC = () => {
           return false;
         };
 
-        if (await updateList(currentData.ppaisProducers, 'ppaisProducers')) {
-        } else if (await updateList(currentData.pereciveisSuppliers, 'pereciveisSuppliers')) {
-        } else if (await updateList(currentData.estocaveisSuppliers, 'estocaveisSuppliers')) {
-        }
+        if (await updateList(currentData.ppaisProducers, 'ppaisProducers')) {} 
+        else if (await updateList(currentData.pereciveisSuppliers, 'pereciveisSuppliers')) {} 
+        else if (await updateList(currentData.estocaveisSuppliers, 'estocaveisSuppliers')) {}
 
-        if (found) {
-          return { success: true };
-        }
+        if (found) return { success: true };
       }
     } catch (e) {
       console.error("Error updating supplier invoice URL in PC:", e);
     }
 
-    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-    if (isMainSupplier) {
-      const supplierRef = child(suppliersRef, supplierCpf);
-      try {
-        const snapshot = await get(supplierRef);
-        const currentData = snapshot.val() as Supplier;
-        if (currentData && currentData.deliveries) {
-          let updatedAny = false;
-          const deliveries = currentData.deliveries.map(d => {
-            if (d.invoiceNumber === invoiceNumber) {
-              const updated = { ...d };
-              if (finalInvoiceUrl !== undefined) updated.invoiceUrl = finalInvoiceUrl;
-              updatedAny = true;
-              return updated;
-            }
-            return d;
-          });
-          
-          if (updatedAny) {
-             await update(supplierRef, { deliveries });
-
-             // --- NOVO: Espelhar no warehouseLog ---
-             try {
-               const qLog = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
-               const logSnapshot = await get(qLog);
-               const allLogs = logSnapshot.val() || {};
-               const logUpdates: Record<string, any> = {};
-               let hasLogUpdates = false;
-
-               Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
-                 if (String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)) {
-                   logUpdates[`${key}/invoiceUrl`] = finalInvoiceUrl;
-                   hasLogUpdates = true;
-                 }
-               });
-
-               if (hasLogUpdates) {
-                 await update(warehouseLogRef, logUpdates);
-               }
-             } catch (e) {
-               console.error("Error syncing invoice URL to warehouse log:", e);
-             }
-
-             return { success: true };
-          }
-        }
-        return { success: false, message: 'Dados do fornecedor não encontrados.' };
-      } catch (e) {
-        console.error("Error updating supplier invoice URL:", e);
-        return { success: false, message: 'Erro ao gravar no banco de dados.' };
-      }
+    const snapshot = await get(child(suppliersRef, supplierCpf));
+    const currentData = snapshot.val() as Supplier;
+    if (currentData && currentData.deliveries) {
+      const deliveries = currentData.deliveries.map(d => 
+        String(d.invoiceNumber) === String(invoiceNumber) ? { ...d, invoiceUrl: finalInvoiceUrl } : d
+      );
+      await update(child(suppliersRef, supplierCpf), { deliveries });
+      return { success: true };
     }
-    
-    } catch (error) {
-      console.error('Erro crítico ao salvar nota fiscal:', error);
-      toast.error('Falha ao enviar: ' + (error instanceof Error ? error.message : 'Erro desconhecido'), { id: toastId });
-      throw error;
-    }
-  }, [suppliers]);
+    return { success: false, message: 'Dados do fornecedor não encontrados.' };
+  }, [suppliersRef, perCapitaConfigRef]);
+
+
 
   const handleMarkInvoiceAsOpened = useCallback(async (supplierCpf: string, invoiceNumber: string) => {
-    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-    if (isMainSupplier) {
-      const supplierRef = child(suppliersRef, supplierCpf);
-      try {
-        await runTransaction(supplierRef, (currentData: Supplier) => {
-          if (currentData && currentData.deliveries) {
-            currentData.deliveries = currentData.deliveries.map(d => {
-              if (d.invoiceNumber === invoiceNumber && !d.isOpened && !d.opened) {
-                return { ...d, isOpened: true, opened: true };
-              }
-              return d;
-            });
-          }
-          return currentData;
-        });
-        return { success: true };
-      } catch (e) {
-        console.error("Error marking invoice as opened:", e);
-        return { success: false };
-      }
-    }
-
     try {
       await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
         if (currentData) {
@@ -896,6 +803,22 @@ const App: React.FC = () => {
       return { success: false };
     }
   }, [suppliers]);
+
+  const handleDeleteDelivery = async (supplierCpf: string, deliveryId: string) => {
+    return { success: false };
+  };
+
+  const handleSaveInvoice = async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string): Promise<void> => {
+    // Not implemented
+  };
+
+  const handleCancelDeliveries = (supplierCpf: string, deliveryIds: string[]): void => {
+    // Not implemented
+  };
+
+  const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: any[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string): Promise<{ success: boolean; message?: string }> => {
+    return { success: false, message: 'Not implemented' };
+  };
 
   const handleReopenInvoice = async (supplierCpf: string, invoiceNumber: string) => {
     const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
