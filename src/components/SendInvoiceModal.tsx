@@ -51,6 +51,10 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
         alert("Número da nota é obrigatório");
         return;
     }
+    if (deliveries.length === 0) {
+        alert("Adicione pelo menos um item da nota fiscal para cadastrar.");
+        return;
+    }
     setLoading(true);
     try {
       await onSave(invoiceNumber, invoiceUrl, deliveries, invoiceDate);

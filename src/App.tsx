@@ -717,774 +717,7 @@ const App: React.FC = () => {
       if (pcFound) return;
 
       // Check main suppliers only if not found in Per Capita
-      const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-      if (isMainSupplier) {
-        const supplierRef = child(suppliersRef, supplierCpf);
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao agendar entrega')), 10000));
-        
-        await Promise.race([
-          runTransaction(supplierRef, (currentData: Supplier) => {
-            if (currentData) {
-              const deliveries = Array.isArray(currentData.deliveries) ? [...currentData.deliveries] : Object.values(currentData.deliveries || {});
-              deliveries.push({
-                id: `del-${Date.now()}`,
-                date,
-                time,
-                item: 'AGENDAMENTO PENDENTE',
-                invoiceUploaded: false
-              });
-              currentData.deliveries = deliveries;
-            }
-            return currentData;
-          }),
-          timeoutPromise
-        ]);
-        return;
-      }
-    } catch (error) {
-      console.error('Erro ao agendar entrega:', error);
-      // alert is not allowed, but this function doesn't return anything to the UI easily
-      // We'll just log it for now.
-    }
-  };
-
-  const handleCancelDeliveries = useCallback(async (supplierCpf: string, deliveryIds: string[]) => {
-    // 1. Try to cancel in main suppliers
-    const supplierRef = child(suppliersRef, supplierCpf);
-    await runTransaction(supplierRef, (currentData: Supplier) => {
-      if (currentData) {
-        const deliveries = Array.isArray(currentData.deliveries) ? [...currentData.deliveries] : Object.values(currentData.deliveries || {});
-        currentData.deliveries = deliveries.filter(d => !deliveryIds.includes(d.id));
-      }
-      return currentData;
-    });
-
-    // 2. Try to cancel in perCapitaConfig (always check both for robustness)
-    await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
-      if (currentData) {
-        const findAndCancel = (list: any[] | undefined) => {
-          const s = list?.find(p => p.cpfCnpj === supplierCpf);
-          if (s) {
-            const deliveries = Array.isArray(s.deliveries) ? [...s.deliveries] : Object.values(s.deliveries || {});
-            s.deliveries = deliveries.filter((d: any) => !deliveryIds.includes(d.id));
-            return true;
-          }
-          return false;
-        };
-        findAndCancel(currentData.ppaisProducers);
-        findAndCancel(currentData.pereciveisSuppliers);
-        findAndCancel(currentData.estocaveisSuppliers);
-      }
-      return currentData;
-    });
-  }, []);
-
-  const handleSaveInvoice = useCallback(async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => {
-    const toastId = toast.loading('Enviando nota fiscal...');
-    try {
-      console.log('Iniciando handleSaveInvoice:', { supplierCpf, deliveryIds, invoiceNumber, updatedDeliveries });
-      let finalInvoiceUrl = invoiceUrl;
-
-      // 1. Upload do Arquivo se estiver em base64
-      if (invoiceUrl && invoiceUrl.startsWith('data:')) {
-        try {
-          const invoiceId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.pdf`;
-          const fileRef = storageRef(storage, `invoices/${invoiceId}`);
-          
-          console.log('Convertendo base64 para Blob...');
-          toast.loading('Processando arquivo...', { id: toastId });
-          
-          // Melhor forma de converter dataUrl para Blob sem travar a UI
-          const response = await fetch(invoiceUrl);
-          const blob = await response.blob();
-          
-          console.log('Fazendo upload para o Storage...', blob.size);
-          toast.loading('Fazendo upload do arquivo...', { id: toastId });
-          
-          // Timeout de 30s para o upload
-          const uploadPromise = uploadBytes(fileRef, blob);
-          const uploadTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout no upload do arquivo (30s)')), 30000));
-          
-          await Promise.race([uploadPromise, uploadTimeout]);
-          finalInvoiceUrl = await getDownloadURL(fileRef);
-          console.log('Upload concluído:', finalInvoiceUrl);
-        } catch (storageError) {
-          console.error("Storage failed, falling back to RTDB", storageError);
-          toast.loading('Upload falhou, tentando backup...', { id: toastId });
-          
-          if (invoiceUrl.length > 500000) { // ~500KB limit for RTDB strings to avoid hanging
-             throw new Error("O arquivo é muito grande para o servidor de backup. Tente um arquivo menor ou verifique sua conexão.", { cause: storageError });
-          }
-          const invoiceId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-          const invoiceRef = child(ref(database), `invoices/${invoiceId}`);
-          await set(invoiceRef, invoiceUrl);
-          finalInvoiceUrl = `rtdb://invoices/${invoiceId}`;
-        }
-      }
-
-      // 2. Atualização dos Dados (Usando update em vez de runTransaction para maior velocidade)
-      toast.loading('Atualizando registros...', { id: toastId });
-      const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-      
-      if (isMainSupplier) {
-        const supplierRef = child(suppliersRef, supplierCpf);
-        const snapshot = await get(supplierRef);
-        const currentData = snapshot.val() as Supplier;
-        
-        if (currentData) {
-          // Firebase RTDB pode retornar um objeto se as chaves forem numéricas com lacunas
-          let deliveries = Array.isArray(currentData.deliveries) 
-            ? [...currentData.deliveries] 
-            : Object.values(currentData.deliveries || {});
-          
-          let updated = false;
-          
-          // 1. Update existing deliveries
-          deliveries.forEach((d: any) => {
-            if (deliveryIds.includes(d.id)) {
-              const updatedDelivery = updatedDeliveries.find(ud => ud.id === d.id);
-              d.invoiceUploaded = true;
-              d.invoiceNumber = invoiceNumber;
-              if (invoiceDate) d.invoiceDate = invoiceDate;
-              if (finalInvoiceUrl !== undefined) d.invoiceUrl = finalInvoiceUrl;
-              if (updatedDelivery) {
-                d.item = updatedDelivery.item || updatedDelivery.itemName || d.item;
-                d.kg = updatedDelivery.kg;
-                d.value = updatedDelivery.value;
-                d.lots = updatedDelivery.lots;
-              }
-              updated = true;
-            }
-          });
-
-          // 2. Add new deliveries (items added manually in the modal)
-          const newItems = updatedDeliveries.filter(ud => 
-            String(ud.id || '').startsWith('new_') || 
-            String(ud.id || '').startsWith('manual-') || 
-            String(ud.id || '').startsWith('extracted-')
-          );
-          if (newItems.length > 0) {
-            newItems.forEach(ni => {
-              const newDelivery: Delivery = {
-                ...ni,
-                item: ni.item || ni.itemName || 'ITEM SEM NOME',
-                id: `del_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-                invoiceNumber,
-                invoiceDate,
-                invoiceUrl: finalInvoiceUrl,
-                invoiceUploaded: true
-              };
-              deliveries.push(newDelivery);
-            });
-            updated = true;
-          }
-
-          // 3. Remove "AGENDAMENTO PENDENTE" if we added real items for that date
-          if (newItems.length > 0 || updatedDeliveries.some(ud => ud.item !== 'AGENDAMENTO PENDENTE')) {
-             const pendingIds = updatedDeliveries.filter(ud => ud.item === 'AGENDAMENTO PENDENTE').map(ud => ud.id);
-             if (pendingIds.length > 0) {
-                deliveries = deliveries.filter(d => !pendingIds.includes(d.id));
-             }
-          }
-          
-          if (updated) {
-            await update(supplierRef, { deliveries });
-            
-            // --- NOVO: Espelhar no warehouseLog ---
-            try {
-              const q = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
-              const logSnapshot = await get(q);
-              const allLogs = logSnapshot.val() || {};
-              const logUpdates: Record<string, any> = {};
-              let hasLogUpdates = false;
-
-              // Atualiza logs existentes
-              Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
-                if (String(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '') === String(invoiceNumber)) {
-                  logUpdates[`${key}/invoiceUrl`] = finalInvoiceUrl;
-                  hasLogUpdates = true;
-                }
-              });
-
-              // Adiciona NOVOS itens que foram incluídos manualmente
-              newItems.forEach((ni) => {
-                const newLogKey = push(warehouseLogRef).key;
-                if (newLogKey) {
-                  logUpdates[newLogKey] = {
-                    id: newLogKey,
-                    type: 'entrada',
-                    timestamp: new Date().toISOString(),
-                    item: ni.item || ni.itemName || 'ITEM SEM NOME',
-                    itemName: ni.item || ni.itemName || 'ITEM SEM NOME',
-                    kg: ni.kg || 0,
-                    quantity: ni.kg || 0,
-                    value: ni.value || 0,
-                    invoiceNumber: String(invoiceNumber).trim(),
-                    inboundInvoice: String(invoiceNumber).trim(),
-                    date: invoiceDate || new Date().toISOString().split('T')[0],
-                    supplierName: currentData.name || 'FORNECEDOR',
-                    supplierCpf: supplierCpf,
-                    invoiceUrl: finalInvoiceUrl,
-                    invoiceUploaded: true
-                  };
-                  hasLogUpdates = true;
-                }
-              });
-
-              if (hasLogUpdates) {
-                await update(warehouseLogRef, logUpdates);
-              }
-            } catch (e) {
-              console.error("Error syncing invoice URL to warehouse log:", e);
-            }
-
-            console.log('Dados do Fornecedor Principal atualizados');
-            toast.success('Nota fiscal enviada com sucesso!', { id: toastId });
-            return;
-          } else {
-            toast.error('Entregas não encontradas para este fornecedor.', { id: toastId });
-            return;
-          }
-        } else {
-          // Se não encontrou no nó principal, tenta no PerCapita antes de dar erro
-          console.log('Fornecedor não encontrado no nó principal, tentando PerCapita...');
-        }
-      }
-
-      // Caso PerCapita (Produtores/Perecíveis)
-      const snapshotPC = await get(perCapitaConfigRef);
-      const currentPC = snapshotPC.val() as PerCapitaConfig;
-      
-      if (currentPC) {
-        let found = false;
-        const updateList = async (list: any[] | undefined, listName: string) => {
-          if (!list) return false;
-          const index = list.findIndex(p => p.cpfCnpj === supplierCpf);
-          if (index !== -1) {
-            let deliveries = Array.isArray(list[index].deliveries)
-              ? [...list[index].deliveries]
-              : Object.values(list[index].deliveries || {});
-            
-            let updated = false;
-            
-            deliveries.forEach((d: any) => {
-              if (deliveryIds.includes(d.id)) {
-                const updatedDelivery = updatedDeliveries.find(ud => ud.id === d.id);
-                d.invoiceUploaded = true;
-                d.invoiceNumber = invoiceNumber;
-                if (invoiceDate) d.invoiceDate = invoiceDate;
-                if (finalInvoiceUrl !== undefined) d.invoiceUrl = finalInvoiceUrl;
-                if (updatedDelivery) {
-                  d.item = updatedDelivery.item || updatedDelivery.itemName || d.item;
-                  d.kg = updatedDelivery.kg;
-                  d.value = updatedDelivery.value;
-                  d.lots = updatedDelivery.lots;
-                }
-                updated = true;
-              }
-            });
-
-            const newItems = updatedDeliveries.filter(ud => 
-              String(ud.id || '').startsWith('new_') || 
-              String(ud.id || '').startsWith('manual-') || 
-              String(ud.id || '').startsWith('extracted-')
-            );
-            if (newItems.length > 0) {
-              newItems.forEach(ni => {
-                const newDelivery: Delivery = {
-                  ...ni,
-                  item: ni.item || ni.itemName || 'ITEM SEM NOME',
-                  id: `del_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-                  invoiceNumber,
-                  invoiceDate,
-                  invoiceUrl: finalInvoiceUrl,
-                  invoiceUploaded: true
-                };
-                deliveries.push(newDelivery);
-              });
-              updated = true;
-            }
-
-            if (newItems.length > 0 || updatedDeliveries.some(ud => ud.item !== 'AGENDAMENTO PENDENTE')) {
-               const pendingIds = updatedDeliveries.filter(ud => ud.item === 'AGENDAMENTO PENDENTE').map(ud => ud.id);
-               if (pendingIds.length > 0) {
-                  deliveries = deliveries.filter(d => !pendingIds.includes(d.id));
-               }
-            }
-
-            if (updated) {
-              await update(child(perCapitaConfigRef, `${listName}/${index}`), { deliveries });
-
-              // Mirror to warehouseLog
-              try {
-                const q = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
-                const logSnapshot = await get(q);
-                const allLogs = logSnapshot.val() || {};
-                const updatesLog: Record<string, any> = {};
-                let hasUpdatesLog = false;
-                
-                // Existing logs
-                Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
-                  if (String(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '') === String(invoiceNumber)) {
-                    updatesLog[`${key}/invoiceUrl`] = finalInvoiceUrl;
-                    hasUpdatesLog = true;
-                  }
-                });
-                
-                // New logs
-                const prodName = list[index].name || 'PRODUTOR';
-                newItems.forEach((ni) => {
-                  const newLogKey = push(warehouseLogRef).key;
-                  if (newLogKey) {
-                    updatesLog[newLogKey] = {
-                      id: newLogKey,
-                      type: 'entrada',
-                      timestamp: new Date().toISOString(),
-                      item: ni.item || ni.itemName || 'ITEM SEM NOME',
-                      itemName: ni.item || ni.itemName || 'ITEM SEM NOME',
-                      kg: ni.kg || 0,
-                      quantity: ni.kg || 0,
-                      value: ni.value || 0,
-                      invoiceNumber: String(invoiceNumber).trim(),
-                      inboundInvoice: String(invoiceNumber).trim(),
-                      date: invoiceDate || new Date().toISOString().split('T')[0],
-                      supplierName: prodName,
-                      supplierCpf: supplierCpf,
-                      invoiceUrl: finalInvoiceUrl,
-                      invoiceUploaded: true
-                    };
-                    hasUpdatesLog = true;
-                  }
-                });
-                
-                if (hasUpdatesLog) {
-                  await update(warehouseLogRef, updatesLog);
-                }
-              } catch (logErr) {
-                console.error("Error mirroring PerCapita log:", logErr);
-              }
-
-              found = true;
-              return true;
-            }
-          }
-          return false;
-        };
-
-        if (!(await updateList(currentPC.ppaisProducers, 'ppaisProducers'))) {
-          if (!(await updateList(currentPC.pereciveisSuppliers, 'pereciveisSuppliers'))) {
-            await updateList(currentPC.estocaveisSuppliers, 'estocaveisSuppliers');
-          }
-        }
-        
-        if (found) {
-          console.log('Dados PerCapita atualizados');
-          toast.success('Nota fiscal enviada com sucesso!', { id: toastId });
-        } else {
-          toast.error('Produtor não encontrado no sistema.', { id: toastId });
-        }
-      } else {
-        toast.error('Configuração do sistema não encontrada.', { id: toastId });
-      }
-    } catch (error) {
-      console.error('Erro crítico ao salvar nota fiscal:', error);
-      toast.error('Falha ao enviar: ' + (error instanceof Error ? error.message : 'Erro desconhecido'), { id: toastId });
-      throw error;
-    }
-  }, [suppliers]);
-
-  const handleDeleteDelivery = useCallback(async (supplierCpf: string, deliveryId: string) => {
-    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-    if (isMainSupplier) {
-      const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
-      try {
-        await runTransaction(deliveriesRef, (currentDeliveries) => {
-          if (Array.isArray(currentDeliveries)) {
-            return currentDeliveries.filter(d => d.id !== deliveryId);
-          }
-          return currentDeliveries;
-        });
-        toast.success('Entrega excluída com sucesso!');
-        return { success: true };
-      } catch (e) {
-        console.error("Error deleting delivery:", e);
-        toast.error('Erro ao excluir entrega.');
-        return { success: false };
-      }
-    }
-
-    try {
-      // Optimized: Search for the producer index first
-      let listKey: 'ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers' | null = null;
-      let producerIdx = -1;
-
-      if (perCapitaConfig.ppaisProducers) {
-        producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => p.cpfCnpj === supplierCpf);
-        if (producerIdx !== -1) listKey = 'ppaisProducers';
-      }
-      if (listKey === null && perCapitaConfig.pereciveisSuppliers) {
-        producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => p.cpfCnpj === supplierCpf);
-        if (producerIdx !== -1) listKey = 'pereciveisSuppliers';
-      }
-      if (listKey === null && perCapitaConfig.estocaveisSuppliers) {
-        producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => p.cpfCnpj === supplierCpf);
-        if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
-      }
-
-      if (listKey && producerIdx !== -1) {
-        const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${producerIdx}/deliveries`);
-        await runTransaction(deliveriesRef, (currentDeliveries) => {
-          if (Array.isArray(currentDeliveries)) {
-            return currentDeliveries.filter((d: any) => d.id !== deliveryId);
-          }
-          return currentDeliveries;
-        });
-        toast.success('Entrega excluída com sucesso!');
-        return { success: true };
-      }
-      
-      toast.error('Fornecedor não encontrado.');
-      return { success: false };
-    } catch (e) {
-      console.error("Error deleting per capita delivery:", e);
-      toast.error('Erro ao excluir entrega.');
-      return { success: false };
-    }
-  }, [suppliers, perCapitaConfig]);
-
-  // --- GERENCIAMENTO DE NOTAS FISCAIS (ADMIN) ---
-
-  const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string) => {
-    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-    if (isMainSupplier) {
-      const supplierRef = child(suppliersRef, supplierCpf);
-      try {
-        await runTransaction(supplierRef, (currentData: Supplier) => {
-          if (currentData && currentData.deliveries) {
-            const existingForNf = currentData.deliveries.filter(d => d.invoiceNumber === invoiceNumber);
-            if (existingForNf.length === 0) return currentData;
-
-            const baseDate = newDate || existingForNf[0].date;
-            const baseTime = existingForNf[0].time;
-            const finalInvoiceNumber = newInvoiceNumber || invoiceNumber;
-            const finalReceiptTerm = receiptTermNumber !== undefined ? receiptTermNumber : existingForNf[0].receiptTermNumber;
-            const finalInvoiceDate = invoiceDate !== undefined ? invoiceDate : existingForNf[0].invoiceDate;
-            const finalPd = pd !== undefined ? pd : existingForNf[0].pd;
-            const finalIsOpened = existingForNf[0].isOpened || existingForNf[0].opened || false;
-            const existingInvoiceUrl = existingForNf.find(d => d.invoiceUrl)?.invoiceUrl;
-
-            // Preservar códigos de barras originais caso não venham no payload
-            const existingBarcodesMatch = (itemName: string) => {
-                const match = existingForNf.find(e => String(e.item || '').trim().toUpperCase() === String(itemName || '').trim().toUpperCase());
-                return match?.barcode || '';
-            };
-
-            // Remove itens antigos daquela nota
-            currentData.deliveries = currentData.deliveries.filter(d => d.invoiceNumber !== invoiceNumber);
-
-            // Insere novos itens editados
-            items.forEach((item, idx) => {
-              const deliveryId = `inv-edit-${Date.now()}-${idx}`;
-              const lotId = `lot-edit-${Date.now()}-${idx}`;
-              const newDelivery: any = {
-                id: deliveryId,
-                date: baseDate,
-                time: baseTime,
-                item: item.name,
-                kg: item.kg,
-                value: item.value,
-                invoiceUploaded: true,
-                isOpened: finalIsOpened,
-                invoiceNumber: String(finalInvoiceNumber || '').trim(),
-                barcode: item.barcode || barcode || existingBarcodesMatch(item.name),
-                lots: [{
-                  id: lotId,
-                  lotNumber: item.lotNumber || 'EDITADO',
-                  initialQuantity: item.kg,
-                  remainingQuantity: item.kg
-                }]
-              };
-
-              if (existingInvoiceUrl !== undefined) newDelivery.invoiceUrl = existingInvoiceUrl;
-              if (finalInvoiceDate !== undefined) newDelivery.invoiceDate = finalInvoiceDate;
-              if (finalReceiptTerm !== undefined) newDelivery.receiptTermNumber = finalReceiptTerm;
-              if (finalPd !== undefined) newDelivery.pd = finalPd;
-              if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
-
-              currentData.deliveries.push(newDelivery);
-            });
-          }
-          return currentData;
-        });
-
-        // --- NOVO: Limpar e Sincronizar com warehouseLog ---
-        const qLogs = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
-        const logSnapshot = await get(qLogs);
-        const allLogs = logSnapshot.val() || {};
-        const logKeysToDelete = Object.keys(allLogs).filter(key => {
-            const entry = allLogs[key];
-            return String(entry.inboundInvoice || entry.invoiceNumber || '') === String(invoiceNumber);
-        });
-        
-        const updates: Record<string, any> = {};
-        if (logKeysToDelete.length > 0) {
-            logKeysToDelete.forEach(key => {
-                updates[key] = null; // Mark for deletion
-            });
-        }
-
-        // Adiciona novos itens ao Log em lote
-        const finalInvoices = (await get(child(suppliersRef, supplierCpf))).val()?.deliveries || [];
-
-        items.forEach((item) => {
-            const currentDelivery = finalInvoices.find((d: any) => 
-                String(d.invoiceNumber) === String(newInvoiceNumber || invoiceNumber) && 
-                d.item === item.name
-            );
-
-            const newLogKey = push(warehouseLogRef).key;
-            if (newLogKey) {
-                const timestampVal = new Date().toISOString();
-                updates[newLogKey] = {
-                    id: newLogKey,
-                    type: (currentDelivery as any)?.type === 'saída' ? 'saída' : 'entrada',
-                    timestamp: timestampVal,
-                    item: item.name,
-                    itemName: item.name,
-                    kg: item.kg,
-                    quantity: item.kg,
-                    value: item.value,
-                    invoiceNumber: String(newInvoiceNumber || invoiceNumber).trim(),
-                    inboundInvoice: String(newInvoiceNumber || invoiceNumber).trim(),
-                    date: newDate || (currentDelivery?.date) || timestampVal.split('T')[0],
-                    supplierName: (suppliers.find(s => s.cpf === supplierCpf)?.name) || 'FORNECEDOR',
-                    supplierCpf: supplierCpf,
-                    barcode: item.barcode || currentDelivery?.barcode || '',
-                    lotNumber: item.lotNumber || 'EDITADO',
-                    expirationDate: item.expirationDate || currentDelivery?.expirationDate || '',
-                    pdNumber: pd || currentDelivery?.pd || '',
-                    invoiceDate: invoiceDate || currentDelivery?.invoiceDate || '',
-                    receiptTermNumber: receiptTermNumber || currentDelivery?.receiptTermNumber || '',
-                    invoiceUrl: currentDelivery?.invoiceUrl || ''
-                };
-            }
-        });
-
-        if (Object.keys(updates).length > 0) {
-            await update(warehouseLogRef, updates);
-        }
-
-        return { success: true };
-      } catch (e) {
-        console.error('Erro detalhado ao gravar no banco de dados (MainSupplier):', e);
-        return { success: false, message: 'Erro ao gravar no banco de dados: ' + (e instanceof Error ? e.message : String(e)) };
-      }
-    }
-
-    try {
-      await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
-        if (currentData) {
-          const findAndUpdate = (list: any[] | undefined) => {
-            const s = list?.find(p => p.cpfCnpj === supplierCpf);
-            if (s && s.deliveries) {
-              const existingForNf = s.deliveries.filter((d: any) => d.invoiceNumber === invoiceNumber);
-              if (existingForNf.length === 0) return false;
-
-              const baseDate = newDate || existingForNf[0].date;
-              const baseTime = existingForNf[0].time;
-              const finalInvoiceNumber = newInvoiceNumber || invoiceNumber;
-              const finalReceiptTerm = receiptTermNumber !== undefined ? receiptTermNumber : existingForNf[0].receiptTermNumber;
-              const finalInvoiceDate = invoiceDate !== undefined ? invoiceDate : existingForNf[0].invoiceDate;
-              const finalPd = pd !== undefined ? pd : existingForNf[0].pd;
-              const finalIsOpened = existingForNf[0].isOpened || existingForNf[0].opened || false;
-              const existingInvoiceUrl = existingForNf.find((d: any) => d.invoiceUrl)?.invoiceUrl;
-
-              // Preservar códigos de barras originais caso não venham no payload
-              const existingBarcodesMatchPC = (itemName: string) => {
-                const match = existingForNf.find((e: any) => String(e.item || '').trim().toUpperCase() === String(itemName || '').trim().toUpperCase());
-                return match?.barcode || '';
-              };
-
-              s.deliveries = s.deliveries.filter((d: any) => d.invoiceNumber !== invoiceNumber);
-
-              items.forEach((item, idx) => {
-                const deliveryId = `inv-edit-${Date.now()}-${idx}`;
-                const lotId = `lot-edit-${Date.now()}-${idx}`;
-                const newDelivery: any = {
-                  id: deliveryId,
-                  date: baseDate,
-                  time: baseTime,
-                  item: item.name,
-                  kg: item.kg,
-                  value: item.value,
-                  invoiceUploaded: true,
-                  isOpened: finalIsOpened,
-                  invoiceNumber: String(finalInvoiceNumber || '').trim(),
-                  barcode: item.barcode || barcode || existingBarcodesMatchPC(item.name),
-                  lots: [{
-                    id: lotId,
-                    lotNumber: item.lotNumber || 'EDITADO',
-                    initialQuantity: item.kg,
-                    remainingQuantity: item.kg
-                  }]
-                };
-
-                if (existingInvoiceUrl !== undefined) newDelivery.invoiceUrl = existingInvoiceUrl;
-                if (finalInvoiceDate !== undefined) newDelivery.invoiceDate = finalInvoiceDate;
-                if (finalReceiptTerm !== undefined) newDelivery.receiptTermNumber = finalReceiptTerm;
-                if (finalPd !== undefined) newDelivery.pd = finalPd;
-                if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
-
-                s.deliveries.push(newDelivery);
-              });
-              return true;
-            }
-            return false;
-          };
-          if (!findAndUpdate(currentData.ppaisProducers)) {
-            if (!findAndUpdate(currentData.pereciveisSuppliers)) {
-              findAndUpdate(currentData.estocaveisSuppliers);
-            }
-          }
-        }
-        return currentData;
-      });
-
-      // --- NOVO: Limpar e Sincronizar com warehouseLog (PerCapita) ---
-      const logSnapshot = await get(warehouseLogRef);
-      const allLogs = logSnapshot.val() || {};
-      const logKeysToDelete = Object.keys(allLogs).filter(key => {
-          const entry = allLogs[key];
-          return entry.supplierCpf === supplierCpf && String(entry.inboundInvoice) === String(invoiceNumber);
-      });
-      
-      if (logKeysToDelete.length > 0) {
-          await Promise.all(logKeysToDelete.map(key => remove(child(warehouseLogRef, key))));
-      }
-
-      // Adiciona novos itens ao Log
-      for (let idx = 0; idx < items.length; idx++) {
-          const item = items[idx];
-          const newLogRef = push(warehouseLogRef);
-          const configSnapshot = await get(perCapitaConfigRef);
-          const pcData = configSnapshot.val();
-          const pEntry = pcData.ppaisProducers?.find((p: any) => p.cpfCnpj === supplierCpf) || 
-                         pcData.pereciveisSuppliers?.find((s: any) => s.cpfCnpj === supplierCpf);
-          const supplierName = pEntry?.name || 'Fornecedor';
-          
-          // Buscar barcode recém-salvo nas entregas
-          const currentDelivery = pEntry?.deliveries?.find((d: any) => 
-            String(d.invoiceNumber) === String(newInvoiceNumber || invoiceNumber) && 
-            d.item === item.name
-          );
-
-          const entry = {
-              id: newLogRef.key,
-              type: 'entrada',
-              timestamp: new Date().toISOString(),
-              date: invoiceDate || newDate || new Date().toISOString().split('T')[0],
-              itemName: item.name,
-              supplierName: supplierName,
-              supplierCpf: supplierCpf,
-              lotNumber: item.lotNumber || 'EDITADO',
-              quantity: item.kg,
-              value: item.value,
-              barcode: item.barcode || barcode || currentDelivery?.barcode || '',
-              pdNumber: pd || '',
-              inboundInvoice: String(newInvoiceNumber || invoiceNumber).trim()
-          };
-          if (item.expirationDate !== undefined) (entry as any).expirationDate = item.expirationDate;
-          await set(newLogRef, entry);
-      }
-      return { success: true };
-    } catch (e) {
-      console.error('Erro detalhado ao gravar no banco de dados (PerCapita):', e);
-      return { success: false, message: 'Erro ao gravar no banco de dados: ' + (e instanceof Error ? e.message : String(e)) };
-    }
-  };
-
-  const handleUpdateInvoiceUrl = useCallback(async (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => {
-    let finalInvoiceUrl = invoiceUrl;
-    if (invoiceUrl.startsWith('data:')) {
-      try {
-        const invoiceId = `inv_upd_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.pdf`;
-        const fileRef = storageRef(storage, `invoices/${invoiceId}`);
-        
-        const response = await fetch(invoiceUrl);
-        const blob = await response.blob();
-
-        console.log('Fazendo upload para o Storage (Blob) via Admin...', blob.size);
-        const uploadPromise = uploadBytes(fileRef, blob);
-        const uploadTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout no upload do arquivo (30s)')), 30000));
-        await Promise.race([uploadPromise, uploadTimeout]);
-        finalInvoiceUrl = await getDownloadURL(fileRef);
-        console.log('Upload Admin concluído:', finalInvoiceUrl);
-      } catch (storageError) {
-        console.warn("Storage failed, falling back to RTDB", storageError);
-        try {
-          // Se o storage falhar, tentamos salvar no RTDB apenas se o arquivo não for gigante
-          if (invoiceUrl.length > 500000) { // ~500KB limit for RTDB strings to avoid hanging
-             throw new Error("O arquivo é muito grande para o servidor de backup. Tente um arquivo menor ou verifique sua conexão.", { cause: storageError });
-          }
-          const invoiceId = `inv_upd_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-          const invoiceRef = child(ref(database), `invoices/${invoiceId}`);
-          await set(invoiceRef, invoiceUrl);
-          finalInvoiceUrl = `rtdb://invoices/${invoiceId}`;
-        } catch (e: any) {
-          console.error("Error saving invoice PDF to RTDB:", e);
-          return { success: false, message: e.message || 'Erro ao salvar o arquivo PDF no backup.' };
-        }
-      }
-    }
-
-    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-    if (isMainSupplier) {
-      const supplierRef = child(suppliersRef, supplierCpf);
-      try {
-        const snapshot = await get(supplierRef);
-        const currentData = snapshot.val() as Supplier;
-        if (currentData && currentData.deliveries) {
-          const deliveries = currentData.deliveries.map(d => {
-            if (d.invoiceNumber === invoiceNumber) {
-              const updated = { ...d };
-              if (finalInvoiceUrl !== undefined) updated.invoiceUrl = finalInvoiceUrl;
-              return updated;
-            }
-            return d;
-          });
-          await update(supplierRef, { deliveries });
-
-          // --- NOVO: Espelhar no warehouseLog ---
-          try {
-            const qLog = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
-            const logSnapshot = await get(qLog);
-            const allLogs = logSnapshot.val() || {};
-            const logUpdates: Record<string, any> = {};
-            let hasLogUpdates = false;
-
-            Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
-              if (String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)) {
-                logUpdates[`${key}/invoiceUrl`] = finalInvoiceUrl;
-                hasLogUpdates = true;
-              }
-            });
-
-            if (hasLogUpdates) {
-              await update(warehouseLogRef, logUpdates);
-            }
-          } catch (e) {
-            console.error("Error syncing invoice URL to warehouse log:", e);
-          }
-
-          return { success: true };
-        }
-        return { success: false, message: 'Dados do fornecedor não encontrados.' };
-      } catch (e) {
-        console.error("Error updating supplier invoice URL:", e);
-        return { success: false, message: 'Erro ao gravar no banco de dados.' };
-      }
-    }
-
+          // Check Per Capita FIRST
     try {
       const snapshotPC = await get(perCapitaConfigRef);
       const currentData = snapshotPC.val() as PerCapitaConfig;
@@ -1495,58 +728,118 @@ const App: React.FC = () => {
           const index = list.findIndex(p => p.cpfCnpj === supplierCpf);
           if (index !== -1) {
             const deliveries = list[index].deliveries || [];
+            let updatedAny = false;
             const updatedDeliveries = deliveries.map((d: any) => {
               if (d.invoiceNumber === invoiceNumber) {
                 const updated = { ...d };
                 if (finalInvoiceUrl !== undefined) updated.invoiceUrl = finalInvoiceUrl;
+                updatedAny = true;
                 return updated;
               }
               return d;
             });
-            await update(child(perCapitaConfigRef, `${listName}/${index}`), { deliveries: updatedDeliveries });
-            
-            // --- NOVO: Espelhar no warehouseLog ---
-            try {
-              const qLog = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
-              const logSnapshot = await get(qLog);
-              const allLogs = logSnapshot.val() || {};
-              const updatesLog: Record<string, any> = {};
-              let hasUpdatesLog = false;
+            if (updatedAny) {
+              await update(child(perCapitaConfigRef, `${listName}/${index}`), { deliveries: updatedDeliveries });
+              
+              // --- NOVO: Espelhar no warehouseLog ---
+              try {
+                const qLog = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
+                const logSnapshot = await get(qLog);
+                const allLogs = logSnapshot.val() || {};
+                const updatesLog: Record<string, any> = {};
+                let hasUpdatesLog = false;
 
-              Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
-                if (String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)) {
-                  updatesLog[`${key}/invoiceUrl`] = finalInvoiceUrl;
-                  hasUpdatesLog = true;
+                Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
+                  if (String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)) {
+                    updatesLog[`${key}/invoiceUrl`] = finalInvoiceUrl;
+                    hasUpdatesLog = true;
+                  }
+                });
+
+                if (hasUpdatesLog) {
+                  await update(warehouseLogRef, updatesLog);
                 }
-              });
-
-              if (hasUpdatesLog) {
-                await update(warehouseLogRef, updatesLog);
+              } catch (e) {
+                console.error("Error syncing invoice URL to warehouse log:", e);
               }
-            } catch (e) {
-              console.error("Error syncing invoice URL to warehouse log:", e);
-            }
 
-            found = true;
-            return true;
+              found = true;
+              return true;
+            }
           }
           return false;
         };
 
-        if (!(await updateList(currentData.ppaisProducers, 'ppaisProducers'))) {
-          if (!(await updateList(currentData.pereciveisSuppliers, 'pereciveisSuppliers'))) {
-            await updateList(currentData.estocaveisSuppliers, 'estocaveisSuppliers');
-          }
+        if (await updateList(currentData.ppaisProducers, 'ppaisProducers')) {
+        } else if (await updateList(currentData.pereciveisSuppliers, 'pereciveisSuppliers')) {
+        } else if (await updateList(currentData.estocaveisSuppliers, 'estocaveisSuppliers')) {
         }
 
         if (found) {
           return { success: true };
         }
       }
-      return { success: false, message: 'Fornecedor não encontrado no sistema.' };
     } catch (e) {
-      console.error("Error updating per capita invoice URL:", e);
-      return { success: false, message: 'Erro ao gravar no banco de dados.' };
+      console.error("Error updating supplier invoice URL in PC:", e);
+    }
+
+    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+    if (isMainSupplier) {
+      const supplierRef = child(suppliersRef, supplierCpf);
+      try {
+        const snapshot = await get(supplierRef);
+        const currentData = snapshot.val() as Supplier;
+        if (currentData && currentData.deliveries) {
+          let updatedAny = false;
+          const deliveries = currentData.deliveries.map(d => {
+            if (d.invoiceNumber === invoiceNumber) {
+              const updated = { ...d };
+              if (finalInvoiceUrl !== undefined) updated.invoiceUrl = finalInvoiceUrl;
+              updatedAny = true;
+              return updated;
+            }
+            return d;
+          });
+          
+          if (updatedAny) {
+             await update(supplierRef, { deliveries });
+
+             // --- NOVO: Espelhar no warehouseLog ---
+             try {
+               const qLog = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
+               const logSnapshot = await get(qLog);
+               const allLogs = logSnapshot.val() || {};
+               const logUpdates: Record<string, any> = {};
+               let hasLogUpdates = false;
+
+               Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
+                 if (String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)) {
+                   logUpdates[`${key}/invoiceUrl`] = finalInvoiceUrl;
+                   hasLogUpdates = true;
+                 }
+               });
+
+               if (hasLogUpdates) {
+                 await update(warehouseLogRef, logUpdates);
+               }
+             } catch (e) {
+               console.error("Error syncing invoice URL to warehouse log:", e);
+             }
+
+             return { success: true };
+          }
+        }
+        return { success: false, message: 'Dados do fornecedor não encontrados.' };
+      } catch (e) {
+        console.error("Error updating supplier invoice URL:", e);
+        return { success: false, message: 'Erro ao gravar no banco de dados.' };
+      }
+    }
+    
+    } catch (error) {
+      console.error('Erro crítico ao salvar nota fiscal:', error);
+      toast.error('Falha ao enviar: ' + (error instanceof Error ? error.message : 'Erro desconhecido'), { id: toastId });
+      throw error;
     }
   }, [suppliers]);
 
