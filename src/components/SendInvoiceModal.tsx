@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Send, Plus, Trash2, FileText, Loader2 } from 'lucide-react';
+import { X, Send, Plus, Trash2, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Delivery, ContractItem } from '../types';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -43,68 +43,6 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
       }
       return d;
     }));
-  };
-
-  const extractDataFromPdf = async (file: File) => {
-    setLoading(true);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout para IA
-
-    try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      const response = await fetch('/api/gemini-extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          image: base64,
-          mimeType: file.type,
-          prompt: "Extract invoice data: number, date, supplier, and items (name, quantity, totalValue). Return JSON."
-        }),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) throw new Error(`Falha na extração (Status: ${response.status})`);
-      const data = await response.json();
-      
-      if (data.number) setInvoiceNumber(data.number);
-      if (data.date) setInvoiceDate(data.date);
-      
-      if (data.items) {
-        const extractedDeliveries = data.items.map((item: any) => ({
-          // IMPORTANTE: prefixo new_ para reconhecimento no backend
-          id: `new_extracted-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          item: item.name,
-          itemName: item.name,
-          kg: item.quantity || 0,
-          value: item.totalValue || 0,
-          itemId: contractItems.find(ci => ci.name === item.name)?.id || ''
-        }));
-        setDeliveries(prev => [...prev, ...extractedDeliveries]);
-      }
-    } catch (error: any) {
-      console.error("Extraction error:", error);
-      if (error.name === 'AbortError') {
-        alert("O processamento da IA demorou muito. Você pode preencher os dados manualmente.");
-      } else {
-        alert("Não foi possível extrair dados automaticamente. Por favor, preencha manualmente.");
-      }
-    } finally {
-      setLoading(false);
-      clearTimeout(timeoutId);
-    }
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) extractDataFromPdf(file);
   };
 
   const handleSave = async () => {
@@ -206,11 +144,6 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-800">Itens da Nota</h3>
             <div className="flex gap-2">
-              <label className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl cursor-pointer hover:bg-blue-100 transition-colors">
-                <FileText className="w-4 h-4" />
-                <span className="text-sm font-medium">Extrair PDF (AI)</span>
-                <input type="file" accept="application/pdf" className="hidden" onChange={handleFileUpload} />
-              </label>
               <button 
                 onClick={handleAddDelivery}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors"
@@ -224,7 +157,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12 space-y-4">
               <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-              <p className="text-gray-500 font-medium">Extraindo dados com Gemini AI...</p>
+              <p className="text-gray-500 font-medium">Processando...</p>
             </div>
           ) : (
             <div className="space-y-3">

@@ -99,12 +99,8 @@ const App: React.FC = () => {
   const [validationRoles, setValidationRoles] = useState<ValidationRole[]>([]);
   const [systemPasswords, setSystemPasswords] = useState<Record<string, string>>({});
   const [maintenanceSchedules, setMaintenanceSchedules] = useState<MaintenanceSchedule[]>([]);
-  const [dailyAllowances, setDailyAllowances] = useState<any[]>([]);
-  const [staff, setStaff] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _unusedDaily = dailyAllowances;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _unusedStaff = staff;
+  const [_dailyAllowances, setDailyAllowances] = useState<any[]>([]);
+  const [_staff, setStaff] = useState<any[]>([]);
   const [publicInfo, setPublicInfo] = useState<PublicInfo[]>([]);
 
   console.log("App mounted, user:", user);
@@ -874,16 +870,41 @@ const App: React.FC = () => {
             
             // --- NOVO: Espelhar no warehouseLog ---
             try {
-              // Otimização: buscar apenas logs deste fornecedor
               const q = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
               const logSnapshot = await get(q);
               const allLogs = logSnapshot.val() || {};
               const logUpdates: Record<string, any> = {};
               let hasLogUpdates = false;
 
+              // Atualiza logs existentes
               Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
-                if (String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)) {
+                if (String(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '') === String(invoiceNumber)) {
                   logUpdates[`${key}/invoiceUrl`] = finalInvoiceUrl;
+                  hasLogUpdates = true;
+                }
+              });
+
+              // Adiciona NOVOS itens que foram incluídos manualmente
+              newItems.forEach((ni) => {
+                const newLogKey = push(warehouseLogRef).key;
+                if (newLogKey) {
+                  logUpdates[newLogKey] = {
+                    id: newLogKey,
+                    type: 'entrada',
+                    timestamp: new Date().toISOString(),
+                    item: ni.item || ni.itemName || 'ITEM SEM NOME',
+                    itemName: ni.item || ni.itemName || 'ITEM SEM NOME',
+                    kg: ni.kg || 0,
+                    quantity: ni.kg || 0,
+                    value: ni.value || 0,
+                    invoiceNumber: String(invoiceNumber).trim(),
+                    inboundInvoice: String(invoiceNumber).trim(),
+                    date: invoiceDate || new Date().toISOString().split('T')[0],
+                    supplierName: currentData.name || 'FORNECEDOR',
+                    supplierCpf: supplierCpf,
+                    invoiceUrl: finalInvoiceUrl,
+                    invoiceUploaded: true
+                  };
                   hasLogUpdates = true;
                 }
               });
@@ -971,6 +992,56 @@ const App: React.FC = () => {
 
             if (updated) {
               await update(child(perCapitaConfigRef, `${listName}/${index}`), { deliveries });
+
+              // Mirror to warehouseLog
+              try {
+                const q = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
+                const logSnapshot = await get(q);
+                const allLogs = logSnapshot.val() || {};
+                const updatesLog: Record<string, any> = {};
+                let hasUpdatesLog = false;
+                
+                // Existing logs
+                Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
+                  if (String(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '') === String(invoiceNumber)) {
+                    updatesLog[`${key}/invoiceUrl`] = finalInvoiceUrl;
+                    hasUpdatesLog = true;
+                  }
+                });
+                
+                // New logs
+                const prodName = list[index].name || 'PRODUTOR';
+                newItems.forEach((ni) => {
+                  const newLogKey = push(warehouseLogRef).key;
+                  if (newLogKey) {
+                    updatesLog[newLogKey] = {
+                      id: newLogKey,
+                      type: 'entrada',
+                      timestamp: new Date().toISOString(),
+                      item: ni.item || ni.itemName || 'ITEM SEM NOME',
+                      itemName: ni.item || ni.itemName || 'ITEM SEM NOME',
+                      kg: ni.kg || 0,
+                      quantity: ni.kg || 0,
+                      value: ni.value || 0,
+                      invoiceNumber: String(invoiceNumber).trim(),
+                      inboundInvoice: String(invoiceNumber).trim(),
+                      date: invoiceDate || new Date().toISOString().split('T')[0],
+                      supplierName: prodName,
+                      supplierCpf: supplierCpf,
+                      invoiceUrl: finalInvoiceUrl,
+                      invoiceUploaded: true
+                    };
+                    hasUpdatesLog = true;
+                  }
+                });
+                
+                if (hasUpdatesLog) {
+                  await update(warehouseLogRef, updatesLog);
+                }
+              } catch (logErr) {
+                console.error("Error mirroring PerCapita log:", logErr);
+              }
+
               found = true;
               return true;
             }
@@ -982,31 +1053,7 @@ const App: React.FC = () => {
           await updateList(currentPC.pereciveisSuppliers, 'pereciveisSuppliers');
         }
         
-    if (found) {
-          // --- NOVO: Espelhar no warehouseLog ---
-          try {
-            if (warehouseLogRef) {
-              const q = query(warehouseLogRef, orderByChild('supplierCpf'), equalTo(supplierCpf));
-              const logSnapshot = await get(q);
-              const allLogs = logSnapshot.val() || {};
-              const updatesLog: Record<string, any> = {};
-              let hasUpdatesLog = false;
-  
-              Object.entries(allLogs).forEach(([key, entry]: [string, any]) => {
-                if (String(entry.inboundInvoice || entry.outboundInvoice || '') === String(invoiceNumber)) {
-                  updatesLog[`${key}/invoiceUrl`] = finalInvoiceUrl;
-                  hasUpdatesLog = true;
-                }
-              });
-  
-              if (hasUpdatesLog) {
-                await update(warehouseLogRef, updatesLog);
-              }
-            }
-          } catch (e) {
-            console.error("Error syncing invoice URL to warehouse log:", e);
-          }
-
+        if (found) {
           console.log('Dados PerCapita atualizados');
           toast.success('Nota fiscal enviada com sucesso!', { id: toastId });
         } else {
