@@ -82,13 +82,15 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
             <div className="space-y-1">
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Link ou Arquivo da Nota Fiscal</label>
               <div className="flex flex-col gap-2">
-                <input 
-                    type="text" 
-                    value={invoiceUrl}
-                    onChange={(e) => setInvoiceUrl(e.target.value)}
-                    placeholder="URL da nota fiscal (opcional se enviar arquivo)"
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
-                />
+                {!(invoiceUrl && invoiceUrl.startsWith('data:')) && (
+                  <input 
+                      type="text" 
+                      value={invoiceUrl}
+                      onChange={(e) => setInvoiceUrl(e.target.value)}
+                      placeholder="URL da nota fiscal (opcional se enviar arquivo)"
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
+                  />
+                )}
                 <label className="flex items-center justify-center gap-3 px-4 py-3 bg-emerald-600 text-white rounded-xl cursor-pointer hover:bg-emerald-700 transition-all shadow-md group">
                     <Plus className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
                     <div className="text-left">

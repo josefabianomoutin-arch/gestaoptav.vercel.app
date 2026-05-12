@@ -641,10 +641,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                                                                       const reader = new FileReader();
                                                                       reader.onload = async (event) => {
                                                                           try {
-                                                                              await onUpdateInvoiceUrl(supplier.cpf, invoice.invoiceNumber, event.target?.result as string);
-                                                                              toast.success('Nota enviada com sucesso!');
+                                                                              const result = await onUpdateInvoiceUrl(supplier.cpf, invoice.invoiceNumber, event.target?.result as string);
+                                                                              if (result && result.success === false) {
+                                                                                  toast.error(result.message || 'Erro ao enviar a nota.');
+                                                                              } else {
+                                                                                  toast.success('Nota enviada com sucesso!');
+                                                                              }
                                                                           } catch (err) {
-                                                                              toast.error('Erro ao enviar a nota.');
+                                                                              toast.error('Erro de conexão ao enviar a nota.');
                                                                           }
                                                                       };
                                                                       reader.onerror = () => {

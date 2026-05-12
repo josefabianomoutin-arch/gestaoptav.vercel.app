@@ -404,6 +404,12 @@ const App: React.FC = () => {
       return true;
     }
 
+    const estocaveisSupplier = perCapitaConfig.estocaveisSuppliers?.find(p => p.cpfCnpj.replace(/\D/g, '') === numericPass);
+    if (estocaveisSupplier) {
+      setUser({ name: estocaveisSupplier.name, cpf: estocaveisSupplier.cpfCnpj, role: 'estocaveis_supplier' });
+      return true;
+    }
+
     const supplier = suppliers.find(s => s.cpf.replace(/\D/g, '') === numericPass);
     if (supplier) {
       setUser({ name: supplier.name, cpf: supplier.cpf, role: 'supplier' });
@@ -698,7 +704,9 @@ const App: React.FC = () => {
                 return false;
               };
             if (!findAndAdd(currentData.ppaisProducers)) {
-              findAndAdd(currentData.pereciveisSuppliers);
+              if (!findAndAdd(currentData.pereciveisSuppliers)) {
+                 findAndAdd(currentData.estocaveisSuppliers);
+              }
             }
           }
           return currentData;
@@ -765,6 +773,7 @@ const App: React.FC = () => {
         };
         findAndCancel(currentData.ppaisProducers);
         findAndCancel(currentData.pereciveisSuppliers);
+        findAndCancel(currentData.estocaveisSuppliers);
       }
       return currentData;
     });
@@ -1063,7 +1072,9 @@ const App: React.FC = () => {
         };
 
         if (!(await updateList(currentPC.ppaisProducers, 'ppaisProducers'))) {
-          await updateList(currentPC.pereciveisSuppliers, 'pereciveisSuppliers');
+          if (!(await updateList(currentPC.pereciveisSuppliers, 'pereciveisSuppliers'))) {
+            await updateList(currentPC.estocaveisSuppliers, 'estocaveisSuppliers');
+          }
         }
         
         if (found) {
@@ -1331,7 +1342,9 @@ const App: React.FC = () => {
             return false;
           };
           if (!findAndUpdate(currentData.ppaisProducers)) {
-            findAndUpdate(currentData.pereciveisSuppliers);
+            if (!findAndUpdate(currentData.pereciveisSuppliers)) {
+              findAndUpdate(currentData.estocaveisSuppliers);
+            }
           }
         }
         return currentData;
@@ -1397,16 +1410,8 @@ const App: React.FC = () => {
         const invoiceId = `inv_upd_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.pdf`;
         const fileRef = storageRef(storage, `invoices/${invoiceId}`);
         
-        // Converter base64 para Blob para um upload mais estável
-        const base64Data = invoiceUrl.split(',')[1];
-        const contentType = invoiceUrl.split(',')[0].split(':')[1].split(';')[0];
-        const byteCharacters = atob(base64Data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: contentType });
+        const response = await fetch(invoiceUrl);
+        const blob = await response.blob();
 
         console.log('Fazendo upload para o Storage (Blob) via Admin...', blob.size);
         const uploadPromise = uploadBytes(fileRef, blob);
@@ -1529,7 +1534,9 @@ const App: React.FC = () => {
         };
 
         if (!(await updateList(currentData.ppaisProducers, 'ppaisProducers'))) {
-          await updateList(currentData.pereciveisSuppliers, 'pereciveisSuppliers');
+          if (!(await updateList(currentData.pereciveisSuppliers, 'pereciveisSuppliers'))) {
+            await updateList(currentData.estocaveisSuppliers, 'estocaveisSuppliers');
+          }
         }
 
         if (found) {
@@ -1583,7 +1590,9 @@ const App: React.FC = () => {
             return false;
           };
           if (!findAndMark(currentData.ppaisProducers)) {
-            findAndMark(currentData.pereciveisSuppliers);
+            if (!findAndMark(currentData.pereciveisSuppliers)) {
+              findAndMark(currentData.estocaveisSuppliers);
+            }
           }
         }
         return currentData;
@@ -1875,7 +1884,9 @@ const App: React.FC = () => {
               return false;
             };
             if (!findAndAdd(currentData.ppaisProducers)) {
-              findAndAdd(currentData.pereciveisSuppliers);
+              if (!findAndAdd(currentData.pereciveisSuppliers)) {
+                 findAndAdd(currentData.estocaveisSuppliers);
+              }
             }
           }
           return currentData;
@@ -2129,9 +2140,18 @@ const App: React.FC = () => {
         }));
         const updatedPereciveis = (perCapitaConfig.pereciveisSuppliers || []).map(p => ({
           ...p,
-          contractItems: (p.contractItems || []).map(ci => ci.name === item.name ? null : ci).filter(Boolean)
+          contractItems: (p.contractItems || []).filter(ci => ci.name !== item.name)
         }));
-        await set(perCapitaConfigRef, { ...perCapitaConfig, ppaisProducers: updatedPpais, pereciveisSuppliers: updatedPereciveis });
+        const updatedEstocaveis = (perCapitaConfig.estocaveisSuppliers || []).map(p => ({
+          ...p,
+          contractItems: (p.contractItems || []).filter(ci => ci.name !== item.name)
+        }));
+        await set(perCapitaConfigRef, { 
+          ...perCapitaConfig, 
+          ppaisProducers: updatedPpais, 
+          pereciveisSuppliers: updatedPereciveis,
+          estocaveisSuppliers: updatedEstocaveis
+        });
       }
 
       await remove(itemRef);
@@ -3156,7 +3176,8 @@ const App: React.FC = () => {
       
       const ppaisEntry = perCapitaConfig.ppaisProducers?.find(p => p.cpfCnpj === user.cpf);
       const pereciveisEntry = perCapitaConfig.pereciveisSuppliers?.find(p => p.cpfCnpj === user.cpf);
-      const perCapitaEntry = ppaisEntry || pereciveisEntry;
+      const estocaveisEntry = perCapitaConfig.estocaveisSuppliers?.find(p => p.cpfCnpj === user.cpf);
+      const perCapitaEntry = ppaisEntry || pereciveisEntry || estocaveisEntry;
       const isRegisteredForNextPeriod = !!perCapitaEntry;
 
       if (isMayOrLater && !isRegisteredForNextPeriod) {
@@ -3224,8 +3245,10 @@ const App: React.FC = () => {
       }
     }
 
-    if (user.role === 'producer' || user.role === 'pereciveis_supplier') {
-      const list = user.role === 'producer' ? perCapitaConfig.ppaisProducers : perCapitaConfig.pereciveisSuppliers;
+    if (user.role === 'producer' || user.role === 'pereciveis_supplier' || user.role === 'estocaveis_supplier') {
+      const list = user.role === 'producer' ? perCapitaConfig.ppaisProducers : 
+                   user.role === 'pereciveis_supplier' ? perCapitaConfig.pereciveisSuppliers : 
+                   perCapitaConfig.estocaveisSuppliers;
       const p = list?.find(s => s.cpfCnpj === user.cpf);
       if (p) {
         const existingSupplier = suppliers.find(s => s.cpf === p.cpfCnpj);

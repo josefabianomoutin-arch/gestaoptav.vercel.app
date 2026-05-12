@@ -404,5 +404,5 @@ export interface DirectorItem {
     expirationDate?: string;
 }
 
-export type UserRole = 'admin' | 'almoxarifado' | 'itesp' | 'financeiro' | 'cardapio' | 'subportaria' | 'infraestrutura' | 'ordem_saida' | 'julio' | 'producer' | 'pereciveis_supplier' | 'supplier' | 'ordem_servico';
+export type UserRole = 'admin' | 'almoxarifado' | 'itesp' | 'financeiro' | 'cardapio' | 'subportaria' | 'infraestrutura' | 'ordem_saida' | 'julio' | 'producer' | 'pereciveis_supplier' | 'estocaveis_supplier' | 'supplier' | 'ordem_servico';
 
