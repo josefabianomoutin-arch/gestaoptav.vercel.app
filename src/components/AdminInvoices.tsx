@@ -945,7 +945,21 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                           return (
                           <div key={idx} className="bg-slate-50 p-4 rounded-xl space-y-3 border border-gray-100 shadow-sm relative group">
                               <div className="font-black text-[10px] text-indigo-900 uppercase tracking-tight flex justify-between items-center">
-                                  <span>Produto: {item.item || item.itemName || ''}</span>
+                                  <div className="flex flex-col flex-1 gap-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Produto</label>
+                                    <select 
+                                        value={item.item || item.itemName || item.name || ''} 
+                                        onChange={e => {
+                                            const newItems = [...editingInvoice.items];
+                                            newItems[idx] = { ...item, item: e.target.value, itemName: e.target.value, name: e.target.value };
+                                            setEditingInvoice({ ...editingInvoice, items: newItems });
+                                        }}
+                                        className="w-full h-9 px-3 rounded-lg border-2 border-indigo-100 outline-none focus:border-indigo-400 font-black text-[10px] uppercase"
+                                    >
+                                        <option value="">Selecione...</option>
+                                        {availableItems.map(it => <option key={it} value={it}>{it}</option>)}
+                                    </select>
+                                  </div>
                                   <div className="flex items-center gap-3">
                                       <span className="text-gray-400 font-bold">{idx + 1} de {editingInvoice.items.length}</span>
                                       <button 
