@@ -115,6 +115,7 @@ export interface PerCapitaSupplier {
     id: string;
     name: string;
     cpfCnpj: string;
+    cpf?: string;
     address?: string;
     city?: string;
     processNumber?: string;

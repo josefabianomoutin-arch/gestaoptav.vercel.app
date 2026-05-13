@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { toast } from 'sonner';
 import type { PerCapitaSupplier, Delivery } from '../types';
 import ConfirmModal from './ConfirmModal';
@@ -552,7 +552,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                                                                     reader.onload = async () => {
                                                                         const base64 = reader.result as string;
                                                                         const res = await onSaveInvoice(
-                                                                            currentSupplier.cpfCnpj, 
+                                                                            currentSupplier.cpfCnpj || (currentSupplier as any).cpf, 
                                                                             [delivery.id],
                                                                             delivery.invoiceNumber || '0', 
                                                                             base64, 
@@ -595,7 +595,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                                                                 variant: 'danger',
                                                                 onConfirm: async () => {
                                                                     if (onDeleteDelivery) {
-                                                                        await onDeleteDelivery(currentSupplier.cpfCnpj, delivery.id);
+                                                                        await onDeleteDelivery(currentSupplier.cpfCnpj || (currentSupplier as any).cpf, delivery.id);
                                                                         // Parent will refresh
                                                                         // setShowInvoicesModal(false); // No need to close, currentSupplier will update
                                                                     }

@@ -689,7 +689,7 @@ const App: React.FC = () => {
         runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
           if (currentData) {
               const findAndAdd = (list: any[] | undefined) => {
-                const s = list?.find(p => p.cpfCnpj === supplierCpf);
+                const s = list?.find(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
                 if (s) {
                   const deliveries = Array.isArray(s.deliveries) ? [...s.deliveries] : Object.values(s.deliveries || {});
                   deliveries.push({
@@ -731,7 +731,7 @@ const App: React.FC = () => {
         let found = false;
         const updateList = async (list: any[] | undefined, listName: string) => {
           if (!list) return false;
-          const index = list.findIndex(p => p.cpfCnpj === supplierCpf);
+          const index = list.findIndex(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
           if (index !== -1) {
             const deliveries = list[index].deliveries || [];
             let updatedAny = false;
@@ -780,7 +780,7 @@ const App: React.FC = () => {
       await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
         if (currentData) {
           const findAndMark = (list: any[] | undefined) => {
-            const s = list?.find(p => p.cpfCnpj === supplierCpf);
+            const s = list?.find(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
             if (s && s.deliveries) {
               s.deliveries = s.deliveries.map((d: any) => {
                 if (d.invoiceNumber === invoiceNumber && !d.isOpened && !d.opened) {
@@ -835,7 +835,7 @@ const App: React.FC = () => {
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
-        const idx = producers.findIndex((p: any) => p && p.cpfCnpj === supplierCpf);
+        const idx = producers.findIndex((p: any) => p && (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
@@ -869,7 +869,7 @@ const App: React.FC = () => {
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
-        const idx = producers.findIndex((p: any) => p && p.cpfCnpj === supplierCpf);
+        const idx = producers.findIndex((p: any) => p && (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
@@ -913,7 +913,7 @@ const App: React.FC = () => {
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
-        const idx = producers.findIndex((p: any) => p.cpfCnpj === supplierCpf);
+        const idx = producers.findIndex((p: any) => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
@@ -949,7 +949,7 @@ const App: React.FC = () => {
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
-        const idx = producers.findIndex((p: any) => p.cpfCnpj === supplierCpf);
+        const idx = producers.findIndex((p: any) => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
@@ -1037,7 +1037,7 @@ const App: React.FC = () => {
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
-        const idx = producers.findIndex((p: any) => p.cpfCnpj === supplierCpf);
+        const idx = producers.findIndex((p: any) => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
@@ -1106,15 +1106,15 @@ const App: React.FC = () => {
     let producerIdx = -1;
 
     if (perCapitaConfig.ppaisProducers) {
-      producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => p.cpfCnpj === supplierCpf);
+      producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
       if (producerIdx !== -1) listKey = 'ppaisProducers';
     }
     if (listKey === null && perCapitaConfig.pereciveisSuppliers) {
-      producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => p.cpfCnpj === supplierCpf);
+      producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
       if (producerIdx !== -1) listKey = 'pereciveisSuppliers';
     }
     if (listKey === null && perCapitaConfig.estocaveisSuppliers) {
-      producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => p.cpfCnpj === supplierCpf);
+      producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
       if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
     }
 
@@ -1180,15 +1180,15 @@ const App: React.FC = () => {
         let producerIdx = -1;
 
         if (perCapitaConfig.ppaisProducers) {
-          producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => p.cpfCnpj === supplierCpf);
+          producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
           if (producerIdx !== -1) listKey = 'ppaisProducers';
         }
         if (listKey === null && perCapitaConfig.pereciveisSuppliers) {
-          producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => p.cpfCnpj === supplierCpf);
+          producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
           if (producerIdx !== -1) listKey = 'pereciveisSuppliers';
         }
         if (listKey === null && perCapitaConfig.estocaveisSuppliers) {
-          producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => p.cpfCnpj === supplierCpf);
+          producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
           if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
         }
 
@@ -1227,8 +1227,8 @@ const App: React.FC = () => {
     if (mainSupplier) {
       supplierName = mainSupplier.name;
     } else {
-      const p = perCapitaConfig.ppaisProducers?.find(s => s.cpfCnpj === supplierCpf) || 
-                perCapitaConfig.pereciveisSuppliers?.find(s => s.cpfCnpj === supplierCpf);
+      const p = perCapitaConfig.ppaisProducers?.find(s => (s.cpfCnpj === supplierCpf || s.cpf === supplierCpf)) || 
+                perCapitaConfig.pereciveisSuppliers?.find(s => (s.cpfCnpj === supplierCpf || s.cpf === supplierCpf));
       if (p) supplierName = p.name;
     }
 
@@ -1315,7 +1315,7 @@ const App: React.FC = () => {
         await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
           if (currentData) {
             const findAndAdd = (list: any[] | undefined) => {
-              const s = list?.find(p => p.cpfCnpj === supplierCpf);
+              const s = list?.find(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
               if (s) {
                 const deliveries = Array.isArray(s.deliveries)
                   ? [...s.deliveries]
@@ -1438,9 +1438,9 @@ const App: React.FC = () => {
           const updatedPereciveis = Array.isArray(current.pereciveisSuppliers) ? [...current.pereciveisSuppliers] : Object.values(current.pereciveisSuppliers || {});
           const updatedEstocaveis = Array.isArray(current.estocaveisSuppliers) ? [...current.estocaveisSuppliers] : Object.values(current.estocaveisSuppliers || {});
 
-          const ppaisIndex = updatedPpais.findIndex(p => p.cpfCnpj === supplier.cpf);
-          const pereciveisIndex = updatedPereciveis.findIndex(p => p.cpfCnpj === supplier.cpf);
-          const estocaveisIndex = updatedEstocaveis.findIndex(p => p.cpfCnpj === supplier.cpf);
+          const ppaisIndex = updatedPpais.findIndex(p => (p.cpfCnpj === supplier.cpf || p.cpf === supplier.cpf));
+          const pereciveisIndex = updatedPereciveis.findIndex(p => (p.cpfCnpj === supplier.cpf || p.cpf === supplier.cpf));
+          const estocaveisIndex = updatedEstocaveis.findIndex(p => (p.cpfCnpj === supplier.cpf || p.cpf === supplier.cpf));
 
           if (ppaisIndex !== -1) {
             const p = updatedPpais[ppaisIndex];
@@ -1679,9 +1679,9 @@ const App: React.FC = () => {
         }
 
         // Find supplier in both main list and perCapitaConfig
-        const ppaisProducer = (perCapitaConfig.ppaisProducers || []).find(p => p.cpfCnpj === payload.supplierCpf);
-        const pereciveisSupplier = (perCapitaConfig.pereciveisSuppliers || []).find(p => p.cpfCnpj === payload.supplierCpf);
-        const estocavelSupplier = (perCapitaConfig.estocaveisSuppliers || []).find(p => p.cpfCnpj === payload.supplierCpf);
+        const ppaisProducer = (perCapitaConfig.ppaisProducers || []).find(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
+        const pereciveisSupplier = (perCapitaConfig.pereciveisSuppliers || []).find(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
+        const estocavelSupplier = (perCapitaConfig.estocaveisSuppliers || []).find(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
         const mainSupplier = (suppliers || []).find(s => s.cpf === payload.supplierCpf);
         
         const supplier = mainSupplier || ppaisProducer || pereciveisSupplier || estocavelSupplier;
@@ -1746,17 +1746,17 @@ const App: React.FC = () => {
                 let producerIdx = -1;
 
                 const ppList = perCapitaConfig.ppaisProducers || [];
-                producerIdx = ppList.findIndex(p => p.cpfCnpj === payload.supplierCpf);
+                producerIdx = ppList.findIndex(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
                 if (producerIdx !== -1) {
                     listKey = 'ppaisProducers';
                 } else {
                     const perecList = perCapitaConfig.pereciveisSuppliers || [];
-                    producerIdx = perecList.findIndex(p => p.cpfCnpj === payload.supplierCpf);
+                    producerIdx = perecList.findIndex(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
                     if (producerIdx !== -1) {
                         listKey = 'pereciveisSuppliers';
                     } else {
                         const estocList = perCapitaConfig.estocaveisSuppliers || [];
-                        producerIdx = estocList.findIndex(p => p.cpfCnpj === payload.supplierCpf);
+                        producerIdx = estocList.findIndex(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
                         if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
                     }
                 }
@@ -1805,9 +1805,9 @@ const App: React.FC = () => {
         const newRef = push(warehouseLogRef);
         
         // Find supplier in both lists
-        const ppaisProducer = perCapitaConfig.ppaisProducers?.find(p => p.cpfCnpj === payload.supplierCpf);
-        const pereciveisSupplier = perCapitaConfig.pereciveisSuppliers?.find(p => p.cpfCnpj === payload.supplierCpf);
-        const estocavelSupplier = perCapitaConfig.estocaveisSuppliers?.find(p => p.cpfCnpj === payload.supplierCpf);
+        const ppaisProducer = perCapitaConfig.ppaisProducers?.find(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
+        const pereciveisSupplier = perCapitaConfig.pereciveisSuppliers?.find(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
+        const estocavelSupplier = perCapitaConfig.estocaveisSuppliers?.find(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
         const mainSupplier = suppliers.find(s => s.cpf === payload.supplierCpf);
         
         const supplier = mainSupplier || ppaisProducer || pereciveisSupplier || estocavelSupplier;
@@ -1852,15 +1852,15 @@ const App: React.FC = () => {
                 let producerIdx = -1;
 
                 if (perCapitaConfig.ppaisProducers) {
-                    producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => p.cpfCnpj === payload.supplierCpf);
+                    producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
                     if (producerIdx !== -1) listKey = 'ppaisProducers';
                 }
                 if (listKey === null && perCapitaConfig.pereciveisSuppliers) {
-                    producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => p.cpfCnpj === payload.supplierCpf);
+                    producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
                     if (producerIdx !== -1) listKey = 'pereciveisSuppliers';
                 }
                 if (listKey === null && perCapitaConfig.estocaveisSuppliers) {
-                    producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => p.cpfCnpj === payload.supplierCpf);
+                    producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
                     if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
                 }
 
@@ -2055,7 +2055,7 @@ const App: React.FC = () => {
                   if (currentData) {
                       const updateInList = (list: any[] | undefined) => {
                           if (!list) return false;
-                          const s = list.find(p => p.cpfCnpj === targetCpf);
+                          const s = list.find(p => (p.cpfCnpj === targetCpf || p.cpf === targetCpf));
                           if (s && s.deliveries) {
                               s.deliveries = s.deliveries.filter((d: any) => 
                                   !(d.item === l.itemName && String(d.invoiceNumber) === String(l.inboundInvoice) && d.barcode === l.barcode)
@@ -2108,7 +2108,7 @@ const App: React.FC = () => {
               await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
                   if (currentData) {
                       const updateList = (list: any[] | undefined) => {
-                          const s = list?.find(p => p.cpfCnpj === l.supplierCpf);
+                          const s = list?.find(p => (p.cpfCnpj === l.supplierCpf || p.cpf === l.supplierCpf));
                           if (s && s.deliveries) {
                               s.deliveries = s.deliveries.map((d: any) => {
                                   if (String(d.invoiceNumber) === String(l.inboundInvoice) && d.item === l.itemName && d.barcode === l.barcode) {

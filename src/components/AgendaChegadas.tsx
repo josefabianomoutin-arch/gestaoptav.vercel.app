@@ -77,7 +77,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                 const producers = perCapitaConfig[key] || [];
                 producers.forEach((p: any) => {
                     const deliveries = Array.isArray(p.deliveries) ? p.deliveries : Object.values(p.deliveries || {});
-                    deliveries.forEach(d => processDelivery({ name: p.name, cpf: p.cpfCnpj } as any, d, 'FORNECEDOR'));
+                    deliveries.forEach(d => processDelivery({ name: p.name, cpf: p.cpfCnpj || p.cpf } as any, d, 'FORNECEDOR'));
                 });
             });
         }

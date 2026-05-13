@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
 import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search } from 'lucide-react';
 import { HOLIDAYS_2026 } from '../constants';
-import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus } from '../types';
+import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus, Delivery } from '../types';
 import AdminInvoices from './AdminInvoices';
 import AgendaChegadas from './AgendaChegadas';
 import WarehouseMovementForm from './WarehouseMovementForm';
@@ -321,9 +321,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         const SeiNumber = perCapitaConfig?.seiProcessNumbers?.[cronogramaType] || '';
         
         // Find supplier details in PC config
-        const pcSupplier = ensureArray(perCapitaConfig?.ppaisProducers).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier) ||
-                           ensureArray(perCapitaConfig?.pereciveisSuppliers).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier) ||
-                           ensureArray(perCapitaConfig?.estocaveisSuppliers).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier);
+        const pcSupplier = ensureArray(perCapitaConfig?.ppaisProducers).find((p: any) => (p.cpfCnpj === selectedCronogramaSupplier || p.cpf === selectedCronogramaSupplier)) ||
+                           ensureArray(perCapitaConfig?.pereciveisSuppliers).find((p: any) => (p.cpfCnpj === selectedCronogramaSupplier || p.cpf === selectedCronogramaSupplier)) ||
+                           ensureArray(perCapitaConfig?.estocaveisSuppliers).find((p: any) => (p.cpfCnpj === selectedCronogramaSupplier || p.cpf === selectedCronogramaSupplier));
 
         // Always find the actual supplier with deliveries from the main suppliers prop
         const mainSupplier = ensureArray(suppliers).find(s => s.cpf === selectedCronogramaSupplier);
@@ -761,9 +761,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
             if (!autoSei) {
                 // Tenta fallback baseado na lista de produtores/fornecedores per capita
-                const isPpais = ensureArray(perCapitaConfig.ppaisProducers).some((p: any) => p.cpfCnpj === receiptSupplier.cpf);
-                const isPereciveis = ensureArray(perCapitaConfig.pereciveisSuppliers).some((p: any) => p.cpfCnpj === receiptSupplier.cpf);
-                const isEstocaveis = ensureArray(perCapitaConfig.estocaveisSuppliers).some((p: any) => p.cpfCnpj === receiptSupplier.cpf);
+                const isPpais = ensureArray(perCapitaConfig.ppaisProducers).some((p: any) => (p.cpfCnpj === receiptSupplier.cpf || p.cpf === receiptSupplier.cpf));
+                const isPereciveis = ensureArray(perCapitaConfig.pereciveisSuppliers).some((p: any) => (p.cpfCnpj === receiptSupplier.cpf || p.cpf === receiptSupplier.cpf));
+                const isEstocaveis = ensureArray(perCapitaConfig.estocaveisSuppliers).some((p: any) => (p.cpfCnpj === receiptSupplier.cpf || p.cpf === receiptSupplier.cpf));
                 
                 if (isPpais) autoSei = perCapitaConfig.seiProcessNumbers?.['PPAIS'] || '';
                 else if (isPereciveis) autoSei = perCapitaConfig.seiProcessNumbers?.['PERECÍVEIS'] || perCapitaConfig.seiProcessNumbers?.['PERECIVEIS'] || '';
@@ -1713,7 +1713,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                           (perCapitaConfig?.estocaveisSuppliers || [])).map((s: any) => (
                                             <option key={s.cpfCnpj} value={s.cpfCnpj}>{s.name.toUpperCase()}</option>
                                           ))}
-                                        {cronogramaType === 'ESTOCÁVEIS' && ensureArray(suppliers).filter(s => !ensureArray(perCapitaConfig?.estocaveisSuppliers).some((p: any) => p.cpfCnpj === s.cpf)).map(s => (
+                                        {cronogramaType === 'ESTOCÁVEIS' && ensureArray(suppliers).filter(s => !ensureArray(perCapitaConfig?.estocaveisSuppliers).some((p: any) => (p.cpfCnpj === s.cpf || p.cpf === s.cpf))).map(s => (
                                             <option key={s.cpf} value={s.cpf}>{s.name.toUpperCase()}</option>
                                         ))}
                                     </select>
@@ -1758,7 +1758,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                         {Array.from({ length: 4 }, (_, i) => i + 1).map(week => {
                                             const supplier = (cronogramaType === 'PPAIS' ? (perCapitaConfig?.ppaisProducers || []) : 
                                                              cronogramaType === 'PERECÍVEIS' ? (perCapitaConfig?.pereciveisSuppliers || []) : 
-                                                             (perCapitaConfig?.estocaveisSuppliers || [])).find((s: any) => s.cpfCnpj === selectedCronogramaSupplier) || 
+                                                             (perCapitaConfig?.estocaveisSuppliers || [])).find((s: any) => (s.cpfCnpj === selectedCronogramaSupplier || s.cpf === selectedCronogramaSupplier)) || 
                                                              suppliers.find(s => s.cpf === selectedCronogramaSupplier);
                                             
                                             const isScheduled = supplier?.monthlySchedule?.[selectedMonth]?.includes(week);
