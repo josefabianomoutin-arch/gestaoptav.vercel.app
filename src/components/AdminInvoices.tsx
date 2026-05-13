@@ -91,7 +91,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
   const allInvoices = useMemo(() => {
     const invoices: any[] = [];
-    const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-\/]/g, '').toUpperCase();
+    const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
 
     ensureArray(suppliers).forEach(supplier => {
       if (!supplier) return;
@@ -266,7 +266,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     });
 
     return invoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [suppliers, warehouseLog, mode]);
+  }, [suppliers, warehouseLog, mode, perCapitaConfig]);
 
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
@@ -294,13 +294,18 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     try {
       if (availableMonths.length > 0) {
         if (!activeMonthTab || !availableMonths.includes(activeMonthTab)) {
-          setActiveMonthTab(availableMonths[0]);
+          setTimeout(() => {
+            setActiveMonthTab((prev) => {
+              if (!prev || !availableMonths.includes(prev)) return availableMonths[0];
+              return prev;
+            });
+          }, 0);
         }
       }
     } catch (e) {
       console.error("Error updating active month tab:", e);
     }
-  }, [availableMonths]);
+  }, [availableMonths, activeMonthTab]);
 
     const filteredInvoices = useMemo(() => {
         const searchLower = String(searchTerm || '').toLowerCase();

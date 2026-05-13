@@ -809,6 +809,18 @@ const App: React.FC = () => {
 
   const handleDeleteDelivery = async (supplierCpf: string, deliveryId: string) => {
     try {
+      // 1. Clean up warehouseLog first if there's a matching entry
+      const logSnapshot = await get(warehouseLogRef);
+      const allLogs = logSnapshot.val() || {};
+      const logKeysToDelete = Object.keys(allLogs).filter(key => {
+          const entry = allLogs[key];
+          return entry.supplierCpf === supplierCpf && entry.deliveryId === deliveryId;
+      });
+
+      if (logKeysToDelete.length > 0) {
+          await Promise.all(logKeysToDelete.map(key => remove(child(warehouseLogRef, key))));
+      }
+
       const isMainSupplier = suppliers.some(s => s && s.cpf === supplierCpf);
       if (isMainSupplier) {
         const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
@@ -877,13 +889,22 @@ const App: React.FC = () => {
 
   const handleSaveInvoice = async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string): Promise<void> => {
     try {
+      const enrichedDeliveries = updatedDeliveries.map(d => ({
+        ...d,
+        invoiceNumber,
+        invoiceUrl,
+        invoiceDate: invoiceDate || d.invoiceDate || d.date,
+        status: 'CONCLUÍDO',
+        updatedAt: new Date().toISOString()
+      }));
+
       const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
       if (isMainSupplier) {
         const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
         await runTransaction(deliveriesRef, (current) => {
           const list = ensureArray<any>(current);
           const otherDeliveries = list.filter(d => !deliveryIds.includes(d.id));
-          return [...otherDeliveries, ...updatedDeliveries];
+          return [...otherDeliveries, ...enrichedDeliveries];
         });
         toast.success('Nota Fiscal salva com sucesso!');
         return;
@@ -898,7 +919,7 @@ const App: React.FC = () => {
           await runTransaction(deliveriesRef, (current) => {
             const list = ensureArray<any>(current);
             const otherDeliveries = list.filter(d => !deliveryIds.includes(d.id));
-            return [...otherDeliveries, ...updatedDeliveries];
+            return [...otherDeliveries, ...enrichedDeliveries];
           });
           toast.success('Nota Fiscal salva com sucesso!');
           return;
@@ -948,6 +969,40 @@ const App: React.FC = () => {
 
   const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: any[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string): Promise<{ success: boolean; message?: string }> => {
     try {
+      // --- UNIFICAÇÃO: Atualizar também o warehouseLog ---
+      const logSnapshot = await get(warehouseLogRef);
+      const allLogs = logSnapshot.val() || {};
+      const logUpdates: any = {};
+      
+      Object.keys(allLogs).forEach(key => {
+          const entry = allLogs[key];
+          const entryInv = String(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '').trim();
+          if (entry.supplierCpf === supplierCpf && entryInv === String(invoiceNumber).trim()) {
+              const itemUpdate = items.find(it => it.name === (entry.item || entry.itemName));
+              if (itemUpdate) {
+                  logUpdates[`${key}/inboundInvoice`] = newInvoiceNumber || entry.inboundInvoice || '';
+                  logUpdates[`${key}/invoiceNumber`] = newInvoiceNumber || entry.invoiceNumber || '';
+                  logUpdates[`${key}/quantity`] = itemUpdate.kg;
+                  logUpdates[`${key}/value`] = itemUpdate.value || 0;
+                  logUpdates[`${key}/lotNumber`] = itemUpdate.lotNumber || entry.lotNumber || '';
+                  logUpdates[`${key}/expirationDate`] = itemUpdate.expirationDate || entry.expirationDate || '';
+                  logUpdates[`${key}/pdNumber`] = pd || entry.pdNumber || '';
+                  logUpdates[`${key}/date`] = newDate || entry.date || '';
+              } else if (newInvoiceNumber || newDate) {
+                  // Mesmo que o item não tenha mudado, a NF ou a data podem ter mudado globalmente
+                  if (newInvoiceNumber) {
+                    logUpdates[`${key}/inboundInvoice`] = newInvoiceNumber;
+                    logUpdates[`${key}/invoiceNumber`] = newInvoiceNumber;
+                  }
+                  if (newDate) logUpdates[`${key}/date`] = newDate;
+              }
+          }
+      });
+
+      if (Object.keys(logUpdates).length > 0) {
+          await update(warehouseLogRef, logUpdates);
+      }
+
       const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
       if (isMainSupplier) {
         const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
@@ -1099,8 +1154,8 @@ const App: React.FC = () => {
         const allLogs = logSnapshot.val() || {};
         const logKeysToDelete = Object.keys(allLogs).filter(key => {
             const entry = allLogs[key];
-            return entry.supplierCpf === supplierCpf && 
-                   (String(entry.inboundInvoice) === String(invoiceNumber) || String(entry.outboundInvoice) === String(invoiceNumber));
+            const entryInv = String(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '').trim();
+            return entry.supplierCpf === supplierCpf && entryInv === String(invoiceNumber).trim();
         });
 
         if (logKeysToDelete.length > 0) {

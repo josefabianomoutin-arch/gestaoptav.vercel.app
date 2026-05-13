@@ -23,6 +23,9 @@ interface AlmoxarifadoDashboardProps {
     onResetExits: () => Promise<{ success: boolean; message: string }>;
     onReopenInvoice: (supplierCpf: string, invoiceNumber: string) => Promise<void>;
     onDeleteInvoice: (supplierCpf: string, invoiceNumber: string) => Promise<any>;
+    onDeleteDelivery: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean; message?: string }>;
+    onUpdateDelivery: (supplierCpf: string, deliveryId: string, updates: Partial<Delivery>) => Promise<{ success: boolean; message?: string }>;
+    onSaveInvoice: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => Promise<void>;
     onUpdateInvoiceItems: (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string) => Promise<{ success: boolean; message?: string }>;
     onUpdateInvoiceUrl: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => Promise<{ success: boolean; message?: string }>;
     onMarkInvoiceAsOpened: (supplierCpf: string, invoiceNumber: string) => Promise<{ success: boolean }>;
@@ -89,6 +92,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     onRegisterWithdrawal, 
     onReopenInvoice,
     onDeleteInvoice,
+    onDeleteDelivery,
+    onUpdateDelivery,
+    onSaveInvoice,
     onUpdateInvoiceItems,
     onUpdateInvoiceUrl,
     onManualInvoiceEntry,
@@ -169,6 +175,41 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 });
             });
 
+            if (perCapitaConfig) {
+                const pcLists = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+                pcLists.forEach(listKey => {
+                    ensureArray(perCapitaConfig[listKey]).forEach((p: any) => {
+                        if (!p) return;
+                        ensureArray(p.deliveries).forEach((d: any) => {
+                            if (d && d.invoiceUrl && !seenUrls.has(d.invoiceUrl)) {
+                                seenUrls.add(d.invoiceUrl);
+                                let finalTimestamp = d.timestamp;
+                                if (!finalTimestamp && d.date) {
+                                    const parsedDate = new Date(d.date + 'T12:00:00');
+                                    finalTimestamp = isNaN(parsedDate.getTime()) ? 0 : parsedDate.getTime();
+                                }
+                                deliveries.push({
+                                    id: d.id || `del-pc-${Math.random()}`,
+                                    invoiceUrl: d.invoiceUrl,
+                                    date: d.invoiceDate || d.date,
+                                    timestamp: finalTimestamp || 0,
+                                    type: 'entrada',
+                                    supplierName: p.name || 'Desconhecido',
+                                    supplierCpf: p.cpfCnpj || p.cpf || '',
+                                    itemName: d.item || 'Item s/ nome',
+                                    quantity: Number(d.kg || d.quantity) || 0,
+                                    inboundInvoice: d.invoiceNumber,
+                                    receiptTermNumber: d.receiptTermNumber,
+                                    pd: d.pd,
+                                    lotNumber: d.lotNumber,
+                                    expirationDate: d.expirationDate,
+                                });
+                            }
+                        });
+                    });
+                });
+            }
+
             (warehouseLog || []).forEach(l => {
                 if (l && l.invoiceUrl && !seenUrls.has(l.invoiceUrl)) {
                     seenUrls.add(l.invoiceUrl);
@@ -197,7 +238,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             console.error("Critical error in imageDeliveries memo:", error);
             return [];
         }
-    }, [suppliers, warehouseLog]);
+    }, [suppliers, warehouseLog, perCapitaConfig]);
 
     const availableImageMonths = useMemo(() => {
         const months = new Set<string>();
@@ -1615,6 +1656,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         suppliers={suppliers} 
                         thirdPartyEntries={thirdPartyEntries} 
                         embedded={true} 
+                        perCapitaConfig={perCapitaConfig}
+                        onDeleteDelivery={onDeleteDelivery}
+                        onUpdateDelivery={onUpdateDelivery}
+                        onSaveInvoice={onSaveInvoice}
                     />
                 ) : activeTab === 'cronograma' ? (
                     <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in mb-8">

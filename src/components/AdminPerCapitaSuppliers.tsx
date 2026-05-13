@@ -58,6 +58,11 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
         p.processNumber.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const currentSupplier = useMemo(() => {
+        if (!selectedSupplierForInvoices) return null;
+        return suppliers.find(s => s.id === selectedSupplierForInvoices.id) || selectedSupplierForInvoices;
+    }, [suppliers, selectedSupplierForInvoices]);
+
     const handlePrintList = () => {
         if (!tableRef.current) return;
 
@@ -465,14 +470,14 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
             />
 
             {/* Invoices Modal */}
-            {showInvoicesModal && selectedSupplierForInvoices && (
+            {showInvoicesModal && currentSupplier && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[2rem] shadow-2xl flex flex-col overflow-hidden animate-fade-in border-4 border-emerald-600">
                         <div className="bg-emerald-600 p-6 flex justify-between items-center">
                             <div className="flex items-center gap-3 text-white">
                                 <FileText className="h-8 w-8" />
                                 <div>
-                                    <h3 className="text-xl font-black uppercase tracking-tighter leading-none">{selectedSupplierForInvoices.name}</h3>
+                                    <h3 className="text-xl font-black uppercase tracking-tighter leading-none">{currentSupplier.name}</h3>
                                     <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mt-1">Gestão de Entregas e Notas Fiscais</p>
                                 </div>
                             </div>
@@ -485,11 +490,11 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                            {selectedSupplierForInvoices.deliveries && selectedSupplierForInvoices.deliveries.length > 0 ? (
+                            {currentSupplier.deliveries && currentSupplier.deliveries.length > 0 ? (
                                 <div className="space-y-4">
                                     <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2">Entregas Registradas</h4>
                                     <div className="grid grid-cols-1 gap-4">
-                                        {selectedSupplierForInvoices.deliveries.map((delivery: any, idx: number) => (
+                                        {currentSupplier.deliveries.map((delivery: any, idx: number) => (
                                             <div key={delivery.id || idx} className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all hover:bg-emerald-50/30">
                                                 <div className="flex gap-4">
                                                     <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center min-w-[70px]">
@@ -547,7 +552,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                                                                     reader.onload = async () => {
                                                                         const base64 = reader.result as string;
                                                                         const res = await onSaveInvoice(
-                                                                            selectedSupplierForInvoices.cpfCnpj, 
+                                                                            currentSupplier.cpfCnpj, 
                                                                             [delivery.id],
                                                                             delivery.invoiceNumber || '0', 
                                                                             base64, 
@@ -590,9 +595,9 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                                                                 variant: 'danger',
                                                                 onConfirm: async () => {
                                                                     if (onDeleteDelivery) {
-                                                                        await onDeleteDelivery(selectedSupplierForInvoices.cpfCnpj, delivery.id);
+                                                                        await onDeleteDelivery(currentSupplier.cpfCnpj, delivery.id);
                                                                         // Parent will refresh
-                                                                        setShowInvoicesModal(false);
+                                                                        // setShowInvoicesModal(false); // No need to close, currentSupplier will update
                                                                     }
                                                                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                                                                 }
