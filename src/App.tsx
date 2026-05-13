@@ -2556,13 +2556,13 @@ const App: React.FC = () => {
       const currentMonth = new Date().getMonth();
       const isMayOrLater = currentMonth >= 4; // 0-indexed, 4 is May
       
-      const ppaisList = Array.isArray(perCapitaConfig.ppaisProducers) ? perCapitaConfig.ppaisProducers : (perCapitaConfig.ppaisProducers ? Object.values(perCapitaConfig.ppaisProducers) : []);
-      const pereciveisList = Array.isArray(perCapitaConfig.pereciveisSuppliers) ? perCapitaConfig.pereciveisSuppliers : (perCapitaConfig.pereciveisSuppliers ? Object.values(perCapitaConfig.pereciveisSuppliers) : []);
-      const estocaveisList = Array.isArray(perCapitaConfig.estocaveisSuppliers) ? perCapitaConfig.estocaveisSuppliers : (perCapitaConfig.estocaveisSuppliers ? Object.values(perCapitaConfig.estocaveisSuppliers) : []);
+      const ppaisList = ensureArray<any>(perCapitaConfig?.ppaisProducers);
+      const pereciveisList = ensureArray<any>(perCapitaConfig?.pereciveisSuppliers);
+      const estocaveisList = ensureArray<any>(perCapitaConfig?.estocaveisSuppliers);
       
-      const ppaisEntry = ppaisList.find((p: any) => p.cpfCnpj === user.cpf);
-      const pereciveisEntry = pereciveisList.find((p: any) => p.cpfCnpj === user.cpf);
-      const estocaveisEntry = estocaveisList.find((p: any) => p.cpfCnpj === user.cpf);
+      const ppaisEntry = ppaisList.find((p: any) => p && p.cpfCnpj && String(p.cpfCnpj).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
+      const pereciveisEntry = pereciveisList.find((p: any) => p && p.cpfCnpj && String(p.cpfCnpj).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
+      const estocaveisEntry = estocaveisList.find((p: any) => p && p.cpfCnpj && String(p.cpfCnpj).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
       const perCapitaEntry: any = ppaisEntry || pereciveisEntry || estocaveisEntry;
       const isRegisteredForNextPeriod = !!perCapitaEntry;
 
@@ -2584,7 +2584,7 @@ const App: React.FC = () => {
       const currentSupplier = suppliers.find(s => s.cpf === user.cpf);
       if (currentSupplier) {
         // Calculate weeks from Per Capita if registered
-        let finalWeeks = (currentSupplier.allowedWeeks || []).filter(w => w <= 18);
+        let finalWeeks = ensureArray<number>(currentSupplier.allowedWeeks).filter(w => w <= 18);
         
         if (isRegisteredForNextPeriod && perCapitaEntry.monthlySchedule) {
             const year = 2026;
@@ -2598,7 +2598,7 @@ const App: React.FC = () => {
                 const monthIndex = monthNames.indexOf(monthName.toLowerCase());
                 if (monthIndex === -1) return;
                 
-                const weeksList = Array.isArray(weekOfMonthList) ? weekOfMonthList : (weekOfMonthList ? Object.values(weekOfMonthList) : []);
+                const weeksList = ensureArray<any>(weekOfMonthList);
                 if (weeksList.length > 0) {
                     const firstDayOfMonth = new Date(year, monthIndex, 1);
                     const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
@@ -2634,13 +2634,13 @@ const App: React.FC = () => {
     }
 
     if (user.role === 'producer' || user.role === 'pereciveis_supplier' || user.role === 'estocaveis_supplier') {
-      const list = user.role === 'producer' ? perCapitaConfig.ppaisProducers : 
-                   user.role === 'pereciveis_supplier' ? perCapitaConfig.pereciveisSuppliers : 
-                   perCapitaConfig.estocaveisSuppliers;
-      const p = list?.find(s => s.cpfCnpj === user.cpf);
+      const list = user.role === 'producer' ? ensureArray<any>(perCapitaConfig?.ppaisProducers) : 
+                   user.role === 'pereciveis_supplier' ? ensureArray<any>(perCapitaConfig?.pereciveisSuppliers) : 
+                   ensureArray<any>(perCapitaConfig?.estocaveisSuppliers);
+      const p = list.find(s => s && s.cpfCnpj && String(s.cpfCnpj).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
       if (p) {
-        const existingSupplier = suppliers.find(s => s.cpf === p.cpfCnpj);
-        const q1Weeks = (existingSupplier?.allowedWeeks || []).filter(w => w <= 18);
+        const existingSupplier = suppliers.find(s => s && s.cpf && String(s.cpf).replace(/\D/g, '') === String(p.cpfCnpj).replace(/\D/g, ''));
+        const q1Weeks = ensureArray<number>(existingSupplier?.allowedWeeks).filter(w => w <= 18);
         
         const weeks: number[] = [...q1Weeks];
         const year = 2026;
@@ -2649,31 +2649,36 @@ const App: React.FC = () => {
             'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
         ];
 
-        Object.entries(p.monthlySchedule || {}).forEach(([monthName, weekOfMonthList]) => {
-            const monthIndex = monthNames.indexOf(monthName.toLowerCase());
-            if (monthIndex === -1) return;
+        try {
+          const schedule = p.monthlySchedule || {};
+          Object.entries(schedule).forEach(([monthName, weekOfMonthList]) => {
+              const monthIndex = monthNames.indexOf(monthName.toLowerCase());
+              if (monthIndex === -1) return;
 
-            const weeksList = Array.isArray(weekOfMonthList) ? weekOfMonthList : (weekOfMonthList ? Object.values(weekOfMonthList) : []);
-            if (weeksList.length > 0) {
-                const firstDayOfMonth = new Date(year, monthIndex, 1);
-                const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
-                
-                weeksList.forEach((weekIdx: any) => {
-                    weeks.push(firstWeekOfYear + (Number(weekIdx) - 1));
-                });
-            }
-        });
+              const weeksList = ensureArray<any>(weekOfMonthList);
+              if (weeksList.length > 0) {
+                  const firstDayOfMonth = new Date(year, monthIndex, 1);
+                  const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
+                  
+                  weeksList.forEach((weekIdx: any) => {
+                      weeks.push(firstWeekOfYear + (Number(weekIdx) - 1));
+                  });
+              }
+          });
+        } catch (err) {
+          console.error("Error processing perCapita schedule for mapping:", err);
+        }
 
         const finalWeeks = Array.from(new Set(weeks)).sort((a, b) => a - b);
         
-        const pDeliveriesRaw = p.deliveries ? (typeof p.deliveries === 'object' ? Object.values(p.deliveries) : (Array.isArray(p.deliveries) ? p.deliveries : [])) : [];
-        const extDeliveriesRaw = existingSupplier?.deliveries ? (typeof existingSupplier.deliveries === 'object' ? Object.values(existingSupplier.deliveries) : (Array.isArray(existingSupplier.deliveries) ? existingSupplier.deliveries : [])) : [];
+        const pDeliveriesRaw = ensureArray<any>(p.deliveries);
+        const extDeliveriesRaw = ensureArray<any>(existingSupplier?.deliveries);
 
         const mappedSupplier: Supplier = {
-          name: p.name,
+          name: p.name || 'Produtor',
           cpf: p.cpfCnpj,
-          initialValue: (Object.values(p.contractItems || {}) as any[]).reduce((acc: number, curr: any) => acc + (Number(curr.totalKg || 0) * (Number(curr.valuePerKg || 0))), 0),
-          contractItems: Object.values(p.contractItems || {}) as any[],
+          initialValue: ensureArray<any>(p.contractItems).reduce((acc: number, curr: any) => acc + (Number(curr.totalKg || 0) * (Number(curr.valuePerKg || 0))), 0),
+          contractItems: ensureArray<any>(p.contractItems),
           deliveries: Array.from(new Map([...pDeliveriesRaw, ...extDeliveriesRaw].filter(d => d && d.id).map(d => [d.id, d])).values()),
           allowedWeeks: finalWeeks,
           address: p.address || '',
@@ -2725,7 +2730,25 @@ const App: React.FC = () => {
         setHasError(true);
         setErrorDetails(e?.message || String(e));
       }
-      return null;
+      const errorDisplay = (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+          <div className="bg-white p-8 rounded-3xl shadow-xl border border-red-200 text-center max-w-md">
+            <div className="bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            </div>
+            <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Erro Inesperado</h2>
+            <p className="text-gray-500 text-sm font-medium mb-4">Não foi possível processar a sua solicitação. Por favor, tente recarregar.</p>
+            <button 
+              onClick={() => { setHasError(false); window.location.reload(); }} 
+              className="bg-zinc-900 text-white font-black py-3 px-8 rounded-xl text-[10px] uppercase tracking-widest hover:bg-black transition-all"
+            >
+              Recarregar Sistema
+            </button>
+          </div>
+        </div>
+      );
+
+      return errorDisplay;
     }
   };
 

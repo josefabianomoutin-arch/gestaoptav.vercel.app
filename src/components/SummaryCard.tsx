@@ -67,12 +67,13 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, onOpenSendInvoiceMo
 
         const period2DeliveredValue = deliveries
             .filter(d => {
+                if (!d || !d.date || typeof d.date !== 'string') return false;
                 const parts = d.date.split('-');
                 if (parts.length < 2) return false;
                 const monthNumber = parseInt(parts[1], 10);
                 return monthNumber >= 5; // Maio a Dezembro (Mês 5 em diante)
             })
-            .reduce((sum, d) => sum + (d.value || 0), 0);
+            .reduce((sum, d) => sum + (Number(d.value) || 0), 0);
 
         return { initialValue: period2InitialValue, deliveredValue: period2DeliveredValue };
     }, [contractItems, deliveries]);
@@ -134,14 +135,14 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, onOpenSendInvoiceMo
                 }
 
                 const deliveredInMonth = deliveries.filter(d => {
-                    if (d.item !== itemName) return false;
+                    if (!d || !d.item || d.item !== itemName || !d.date || typeof d.date !== 'string') return false;
                     const parts = d.date.split('-');
                     if (parts.length < 2) return false;
                     const monthNumber = parseInt(parts[1], 10);
                     return (monthNumber - 1) === month.number;
                 });
-                const deliveredValue = deliveredInMonth.reduce((sum: number, d: any) => sum + (d.value || 0), 0);
-                const deliveredQuantity = deliveredInMonth.reduce((sum: number, d: any) => sum + (d.kg || 0), 0);
+                const deliveredValue = deliveredInMonth.reduce((sum: number, d: any) => sum + (Number(d.value) || 0), 0);
+                const deliveredQuantity = deliveredInMonth.reduce((sum: number, d: any) => sum + (Number(d.kg) || 0), 0);
                 
                 const remainingQuantity = Math.max(0, monthlyQuantityQuota - deliveredQuantity);
                 const remainingValue = Math.max(0, monthlyValueQuota - deliveredValue);
