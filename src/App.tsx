@@ -1158,7 +1158,12 @@ const App: React.FC = () => {
             const entry = allLogs[key];
             const entryInvRaw = String(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '').trim();
             const entryInv = entryInvRaw || 'S/N';
-            return entry.supplierCpf === supplierCpf && entryInv === String(invoiceNumber).trim();
+            const isTarget = entry.supplierCpf === supplierCpf && entryInv === String(invoiceNumber).trim();
+            
+            if (isTarget && String(invoiceNumber).trim() === 'S/N') {
+                if ((entry.item || entry.itemName) === 'AGENDAMENTO PENDENTE') return false;
+            }
+            return isTarget;
         });
 
         if (logKeysToDelete.length > 0) {
@@ -1173,7 +1178,13 @@ const App: React.FC = () => {
             if (Array.isArray(currentDeliveries)) {
               return currentDeliveries.filter(d => {
                 const dInv = String(d.invoiceNumber || 'S/N').trim();
-                return dInv !== String(invoiceNumber).trim();
+                const isTargetInvoice = dInv === String(invoiceNumber).trim();
+                
+                if (isTargetInvoice && invoiceNumber === 'S/N') {
+                    // Prevenir exclusão acidental de agendamentos pendentes ao excluir nota S/N
+                    if (d.item === 'AGENDAMENTO PENDENTE') return true; 
+                }
+                return !isTargetInvoice;
               });
             }
             return currentDeliveries;
@@ -1204,7 +1215,13 @@ const App: React.FC = () => {
             if (Array.isArray(currentDeliveries)) {
               return currentDeliveries.filter((d: any) => {
                 const dInv = String(d.invoiceNumber || 'S/N').trim();
-                return dInv !== String(invoiceNumber).trim();
+                const isTargetInvoice = dInv === String(invoiceNumber).trim();
+                
+                if (isTargetInvoice && invoiceNumber === 'S/N') {
+                    // Prevenir exclusão acidental de agendamentos pendentes ao excluir nota S/N
+                    if (d.item === 'AGENDAMENTO PENDENTE') return true; 
+                }
+                return !isTargetInvoice;
               });
             }
             return currentDeliveries;

@@ -95,10 +95,10 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
     ensureArray(suppliers).forEach(supplier => {
       if (!supplier) return;
-      const deliveries = ensureArray(supplier.deliveries) as Delivery[];
-      const grouped = deliveries.reduce((acc, d) => {
-        if (!d) return acc;
-        const invoiceNum = String(d.invoiceNumber || 'S/N').trim();
+          const deliveries = ensureArray(supplier.deliveries) as Delivery[];
+          const grouped = deliveries.reduce((acc, d) => {
+            if (!d || d.item === 'AGENDAMENTO PENDENTE') return acc;
+            const invoiceNum = String(d.invoiceNumber || 'S/N').trim();
         const cleanDInvoice = cleanStr(invoiceNum);
           const movement = warehouseLog.find(log => {
             const cleanLogInv = cleanStr(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice);
@@ -168,8 +168,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
           const deliveries = ensureArray(pcSupplier.deliveries) as any[];
           const grouped = deliveries.reduce((acc, d) => {
-            if (!d || !d.invoiceNumber) return acc;
-            const invoiceNum = String(d.invoiceNumber).trim();
+            if (!d || d.item === 'AGENDAMENTO PENDENTE') return acc;
+            const invoiceNum = String(d.invoiceNumber || 'S/N').trim();
             const cleanDInvoice = cleanStr(invoiceNum);
 
             const isExit = d.type === 'saída';
@@ -202,7 +202,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
     // Mirror entries from warehouseLog that might not be in supplier deliveries
     (warehouseLog || []).forEach(log => {
-      if (!log) return;
+      if (!log || (log.item || log.itemName) === 'AGENDAMENTO PENDENTE') return;
       const invNum = String(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice || 'S/N').trim();
 
       const isExit = log.type === 'saída' || log.type === 'saida';
