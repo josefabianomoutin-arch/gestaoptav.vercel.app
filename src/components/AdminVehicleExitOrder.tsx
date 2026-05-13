@@ -390,13 +390,20 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
+        const formatDate = (dateStr: string) => {
+            if (!dateStr) return '';
+            const [y, m, d] = dateStr.split('-');
+            return `${d}/${m}/${y}`;
+        };
+
+        const exitFormattedDate = formatDate(order.exitDate || order.date);
+        const returnFormattedDate = formatDate(order.returnDate || order.date);
+
         const dateObj = new Date(order.date + 'T12:00:00');
         const day = dateObj.getDate().toString().padStart(2, '0');
         const monthNames = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
         const month = monthNames[dateObj.getMonth()];
         const year = dateObj.getFullYear();
-
-        const formattedDate = `${day}/${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${year}`;
 
         const htmlContent = `
             <html>
@@ -485,13 +492,13 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                     <div class="signatures-grid">
                         <div class="signature-box">
                             <div class="box-title">Registro de Saída</div>
-                            <div>DATA: ${order.exitTime ? `<span class="field-value" style="min-width: 80px; text-align: center;">${formattedDate}</span>` : '____/____/____'}</div>
+                            <div>DATA: ${order.exitTime ? `<span class="field-value" style="min-width: 80px; text-align: center;">${exitFormattedDate}</span>` : '____/____/____'}</div>
                             <div>HORÁRIO: ${order.exitTime ? `<span class="field-value" style="min-width: 80px; text-align: center;">${order.exitTime}</span>` : '___________'}</div>
                             <div class="signature-line">Ass. Policial Penal Sub-Portaria</div>
                         </div>
                         <div class="signature-box">
                             <div class="box-title">Registro de Retorno</div>
-                            <div>DATA: ${order.returnTime ? `<span class="field-value" style="min-width: 80px; text-align: center;">${formattedDate}</span>` : '____/____/____'}</div>
+                            <div>DATA: ${order.returnTime ? `<span class="field-value" style="min-width: 80px; text-align: center;">${returnFormattedDate}</span>` : '____/____/____'}</div>
                             <div>HORÁRIO: ${order.returnTime ? `<span class="field-value" style="min-width: 80px; text-align: center;">${order.returnTime}</span>` : '___________'}</div>
                             <div class="signature-line">Ass. Policial Penal Sub-Portaria</div>
                         </div>
