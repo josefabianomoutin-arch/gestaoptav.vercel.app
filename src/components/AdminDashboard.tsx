@@ -108,6 +108,7 @@ interface AdminDashboardProps {
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 
 const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
+  console.log("AdminDashboard mounted with props:", props);
   const { 
     suppliers = [], 
     onLogout, 
@@ -259,6 +260,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   };
 
   const renderContent = () => {
+    console.log("AdminDashboard renderContent - activeTab:", activeTab);
+    console.log("AdminDashboard suppliers.length:", props.suppliers?.length);
+    console.log("AdminDashboard filteredSuppliers.length:", filteredSuppliers?.length);
+    
     switch (activeTab) {
       case 'register':
         return (
