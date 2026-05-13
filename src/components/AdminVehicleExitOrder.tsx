@@ -1831,12 +1831,30 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                 { (securityMode || editingOrder?.validationRole) ? (
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1">
+                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Data de Saída</label>
+                                            <input 
+                                                type="date" 
+                                                value={formData.exitDate || ''} 
+                                                onChange={e => setFormData({ ...formData, exitDate: e.target.value })}
+                                                className="w-full h-10 px-3 border-2 border-indigo-100 rounded-xl bg-indigo-50 font-black text-indigo-900 focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs text-center"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
                                             <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Saída</label>
                                             <input 
                                                 type="time" 
                                                 value={formData.exitTime || ''} 
                                                 onChange={e => setFormData({ ...formData, exitTime: e.target.value })}
-                                                className="w-full h-12 px-3 border-2 border-indigo-100 rounded-xl bg-indigo-50 font-black text-indigo-900 focus:bg-white focus:border-indigo-500 transition-all outline-none text-lg text-center"
+                                                className="w-full h-10 px-3 border-2 border-indigo-100 rounded-xl bg-indigo-50 font-black text-indigo-900 focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs text-center"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Data de Retorno</label>
+                                            <input 
+                                                type="date" 
+                                                value={formData.returnDate || ''} 
+                                                onChange={e => setFormData({ ...formData, returnDate: e.target.value })}
+                                                className="w-full h-10 px-3 border-2 border-emerald-100 rounded-xl bg-emerald-50 font-black text-emerald-900 focus:bg-white focus:border-emerald-500 transition-all outline-none text-xs text-center"
                                             />
                                         </div>
                                         <div className="space-y-1">
@@ -1845,7 +1863,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                 type="time" 
                                                 value={formData.returnTime || ''} 
                                                 onChange={e => setFormData({ ...formData, returnTime: e.target.value })}
-                                                className="w-full h-12 px-3 border-2 border-emerald-100 rounded-xl bg-emerald-50 font-black text-emerald-900 focus:bg-white focus:border-emerald-500 transition-all outline-none text-lg text-center"
+                                                className="w-full h-10 px-3 border-2 border-emerald-100 rounded-xl bg-emerald-50 font-black text-emerald-900 focus:bg-white focus:border-emerald-500 transition-all outline-none text-xs text-center"
                                             />
                                         </div>
                                         <div className="col-span-2 bg-gray-50 p-4 rounded-2xl border border-gray-100">
