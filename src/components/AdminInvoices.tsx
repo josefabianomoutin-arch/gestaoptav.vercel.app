@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ensureArray } from '../lib/utils';
 import type { Supplier, Delivery, WarehouseMovement, AcquisitionItem } from '../types';
@@ -91,14 +91,15 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
   const allInvoices = useMemo(() => {
     const invoices: any[] = [];
-    const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').toUpperCase();
+    const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-\/]/g, '').toUpperCase();
 
     ensureArray(suppliers).forEach(supplier => {
       if (!supplier) return;
       const deliveries = ensureArray(supplier.deliveries) as Delivery[];
       const grouped = deliveries.reduce((acc, d) => {
-        if (!d || !d.invoiceNumber) return acc;
-          const cleanDInvoice = cleanStr(d.invoiceNumber);
+        if (!d) return acc;
+        const invoiceNum = String(d.invoiceNumber || 'S/N').trim();
+        const cleanDInvoice = cleanStr(invoiceNum);
           const movement = warehouseLog.find(log => {
             const cleanLogInv = cleanStr(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice);
             return cleanLogInv === cleanDInvoice;
@@ -108,12 +109,12 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           if (mode === 'warehouse_entry' && isExit) return acc;
           if (mode === 'warehouse_exit' && !isExit) return acc;
 
-          const invKey = d.invoiceNumber;
+          const invKey = invoiceNum;
           if (!acc[invKey]) {
             acc[invKey] = {
               supplierName: supplier.name,
               supplierCpf: supplier.cpf,
-              invoiceNumber: d.invoiceNumber,
+              invoiceNumber: invoiceNum,
               invoiceUrl: d.invoiceUrl,
               date: d.invoiceDate || d.date, 
               originalDate: d.date,
@@ -159,8 +160,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     // Mirror entries from warehouseLog that might not be in supplier deliveries
     (warehouseLog || []).forEach(log => {
       if (!log) return;
-      const invNum = log.invoiceNumber || log.inboundInvoice || log.outboundInvoice;
-      if (!invNum) return;
+      const invNum = String(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice || 'S/N').trim();
 
       const isExit = log.type === 'saída' || log.type === 'saida';
       if (mode === 'warehouse_entry' && isExit) return;
@@ -244,16 +244,20 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   const [activeMonthTab, setActiveMonthTab] = useState<string>(() => {
     const now = new Date();
     const currentMonthKey = `${now.getFullYear()}-${now.getMonth()}`;
-    return availableMonths.includes(currentMonthKey) ? currentMonthKey : (availableMonths[0] || currentMonthKey);
+    return currentMonthKey;
   });
 
-  const [prevAvailableMonths, setPrevAvailableMonths] = useState(availableMonths);
-  if (availableMonths !== prevAvailableMonths) {
-    setPrevAvailableMonths(availableMonths);
-    if (availableMonths.length > 0 && !availableMonths.includes(activeMonthTab)) {
-        setActiveMonthTab(availableMonths[0]);
+  useEffect(() => {
+    try {
+      if (availableMonths.length > 0) {
+        if (!activeMonthTab || !availableMonths.includes(activeMonthTab)) {
+          setActiveMonthTab(availableMonths[0]);
+        }
+      }
+    } catch (e) {
+      console.error("Error updating active month tab:", e);
     }
-  }
+  }, [availableMonths]);
 
     const filteredInvoices = useMemo(() => {
         const searchLower = String(searchTerm || '').toLowerCase();

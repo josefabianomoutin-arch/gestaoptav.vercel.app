@@ -2676,11 +2676,11 @@ const App: React.FC = () => {
 
         const mappedSupplier: Supplier = {
           name: p.name || 'Produtor',
-          cpf: p.cpfCnpj,
-          initialValue: ensureArray<any>(p.contractItems).reduce((acc: number, curr: any) => acc + (Number(curr.totalKg || 0) * (Number(curr.valuePerKg || 0))), 0),
+          cpf: p.cpfCnpj || p.cpf || '',
+          initialValue: ensureArray<any>(p.contractItems).reduce((acc: number, curr: any) => acc + (Number(String(curr.totalKg || 0).replace(',', '.')) * (Number(String(curr.valuePerKg || 0).replace(',', '.')))), 0),
           contractItems: ensureArray<any>(p.contractItems),
-          deliveries: Array.from(new Map([...pDeliveriesRaw, ...extDeliveriesRaw].filter(d => d && d.id).map(d => [d.id, d])).values()),
-          allowedWeeks: finalWeeks,
+          deliveries: Array.from(new Map<string, any>([...pDeliveriesRaw, ...extDeliveriesRaw].filter(d => d && d.id).map(d => [String(d.id), d])).values()),
+          allowedWeeks: Array.isArray(finalWeeks) ? finalWeeks : [1, 2, 3, 4, 5],
           address: p.address || '',
           city: p.city || '',
           processNumber: p.processNumber || ''
