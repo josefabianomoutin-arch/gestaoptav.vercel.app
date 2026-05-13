@@ -976,9 +976,10 @@ const App: React.FC = () => {
       
       Object.keys(allLogs).forEach(key => {
           const entry = allLogs[key];
-          const entryInv = String(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '').trim();
+          const entryInvRaw = String(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '').trim();
+          const entryInv = entryInvRaw || 'S/N';
           if (entry.supplierCpf === supplierCpf && entryInv === String(invoiceNumber).trim()) {
-              const itemUpdate = items.find(it => it.name === (entry.item || entry.itemName));
+              const itemUpdate = items.find(it => it.name === (entry.item || entry.itemName) || it.id === entry.id);
               if (itemUpdate) {
                   logUpdates[`${key}/inboundInvoice`] = newInvoiceNumber || entry.inboundInvoice || '';
                   logUpdates[`${key}/invoiceNumber`] = newInvoiceNumber || entry.invoiceNumber || '';
@@ -988,13 +989,8 @@ const App: React.FC = () => {
                   logUpdates[`${key}/expirationDate`] = itemUpdate.expirationDate || entry.expirationDate || '';
                   logUpdates[`${key}/pdNumber`] = pd || entry.pdNumber || '';
                   logUpdates[`${key}/date`] = newDate || entry.date || '';
-              } else if (newInvoiceNumber || newDate) {
-                  // Mesmo que o item não tenha mudado, a NF ou a data podem ter mudado globalmente
-                  if (newInvoiceNumber) {
-                    logUpdates[`${key}/inboundInvoice`] = newInvoiceNumber;
-                    logUpdates[`${key}/invoiceNumber`] = newInvoiceNumber;
-                  }
-                  if (newDate) logUpdates[`${key}/date`] = newDate;
+              } else {
+                  logUpdates[key] = null;
               }
           }
       });
@@ -1009,11 +1005,12 @@ const App: React.FC = () => {
         await runTransaction(deliveriesRef, (current) => {
           if (!current) return current;
           const list = ensureArray<any>(current);
-          return list.map(d => {
+          const newList = [];
+          for (const d of list) {
             if (d.invoiceNumber === invoiceNumber) {
               const itemUpdate = items.find(it => it.id === d.id || it.name === d.item);
               if (itemUpdate) {
-                return {
+                newList.push({
                   ...d,
                   invoiceNumber: newInvoiceNumber || d.invoiceNumber,
                   date: newDate || d.date,
@@ -1025,11 +1022,13 @@ const App: React.FC = () => {
                   receiptTermNumber: receiptTermNumber || d.receiptTermNumber,
                   invoiceDate: invoiceDate || d.invoiceDate,
                   pd: pd || d.pd
-                };
+                });
               }
+            } else {
+              newList.push(d);
             }
-            return d;
-          });
+          }
+          return newList;
         });
         return { success: true };
       }
@@ -1043,11 +1042,12 @@ const App: React.FC = () => {
           await runTransaction(deliveriesRef, (current) => {
             if (!current) return current;
             const list = ensureArray<any>(current);
-            return list.map(d => {
+            const newList = [];
+            for (const d of list) {
               if (d.invoiceNumber === invoiceNumber) {
                 const itemUpdate = items.find(it => it.id === d.id || it.name === d.item);
                 if (itemUpdate) {
-                  return {
+                  newList.push({
                     ...d,
                     invoiceNumber: newInvoiceNumber || d.invoiceNumber,
                     date: newDate || d.date,
@@ -1059,11 +1059,13 @@ const App: React.FC = () => {
                     receiptTermNumber: receiptTermNumber || d.receiptTermNumber,
                     invoiceDate: invoiceDate || d.invoiceDate,
                     pd: pd || d.pd
-                  };
+                  });
                 }
+              } else {
+                newList.push(d);
               }
-              return d;
-            });
+            }
+            return newList;
           });
           return { success: true };
         }
@@ -1154,7 +1156,8 @@ const App: React.FC = () => {
         const allLogs = logSnapshot.val() || {};
         const logKeysToDelete = Object.keys(allLogs).filter(key => {
             const entry = allLogs[key];
-            const entryInv = String(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '').trim();
+            const entryInvRaw = String(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '').trim();
+            const entryInv = entryInvRaw || 'S/N';
             return entry.supplierCpf === supplierCpf && entryInv === String(invoiceNumber).trim();
         });
 
@@ -1168,7 +1171,10 @@ const App: React.FC = () => {
           console.log(`Iniciando transação MainSupplier (tentativa ${i + 1}):`, supplierCpf);
           await runTransaction(deliveriesRef, (currentDeliveries) => {
             if (Array.isArray(currentDeliveries)) {
-              return currentDeliveries.filter(d => d.invoiceNumber !== invoiceNumber);
+              return currentDeliveries.filter(d => {
+                const dInv = String(d.invoiceNumber || 'S/N').trim();
+                return dInv !== String(invoiceNumber).trim();
+              });
             }
             return currentDeliveries;
           });
@@ -1196,7 +1202,10 @@ const App: React.FC = () => {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${producerIdx}/deliveries`);
           await runTransaction(deliveriesRef, (currentDeliveries) => {
             if (Array.isArray(currentDeliveries)) {
-              return currentDeliveries.filter((d: any) => d.invoiceNumber !== invoiceNumber);
+              return currentDeliveries.filter((d: any) => {
+                const dInv = String(d.invoiceNumber || 'S/N').trim();
+                return dInv !== String(invoiceNumber).trim();
+              });
             }
             return currentDeliveries;
           });
