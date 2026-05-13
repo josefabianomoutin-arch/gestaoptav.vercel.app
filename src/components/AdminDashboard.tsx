@@ -165,10 +165,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     onReopenInvoice,
     onSaveInvoice
   } = props;
-  const [activeTab, setActiveTab] = useState<AdminTab>(() => {
-    const currentMonth = new Date().getMonth();
-    return currentMonth >= 4 ? 'perCapita' : 'register';
-  });
+  const [activeTab, setActiveTab] = useState<AdminTab>('register');
   const [supplierSubTab, setSupplierSubTab] = useState<'list' | 'new'>('list'); 
   const [supplierSearch, setSupplierSearch] = useState('');
   const [regName, setRegName] = useState('');
