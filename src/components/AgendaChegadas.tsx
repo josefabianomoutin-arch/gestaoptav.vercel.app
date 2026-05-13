@@ -1,20 +1,43 @@
 
 import React, { useState, useMemo } from 'react';
-import type { Supplier, ThirdPartyEntryLog } from '../types';
-import { Calendar, Clock, Truck, UserCheck, AlertCircle, Search } from 'lucide-react';
+import type { Supplier, ThirdPartyEntryLog, Delivery } from '../types';
+import { Calendar, Clock, Truck, UserCheck, AlertCircle, Search, Trash2, CheckCircle2, XCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface AgendaChegadasProps {
     suppliers: Supplier[];
     thirdPartyEntries: ThirdPartyEntryLog[];
     embedded?: boolean;
+    onDeleteDelivery?: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean; message?: string }>;
+    onUpdateDelivery?: (supplierCpf: string, deliveryId: string, updates: Partial<Delivery>) => Promise<{ success: boolean; message?: string }>;
+    onSaveInvoice?: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => Promise<void>;
 }
 
-const AgendaChegadas: React.FC<AgendaChegadasProps> = ({ suppliers, thirdPartyEntries, embedded }) => {
+const AgendaChegadas: React.FC<AgendaChegadasProps> = ({ 
+    suppliers, 
+    thirdPartyEntries, 
+    embedded,
+    onDeleteDelivery,
+    onUpdateDelivery,
+    onSaveInvoice 
+}) => {
     const [selectedAgendaDate, setSelectedAgendaDate] = useState(new Date().toISOString().split('T')[0]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isArrivalModalOpen, setIsArrivalModalOpen] = useState(false);
+    const [selectedItem, setSelectedItem] = useState<any>(null);
+    const [arrivalData, setArrivalData] = useState({ arrivalTime: '', invoiceNumber: '' });
 
     const dailyDeliveries = useMemo(() => {
-        const list: { supplierName: string; supplierCpf: string; time: string; arrivalTime?: string; status: 'AGENDADO' | 'CONCLUÍDO' | 'TERCEIRO' | 'CANCELADO'; id: string; type: 'FORNECEDOR' | 'TERCEIRO' }[] = [];
+        const list: { 
+            supplierName: string; 
+            supplierCpf: string; 
+            time: string; 
+            arrivalTime?: string; 
+            status: 'AGENDADO' | 'CONCLUÍDO' | 'TERCEIRO' | 'CANCELADO'; 
+            id: string; 
+            type: 'FORNECEDOR' | 'TERCEIRO';
+            rawDelivery?: any 
+        }[] = [];
         
         suppliers.forEach(s => {
             if (!s) return;
@@ -22,9 +45,9 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({ suppliers, thirdPartyEn
             const deliveries = (typeof deliveriesData === 'object' ? Object.values(deliveriesData) : (Array.isArray(deliveriesData) ? deliveriesData : []));
             deliveries.forEach((d: any) => {
                 if (d && d.date === selectedAgendaDate) {
-                    const isFaturado = d.item !== 'AGENDAMENTO PENDENTE';
+                    const isFaturado = d.item !== 'AGENDAMENTO PENDENTE' && d.invoiceNumber;
                     const status = isFaturado ? 'CONCLUÍDO' : 'AGENDADO';
-                    const existing = list.find(l => l.supplierName === s.name && l.time === d.time && l.status === status);
+                    const existing = list.find(l => l.supplierName === s.name && l.time === d.time && l.id === d.id);
                     if (!existing) {
                         list.push({
                             id: d.id,
@@ -33,7 +56,8 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({ suppliers, thirdPartyEn
                             time: d.time,
                             arrivalTime: d.arrivalTime,
                             status: status,
-                            type: 'FORNECEDOR'
+                            type: 'FORNECEDOR',
+                            rawDelivery: d
                         });
                     }
                 }
@@ -67,8 +91,82 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({ suppliers, thirdPartyEn
             .sort((a, b) => a.time.localeCompare(b.time));
     }, [suppliers, thirdPartyEntries, selectedAgendaDate, searchTerm]);
 
+    const handleDelete = async (item: any) => {
+        if (!onDeleteDelivery) return;
+        if (confirm(`Excluir agendamento de ${item.supplierName}?`)) {
+            const res = await onDeleteDelivery(item.supplierCpf, item.id);
+            if (res.success) toast.success("Agendamento excluído!");
+            else toast.error(res.message || "Erro ao excluir.");
+        }
+    };
+
+    const handleRegisterArrival = (item: any) => {
+        setSelectedItem(item);
+        setArrivalData({ 
+            arrivalTime: item.arrivalTime || new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), 
+            invoiceNumber: item.rawDelivery?.invoiceNumber || '' 
+        });
+        setIsArrivalModalOpen(true);
+    };
+
+    const saveArrival = async () => {
+        if (!selectedItem) return;
+        
+        try {
+            if (selectedItem.type === 'FORNECEDOR') {
+                if (onUpdateDelivery) {
+                    await onUpdateDelivery(selectedItem.supplierCpf, selectedItem.id, { 
+                        arrivalTime: arrivalData.arrivalTime,
+                        invoiceNumber: arrivalData.invoiceNumber || selectedItem.rawDelivery?.invoiceNumber
+                    });
+                    toast.success("Chegada registrada!");
+                }
+            }
+            setIsArrivalModalOpen(false);
+        } catch (e) {
+            toast.error("Erro ao salvar chegada.");
+        }
+    };
+
     return (
         <div className={`space-y-6 animate-fade-in ${embedded ? '' : 'p-4 md:p-8 max-w-6xl mx-auto'}`}>
+            {/* Arrival Modal */}
+            {isArrivalModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden border border-indigo-100 animate-scale-in">
+                        <div className="p-8 border-b bg-indigo-50">
+                            <h3 className="text-xl font-black text-indigo-950 uppercase italic tracking-tighter">Registrar Chegada</h3>
+                            <p className="text-indigo-400 font-bold text-[10px] uppercase tracking-widest">{selectedItem?.supplierName}</p>
+                        </div>
+                        <div className="p-8 space-y-6">
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Horário Real de Chegada</label>
+                                <input 
+                                    type="time" 
+                                    value={arrivalData.arrivalTime}
+                                    onChange={e => setArrivalData(prev => ({ ...prev, arrivalTime: e.target.value }))}
+                                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-black text-indigo-900 outline-none focus:ring-4 focus:ring-indigo-100 transition-all text-xl"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Número da NF (Opcional)</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Ex: 000123"
+                                    value={arrivalData.invoiceNumber}
+                                    onChange={e => setArrivalData(prev => ({ ...prev, invoiceNumber: e.target.value }))}
+                                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-gray-600 outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                />
+                            </div>
+                            <div className="flex gap-4">
+                                <button onClick={() => setIsArrivalModalOpen(false)} className="flex-1 py-4 rounded-2xl bg-gray-100 text-gray-500 font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all">Cancelar</button>
+                                <button onClick={saveArrival} className="flex-1 py-4 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">Salvar Chegada</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Header / Selector */}
             <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-100">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-6">
@@ -168,7 +266,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({ suppliers, thirdPartyEn
                                     {item.time}
                                 </div>
                                 
-                                <div className="text-right">
+                                <div className="flex items-center gap-2">
                                     <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${
                                         item.status === 'CONCLUÍDO' ? 'bg-indigo-100 text-indigo-700' : 
                                         item.status === 'CANCELADO' ? 'bg-red-100 text-red-700' :
@@ -178,6 +276,15 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({ suppliers, thirdPartyEn
                                     }`}>
                                         {item.status}
                                     </span>
+                                    {item.type === 'FORNECEDOR' && item.status !== 'CONCLUÍDO' && (
+                                        <button 
+                                            onClick={() => handleDelete(item)}
+                                            className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition-all"
+                                            title="Excluir Agendamento"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -196,11 +303,22 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({ suppliers, thirdPartyEn
                                         {item.arrivalTime || 'Aguardando...'}
                                     </span>
                                 </div>
-                                {item.arrivalTime && (
-                                    <div className="bg-green-100 text-green-700 p-1.5 rounded-lg">
-                                        <UserCheck className="h-4 w-4" />
-                                    </div>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    {item.type === 'FORNECEDOR' && item.status !== 'CONCLUÍDO' && (
+                                        <button 
+                                            onClick={() => handleRegisterArrival(item)}
+                                            className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-md shadow-indigo-100"
+                                        >
+                                            <CheckCircle2 className="h-3 w-3" />
+                                            Confirmar Chegada
+                                        </button>
+                                    )}
+                                    {item.arrivalTime && (
+                                        <div className="bg-green-100 text-green-700 p-1.5 rounded-lg">
+                                            <UserCheck className="h-4 w-4" />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>

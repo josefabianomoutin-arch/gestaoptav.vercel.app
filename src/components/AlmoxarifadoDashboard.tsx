@@ -22,7 +22,7 @@ interface AlmoxarifadoDashboardProps {
     onRegisterWithdrawal: (payload: any) => Promise<{ success: boolean; message: string }>;
     onResetExits: () => Promise<{ success: boolean; message: string }>;
     onReopenInvoice: (supplierCpf: string, invoiceNumber: string) => Promise<void>;
-    onDeleteInvoice: (supplierCpf: string, invoiceNumber: string) => Promise<void>;
+    onDeleteInvoice: (supplierCpf: string, invoiceNumber: string) => Promise<any>;
     onUpdateInvoiceItems: (supplierCpf: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string }[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string) => Promise<{ success: boolean; message?: string }>;
     onUpdateInvoiceUrl: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => Promise<{ success: boolean; message?: string }>;
     onMarkInvoiceAsOpened: (supplierCpf: string, invoiceNumber: string) => Promise<{ success: boolean }>;

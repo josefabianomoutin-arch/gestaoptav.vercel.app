@@ -157,6 +157,49 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
       Object.values(grouped).forEach(inv => invoices.push(inv));
     });
 
+    // --- FIX: Include perCapitaConfig deliveries ---
+    if (perCapitaConfig) {
+      const pcLists = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+      pcLists.forEach(listKey => {
+        ensureArray(perCapitaConfig[listKey]).forEach((pcSupplier: any) => {
+          if (!pcSupplier) return;
+          // Avoid duplication if already in main suppliers list (combinedSuppliers should prevent this but let's be safe)
+          if (invoices.some(inv => inv.supplierCpf === pcSupplier.cpfCnpj)) return;
+
+          const deliveries = ensureArray(pcSupplier.deliveries) as any[];
+          const grouped = deliveries.reduce((acc, d) => {
+            if (!d || !d.invoiceNumber) return acc;
+            const invoiceNum = String(d.invoiceNumber).trim();
+            const cleanDInvoice = cleanStr(invoiceNum);
+
+            const isExit = d.type === 'saída';
+            if (mode === 'warehouse_entry' && isExit) return acc;
+            if (mode === 'warehouse_exit' && !isExit) return acc;
+
+            if (!acc[invoiceNum]) {
+              acc[invoiceNum] = {
+                supplierName: pcSupplier.name,
+                supplierCpf: pcSupplier.cpfCnpj,
+                invoiceNumber: invoiceNum,
+                invoiceUrl: d.invoiceUrl,
+                date: d.invoiceDate || d.date,
+                originalDate: d.date,
+                items: [],
+                isOpened: d.isOpened || d.opened || false,
+                receiptTermNumber: d.receiptTermNumber,
+                pd: d.pd || ''
+              };
+            }
+            
+            acc[invoiceNum].items.push({ ...d });
+            return acc;
+          }, {} as Record<string, any>);
+          
+          Object.values(grouped).forEach(inv => invoices.push(inv));
+        });
+      });
+    }
+
     // Mirror entries from warehouseLog that might not be in supplier deliveries
     (warehouseLog || []).forEach(log => {
       if (!log) return;

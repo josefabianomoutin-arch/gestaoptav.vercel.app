@@ -809,13 +809,13 @@ const App: React.FC = () => {
 
   const handleDeleteDelivery = async (supplierCpf: string, deliveryId: string) => {
     try {
-      const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+      const isMainSupplier = suppliers.some(s => s && s.cpf === supplierCpf);
       if (isMainSupplier) {
         const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
         await runTransaction(deliveriesRef, (current) => {
           if (!current) return current;
           const list = ensureArray<any>(current);
-          return list.filter(d => d.id !== deliveryId);
+          return list.filter(d => d && d.id !== deliveryId);
         });
         return { success: true };
       }
@@ -823,13 +823,13 @@ const App: React.FC = () => {
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
-        const idx = producers.findIndex((p: any) => p.cpfCnpj === supplierCpf);
+        const idx = producers.findIndex((p: any) => p && p.cpfCnpj === supplierCpf);
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
             if (!current) return current;
             const list = ensureArray<any>(current);
-            return list.filter(d => d.id !== deliveryId);
+            return list.filter(d => d && d.id !== deliveryId);
           });
           return { success: true };
         }
@@ -838,6 +838,40 @@ const App: React.FC = () => {
     } catch (e) {
       console.error("Error deleting delivery:", e);
       return { success: false, message: 'Erro ao excluir entrega.' };
+    }
+  };
+
+  const handleUpdateDelivery = async (supplierCpf: string, deliveryId: string, updates: Partial<Delivery>) => {
+    try {
+      const isMainSupplier = suppliers.some(s => s && s.cpf === supplierCpf);
+      if (isMainSupplier) {
+        const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
+        await runTransaction(deliveriesRef, (current) => {
+          if (!current) return current;
+          const list = ensureArray<any>(current);
+          return list.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
+        });
+        return { success: true };
+      }
+
+      const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+      for (const listKey of lists) {
+        const producers = ensureArray(perCapitaConfig[listKey]);
+        const idx = producers.findIndex((p: any) => p && p.cpfCnpj === supplierCpf);
+        if (idx !== -1) {
+          const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
+          await runTransaction(deliveriesRef, (current) => {
+            if (!current) return current;
+            const list = ensureArray<any>(current);
+            return list.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
+          });
+          return { success: true };
+        }
+      }
+      return { success: false, message: 'Fornecedor não encontrado.' };
+    } catch (e) {
+      console.error("Error updating delivery:", e);
+      return { success: false, message: 'Erro ao atualizar entrega.' };
     }
   };
 
@@ -2262,15 +2296,16 @@ const App: React.FC = () => {
                onRegisterWithdrawal={handleRegisterWarehouseWithdrawal} 
                onResetExits={handleResetWarehouseExits}
                onReopenInvoice={handleReopenInvoice}
-               onDeleteInvoice={async (supplierCpf, invoiceNumber) => {
-                 await handleDeleteInvoice(supplierCpf, invoiceNumber);
-               }}
                onUpdateInvoiceItems={handleUpdateInvoiceItems}
                onUpdateInvoiceUrl={handleUpdateInvoiceUrl}
                onManualInvoiceEntry={handleManualInvoiceEntry}
                onMarkInvoiceAsOpened={handleMarkInvoiceAsOpened}
                onDeleteWarehouseEntry={handleDeleteWarehouseEntry}
                onUpdateWarehouseEntry={handleUpdateWarehouseEntry}
+               onDeleteInvoice={handleDeleteInvoice}
+               onDeleteDelivery={handleDeleteDelivery}
+               onUpdateDelivery={handleUpdateDelivery}
+               onSaveInvoice={handleSaveInvoice}
                thirdPartyEntries={thirdPartyEntries || []}
                perCapitaConfig={perCapitaConfig || {}}
                acquisitionItems={acquisitionItems || []}
@@ -2633,13 +2668,19 @@ const App: React.FC = () => {
       }
     }
 
-    if (user.role === 'producer' || user.role === 'pereciveis_supplier' || user.role === 'estocaveis_supplier') {
-      const list = user.role === 'producer' ? ensureArray<any>(perCapitaConfig?.ppaisProducers) : 
-                   user.role === 'pereciveis_supplier' ? ensureArray<any>(perCapitaConfig?.pereciveisSuppliers) : 
-                   ensureArray<any>(perCapitaConfig?.estocaveisSuppliers);
-      const p = list.find(s => s && s.cpfCnpj && String(s.cpfCnpj).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
+    if (['producer', 'supplier', 'pereciveis_supplier', 'estocaveis_supplier', 'supplier_estocavel'].includes(user.role)) {
+      const allPC = [
+        ...ensureArray(perCapitaConfig?.ppaisProducers),
+        ...ensureArray(perCapitaConfig?.pereciveisSuppliers),
+        ...ensureArray(perCapitaConfig?.estocaveisSuppliers)
+      ];
+      
+      const p = allPC.find(s => s && s.cpfCnpj && String(s.cpfCnpj).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''))
+               || suppliers.find(s => s && s.cpf && String(s.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
+
       if (p) {
-        const existingSupplier = suppliers.find(s => s && s.cpf && String(s.cpf).replace(/\D/g, '') === String(p.cpfCnpj).replace(/\D/g, ''));
+        const pCpf = (p as any).cpfCnpj || (p as any).cpf || '';
+        const existingSupplier = suppliers.find(s => s && s.cpf && String(s.cpf).replace(/\D/g, '') === String(pCpf).replace(/\D/g, ''));
         const q1Weeks = ensureArray<number>(existingSupplier?.allowedWeeks).filter(w => w <= 18);
         
         const weeks: number[] = [...q1Weeks];
@@ -2661,7 +2702,10 @@ const App: React.FC = () => {
                   const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
                   
                   weeksList.forEach((weekIdx: any) => {
-                      weeks.push(firstWeekOfYear + (Number(weekIdx) - 1));
+                      const wVal = Number(String(weekIdx).replace(/\D/g, '')) || 0;
+                      if (wVal > 0) {
+                        weeks.push(firstWeekOfYear + (wVal - 1));
+                      }
                   });
               }
           });
@@ -2674,13 +2718,21 @@ const App: React.FC = () => {
         const pDeliveriesRaw = ensureArray<any>(p.deliveries);
         const extDeliveriesRaw = ensureArray<any>(existingSupplier?.deliveries);
 
+        const safeParseNum = (val: any) => {
+            if (typeof val === 'number') return val;
+            const str = String(val || '0').replace(',', '.');
+            const parsed = parseFloat(str);
+            return isNaN(parsed) ? 0 : parsed;
+        };
+
         const mappedSupplier: Supplier = {
+          ...p,
           name: p.name || 'Produtor',
-          cpf: p.cpfCnpj || p.cpf || '',
-          initialValue: ensureArray<any>(p.contractItems).reduce((acc: number, curr: any) => acc + (Number(String(curr.totalKg || 0).replace(',', '.')) * (Number(String(curr.valuePerKg || 0).replace(',', '.')))), 0),
+          cpf: pCpf,
+          initialValue: ensureArray<any>(p.contractItems).reduce((acc: number, curr: any) => acc + (safeParseNum(curr.totalKg) * safeParseNum(curr.valuePerKg)), 0),
           contractItems: ensureArray<any>(p.contractItems),
           deliveries: Array.from(new Map<string, any>([...pDeliveriesRaw, ...extDeliveriesRaw].filter(d => d && d.id).map(d => [String(d.id), d])).values()),
-          allowedWeeks: Array.isArray(finalWeeks) ? finalWeeks : [1, 2, 3, 4, 5],
+          allowedWeeks: finalWeeks.length > 0 ? finalWeeks : [1, 2, 3, 4, 5],
           address: p.address || '',
           city: p.city || '',
           processNumber: p.processNumber || ''
@@ -2688,7 +2740,7 @@ const App: React.FC = () => {
         return (
           <Dashboard 
             supplier={mappedSupplier} 
-            type={user.role === 'producer' ? 'PRODUTOR' : 'FORNECEDOR'}
+            type={(user.role === 'producer' || (p as any).type === 'PRODUTOR') ? 'PRODUTOR' : 'FORNECEDOR'}
             monthlySchedule={p.monthlySchedule}
             isRegisteredForNextPeriod={true}
             onUpdateInvoiceUrl={handleUpdateInvoiceUrl}
@@ -2701,6 +2753,17 @@ const App: React.FC = () => {
           />
         );
       }
+    }
+ else {
+      // Role not recognized or not handled above
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <h2 className="text-xl font-bold mb-4">Módulo Indisponível</h2>
+            <button onClick={handleLogout} className="bg-zinc-900 text-white px-6 py-2 rounded-lg">Voltar ao Login</button>
+          </div>
+        </div>
+      );
     }
 
     const currentMonth = new Date().getMonth();
