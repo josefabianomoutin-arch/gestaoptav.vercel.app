@@ -503,7 +503,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                                                     </div>
                                                     <div className="flex flex-col">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-xs font-black text-emerald-900 uppercase">{delivery.item}</span>
+                                                            <span className="text-xs font-black text-emerald-900 uppercase">{delivery.item || delivery.itemName || ''}</span>
                                                             <span className="text-[10px] bg-white border border-gray-200 px-1.5 py-0.5 rounded font-mono text-gray-500">#{delivery.invoiceNumber || 'S/N'}</span>
                                                         </div>
                                                         <div className="text-[10px] text-gray-400 font-bold uppercase mt-1">

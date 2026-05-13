@@ -607,7 +607,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                               <div className="flex flex-wrap gap-1">
                                                   {invoice.items.map((it: any, i: number) => (
                                                       <span key={i} className="bg-gray-100 text-gray-600 text-[9px] font-bold px-2 py-1 rounded-md uppercase">
-                                                          {it.item} ({(it.kg || 0).toFixed(2).replace('.',',')} Kg)
+                                                          {it.item || it.itemName || ''} ({(it.kg || 0).toFixed(2).replace('.',',')} Kg)
                                                       </span>
                                                   ))}
                                               </div>

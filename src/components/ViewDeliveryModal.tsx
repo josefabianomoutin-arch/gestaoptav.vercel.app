@@ -164,7 +164,7 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({ date, deliveries,
                                     )}
                                 <div className="flex justify-between items-start text-sm">
                                     <div>
-                                        <p className="font-black text-gray-800 uppercase text-xs">{delivery.item}</p>
+                                        <p className="font-black text-gray-800 uppercase text-xs">{delivery.item || delivery.itemName || ''}</p>
                                         <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">{(delivery.kg || 0).toFixed(2).replace('.', ',')} Kg</p>
                                     </div>
                                     <span className="font-black text-green-700 whitespace-nowrap pl-4">{formatCurrency(delivery.value || 0)}</span>

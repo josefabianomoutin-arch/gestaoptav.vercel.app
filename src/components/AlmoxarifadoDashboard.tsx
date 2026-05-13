@@ -467,7 +467,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         ${printItems.length > 0 ? printItems.map((itemGroup: any) => {
                             return `
                             <tr>
-                                <td><strong>${itemGroup.item}</strong></td>
+                                <td><strong>${itemGroup.item || itemGroup.itemName || ''}</strong></td>
                                 <td class="text-center font-bold">${(itemGroup.totalKg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</td>
                                 <td class="text-center text-xs">${itemGroup.datesScheduled}</td>
                                 <td></td>

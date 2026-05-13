@@ -697,7 +697,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                         ))}
                                     </div>
                                 </div>
-                                <h3 className="text-[11px] font-black text-slate-900 uppercase leading-tight mb-3 group-hover:text-indigo-600 transition-colors">{data.item}</h3>
+                                <h3 className="text-[11px] font-black text-slate-900 uppercase leading-tight mb-3 group-hover:text-indigo-600 transition-colors">{data.item || data.itemName || ''}</h3>
                                 <div className="flex items-center justify-between pt-3 border-t border-slate-200">
                                     <div className="space-y-0.5">
                                         <p className="text-[7px] text-slate-400 font-bold uppercase tracking-tighter">Peso Realizado</p>

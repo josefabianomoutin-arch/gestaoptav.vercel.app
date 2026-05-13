@@ -806,11 +806,11 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     if (!contractItemNames.has(normalizedItem)) {
                         issues.push({
                             type: 'Item não Contratado',
-                            description: `O item "${d.item}" consta em entregas/agendamentos de ${s.name} mas não está em seu contrato.`,
+                            description: `O item "${d.item || d.itemName || ''}" consta em entregas/agendamentos de ${s.name} mas não está em seu contrato.`,
                             supplierName: s.name,
                             itemName: d.item,
                             fix: async () => {
-                                toast.info(`O item "${d.item}" precisa ser vinculado ao contrato de ${s.name} manualmente através do planejamento de itens.`);
+                                toast.info(`O item "${d.item || d.itemName || ''}" precisa ser vinculado ao contrato de ${s.name} manualmente através do planejamento de itens.`);
                             }
                         });
                     }

@@ -565,7 +565,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-baseline gap-2 mb-1">
                                     <span className="text-[9.5px] font-black text-indigo-950 uppercase truncate leading-none">
-                                        {it.item}
+                                        {it.item || it.itemName || ''}
                                     </span>
                                     <span className="text-[8px] font-bold text-indigo-500 italic shrink-0">
                                         {(it.kg || 0).toLocaleString('pt-BR')} Kg
@@ -608,7 +608,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                         <body>
                                             <div class="label">
                                                 <div>
-                                                    <h1>${it.item}</h1>
+                                                    <h1>${it.item || it.itemName || ''}</h1>
                                                     <h2>Fornecedor: ${inv.supplierName}</h2>
                                                     <p>NF: ${inv.invoiceNumber} | Data: ${new Date(inv.date).toLocaleDateString()}</p>
                                                     <p>Lote: ${it.lotNumber || 'N/A'} | Validade: ${it.expirationDate ? it.expirationDate.split('-').reverse().join('/') : 'N/A'}</p>
@@ -924,10 +924,14 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                       <button onClick={() => setEditingInvoice(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="h-5 w-5" /></button>
                   </div>
                   <div className="p-6 space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar">
-                      <div className="grid grid-cols-2 gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mb-2">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mb-2">
                         <div className="space-y-0.5">
                             <label className="text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-0.5">Parecer de Despesa (PD)</label>
                             <input type="text" value={editingInvoice.pd || ''} onChange={e => setEditingInvoice({...editingInvoice, pd: e.target.value.toUpperCase()})} className="w-full h-10 px-3 rounded-xl border-2 border-indigo-100 outline-none focus:border-indigo-400 font-bold text-[11px] uppercase" />
+                        </div>
+                        <div className="space-y-0.5">
+                            <label className="text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-0.5">Data da Nota</label>
+                            <input type="date" value={editingInvoice.invoiceDate || editingInvoice.date || ''} onChange={e => setEditingInvoice({...editingInvoice, invoiceDate: e.target.value})} className="w-full h-10 px-3 rounded-xl border-2 border-indigo-100 outline-none focus:border-indigo-400 font-bold text-[11px] uppercase bg-white" />
                         </div>
                         <div className="space-y-0.5">
                             <label className="text-[9px] font-black text-emerald-600 uppercase tracking-widest ml-0.5">Valor Total da Nota (R$)</label>
@@ -941,7 +945,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                           return (
                           <div key={idx} className="bg-slate-50 p-4 rounded-xl space-y-3 border border-gray-100 shadow-sm relative group">
                               <div className="font-black text-[10px] text-indigo-900 uppercase tracking-tight flex justify-between items-center">
-                                  <span>Produto: {item.item}</span>
+                                  <span>Produto: {item.item || item.itemName || ''}</span>
                                   <div className="flex items-center gap-3">
                                       <span className="text-gray-400 font-bold">{idx + 1} de {editingInvoice.items.length}</span>
                                       <button 
@@ -1050,15 +1054,15 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                 editingInvoice.supplierCpf, 
                                 editingInvoice.invoiceNumber, 
                                 editingInvoice.items.map((it: any) => ({
-                                    name: it.item,
+                                    name: it.item || it.itemName,
                                     kg: it.kg,
                                     value: it.value,
                                     lotNumber: it.lotNumber,
                                     expirationDate: it.expirationDate,
-                                    barcode: it.barcode
+                                    barcode: it.barcode,
+                                    id: it.id
                                 })),
-                                undefined, undefined, undefined, undefined,
-                                editingInvoice.date,
+                                undefined, undefined, editingInvoice.invoiceDate || editingInvoice.date, undefined, editingInvoice.invoiceDate || editingInvoice.date,
                                 editingInvoice.pd
                             );
                             if (res.success) {

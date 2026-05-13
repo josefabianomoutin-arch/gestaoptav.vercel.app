@@ -1964,10 +1964,10 @@ const App: React.FC = () => {
   const handleDeleteWarehouseEntry = async (l: WarehouseMovement) => {
       // Se for saída, devolve a quantidade para o saldo do lote
       if (l.type === 'saída' || l.type === 'saida') {
-        const mainSupplier = suppliers.find(s => s.name === l.supplierName);
-        const ppaisProducer = perCapitaConfig.ppaisProducers?.find(p => p.name === l.supplierName);
-        const pereciveisSupplier = perCapitaConfig.pereciveisSuppliers?.find(p => p.name === l.supplierName);
-        const estocavelSupplier = perCapitaConfig.estocaveisSuppliers?.find(p => p.name === l.supplierName);
+        const mainSupplier = suppliers.find(s => s.cpf === l.supplierCpf);
+        const ppaisProducer = perCapitaConfig.ppaisProducers?.find(p => p.cpfCnpj === l.supplierCpf || p.cpf === l.supplierCpf);
+        const pereciveisSupplier = perCapitaConfig.pereciveisSuppliers?.find(p => p.cpfCnpj === l.supplierCpf || p.cpf === l.supplierCpf);
+        const estocavelSupplier = perCapitaConfig.estocaveisSuppliers?.find(p => p.cpfCnpj === l.supplierCpf || p.cpf === l.supplierCpf);
           
         if (mainSupplier) {
             const deliveriesRef = child(suppliersRef, `${mainSupplier.cpf}/deliveries`);
@@ -1976,7 +1976,7 @@ const App: React.FC = () => {
                     const deliveries = Array.isArray(currentDeliveries) ? currentDeliveries : Object.values(currentDeliveries);
                     let found = false;
                     const updatedDeliveries = deliveries.map(d => {
-                        if (d.item === l.itemName && String(d.invoiceNumber) === String(l.inboundInvoice)) {
+                        if (d.item === l.itemName && String(d.invoiceNumber) === String(l.inboundInvoice || l.invoiceNumber || '')) {
                             if (d.lots) {
                                 const lotIndex = d.lots.findIndex((lotItem: any) => lotItem.lotNumber === l.lotNumber);
                                 if (lotIndex !== -1) {
@@ -1996,15 +1996,15 @@ const App: React.FC = () => {
             let producerIdx = -1;
 
             if (perCapitaConfig.ppaisProducers) {
-                producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => p.name === l.supplierName);
+                producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => p.cpfCnpj === l.supplierCpf || p.cpf === l.supplierCpf);
                 if (producerIdx !== -1) listKey = 'ppaisProducers';
             }
             if (listKey === null && perCapitaConfig.pereciveisSuppliers) {
-                producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => p.name === l.supplierName);
+                producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => p.cpfCnpj === l.supplierCpf || p.cpf === l.supplierCpf);
                 if (producerIdx !== -1) listKey = 'pereciveisSuppliers';
             }
             if (listKey === null && perCapitaConfig.estocaveisSuppliers) {
-                producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => p.name === l.supplierName);
+                producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => p.cpfCnpj === l.supplierCpf || p.cpf === l.supplierCpf);
                 if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
             }
 
@@ -2015,7 +2015,7 @@ const App: React.FC = () => {
                         const deliveries = Array.isArray(currentDeliveries) ? currentDeliveries : Object.values(currentDeliveries);
                         let found = false;
                         const updatedDeliveries = deliveries.map(d => {
-                            if (d.item === l.itemName && String(d.invoiceNumber) === String(l.inboundInvoice)) {
+                            if (d.item === l.itemName && String(d.invoiceNumber) === String(l.inboundInvoice || l.invoiceNumber || '')) {
                                 if (d.lots) {
                                     const lotIndex = d.lots.findIndex((lotItem: any) => lotItem.lotNumber === l.lotNumber);
                                     if (lotIndex !== -1) {
@@ -2034,23 +2034,24 @@ const App: React.FC = () => {
         }
       } else if (l.type === 'entrada') {
           // Se for entrada, remove a entrega correspondente do fornecedor
-          const mainSupplier = suppliers.find(s => s.name === l.supplierName);
-          const ppaisProducer = perCapitaConfig.ppaisProducers?.find(p => p.name === l.supplierName);
-          const pereciveisSupplier = perCapitaConfig.pereciveisSuppliers?.find(p => p.name === l.supplierName);
-          const estocavelSupplier = perCapitaConfig.estocaveisSuppliers?.find(p => p.name === l.supplierName);
+          const mainSupplier = suppliers.find(s => s.cpf === l.supplierCpf);
+          const ppaisProducer = perCapitaConfig.ppaisProducers?.find(p => p.cpfCnpj === l.supplierCpf || p.cpf === l.supplierCpf);
+          const pereciveisSupplier = perCapitaConfig.pereciveisSuppliers?.find(p => p.cpfCnpj === l.supplierCpf || p.cpf === l.supplierCpf);
+          const estocavelSupplier = perCapitaConfig.estocaveisSuppliers?.find(p => p.cpfCnpj === l.supplierCpf || p.cpf === l.supplierCpf);
 
           if (mainSupplier) {
               const sRef = child(suppliersRef, mainSupplier.cpf);
               await runTransaction(sRef, (currentData: Supplier) => {
                   if (currentData && currentData.deliveries) {
                       currentData.deliveries = currentData.deliveries.filter(d => 
-                          !(d.item === l.itemName && String(d.invoiceNumber) === String(l.inboundInvoice) && d.barcode === l.barcode)
+                          !(d.item === l.itemName && String(d.invoiceNumber) === String(l.inboundInvoice || l.invoiceNumber || '') && d.barcode === l.barcode)
                       );
                   }
                   return currentData;
               });
           } else if (ppaisProducer || pereciveisSupplier || estocavelSupplier) {
-              const targetCpf = (ppaisProducer || pereciveisSupplier || estocavelSupplier)!.cpfCnpj;
+              const targetSupplier = (ppaisProducer || pereciveisSupplier || estocavelSupplier)!;
+              const targetCpf = targetSupplier.cpfCnpj || targetSupplier.cpf;
               await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
                   if (currentData) {
                       const updateInList = (list: any[] | undefined) => {
@@ -2058,7 +2059,7 @@ const App: React.FC = () => {
                           const s = list.find(p => (p.cpfCnpj === targetCpf || p.cpf === targetCpf));
                           if (s && s.deliveries) {
                               s.deliveries = s.deliveries.filter((d: any) => 
-                                  !(d.item === l.itemName && String(d.invoiceNumber) === String(l.inboundInvoice) && d.barcode === l.barcode)
+                                  !(d.item === l.itemName && String(d.invoiceNumber) === String(l.inboundInvoice || l.invoiceNumber || '') && d.barcode === l.barcode)
                               );
                               return true;
                           }

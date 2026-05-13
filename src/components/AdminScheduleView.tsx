@@ -693,7 +693,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                                                         className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                                                     />
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-[10px] font-black uppercase truncate">{item.item}</p>
+                                                        <p className="text-[10px] font-black uppercase truncate">{item.item || item.itemName || ''}</p>
                                                         <div className="flex gap-2 mt-1">
                                                             <span className="text-[8px] font-bold opacity-60 uppercase">{formatDate(item.date)}</span>
                                                             <span className="text-[8px] font-bold opacity-60 uppercase">NF: {item.invoiceNumber}</span>
