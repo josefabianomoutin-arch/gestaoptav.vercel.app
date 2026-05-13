@@ -1,6 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { Upload } from 'lucide-react';
+import { ensureArray } from '../lib/utils';
 import type { Supplier } from '../types';
 import { MONTHS_2026 } from '../constants';
 
@@ -46,8 +47,8 @@ const formatCurrency = (value: number): string => {
 };
 
 const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, onOpenSendInvoiceModal }) => {
-    const deliveries = (Object.values(supplier.deliveries || {}) as any[]);
-    const contractItems = (Object.values(supplier.contractItems || {}) as any[]);
+    const deliveries = ensureArray<any>(supplier.deliveries);
+    const contractItems = ensureArray<any>(supplier.contractItems);
 
     const visibleMonths = useMemo(() => {
         // Only show May to December (2nd contract) as requested

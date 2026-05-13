@@ -11,7 +11,7 @@ import AdminAtaGenerator from './AdminAtaGenerator';
 import AdminContractGenerator from './AdminContractGenerator';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import type { PerCapitaSupplier } from '../types';
-import { roundToTwoDecimalPlaces } from '../lib/utils';
+import { roundToTwoDecimalPlaces, ensureArray } from '../lib/utils';
 
 interface AdminPerCapitaProps {
   suppliers: Supplier[];
@@ -104,9 +104,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             setPtresResources(perCapitaConfig.ptresResources || {});
         }
         
-        setPpaisProducers(perCapitaConfig.ppaisProducers || []);
-        setPereciveisSuppliers(perCapitaConfig.pereciveisSuppliers || []);
-        setEstocaveisSuppliers(perCapitaConfig.estocaveisSuppliers || []);
+        setPpaisProducers(ensureArray(perCapitaConfig.ppaisProducers));
+        setPereciveisSuppliers(ensureArray(perCapitaConfig.pereciveisSuppliers));
+        setEstocaveisSuppliers(ensureArray(perCapitaConfig.estocaveisSuppliers));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [perCapitaConfig]);
 
@@ -262,9 +262,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         return ppaisProducers.map(p => ({
             ...p,
             cpf: p.cpfCnpj,
-            deliveries: p.deliveries || [],
+            deliveries: ensureArray(p.deliveries),
             allowedWeeks: [],
-            initialValue: Object.values(p.contractItems || {}).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
+            initialValue: ensureArray(p.contractItems).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
         } as Supplier));
     }, [ppaisProducers]);
 
@@ -272,9 +272,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         return pereciveisSuppliers.map(p => ({
             ...p,
             cpf: p.cpfCnpj,
-            deliveries: p.deliveries || [],
+            deliveries: ensureArray(p.deliveries),
             allowedWeeks: [],
-            initialValue: Object.values(p.contractItems || {}).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
+            initialValue: ensureArray(p.contractItems).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
         } as Supplier));
     }, [pereciveisSuppliers]);
 
@@ -282,9 +282,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         return estocaveisSuppliers.map(p => ({
             ...p,
             cpf: p.cpfCnpj,
-            deliveries: p.deliveries || [],
+            deliveries: ensureArray(p.deliveries),
             allowedWeeks: [],
-            initialValue: Object.values(p.contractItems || {}).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
+            initialValue: ensureArray(p.contractItems).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
         } as Supplier));
     }, [estocaveisSuppliers]);
 
@@ -292,7 +292,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         const normalizedNew = normalizeItemName(itemName);
         const updatedProducers = ppaisProducers.map(producer => {
             const assignment = assignments.find(a => a.supplierCpf === producer.cpfCnpj);
-            const newContractItems = Object.values(producer.contractItems || {}).filter((ci: any) => {
+            const newContractItems = ensureArray(producer.contractItems).filter((ci: any) => {
                 const normalizedCi = normalizeItemName(ci.name);
                 // Remove if it's the same name or if the new name is a more detailed version of the old one
                 return normalizedCi !== normalizedNew && !normalizedNew.startsWith(normalizedCi);
@@ -340,7 +340,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         const normalizedNew = normalizeItemName(itemName);
         const updatedSuppliers = pereciveisSuppliers.map(supplier => {
             const assignment = assignments.find(a => a.supplierCpf === supplier.cpfCnpj);
-            const newContractItems = Object.values(supplier.contractItems || {}).filter((ci: any) => {
+            const newContractItems = ensureArray(supplier.contractItems).filter((ci: any) => {
                 const normalizedCi = normalizeItemName(ci.name);
                 return normalizedCi !== normalizedNew && !normalizedNew.startsWith(normalizedCi);
             });
@@ -371,7 +371,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         const normalizedNew = normalizeItemName(itemName);
         const updatedSuppliers = estocaveisSuppliers.map(supplier => {
             const assignment = assignments.find(a => a.supplierCpf === supplier.cpfCnpj);
-            const newContractItems = Object.values(supplier.contractItems || {}).filter((ci: any) => {
+            const newContractItems = ensureArray(supplier.contractItems).filter((ci: any) => {
                 const normalizedCi = normalizeItemName(ci.name);
                 return normalizedCi !== normalizedNew && !normalizedNew.startsWith(normalizedCi);
             });
@@ -408,25 +408,25 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
         const ppaisNames = new Set<string>();
         ppaisProducers.forEach(s => {
-            Object.values(s.contractItems || {}).forEach((ci: any) => ppaisNames.add(ci.name));
+            ensureArray(s.contractItems).forEach((ci: any) => ppaisNames.add(ci.name));
         });
         result['PPAIS'] = Array.from(ppaisNames).sort();
 
         const pereciveisNames = new Set<string>();
         pereciveisSuppliers.forEach(s => {
-            Object.values(s.contractItems || {}).forEach((ci: any) => pereciveisNames.add(ci.name));
+            ensureArray(s.contractItems).forEach((ci: any) => pereciveisNames.add(ci.name));
         });
         result['PERECÍVEIS'] = Array.from(pereciveisNames).sort();
 
         const estocaveisNames = new Set<string>();
         estocaveisSuppliers.forEach(s => {
-            Object.values(s.contractItems || {}).forEach((ci: any) => estocaveisNames.add(ci.name));
+            ensureArray(s.contractItems).forEach((ci: any) => estocaveisNames.add(ci.name));
         });
         result['ESTOCÁVEIS'] = Array.from(estocaveisNames).sort();
 
         const otherNames = new Set<string>();
         suppliers.forEach(s => {
-            Object.values(s.contractItems || {}).forEach((ci: any) => otherNames.add(ci.name));
+            ensureArray(s.contractItems).forEach((ci: any) => otherNames.add(ci.name));
         });
         result['OTHERS'] = Array.from(otherNames).sort();
 

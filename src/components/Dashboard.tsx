@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import type { Supplier, Delivery } from '../types';
+import { ensureArray } from '../lib/utils';
+import type { Supplier, Delivery, MonthlyQuota } from '../types';
 import Calendar from './Calendar';
 import DeliveryModal from './DeliveryModal';
 import ViewDeliveryModal from './ViewDeliveryModal';
@@ -93,7 +94,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleDayClick = (date: Date) => {
     const dateString = date.toISOString().split('T')[0];
-    const deliveriesOnDate = (Object.values(supplier.deliveries || {}) as any[]).filter(d => d.date === dateString);
+    const deliveriesOnDate = ensureArray<Delivery>(supplier.deliveries).filter(d => d.date === dateString);
     
     // Check if week is allowed
     if (supplier.allowedWeeks && supplier.allowedWeeks.length > 0) {
@@ -145,7 +146,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
   
   const pendingDailyInvoices = useMemo((): {date: string, deliveries: Delivery[]}[] => {
-    const pending = (Object.values(supplier.deliveries || {}) as any[]).filter(d => {
+    const pending = ensureArray<Delivery>(supplier.deliveries).filter(d => {
         const deliveryDate = new Date(d.date + 'T00:00:00');
         return !d.invoiceNumber && deliveryDate <= SIMULATED_TODAY;
     });
@@ -158,7 +159,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [supplier.deliveries]);
 
   const uploadedInvoices = useMemo((): any[] => {
-    const deliveries = (Object.values(supplier.deliveries || {}) as any[]);
+    const deliveries = ensureArray<Delivery>(supplier.deliveries);
     const groupedByNf = deliveries.reduce((acc, delivery) => {
         if (delivery.invoiceNumber) {
             if (!acc[delivery.invoiceNumber]) {
@@ -195,13 +196,13 @@ const Dashboard: React.FC<DashboardProps> = ({
     return Object.values(groupedByNf).sort((a: any, b: any) => b.date.localeCompare(a.date));
   }, [supplier.deliveries]);
 
-  const monthlyQuotas = useMemo(() => {
+  const monthlyQuotas = useMemo((): MonthlyQuota[] => {
     if (!selectedDate || !supplier.contractItems) return [];
     const currentMonth = selectedDate.getMonth();
-    return (Object.values(supplier.contractItems || {}) as any[]).map((item: any) => {
-        const deliveredThisMonth = (Object.values(supplier.deliveries || {}) as any[])
+    return ensureArray<any>(supplier.contractItems).map((item: any) => {
+        const deliveredThisMonth = ensureArray<Delivery>(supplier.deliveries)
             .filter((d: any) => d.item === item.name && new Date(String(d.date) + 'T00:00:00').getMonth() === currentMonth)
-            .reduce((sum, d) => sum + (d.kg || 0), 0);
+            .reduce((sum, d: any) => sum + (d.kg || 0), 0);
         
         const isQ1 = currentMonth <= 3;
         const divisor = isQ1 ? 4 : 8; // Everything uses 8 for the long period except specifically quadrimestral contracts
@@ -270,7 +271,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     const isQ1 = monthIndex <= 3;
     const divisor = isQ1 ? 4 : 8;
 
-    const contractItems = Object.values(supplier.contractItems || {}) as any[];
+    const contractItems = ensureArray<any>(supplier.contractItems);
 
     const availableDatesList: string[] = [];
     const daysInMonthObj = new Date(selectedYear, monthIndex + 1, 0).getDate();
@@ -529,7 +530,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               <div className="lg:col-span-2">
                   <Calendar 
                     onDayClick={handleDayClick} 
-                    deliveries={Object.values(supplier.deliveries || {})} 
+                    deliveries={ensureArray<Delivery>(supplier.deliveries)} 
                     allowedWeeks={supplier.allowedWeeks}
                     monthlySchedule={monthlySchedule}
                     activeContractPeriod={activeContractPeriod}

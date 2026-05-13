@@ -18,6 +18,7 @@ import { getDatabase, ref, onValue, set, runTransaction, push, child, update, re
 import { ref as storageRef, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { app, storage } from './firebaseConfig';
 import { getCombinedSuppliers } from './lib/supplierUtils';
+import { ensureArray } from './lib/utils';
 
 let database: any;
 let rootRef: any;
@@ -392,19 +393,19 @@ const App: React.FC = () => {
       setUser({ name: 'SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA', cpf: '431385464', role: 'julio' });
       return true;
     }
-    const ppaisProducer = perCapitaConfig.ppaisProducers?.find(p => p.cpfCnpj.replace(/\D/g, '') === numericPass);
+    const ppaisProducer = ensureArray(perCapitaConfig.ppaisProducers).find(p => p.cpfCnpj.replace(/\D/g, '') === numericPass);
     if (ppaisProducer) {
       setUser({ name: ppaisProducer.name, cpf: ppaisProducer.cpfCnpj, role: 'producer' });
       return true;
     }
 
-    const pereciveisSupplier = perCapitaConfig.pereciveisSuppliers?.find(p => p.cpfCnpj.replace(/\D/g, '') === numericPass);
+    const pereciveisSupplier = ensureArray(perCapitaConfig.pereciveisSuppliers).find(p => p.cpfCnpj.replace(/\D/g, '') === numericPass);
     if (pereciveisSupplier) {
       setUser({ name: pereciveisSupplier.name, cpf: pereciveisSupplier.cpfCnpj, role: 'pereciveis_supplier' });
       return true;
     }
 
-    const estocaveisSupplier = perCapitaConfig.estocaveisSuppliers?.find(p => p.cpfCnpj.replace(/\D/g, '') === numericPass);
+    const estocaveisSupplier = ensureArray(perCapitaConfig.estocaveisSuppliers).find(p => p.cpfCnpj.replace(/\D/g, '') === numericPass);
     if (estocaveisSupplier) {
       setUser({ name: estocaveisSupplier.name, cpf: estocaveisSupplier.cpfCnpj, role: 'estocaveis_supplier' });
       return true;
@@ -486,8 +487,8 @@ const App: React.FC = () => {
   };
 
   const handleSyncPPAISToAgenda = async () => {
-    const producers = perCapitaConfig.ppaisProducers || [];
-    const pereciveis = perCapitaConfig.pereciveisSuppliers || [];
+    const producers = ensureArray(perCapitaConfig.ppaisProducers);
+    const pereciveis = ensureArray(perCapitaConfig.pereciveisSuppliers);
     const allPerCapita = [...producers, ...pereciveis];
 
     if (allPerCapita.length === 0) {
@@ -512,15 +513,16 @@ const App: React.FC = () => {
         const newWeeks: number[] = [];
         for (let m = 0; m <= 11; m++) { // January (index 0) to December (index 11)
           const monthName = monthNames[m];
-          const weekOfMonthList = entry.monthlySchedule?.[monthName.charAt(0).toUpperCase() + monthName.slice(1)] || entry.monthlySchedule?.[monthName] || [];
+          const weekOfMonthListRaw = entry.monthlySchedule?.[monthName.charAt(0).toUpperCase() + monthName.slice(1)] || entry.monthlySchedule?.[monthName] || [];
+          const weekOfMonthList = ensureArray(weekOfMonthListRaw);
           
           if (weekOfMonthList.length > 0) {
             const firstDayOfMonth = new Date(year, m, 1);
             const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
             
-            (weekOfMonthList as any).forEach((weekIdx: number) => {
+            weekOfMonthList.forEach((weekIdx: any) => {
               // weekIdx is 1, 2, 3, 4
-              newWeeks.push(firstWeekOfYear + (weekIdx - 1));
+              newWeeks.push(firstWeekOfYear + (Number(weekIdx) - 1));
             });
           }
         }
@@ -733,8 +735,9 @@ const App: React.FC = () => {
           if (index !== -1) {
             const deliveries = list[index].deliveries || [];
             let updatedAny = false;
-            const updatedDeliveries = deliveries.map((d: any) => {
+            const updatedDeliveries = (deliveries || []).map((d: any) => {
               if (String(d.invoiceNumber) === String(invoiceNumber)) {
+                updatedAny = true;
                 return { ...d, invoiceUrl: finalInvoiceUrl };
               }
               return d;
@@ -748,9 +751,9 @@ const App: React.FC = () => {
           return false;
         };
 
-        if (await updateList(currentData.ppaisProducers, 'ppaisProducers')) {} 
-        else if (await updateList(currentData.pereciveisSuppliers, 'pereciveisSuppliers')) {} 
-        else if (await updateList(currentData.estocaveisSuppliers, 'estocaveisSuppliers')) {}
+        await updateList(currentData.ppaisProducers, 'ppaisProducers');
+        if (!found) await updateList(currentData.pereciveisSuppliers, 'pereciveisSuppliers');
+        if (!found) await updateList(currentData.estocaveisSuppliers, 'estocaveisSuppliers');
 
         if (found) return { success: true };
       }
@@ -805,19 +808,182 @@ const App: React.FC = () => {
   }, [suppliers]);
 
   const handleDeleteDelivery = async (supplierCpf: string, deliveryId: string) => {
-    return { success: false };
+    try {
+      const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+      if (isMainSupplier) {
+        const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
+        await runTransaction(deliveriesRef, (current) => {
+          if (!current) return current;
+          const list = ensureArray<any>(current);
+          return list.filter(d => d.id !== deliveryId);
+        });
+        return { success: true };
+      }
+
+      const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+      for (const listKey of lists) {
+        const producers = ensureArray(perCapitaConfig[listKey]);
+        const idx = producers.findIndex((p: any) => p.cpfCnpj === supplierCpf);
+        if (idx !== -1) {
+          const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
+          await runTransaction(deliveriesRef, (current) => {
+            if (!current) return current;
+            const list = ensureArray<any>(current);
+            return list.filter(d => d.id !== deliveryId);
+          });
+          return { success: true };
+        }
+      }
+      return { success: false, message: 'Fornecedor não encontrado.' };
+    } catch (e) {
+      console.error("Error deleting delivery:", e);
+      return { success: false, message: 'Erro ao excluir entrega.' };
+    }
   };
 
   const handleSaveInvoice = async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string): Promise<void> => {
-    // Not implemented
+    try {
+      const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+      if (isMainSupplier) {
+        const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
+        await runTransaction(deliveriesRef, (current) => {
+          const list = ensureArray<any>(current);
+          const otherDeliveries = list.filter(d => !deliveryIds.includes(d.id));
+          return [...otherDeliveries, ...updatedDeliveries];
+        });
+        toast.success('Nota Fiscal salva com sucesso!');
+        return;
+      }
+
+      const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+      for (const listKey of lists) {
+        const producers = ensureArray(perCapitaConfig[listKey]);
+        const idx = producers.findIndex((p: any) => p.cpfCnpj === supplierCpf);
+        if (idx !== -1) {
+          const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
+          await runTransaction(deliveriesRef, (current) => {
+            const list = ensureArray<any>(current);
+            const otherDeliveries = list.filter(d => !deliveryIds.includes(d.id));
+            return [...otherDeliveries, ...updatedDeliveries];
+          });
+          toast.success('Nota Fiscal salva com sucesso!');
+          return;
+        }
+      }
+      toast.error('Fornecedor não encontrado para salvar nota.');
+    } catch (e) {
+      console.error("Error saving invoice:", e);
+      toast.error('Erro ao salvar nota fiscal.');
+    }
   };
 
-  const handleCancelDeliveries = (supplierCpf: string, deliveryIds: string[]): void => {
-    // Not implemented
+  const handleCancelDeliveries = async (supplierCpf: string, deliveryIds: string[]): Promise<void> => {
+    try {
+      const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+      if (isMainSupplier) {
+        const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
+        await runTransaction(deliveriesRef, (current) => {
+          if (!current) return current;
+          const list = ensureArray<any>(current);
+          return list.filter(d => !deliveryIds.includes(d.id));
+        });
+        toast.success('Agendamentos excluídos.');
+        return;
+      }
+
+      const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+      for (const listKey of lists) {
+        const producers = ensureArray(perCapitaConfig[listKey]);
+        const idx = producers.findIndex((p: any) => p.cpfCnpj === supplierCpf);
+        if (idx !== -1) {
+          const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
+          await runTransaction(deliveriesRef, (current) => {
+            if (!current) return current;
+            const list = ensureArray<any>(current);
+            return list.filter(d => !deliveryIds.includes(d.id));
+          });
+          toast.success('Agendamentos excluídos.');
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("Error canceling deliveries:", e);
+      toast.error('Erro ao excluir agendamentos.');
+    }
   };
 
   const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: any[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string): Promise<{ success: boolean; message?: string }> => {
-    return { success: false, message: 'Not implemented' };
+    try {
+      const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+      if (isMainSupplier) {
+        const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
+        await runTransaction(deliveriesRef, (current) => {
+          if (!current) return current;
+          const list = ensureArray<any>(current);
+          return list.map(d => {
+            if (d.invoiceNumber === invoiceNumber) {
+              const itemUpdate = items.find(it => it.id === d.id || it.name === d.item);
+              if (itemUpdate) {
+                return {
+                  ...d,
+                  invoiceNumber: newInvoiceNumber || d.invoiceNumber,
+                  date: newDate || d.date,
+                  kg: itemUpdate.kg,
+                  value: itemUpdate.value,
+                  lotNumber: itemUpdate.lotNumber || d.lotNumber,
+                  expirationDate: itemUpdate.expirationDate || d.expirationDate,
+                  barcode: barcode || d.barcode,
+                  receiptTermNumber: receiptTermNumber || d.receiptTermNumber,
+                  invoiceDate: invoiceDate || d.invoiceDate,
+                  pd: pd || d.pd
+                };
+              }
+            }
+            return d;
+          });
+        });
+        return { success: true };
+      }
+
+      const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+      for (const listKey of lists) {
+        const producers = ensureArray(perCapitaConfig[listKey]);
+        const idx = producers.findIndex((p: any) => p.cpfCnpj === supplierCpf);
+        if (idx !== -1) {
+          const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
+          await runTransaction(deliveriesRef, (current) => {
+            if (!current) return current;
+            const list = ensureArray<any>(current);
+            return list.map(d => {
+              if (d.invoiceNumber === invoiceNumber) {
+                const itemUpdate = items.find(it => it.id === d.id || it.name === d.item);
+                if (itemUpdate) {
+                  return {
+                    ...d,
+                    invoiceNumber: newInvoiceNumber || d.invoiceNumber,
+                    date: newDate || d.date,
+                    kg: itemUpdate.kg,
+                    value: itemUpdate.value,
+                    lotNumber: itemUpdate.lotNumber || d.lotNumber,
+                    expirationDate: itemUpdate.expirationDate || d.expirationDate,
+                    barcode: barcode || d.barcode,
+                    receiptTermNumber: receiptTermNumber || d.receiptTermNumber,
+                    invoiceDate: invoiceDate || d.invoiceDate,
+                    pd: pd || d.pd
+                  };
+                }
+              }
+              return d;
+            });
+          });
+          return { success: true };
+        }
+      }
+      return { success: false, message: 'Fornecedor não encontrado.' };
+    } catch (e) {
+      console.error("Error updating invoice items:", e);
+      return { success: false, message: 'Erro ao atualizar itens da nota.' };
+    }
   };
 
   const handleReopenInvoice = async (supplierCpf: string, invoiceNumber: string) => {
@@ -2390,10 +2556,14 @@ const App: React.FC = () => {
       const currentMonth = new Date().getMonth();
       const isMayOrLater = currentMonth >= 4; // 0-indexed, 4 is May
       
-      const ppaisEntry = perCapitaConfig.ppaisProducers?.find(p => p.cpfCnpj === user.cpf);
-      const pereciveisEntry = perCapitaConfig.pereciveisSuppliers?.find(p => p.cpfCnpj === user.cpf);
-      const estocaveisEntry = perCapitaConfig.estocaveisSuppliers?.find(p => p.cpfCnpj === user.cpf);
-      const perCapitaEntry = ppaisEntry || pereciveisEntry || estocaveisEntry;
+      const ppaisList = Array.isArray(perCapitaConfig.ppaisProducers) ? perCapitaConfig.ppaisProducers : (perCapitaConfig.ppaisProducers ? Object.values(perCapitaConfig.ppaisProducers) : []);
+      const pereciveisList = Array.isArray(perCapitaConfig.pereciveisSuppliers) ? perCapitaConfig.pereciveisSuppliers : (perCapitaConfig.pereciveisSuppliers ? Object.values(perCapitaConfig.pereciveisSuppliers) : []);
+      const estocaveisList = Array.isArray(perCapitaConfig.estocaveisSuppliers) ? perCapitaConfig.estocaveisSuppliers : (perCapitaConfig.estocaveisSuppliers ? Object.values(perCapitaConfig.estocaveisSuppliers) : []);
+      
+      const ppaisEntry = ppaisList.find((p: any) => p.cpfCnpj === user.cpf);
+      const pereciveisEntry = pereciveisList.find((p: any) => p.cpfCnpj === user.cpf);
+      const estocaveisEntry = estocaveisList.find((p: any) => p.cpfCnpj === user.cpf);
+      const perCapitaEntry: any = ppaisEntry || pereciveisEntry || estocaveisEntry;
       const isRegisteredForNextPeriod = !!perCapitaEntry;
 
       if (isMayOrLater && !isRegisteredForNextPeriod) {
@@ -2423,16 +2593,18 @@ const App: React.FC = () => {
                 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
             ];
             const extraWeeks = new Set<number>();
-            Object.entries(perCapitaEntry.monthlySchedule).forEach(([monthName, weekOfMonthList]) => {
+            const schedule = perCapitaEntry.monthlySchedule || {};
+            Object.entries(schedule).forEach(([monthName, weekOfMonthList]) => {
                 const monthIndex = monthNames.indexOf(monthName.toLowerCase());
                 if (monthIndex === -1) return;
                 
-                if ((weekOfMonthList as number[]).length > 0) {
+                const weeksList = Array.isArray(weekOfMonthList) ? weekOfMonthList : (weekOfMonthList ? Object.values(weekOfMonthList) : []);
+                if (weeksList.length > 0) {
                     const firstDayOfMonth = new Date(year, monthIndex, 1);
                     const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
                     
-                    (weekOfMonthList as number[]).forEach(weekIdx => {
-                        extraWeeks.add(firstWeekOfYear + (weekIdx - 1));
+                    weeksList.forEach((weekIdx: any) => {
+                        extraWeeks.add(firstWeekOfYear + (Number(weekIdx) - 1));
                     });
                 }
             });
@@ -2481,24 +2653,28 @@ const App: React.FC = () => {
             const monthIndex = monthNames.indexOf(monthName.toLowerCase());
             if (monthIndex === -1) return;
 
-            if ((weekOfMonthList as number[]).length > 0) {
+            const weeksList = Array.isArray(weekOfMonthList) ? weekOfMonthList : (weekOfMonthList ? Object.values(weekOfMonthList) : []);
+            if (weeksList.length > 0) {
                 const firstDayOfMonth = new Date(year, monthIndex, 1);
                 const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
                 
-                (weekOfMonthList as number[]).forEach(weekIdx => {
-                    weeks.push(firstWeekOfYear + (weekIdx - 1));
+                weeksList.forEach((weekIdx: any) => {
+                    weeks.push(firstWeekOfYear + (Number(weekIdx) - 1));
                 });
             }
         });
 
         const finalWeeks = Array.from(new Set(weeks)).sort((a, b) => a - b);
+        
+        const pDeliveriesRaw = p.deliveries ? (typeof p.deliveries === 'object' ? Object.values(p.deliveries) : (Array.isArray(p.deliveries) ? p.deliveries : [])) : [];
+        const extDeliveriesRaw = existingSupplier?.deliveries ? (typeof existingSupplier.deliveries === 'object' ? Object.values(existingSupplier.deliveries) : (Array.isArray(existingSupplier.deliveries) ? existingSupplier.deliveries : [])) : [];
 
         const mappedSupplier: Supplier = {
           name: p.name,
           cpf: p.cpfCnpj,
-          initialValue: (p.contractItems || []).reduce((acc: number, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0),
-          contractItems: p.contractItems || [],
-          deliveries: Array.from(new Map([...(p.deliveries || []), ...(existingSupplier?.deliveries || [])].filter(d => d && d.id).map(d => [d.id, d])).values()),
+          initialValue: (Object.values(p.contractItems || {}) as any[]).reduce((acc: number, curr: any) => acc + (Number(curr.totalKg || 0) * (Number(curr.valuePerKg || 0))), 0),
+          contractItems: Object.values(p.contractItems || {}) as any[],
+          deliveries: Array.from(new Map([...pDeliveriesRaw, ...extDeliveriesRaw].filter(d => d && d.id).map(d => [d.id, d])).values()),
           allowedWeeks: finalWeeks,
           address: p.address || '',
           city: p.city || '',

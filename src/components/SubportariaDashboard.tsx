@@ -6,6 +6,7 @@ import RondaRegistroForm from './RondaRegistroForm';
 import AdminPasswordManager from './AdminPasswordManager';
 import { ClipboardList, Wrench, Calendar, Car } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ensureArray } from '../lib/utils';
 
 interface SubportariaDashboardProps {
   suppliers: Supplier[];
@@ -49,9 +50,9 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     };
 
     const combinedSuppliers = React.useMemo(() => {
-        const producers = perCapitaConfig?.ppaisProducers || [];
-        const pereciveis = perCapitaConfig?.pereciveisSuppliers || [];
-        const estocaveis = perCapitaConfig?.estocaveisSuppliers || [];
+        const producers = ensureArray(perCapitaConfig?.ppaisProducers);
+        const pereciveis = ensureArray(perCapitaConfig?.pereciveisSuppliers);
+        const estocaveis = ensureArray(perCapitaConfig?.estocaveisSuppliers);
 
         const mapToSupplier = (p: any) => {
             const weeks: number[] = [];
@@ -61,16 +62,17 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
             ];
 
-            Object.entries(p.monthlySchedule || {}).forEach(([monthName, weekOfMonthList]) => {
+            Object.entries(p.monthlySchedule || {}).forEach(([monthName, weekOfMonthListRaw]) => {
                 const monthIndex = monthNames.indexOf(monthName.toLowerCase());
                 if (monthIndex === -1) return;
 
-                if ((weekOfMonthList as number[]).length > 0) {
+                const weekOfMonthList = ensureArray<any>(weekOfMonthListRaw);
+                if (weekOfMonthList.length > 0) {
                     const firstDayOfMonth = new Date(year, monthIndex, 1);
                     const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
                     
-                    (weekOfMonthList as number[]).forEach(weekIdx => {
-                        weeks.push(firstWeekOfYear + (weekIdx - 1));
+                    weekOfMonthList.forEach((weekIdx: any) => {
+                        weeks.push(firstWeekOfYear + (Number(weekIdx) - 1));
                     });
                 }
             });
@@ -78,9 +80,9 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
             return {
                 ...p,
                 cpf: p.cpfCnpj,
-                deliveries: Object.values(p.deliveries || {}),
+                deliveries: ensureArray(p.deliveries),
                 allowedWeeks: Array.from(new Set(weeks)),
-                initialValue: Object.values(p.contractItems || {}).reduce((acc: any, curr: any) => acc + (Number(curr.totalKg || 0) * (curr.valuePerKg || 0)), 0)
+                initialValue: ensureArray(p.contractItems).reduce((acc: any, curr: any) => acc + (Number(curr.totalKg || 0) * (Number(curr.valuePerKg || 0))), 0)
             } as Supplier;
         };
 
@@ -96,11 +98,11 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                 if (!existing) {
                     uniqueMap.set(s.cpf, { ...s });
                 } else {
-                    const mergedDeliveries = [...(existing.deliveries || []), ...(s.deliveries || [])];
-                    const uniqueDeliveries = Array.from(new Map(mergedDeliveries.map(d => [d.id, d])).values());
+                    const mergedDeliveries = [...ensureArray<any>(existing.deliveries), ...ensureArray<any>(s.deliveries)];
+                    const uniqueDeliveries = Array.from(new Map(mergedDeliveries.filter(d => d && d.id).map(d => [d.id, d])).values());
                     const mergedWeeks = Array.from(new Set([...(existing.allowedWeeks || []), ...(s.allowedWeeks || [])])).sort((a, b) => a - b);
-                    const mergedItems = [...(existing.contractItems || []), ...(s.contractItems || [])];
-                    const uniqueItems = Array.from(new Map(mergedItems.map(item => [item.name + (item.period || ''), item])).values());
+                    const mergedItems = [...ensureArray<any>(existing.contractItems), ...ensureArray<any>(s.contractItems)];
+                    const uniqueItems = Array.from(new Map(mergedItems.filter(i => i && (i.name || i.itemName)).map(item => [(item.name || item.itemName) + (item.period || ''), item])).values());
 
                     uniqueMap.set(s.cpf, {
                         ...existing,

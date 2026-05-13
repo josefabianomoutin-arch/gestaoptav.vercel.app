@@ -12,6 +12,7 @@ import ValidityAnalysisPanel from './ValidityAnalysisPanel';
 import SynchronizationModule from './SynchronizationModule';
 import AdminStandardMenu from './AdminStandardMenu';
 import { getWeekNumber } from '../lib/supplierUtils';
+import { ensureArray } from '../lib/utils';
 
 interface AlmoxarifadoDashboardProps {
     suppliers: Supplier[];
@@ -133,14 +134,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             const deliveries: any[] = [];
             const seenUrls = new Set<string>();
             
-            (suppliers || []).forEach(s => {
+            ensureArray(suppliers).forEach(s => {
                 if (!s) return;
-                const supplierDeliveries = s.deliveries as any;
-                const deliveriesToProcess = typeof supplierDeliveries === 'object' && supplierDeliveries !== null 
-                    ? Object.values(supplierDeliveries) 
-                    : [];
-
-                deliveriesToProcess.forEach((d: any) => {
+                const supplierDeliveries = ensureArray(s.deliveries);
+                supplierDeliveries.forEach((d: any) => {
                     if (d && d.invoiceUrl && !seenUrls.has(d.invoiceUrl)) {
                         seenUrls.add(d.invoiceUrl);
                         let finalTimestamp = d.timestamp;
@@ -283,12 +280,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         const SeiNumber = perCapitaConfig?.seiProcessNumbers?.[cronogramaType] || '';
         
         // Find supplier details in PC config
-        const pcSupplier = (perCapitaConfig?.ppaisProducers || []).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier) ||
-                           (perCapitaConfig?.pereciveisSuppliers || []).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier) ||
-                           (perCapitaConfig?.estocaveisSuppliers || []).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier);
+        const pcSupplier = ensureArray(perCapitaConfig?.ppaisProducers).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier) ||
+                           ensureArray(perCapitaConfig?.pereciveisSuppliers).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier) ||
+                           ensureArray(perCapitaConfig?.estocaveisSuppliers).find((p: any) => p.cpfCnpj === selectedCronogramaSupplier);
 
         // Always find the actual supplier with deliveries from the main suppliers prop
-        const mainSupplier = suppliers.find(s => s.cpf === selectedCronogramaSupplier);
+        const mainSupplier = ensureArray(suppliers).find(s => s.cpf === selectedCronogramaSupplier);
         
         if (!mainSupplier && !pcSupplier) {
             alert('Por favor, selecione um fornecedor.');
@@ -296,17 +293,17 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         }
 
         // Merge info: use pcSupplier for metadata, both for deliveries
-        const supplier = {
-            ...(pcSupplier || {}),
-            ...(mainSupplier || {}),
-            name: pcSupplier?.name || mainSupplier?.name || 'DESCONHECIDO',
-            cpfCnpj: pcSupplier?.cpfCnpj || mainSupplier?.cpf || selectedCronogramaSupplier
+        const supplier: any = {
+            ...((pcSupplier as any) || {}),
+            ...((mainSupplier as any) || {}),
+            name: (pcSupplier as any)?.name || (mainSupplier as any)?.name || 'DESCONHECIDO',
+            cpfCnpj: (pcSupplier as any)?.cpfCnpj || (mainSupplier as any)?.cpf || selectedCronogramaSupplier
         };
 
         const divisor = (monthIndex <= 3) ? 4 : 8;
 
         const itemsSource = supplier.contractItems || {};
-        const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+        const supplierItems = ensureArray(itemsSource) as any[];
 
         const availableDatesList: string[] = [];
         const daysInMonthObj = new Date(selectedYear, monthIndex + 1, 0).getDate();
@@ -577,13 +574,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
 
     const receiptSupplier = useMemo(() => {
-        const main = (suppliers || []).find(s => s && s.cpf === receiptSupplierCpf);
+        const main = ensureArray(suppliers).find(s => s && s.cpf === receiptSupplierCpf);
         if (!main) return null;
         
-        const deliveriesData = main.deliveries || {};
         return {
             ...main,
-            deliveries: typeof deliveriesData === 'object' ? Object.values(deliveriesData) : (Array.isArray(deliveriesData) ? deliveriesData : [])
+            deliveries: ensureArray(main.deliveries)
         };
     }, [suppliers, receiptSupplierCpf]);
 
@@ -613,7 +609,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         
         // Obter itens da nota fiscal diretamente das entregas do fornecedor (Fonte Primária)
         const deliveriesData = receiptSupplier.deliveries || {};
-        const deliveriesList = (typeof deliveriesData === 'object' ? Object.values(deliveriesData) : (Array.isArray(deliveriesData) ? deliveriesData : []));
+        const deliveriesList = ensureArray(deliveriesData);
         const deliveries = (deliveriesList as any[]).filter(d => {
             if (!d) return false;
             const cleanDInv = String(d.invoiceNumber || '').trim().replace(/^0+/, '');
@@ -643,7 +639,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             });
 
             const contractItemsData = receiptSupplier.contractItems || {};
-            const contractItemsList = typeof contractItemsData === 'object' ? Object.values(contractItemsData) : (Array.isArray(contractItemsData) ? contractItemsData : []);
+            const contractItemsList = ensureArray(contractItemsData);
             const contractItem = (contractItemsList as any[]).find((ci: any) => ci && ci.name === itemName);
             const unitPrice = Number(itemMovement?.value || d.value || 0);
             
@@ -701,13 +697,13 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const handleInvoiceChange = (invoice: string) => {
         setReceiptInvoice(invoice);
         if (receiptSupplier && invoice && perCapitaConfig?.seiProcessNumbers) {
-            const deliveries = Object.values((receiptSupplier.deliveries as any) || {}).filter((d: any) => 
+            const deliveries = ensureArray(receiptSupplier.deliveries).filter((d: any) => 
                 d.invoiceNumber === invoice && d.item !== 'AGENDAMENTO PENDENTE'
             );
             
             const categories = new Set<string>();
             deliveries.forEach((d: any) => {
-                const contractItem = (Object.values(receiptSupplier.contractItems || {}) as any[]).find((ci: any) => ci.name === d.item);
+                const contractItem = ensureArray(receiptSupplier.contractItems).find((ci: any) => ci.name === d.item);
                 if (contractItem?.category) {
                     categories.add(contractItem.category);
                 }
@@ -724,9 +720,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
             if (!autoSei) {
                 // Tenta fallback baseado na lista de produtores/fornecedores per capita
-                const isPpais = (perCapitaConfig.ppaisProducers || []).some((p: any) => p.cpfCnpj === receiptSupplier.cpf);
-                const isPereciveis = (perCapitaConfig.pereciveisSuppliers || []).some((p: any) => p.cpfCnpj === receiptSupplier.cpf);
-                const isEstocaveis = (perCapitaConfig.estocaveisSuppliers || []).some((p: any) => p.cpfCnpj === receiptSupplier.cpf);
+                const isPpais = ensureArray(perCapitaConfig.ppaisProducers).some((p: any) => p.cpfCnpj === receiptSupplier.cpf);
+                const isPereciveis = ensureArray(perCapitaConfig.pereciveisSuppliers).some((p: any) => p.cpfCnpj === receiptSupplier.cpf);
+                const isEstocaveis = ensureArray(perCapitaConfig.estocaveisSuppliers).some((p: any) => p.cpfCnpj === receiptSupplier.cpf);
                 
                 if (isPpais) autoSei = perCapitaConfig.seiProcessNumbers?.['PPAIS'] || '';
                 else if (isPereciveis) autoSei = perCapitaConfig.seiProcessNumbers?.['PERECÍVEIS'] || perCapitaConfig.seiProcessNumbers?.['PERECIVEIS'] || '';
@@ -1672,7 +1668,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                           (perCapitaConfig?.estocaveisSuppliers || [])).map((s: any) => (
                                             <option key={s.cpfCnpj} value={s.cpfCnpj}>{s.name.toUpperCase()}</option>
                                           ))}
-                                        {cronogramaType === 'ESTOCÁVEIS' && suppliers.filter(s => !(perCapitaConfig?.estocaveisSuppliers || []).some((p: any) => p.cpfCnpj === s.cpf)).map(s => (
+                                        {cronogramaType === 'ESTOCÁVEIS' && ensureArray(suppliers).filter(s => !ensureArray(perCapitaConfig?.estocaveisSuppliers).some((p: any) => p.cpfCnpj === s.cpf)).map(s => (
                                             <option key={s.cpf} value={s.cpf}>{s.name.toUpperCase()}</option>
                                         ))}
                                     </select>
@@ -1735,7 +1731,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                     <div className="space-y-2 text-[9px] font-bold uppercase italic">
                                                         <p className="text-zinc-500 mb-1">Notas Fiscais:</p>
                                                         {(() => {
-                                                            const deliveries = Object.values(supplier?.deliveries || {}) as any[];
+                                                            const deliveries = ensureArray(supplier?.deliveries) as any[];
                                                             const monthIndex = MONTHS_PT.indexOf(selectedMonth);
                                                             const invoices = new Set<string>();
                                                             

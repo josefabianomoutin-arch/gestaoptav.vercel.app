@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+import { ensureArray } from '../lib/utils';
 import type { StandardMenu, DailyMenus, MenuRow, Supplier } from '../types';
 
 interface AdminStandardMenuProps {
@@ -263,7 +264,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
       const lots: typeof availableLots = [];
       
       suppliers.forEach(supplier => {
-          Object.values(supplier.deliveries || {}).forEach((delivery: any) => {
+          ensureArray(supplier.deliveries).forEach((delivery: any) => {
               if (delivery.item === itemName && delivery.lots) {
                   delivery.lots.forEach(lot => {
                       if ((lot.remainingQuantity || 0) > 0) {
@@ -322,8 +323,8 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
 
   const availableContractItems = useMemo(() => {
     const itemSet = new Set<string>();
-    (suppliers || []).forEach(s => {
-        Object.values(s.contractItems || {}).forEach((ci: any) => {
+    ensureArray(suppliers).forEach(s => {
+        ensureArray(s.contractItems).forEach((ci: any) => {
             itemSet.add(ci.name);
         });
     });
@@ -332,8 +333,8 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
   
   const contractItemUnitMap = useMemo(() => {
     const map = new Map<string, string>();
-    (suppliers || []).forEach(s => {
-        Object.values(s.contractItems || {}).forEach((ci: any) => {
+    ensureArray(suppliers).forEach(s => {
+        ensureArray(s.contractItems).forEach((ci: any) => {
             if (!map.has(ci.name)) {
                 map.set(ci.name, ci.unit || 'kg-1');
             }
@@ -347,14 +348,14 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
     const weightsMap = new Map<string, string>();
 
     // 1. Pega do template padrão
-    (Object.values(template).flat() as MenuRow[]).forEach(row => {
+    ensureArray(Object.values(template)).flat().forEach((row: any) => {
       if (row.contractedItem && row.unitWeight) {
         weightsMap.set(row.contractedItem, row.unitWeight);
       }
     });
 
     // 2. Pega de todos os cardápios diários (sobrescrevendo o template se houver alteração)
-    (Object.values(dailyMenus).flat() as MenuRow[]).forEach(row => {
+    ensureArray(Object.values(dailyMenus)).flat().forEach((row: any) => {
       if (row.contractedItem && row.unitWeight) {
         weightsMap.set(row.contractedItem, row.unitWeight);
       }
@@ -534,7 +535,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
     const datesOfWeek = getDatesOfWeek(selectedWeek, 2026);
     const suppliersThisWeek = new Set<string>();
     suppliers.forEach(supplier => {
-        const hasDeliveryThisWeek = Object.values((supplier.deliveries as any) || {}).some((delivery: any) => 
+        const hasDeliveryThisWeek = ensureArray(supplier.deliveries).some((delivery: any) => 
             datesOfWeek.includes(delivery.date) && delivery.item !== 'AGENDAMENTO PENDENTE'
         );
         if (hasDeliveryThisWeek) {
@@ -702,14 +703,14 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
 
     return contractedItemsInMenu.map(itemName => {
         const foundSuppliers = suppliers
-            .filter(supplier => (Object.values(supplier.contractItems || {}) as any[]).some((ci: any) => ci.name === itemName))
+            .filter(supplier => ensureArray<any>(supplier.contractItems).some((ci: any) => ci.name === itemName))
             .map(supplier => {
-                const contractItem = (Object.values(supplier.contractItems || {}) as any[]).find((ci: any) => ci.name === itemName);
-                const totalContracted = contractItem?.totalKg || 0;
+                const contractItem = ensureArray<any>(supplier.contractItems).find((ci: any) => ci.name === itemName);
+                const totalContracted = Number(contractItem?.totalKg || 0);
                 
-                const totalDelivered = (Object.values(supplier.deliveries || {}) as any[])
+                const totalDelivered = ensureArray<any>(supplier.deliveries)
                     .filter((d: any) => d.item === itemName)
-                    .reduce((sum: number, d: any) => sum + (d.kg || 0), 0);
+                    .reduce((sum: number, d: any) => sum + (Number(d.kg) || 0), 0);
                 
                 const remainingBalance = Math.max(0, totalContracted - totalDelivered);
                 
@@ -759,7 +760,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
     });
 
     const result = scheduledSuppliers.map(supplier => {
-        const itemsToSupply = (Object.values(supplier.contractItems || {}) as any[])
+        const itemsToSupply = ensureArray(supplier.contractItems)
             .map((ci: any) => ci.name)
             .filter(name => requiredItems.has(name));
 

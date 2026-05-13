@@ -58,6 +58,15 @@ export interface Supplier {
     city?: string;
     processNumber?: string;
     observations?: string;
+    [key: string]: any;
+}
+
+export interface MonthlyQuota {
+    name: string;
+    monthlyQuota: number;
+    deliveredThisMonth: number;
+    remainingThisMonth: number;
+    unit: string;
 }
 
 export interface WarehouseMovement {

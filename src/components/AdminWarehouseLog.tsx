@@ -11,7 +11,7 @@ import {
     ImageIcon
 } from 'lucide-react';
 import type { WarehouseMovement, Supplier } from '../types';
-import { roundToTwoDecimalPlaces } from '../lib/utils';
+import { roundToTwoDecimalPlaces, ensureArray } from '../lib/utils';
 import ConfirmModal from './ConfirmModal';
 
 const monthNamesInOrder = [
@@ -202,7 +202,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             const weeks = monthsNamesMatch.reduce((acc, m) => acc.length > 0 ? acc : (schedule[m] || []), [] as number[]);
             
             if (weeks.length > 0) {
-                const items = Object.values(s.contractItems || {}) as any[];
+                const items = ensureArray(s.contractItems) as any[];
                 items.forEach(it => {
                     if (!grouped[it.name]) {
                         grouped[it.name] = {

@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+import { ensureArray } from '../lib/utils';
 import type { Supplier, ThirdPartyEntryLog } from '../types';
 
 interface WeeklyScheduleControlProps {
@@ -68,10 +69,10 @@ const WeeklyScheduleControl: React.FC<WeeklyScheduleControlProps> = ({
     const weeklyData = useMemo(() => {
         const supplierData = filteredSuppliers.map(supplier => {
             // 1. Determine all unique NFs and their earliest week
-            const allDeliveries = (Object.values(supplier.deliveries || {}) as any[]);
+            const allDeliveries = ensureArray<any>(supplier.deliveries);
             const nfToEarliestWeek = allDeliveries
                 .filter(d => d.item !== 'AGENDAMENTO PENDENTE' && d.invoiceNumber)
-                .reduce((acc, d) => {
+                .reduce((acc: any, d: any) => {
                     const nf = d.invoiceNumber!;
                     const dDate = new Date(d.date + 'T00:00:00');
                     const week = getWeekNumber(dDate);
@@ -87,12 +88,12 @@ const WeeklyScheduleControl: React.FC<WeeklyScheduleControlProps> = ({
             });
 
             const scheduledDates = weekDeliveries
-                .filter(d => d.item === 'AGENDAMENTO PENDENTE')
-                .map(d => d.date);
+                .filter((d: any) => d.item === 'AGENDAMENTO PENDENTE')
+                .map((d: any) => d.date);
 
             const invoices = weekDeliveries
-                .filter(d => d.item !== 'AGENDAMENTO PENDENTE' && d.invoiceNumber)
-                .reduce((acc, d) => {
+                .filter((d: any) => d.item !== 'AGENDAMENTO PENDENTE' && d.invoiceNumber)
+                .reduce((acc, d: any) => {
                     const nf = d.invoiceNumber!;
                     if (nfToEarliestWeek[nf] === selectedWeek) {
                         let existing = acc.find(i => i.nf === nf);
@@ -100,7 +101,7 @@ const WeeklyScheduleControl: React.FC<WeeklyScheduleControlProps> = ({
                             existing = { nf, date: d.date, commitment: '' };
                             
                             // Find commitment number for this item
-                            const contractItem = (supplier.contractItems || []).find(ci => 
+                            const contractItem = ensureArray<any>(supplier.contractItems).find(ci => 
                                 superNormalize(ci.name) === superNormalize(d.item)
                             );
                             if (contractItem?.commitmentNumber) {

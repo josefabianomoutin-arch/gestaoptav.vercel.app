@@ -1,5 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
+import { ensureArray } from '../lib/utils';
 import type { Supplier, Delivery, WarehouseMovement, PerCapitaConfig } from '../types';
 
 interface AdminAnalyticsProps {
@@ -113,7 +114,7 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], perCapi
             
             const monthsCount = activeMonths.length || 12;
 
-            Object.values(s.contractItems || {}).forEach((ci: any) => {
+            ensureArray(s.contractItems).forEach((ci: any) => {
                 const iNorm = superNormalize(ci.name);
                 // Auditoria focada no ano completo
                 months.forEach(mName => {
@@ -137,7 +138,7 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], perCapi
         // 2. Acumular Entradas de Notas Fiscais (Deliveries)
         suppliers.forEach(s => {
             const sNorm = superNormalize(s.name);
-            (Object.values(s.deliveries || {}) as Delivery[]).forEach(del => {
+            ensureArray<any>(s.deliveries).forEach((del: any) => {
                 if (del.item === 'AGENDAMENTO PENDENTE') return;
                 
                 const delINorm = superNormalize(del.item || '');

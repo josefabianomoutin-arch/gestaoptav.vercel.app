@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { ensureArray } from '../lib/utils';
 import type { Supplier, Delivery, WarehouseMovement, AcquisitionItem } from '../types';
 import { Download, Search, FileCheck, Trash2, RotateCcw, Plus, X, Edit2, Printer, Barcode as BarcodeIcon, Upload, Calendar, FileText, Package } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
@@ -92,10 +93,9 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     const invoices: any[] = [];
     const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').toUpperCase();
 
-    (suppliers || []).forEach(supplier => {
+    ensureArray(suppliers).forEach(supplier => {
       if (!supplier) return;
-      const deliveriesData = supplier.deliveries || {};
-      const deliveries = (typeof deliveriesData === 'object' ? Object.values(deliveriesData) : (Array.isArray(deliveriesData) ? deliveriesData : [])) as Delivery[];
+      const deliveries = ensureArray(supplier.deliveries) as Delivery[];
       const grouped = deliveries.reduce((acc, d) => {
         if (!d || !d.invoiceNumber) return acc;
           const cleanDInvoice = cleanStr(d.invoiceNumber);
@@ -322,21 +322,22 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     const items = new Set<string>();
     
     // Search in main suppliers
-    const selectedSupplier = suppliers.find(s => s.cpf === manualEntryData.supplierCpf);
+    const selectedSupplier = ensureArray(suppliers).find(s => s.cpf === manualEntryData.supplierCpf);
     if (selectedSupplier) {
-        Object.values(selectedSupplier.contractItems || {}).forEach((ci: any) => {
+        ensureArray(selectedSupplier.contractItems).forEach((ci: any) => {
             if (ci.name) items.add(ci.name);
         });
     }
 
     // Search in perCapitaConfig for other quadrimesters
     if (perCapitaConfig && manualEntryData.supplierCpf) {
-        const pEntry = perCapitaConfig.ppaisProducers?.find((p: any) => p.cpfCnpj === manualEntryData.supplierCpf);
-        const fEntry = perCapitaConfig.pereciveisSuppliers?.find((f: any) => f.cpfCnpj === manualEntryData.supplierCpf);
-        const pcEntry = pEntry || fEntry;
+        const pEntry = ensureArray<any>(perCapitaConfig.ppaisProducers).find((p: any) => p.cpfCnpj === manualEntryData.supplierCpf);
+        const fEntry = ensureArray<any>(perCapitaConfig.pereciveisSuppliers).find((f: any) => f.cpfCnpj === manualEntryData.supplierCpf);
+        const eEntry = ensureArray<any>(perCapitaConfig.estocaveisSuppliers).find((e: any) => e.cpfCnpj === manualEntryData.supplierCpf);
+        const pcEntry = pEntry || fEntry || eEntry;
         
-        if (pcEntry && pcEntry.contractItems) {
-            pcEntry.contractItems.forEach((ci: any) => {
+        if (pcEntry) {
+            ensureArray<any>(pcEntry.contractItems).forEach((ci: any) => {
                 if (ci.name) items.add(ci.name);
             });
         }

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { ensureArray } from '../lib/utils';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   PieChart, Pie, Cell, AreaChart, Area 
@@ -49,7 +50,7 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
     let notDeliveredCount = 0;
 
     suppliers.forEach(s => {
-      const totalDelivered = (Object.values(s.deliveries || {}) as Delivery[]).reduce((acc, d) => acc + (Number(d.kg) || 0), 0);
+      const totalDelivered = ensureArray<any>(s.deliveries).reduce((acc: number, d: any) => acc + (Number(d.kg) || 0), 0);
       if (totalDelivered > 0) deliveredCount++;
       else notDeliveredCount++;
     });
@@ -63,10 +64,10 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
   // 2.1 Fornecedores Sem Entregas (Lista)
   const suppliersWithoutDeliveries = useMemo(() => {
     return suppliers
-      .filter(s => Object.values(s.deliveries || {}).length === 0)
+      .filter(s => ensureArray<any>(s.deliveries).length === 0)
       .map(s => ({
         name: s.name,
-        value: (Object.values(s.contractItems || {}) as any[]).reduce((acc: any, item: any) => acc + ((item.totalKg || 0) * (item.valuePerKg || 0)), 0)
+        value: ensureArray<any>(s.contractItems).reduce((acc: any, item: any) => acc + ((item.totalKg || 0) * (item.valuePerKg || 0)), 0)
       }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
@@ -77,12 +78,12 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
     const itemsMap = new Map<string, { contracted: number; delivered: number }>();
     
     suppliers.forEach(s => {
-      Object.values(s.contractItems || {}).forEach((ci: any) => {
+      ensureArray<any>(s.contractItems).forEach((ci: any) => {
         const current = itemsMap.get(ci.name) || { contracted: 0, delivered: 0 };
         current.contracted += ci.totalKg || 0;
         itemsMap.set(ci.name, current);
       });
-      (Object.values(s.deliveries || {}) as Delivery[]).forEach(d => {
+      ensureArray<any>(s.deliveries).forEach((d: any) => {
         const current = itemsMap.get(d.item) || { contracted: 0, delivered: 0 };
         const deliveredKg = Number(d.kg) || 0;
         current.delivered += deliveredKg;
@@ -104,14 +105,14 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
   // 4. Per Capita - Custo por Pessoa
   const perCapitaStats = useMemo(() => {
     const totalContractValue = suppliers.reduce((acc, s) => {
-      return acc + Object.values(s.contractItems || {}).reduce((sum: any, item: any) => sum + ((item.totalKg || 0) * (item.valuePerKg || 0)), 0);
+      return acc + ensureArray<any>(s.contractItems).reduce((sum: any, item: any) => sum + ((item.totalKg || 0) * (item.valuePerKg || 0)), 0);
     }, 0);
 
     const dailyCost = totalContractValue / 365; 
     const perPersonDaily = dailyCost / perCapitaDenominator;
 
     const totalMonthly = suppliers.reduce((acc, s) => {
-      return acc + Object.values(s.contractItems || {}).reduce((sum: any, item: any) => {
+      return acc + ensureArray<any>(s.contractItems).reduce((sum: any, item: any) => {
         const value = (item.totalKg || 0) * (item.valuePerKg || 0);
         const divisor = (item.category === 'PERECÍVEIS' || item.category === 'ESTOCÁVEIS') ? 4 : (item.category === 'PPAIS' ? 8 : 8);
         return sum + (value / divisor);
@@ -179,8 +180,8 @@ const AdminGraphs: React.FC<AdminGraphsProps> = ({
     return suppliers
       .map(s => ({
         name: s.name,
-        delivered: (Object.values(s.deliveries || {}) as Delivery[]).reduce((acc, d) => acc + (Number(d.kg) || 0), 0),
-        contracted: (Object.values(s.contractItems || {}) as any[]).reduce((acc: any, ci: any) => acc + (Number(ci.totalKg) || 0), 0)
+        delivered: ensureArray<any>(s.deliveries).reduce((acc: number, d: any) => acc + (Number(d.kg) || 0), 0),
+        contracted: ensureArray<any>(s.contractItems).reduce((acc: any, ci: any) => acc + (Number(ci.totalKg) || 0), 0)
       }))
       .filter(s => s.contracted > 0)
       .sort((a, b) => b.delivered - a.delivered)
