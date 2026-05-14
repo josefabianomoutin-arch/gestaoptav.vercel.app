@@ -131,9 +131,11 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             const cleanLogInv = cleanStr(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice);
             const cleanLogItem = cleanStr(log.item || log.itemName);
             const cleanDItem = cleanStr(d.item);
+            const cleanDId = cleanStr(d.id);
+            const cleanLogId = cleanStr(log.id);
             
             return cleanLogInv === cleanDInvoice &&
-                   (cleanLogItem === cleanDItem) &&
+                   (cleanLogItem === cleanDItem || (cleanLogId && cleanLogId === cleanDId)) &&
                    (cleanStr(log.supplierCpf) === cleanStr(supplier.cpf) || cleanStr(log.supplierName) === cleanStr(supplier.name));
           });
 
@@ -367,7 +369,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
     } else {
       window.open(finalUrl, '_blank'); } };
-       const availableItems = useMemo(() => {
+   const availableItems = useMemo(() => {
     const items = new Set<string>();
     const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
     
@@ -379,10 +381,11 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     if (selectedSupplier) {
         ensureArray(selectedSupplier.contractItems).forEach((ci: any) => {
             if (ci.name) items.add(ci.name);
+            if (ci.itemName) items.add(ci.itemName);
         });
     }
 
-    // Search in perCapitaConfig for other quadrimesters
+    // Search in perCapitaConfig
     if (perCapitaConfig && cleanActiveCpf) {
         const pEntry = ensureArray<any>(perCapitaConfig.ppaisProducers).find((p: any) => cleanStr(p.cpfCnpj) === cleanActiveCpf);
         const fEntry = ensureArray<any>(perCapitaConfig.pereciveisSuppliers).find((f: any) => cleanStr(f.cpfCnpj) === cleanActiveCpf);
@@ -392,12 +395,21 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
         if (pcEntry) {
             ensureArray<any>(pcEntry.contractItems).forEach((ci: any) => {
                 if (ci.name) items.add(ci.name);
+                if (ci.itemName) items.add(ci.itemName);
             });
         }
     }
 
+    // Also include items already in warehouseLog for this supplier
+    warehouseLog.forEach(log => {
+        if (cleanStr(log.supplierCpf) === cleanActiveCpf || cleanStr(log.supplierName) === cleanStr(selectedSupplier?.name)) {
+            const name = log.itemName || log.item;
+            if (name) items.add(name);
+        }
+    });
+
     return Array.from(items).sort();
-  }, [suppliers, perCapitaConfig, manualEntryData.supplierCpf, editingInvoice?.supplierCpf]);
+  }, [suppliers, perCapitaConfig, manualEntryData.supplierCpf, editingInvoice?.supplierCpf, warehouseLog]);
 
   const handleManualSave = async () => {
     if (!manualEntryData.supplierCpf || !manualEntryData.invoiceNumber || !manualEntryData.date) {

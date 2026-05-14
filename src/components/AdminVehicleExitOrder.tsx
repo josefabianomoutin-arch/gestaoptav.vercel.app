@@ -704,7 +704,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         {order.exitTime ? (
                             <div className="flex flex-col items-center">
                                 <span className="text-indigo-600 font-black text-xs">{order.exitTime}</span>
-                                <span className="text-[9px] text-gray-400 font-bold">{order.exitDate?.split('-').reverse().join('/')}</span>
+                                <span className="text-[9px] text-gray-400 font-bold">{(order.exitDate || order.date).split('-').reverse().join('/')}</span>
                             </div>
                         ) : <span className="text-gray-300">--:--</span>}
                     </td>
@@ -712,7 +712,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         {order.returnTime ? (
                             <div className="flex flex-col items-center">
                                 <span className="text-emerald-600 font-black text-xs">{order.returnTime}</span>
-                                <span className="text-[9px] text-gray-400 font-bold">{order.returnDate?.split('-').reverse().join('/')}</span>
+                                <span className="text-[9px] text-gray-400 font-bold">{(order.returnDate || order.date).split('-').reverse().join('/')}</span>
                             </div>
                         ) : <span className="text-gray-300">--:--</span>}
                     </td>
@@ -1114,12 +1114,15 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                 className="bg-white hover:bg-gray-50 text-indigo-900 border border-indigo-200 px-4 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all outline-none"
                             >
                                 <option value="" className="text-black">Todos os Meses</option>
-                                {['05','06','07','08','09','10','11','12'].map(m => {
-                                    const ym = `2026-${m}`;
-                                    const d = new Date(ym + '-15');
-                                    const label = `${d.toLocaleDateString('pt-BR', { month: 'long' })} DE 2026`.toUpperCase();
-                                    return <option key={ym} value={ym} className="text-black">{label}</option>;
-                                })}
+                                {(() => {
+                                    const currentYear = new Date().getFullYear();
+                                    return ['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => {
+                                        const ym = `${currentYear}-${m}`;
+                                        const d = new Date(currentYear, parseInt(m) - 1, 15);
+                                        const label = `${d.toLocaleDateString('pt-BR', { month: 'long' })} DE ${currentYear}`.toUpperCase();
+                                        return <option key={ym} value={ym} className="text-black">{label}</option>;
+                                    });
+                                })()}
                             </select>
                             <button 
                                 onClick={() => handleGenerateReportPDF()}

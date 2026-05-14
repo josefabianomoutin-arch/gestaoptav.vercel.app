@@ -979,15 +979,18 @@ const App: React.FC = () => {
           const entryInvRaw = String(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '').trim();
           const entryInv = entryInvRaw || 'S/N';
           if (entry.supplierCpf === supplierCpf && entryInv === String(invoiceNumber).trim()) {
-              const itemUpdate = items.find(it => it.name === (entry.item || entry.itemName) || it.id === entry.id);
+              const itemMatch = (it: any) => 
+                (it.name === (entry.item || entry.itemName) || it.itemName === (entry.item || entry.itemName) || it.id === entry.id);
+              const itemUpdate = items.find(itemMatch);
               if (itemUpdate) {
                   logUpdates[`${key}/inboundInvoice`] = newInvoiceNumber || entry.inboundInvoice || '';
                   logUpdates[`${key}/invoiceNumber`] = newInvoiceNumber || entry.invoiceNumber || '';
                   logUpdates[`${key}/quantity`] = itemUpdate.kg;
-                  logUpdates[`${key}/value`] = itemUpdate.value || 0;
+                  logUpdates[`${key}/value`] = itemUpdate.value !== undefined ? itemUpdate.value : (entry.value || 0);
                   logUpdates[`${key}/lotNumber`] = itemUpdate.lotNumber || entry.lotNumber || '';
                   logUpdates[`${key}/expirationDate`] = itemUpdate.expirationDate || entry.expirationDate || '';
-                  logUpdates[`${key}/pdNumber`] = pd || entry.pdNumber || '';
+                  logUpdates[`${key}/barcode`] = itemUpdate.barcode || entry.barcode || '';
+                  logUpdates[`${key}/pdNumber`] = pd || itemUpdate.pd || entry.pdNumber || '';
                   logUpdates[`${key}/date`] = newDate || entry.date || '';
               } else {
                   logUpdates[key] = null;
@@ -1008,20 +1011,21 @@ const App: React.FC = () => {
           const newList = [];
           for (const d of list) {
             if (d.invoiceNumber === invoiceNumber) {
-              const itemUpdate = items.find(it => it.id === d.id || it.name === d.item);
+              const itemMatch = (it: any) => (it.id === d.id || it.name === d.item || it.itemName === d.item);
+              const itemUpdate = items.find(itemMatch);
               if (itemUpdate) {
                 newList.push({
                   ...d,
                   invoiceNumber: newInvoiceNumber || d.invoiceNumber,
                   date: newDate || d.date,
                   kg: itemUpdate.kg,
-                  value: itemUpdate.value,
+                  value: itemUpdate.value !== undefined ? itemUpdate.value : d.value,
                   lotNumber: itemUpdate.lotNumber || d.lotNumber,
                   expirationDate: itemUpdate.expirationDate || d.expirationDate,
-                  barcode: barcode || d.barcode,
+                  barcode: itemUpdate.barcode || barcode || d.barcode,
                   receiptTermNumber: receiptTermNumber || d.receiptTermNumber,
                   invoiceDate: invoiceDate || d.invoiceDate,
-                  pd: pd || d.pd
+                  pd: pd || itemUpdate.pd || d.pd
                 });
               }
             } else {
@@ -1045,20 +1049,21 @@ const App: React.FC = () => {
             const newList = [];
             for (const d of list) {
               if (d.invoiceNumber === invoiceNumber) {
-                const itemUpdate = items.find(it => it.id === d.id || it.name === d.item);
+                const itemMatch = (it: any) => (it.id === d.id || it.name === d.item || it.itemName === d.item);
+                const itemUpdate = items.find(itemMatch);
                 if (itemUpdate) {
                   newList.push({
                     ...d,
                     invoiceNumber: newInvoiceNumber || d.invoiceNumber,
                     date: newDate || d.date,
                     kg: itemUpdate.kg,
-                    value: itemUpdate.value,
+                    value: itemUpdate.value !== undefined ? itemUpdate.value : d.value,
                     lotNumber: itemUpdate.lotNumber || d.lotNumber,
                     expirationDate: itemUpdate.expirationDate || d.expirationDate,
-                    barcode: barcode || d.barcode,
+                    barcode: itemUpdate.barcode || barcode || d.barcode,
                     receiptTermNumber: receiptTermNumber || d.receiptTermNumber,
                     invoiceDate: invoiceDate || d.invoiceDate,
-                    pd: pd || d.pd
+                    pd: pd || itemUpdate.pd || d.pd
                   });
                 }
               } else {
