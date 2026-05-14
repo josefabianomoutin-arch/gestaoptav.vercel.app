@@ -366,15 +366,16 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
       window.open(blobUrl, '_blank');
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
     } else {
-      window.open(finalUrl, '_blank');
-    }
-  };
-
-   const availableItems = useMemo(() => {
+      window.open(finalUrl, '_blank'); } };
+       const availableItems = useMemo(() => {
     const items = new Set<string>();
+    const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+    
+    const activeSupplierCpf = manualEntryData.supplierCpf || editingInvoice?.supplierCpf;
+    const cleanActiveCpf = cleanStr(activeSupplierCpf);
     
     // Search in main suppliers
-    const selectedSupplier = ensureArray(suppliers).find(s => s.cpf === manualEntryData.supplierCpf);
+    const selectedSupplier = ensureArray(suppliers).find(s => cleanStr(s.cpf) === cleanActiveCpf);
     if (selectedSupplier) {
         ensureArray(selectedSupplier.contractItems).forEach((ci: any) => {
             if (ci.name) items.add(ci.name);
@@ -382,10 +383,10 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     }
 
     // Search in perCapitaConfig for other quadrimesters
-    if (perCapitaConfig && manualEntryData.supplierCpf) {
-        const pEntry = ensureArray<any>(perCapitaConfig.ppaisProducers).find((p: any) => p.cpfCnpj === manualEntryData.supplierCpf);
-        const fEntry = ensureArray<any>(perCapitaConfig.pereciveisSuppliers).find((f: any) => f.cpfCnpj === manualEntryData.supplierCpf);
-        const eEntry = ensureArray<any>(perCapitaConfig.estocaveisSuppliers).find((e: any) => e.cpfCnpj === manualEntryData.supplierCpf);
+    if (perCapitaConfig && cleanActiveCpf) {
+        const pEntry = ensureArray<any>(perCapitaConfig.ppaisProducers).find((p: any) => cleanStr(p.cpfCnpj) === cleanActiveCpf);
+        const fEntry = ensureArray<any>(perCapitaConfig.pereciveisSuppliers).find((f: any) => cleanStr(f.cpfCnpj) === cleanActiveCpf);
+        const eEntry = ensureArray<any>(perCapitaConfig.estocaveisSuppliers).find((e: any) => cleanStr(e.cpfCnpj) === cleanActiveCpf);
         const pcEntry = pEntry || fEntry || eEntry;
         
         if (pcEntry) {
@@ -396,7 +397,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     }
 
     return Array.from(items).sort();
-  }, [suppliers, perCapitaConfig, manualEntryData.supplierCpf]);
+  }, [suppliers, perCapitaConfig, manualEntryData.supplierCpf, editingInvoice?.supplierCpf]);
 
   const handleManualSave = async () => {
     if (!manualEntryData.supplierCpf || !manualEntryData.invoiceNumber || !manualEntryData.date) {
