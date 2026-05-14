@@ -100,11 +100,11 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           const grouped = deliveries.reduce((acc, d) => {
             if (!d || d.item === 'AGENDAMENTO PENDENTE') return acc;
             const invoiceNum = String(d.invoiceNumber || 'S/N').trim();
-        const cleanDInvoice = cleanStr(invoiceNum);
-          const movement = warehouseLog.find(log => {
-            const cleanLogInv = cleanStr(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice);
-            return cleanLogInv === cleanDInvoice;
-          });
+            const cleanDInvoice = cleanStr(invoiceNum);
+            const movement = warehouseLog.find(log => {
+                const cleanLogInv = cleanStr(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice);
+                return cleanLogInv === cleanDInvoice;
+            });
           const isExit = (d as any).type === 'saída' || (movement && movement.type === 'saída');
           
           if (mode === 'warehouse_entry' && isExit) return acc;
@@ -171,7 +171,6 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           const grouped = deliveries.reduce((acc, d) => {
             if (!d || d.item === 'AGENDAMENTO PENDENTE') return acc;
             const invoiceNum = String(d.invoiceNumber || 'S/N').trim();
-            const cleanDInvoice = cleanStr(invoiceNum);
 
             const isExit = d.type === 'saída' || d.type === 'saida';
             if (mode === 'warehouse_entry' && isExit) return acc;
@@ -703,18 +702,25 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                         type="file" 
                         id={`file-upload-${inv.supplierCpf}-${inv.invoiceNumber}`} 
                         className="hidden" 
+                        accept="application/pdf,image/*"
                         onChange={async (e) => {
                             if (e.target.files && e.target.files[0]) {
+                                const toastId = toast.loading('Enviando nota...');
                                 try {
                                     const file = e.target.files[0];
-                                    const fileRef = storageRef(storage, `invoices/${inv.supplierCpf}/${inv.invoiceNumber}/${file.name}`);
+                                    // Clean metadata from path
+                                    const cleanCpf = String(inv.supplierCpf || 'S-CPF').replace(/[^\w-]/g, '_');
+                                    const cleanInvoice = String(inv.invoiceNumber || 'S-N').replace(/[^\w-]/g, '_');
+                                    const cleanFileName = file.name.replace(/[^\w.-]/g, '_');
+                                    
+                                    const fileRef = storageRef(storage, `invoices/${cleanCpf}/${cleanInvoice}/${cleanFileName}`);
                                     await uploadBytes(fileRef, file);
                                     const url = await getDownloadURL(fileRef);
                                     await onUpdateInvoiceUrl(inv.supplierCpf, inv.invoiceNumber, url);
-                                    toast.success('Nota enviada com sucesso!');
-                                } catch (error) {
-                                    console.error(error);
-                                    toast.error('Erro ao enviar a nota.');
+                                    toast.success('Nota enviada com sucesso!', { id: toastId });
+                                } catch (error: any) {
+                                    console.error('Storage error:', error);
+                                    toast.error(`Erro ao enviar a nota: ${error?.message || 'Erro desconhecido'}`, { id: toastId });
                                 }
                             }
                         }} 

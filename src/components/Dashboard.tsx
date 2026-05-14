@@ -13,8 +13,7 @@ import { speechService } from '../services/speechService';
 import { HelpCircle, Volume2, Calendar as CalendarIcon, FileText, Search, Download, Upload, Plus } from 'lucide-react';
 import { HOLIDAYS_2026 } from '../constants';
 import { getDatabase, ref, get } from 'firebase/database';
-import { app, storage } from '../firebaseConfig';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { app } from '../firebaseConfig';
 import { toast } from 'sonner';
 
 // Definindo uma data simulada para garantir que o painel mostre o mês de Maio corretamente

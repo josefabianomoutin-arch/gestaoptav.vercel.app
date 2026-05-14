@@ -14,7 +14,7 @@ import VehicleOrderDashboard from './components/VehicleOrderDashboard';
 import JulioDashboard from './components/JulioDashboard';
 import ServiceOrderDashboard from './components/ServiceOrderDashboard';
 import InfobarTicker from './components/InfobarTicker';
-import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get, query, orderByChild, equalTo } from 'firebase/database';
+import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
 import { ref as storageRef, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { app, storage } from './firebaseConfig';
 import { getCombinedSuppliers } from './lib/supplierUtils';
@@ -1684,16 +1684,16 @@ const App: React.FC = () => {
         const newRef = push(warehouseLogRef);
         
         let finalInvoiceUrl = payload.invoiceUrl || '';
-        if (finalInvoiceUrl.startsWith('data:application/pdf')) {
-            console.log("Detectado PDF base64, iniciando upload para Storage...");
+        if (finalInvoiceUrl && (finalInvoiceUrl.startsWith('data:application/pdf') || finalInvoiceUrl.startsWith('data:pdf/') || (finalInvoiceUrl.startsWith('data:') && finalInvoiceUrl.includes('base64')))) {
+            console.log("Detectado possível PDF/Arquivo base64, iniciando upload para Storage...");
             try {
-                const invoiceId = `inv_entry_NF${payload.invoiceNumber || 'S-N'}_${Date.now()}_${Math.random().toString(36).substring(2, 5)}.pdf`;
+                const invoiceId = `inv_entry_NF${String(payload.invoiceNumber || 'S-N').replace(/[^\w-]/g, '_')}_${Date.now()}_${Math.random().toString(36).substring(2, 5)}.pdf`;
                 const fileRef = storageRef(storage, `invoices/${invoiceId}`);
                 
                 const parts = finalInvoiceUrl.split(',');
                 if (parts.length > 1) {
                     const byteString = atob(parts[1]);
-                    const mimeString = parts[0].split(':')[1].split(';')[0];
+                    const mimeString = parts[0].includes(':') ? parts[0].split(':')[1].split(';')[0] : 'application/pdf';
                     const ab = new ArrayBuffer(byteString.length);
                     const ia = new Uint8Array(ab);
                     for (let i = 0; i < byteString.length; i++) {

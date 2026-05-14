@@ -600,6 +600,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                     }
                 } else {
                     console.error("Erro ao registrar item:", item.itemName, res.message);
+                    toast.error(`Falha no item ${item.itemName}: ${res.message || 'Erro desconhecido'}`, { duration: 4000 });
                     failCount++;
                 }
             }
