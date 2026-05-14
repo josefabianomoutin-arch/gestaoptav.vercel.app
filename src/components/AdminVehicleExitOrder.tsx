@@ -2314,7 +2314,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                         if (e.target.checked) {
                                             setConfirmConfig({
                                                 isOpen: true,
-                                                title: 'Assumir Riscos',
+                                                title: 'ASSUMIR RISCOS',
                                                 message: 'Você está prestes a liberar o veículo sem a verificação dos itens de segurança. O cadastro será salvo apontando que o cadastrante não realizou o checklist, assumindo o veículo sem a checagem dos itens. Tem certeza que deseja assumir estes riscos?',
                                                 variant: 'warning',
                                                 onConfirm: () => {
@@ -2345,33 +2345,23 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                 </button>
                                 <button 
                                     onClick={() => {
+                                        // Directly allow if bypassed
                                         if (vehicleChecklist.bypassed) {
                                             handleConfirmChecklist();
                                         } else {
-                                            handleConfirmChecklist();
+                                            // Validate all OK
+                                            if (vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights) {
+                                                handleConfirmChecklist();
+                                            } else {
+                                                alert("Por favor, verifique todos os itens ou assuma os riscos marcando a opção.");
+                                            }
                                         }
                                     }}
-                                    disabled={
-                                        !vehicleChecklist.bypassed && 
-                                        (!(vehicleChecklist.water !== null && vehicleChecklist.oil !== null && vehicleChecklist.tires !== null && vehicleChecklist.lights !== null) || !(vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights))
-                                    }
-                                    className={`flex-1 px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl active:scale-95 ${
-                                        (vehicleChecklist.bypassed || (vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights)) 
-                                        ? 'bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700' 
-                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                                    }`}
+                                    className="flex-1 px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl active:scale-95 bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700"
                                 >
                                     Confirmar Checklist
                                 </button>
                             </div>
-                            
-                            {!vehicleChecklist.bypassed && (!(vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights) && (vehicleChecklist.water !== null && vehicleChecklist.oil !== null && vehicleChecklist.tires !== null && vehicleChecklist.lights !== null)) && (
-                                <div className="bg-red-50 p-3 rounded-xl border border-red-100 animate-pulse">
-                                    <p className="text-center text-[9px] text-red-600 font-black uppercase tracking-widest">
-                                        Atenção: Todos os itens devem estar OK para liberar a saída do veículo.
-                                    </p>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>
