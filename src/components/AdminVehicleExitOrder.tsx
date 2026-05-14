@@ -352,19 +352,35 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     }, [isAutoScanEnabled, isCameraActive, recognitionStatus, captureAndRecognizePlate]);
 
     const handleQuickRegister = async (order: VehicleExitOrder, type: 'exit' | 'return') => {
-        if (type === 'exit' && !order.validationRole) {
-            alert('Esta ordem de saída ainda não foi validada por uma autoridade superior. A saída não pode ser registrada.');
-            return;
-        }
-
         const now = new Date();
         const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
         const currentDate = now.toISOString().split('T')[0];
 
         if (type === 'exit') {
+            // Se não houver validação, permitimos mas podemos deixar um aviso ou apenas registrar
             await onUpdate({ ...order, exitTime: currentTime, exitDate: currentDate });
         } else {
-            await onUpdate({ ...order, returnTime: currentTime, returnDate: currentDate });
+            // Para retorno, abrimos o modal de edição para que o usuário possa confirmar/alterar a data e hora
+            setEditingOrder(order);
+            setFormData({
+                date: order.date,
+                vehicle: order.vehicle,
+                plate: order.plate,
+                assetNumber: order.assetNumber,
+                responsibleServer: order.responsibleServer,
+                serverRole: order.serverRole,
+                destination: order.destination,
+                fctNumber: order.fctNumber,
+                companions: (order.companions && order.companions.length > 0 ? order.companions : [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }]) as any[],
+                observations: order.observations || '',
+                exitTime: order.exitTime || '',
+                exitDate: order.exitDate || order.date,
+                returnTime: currentTime,
+                returnDate: currentDate,
+                validationRole: order.validationRole || '',
+                validatedBy: order.validatedBy || ''
+            });
+            setIsModalOpen(true);
         }
     };
 
@@ -835,10 +851,6 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         }
 
         if (editingOrder) {
-            if (finalData.exitTime && !finalData.validationRole) {
-                alert('Atenção: Não é possível registrar o horário de saída sem a validação de uma autoridade superior.');
-                return;
-            }
             await onUpdate({ ...finalData, id: editingOrder.id });
             setIsModalOpen(false);
             setEditingOrder(null);
@@ -1284,10 +1296,9 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                 )}
                                                 <button 
                                                     onClick={() => handleQuickRegister(order, 'exit')}
-                                                    disabled={!order.validationRole}
-                                                    className={`font-black py-2 px-4 rounded-xl text-[9px] uppercase tracking-widest shadow-lg active:scale-95 transition-all ${!order.validationRole ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none' : 'bg-indigo-600 text-white shadow-indigo-100'}`}
+                                                    className="bg-indigo-600 text-white font-black py-2 px-4 rounded-xl text-[9px] uppercase tracking-widest shadow-lg shadow-indigo-100 active:scale-95 transition-all hover:bg-indigo-700"
                                                 >
-                                                    {order.validationRole ? 'Registrar Saída' : 'Aguardando Validação'}
+                                                    {order.validationRole ? 'Registrar Saída' : 'Registrar Saída (Sem Validação)'}
                                                 </button>
                                             </div>
                                         </div>
@@ -2301,41 +2312,12 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                 onClick={() => setVehicleChecklist(prev => ({ ...prev, [item.id]: false }))}
                                                 className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${vehicleChecklist[item.id as keyof typeof vehicleChecklist] === false ? 'bg-red-600 text-white shadow-lg shadow-red-100 scale-105' : 'bg-white text-gray-400 border border-gray-200 hover:border-red-200 hover:text-red-600'}`}
                                             >
-                                                NÃO OK
                                             </button>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                             
-                            <div className="flex items-start gap-3 p-4 bg-orange-50/50 rounded-2xl border border-orange-100 mt-4">
-                                <input 
-                                    type="checkbox" 
-                                    id="bypassChecklist"
-                                    checked={vehicleChecklist.bypassed}
-                                    onChange={(e) => {
-                                        if (e.target.checked) {
-                                            setConfirmConfig({
-                                                isOpen: true,
-                                                title: 'ASSUMIR RISCOS',
-                                                message: 'Você está prestes a liberar o veículo sem a verificação dos itens de segurança. O cadastro será salvo apontando que o cadastrante não realizou o checklist, assumindo o veículo sem a checagem dos itens. Tem certeza que deseja assumir estes riscos?',
-                                                variant: 'warning',
-                                                onConfirm: () => {
-                                                    setVehicleChecklist(prev => ({...prev, bypassed: true}));
-                                                    setConfirmConfig(prev => ({...prev, isOpen: false}));
-                                                }
-                                            });
-                                        } else {
-                                            setVehicleChecklist(prev => ({...prev, bypassed: false}));
-                                        }
-                                    }}
-                                    className="mt-1 w-4 h-4 text-orange-600 rounded bg-white border-orange-300 focus:ring-orange-500"
-                                />
-                                <label htmlFor="bypassChecklist" className="text-[10px] text-orange-900 font-bold leading-tight uppercase tracking-widest cursor-pointer">
-                                    Não realizar inspeção e assumir os riscos (o registro será salvo com aviso de liberação sem checagem)
-                                </label>
-                            </div>
-
                             <div className="flex gap-3 pt-4">
                                 <button 
                                     onClick={() => {
@@ -2348,16 +2330,24 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                 </button>
                                 <button 
                                     onClick={() => {
-                                        // Directly allow if bypassed
-                                        if (vehicleChecklist.bypassed) {
-                                            handleConfirmChecklist();
+                                        // Se algum item não foi marcado (null), pede confirmação para assumir riscos
+                                        if (vehicleChecklist.water === null || vehicleChecklist.oil === null || vehicleChecklist.tires === null || vehicleChecklist.lights === null) {
+                                            setConfirmConfig({
+                                                isOpen: true,
+                                                title: 'ASSUMIR RISCOS',
+                                                message: 'Você está prestes a liberar o veículo sem a verificação de todos os itens de segurança. O cadastro será salvo apontando que o cadastrante não realizou o checklist completo, assumindo o veículo sem a checagem total dos itens. Tem certeza que deseja assumir estes riscos?',
+                                                variant: 'warning',
+                                                onConfirm: () => {
+                                                    setVehicleChecklist(prev => ({...prev, bypassed: true}));
+                                                    setIsChecklistCompleted(true);
+                                                    setIsChecklistModalOpen(false);
+                                                    setIsModalOpen(true);
+                                                    setConfirmConfig(prev => ({...prev, isOpen: false}));
+                                                }
+                                            });
                                         } else {
-                                            // Validate all OK
-                                            if (vehicleChecklist.water && vehicleChecklist.oil && vehicleChecklist.tires && vehicleChecklist.lights) {
-                                                handleConfirmChecklist();
-                                            } else {
-                                                alert("Por favor, verifique todos os itens ou assuma os riscos marcando a opção.");
-                                            }
+                                            // Se todos foram marcados, continua normal
+                                            handleConfirmChecklist();
                                         }
                                     }}
                                     className="flex-1 px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl active:scale-95 bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700"

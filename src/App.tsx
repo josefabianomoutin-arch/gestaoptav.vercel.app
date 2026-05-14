@@ -894,6 +894,7 @@ const App: React.FC = () => {
         invoiceNumber,
         invoiceUrl,
         invoiceDate: invoiceDate || d.invoiceDate || d.date,
+        invoiceUploaded: true,
         status: 'CONCLUÍDO',
         updatedAt: new Date().toISOString()
       }));
@@ -1254,12 +1255,16 @@ const App: React.FC = () => {
 
   const handleManualInvoiceEntry = async (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string, type: 'entrada' | 'saída' = 'entrada', invoiceUrl?: string) => {
     let supplierName = '';
-    const mainSupplier = suppliers.find(s => s.cpf === supplierCpf);
+    const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+    const cleanEntryCpf = cleanStr(supplierCpf);
+
+    const mainSupplier = (suppliers || []).find(s => s && cleanStr(s.cpf) === cleanEntryCpf);
     if (mainSupplier) {
       supplierName = mainSupplier.name;
     } else {
-      const p = perCapitaConfig.ppaisProducers?.find(s => (s.cpfCnpj === supplierCpf || s.cpf === supplierCpf)) || 
-                perCapitaConfig.pereciveisSuppliers?.find(s => (s.cpfCnpj === supplierCpf || s.cpf === supplierCpf));
+      const p = (perCapitaConfig.ppaisProducers || []).find(s => (cleanStr(s.cpfCnpj || s.cpf) === cleanEntryCpf)) || 
+                (perCapitaConfig.pereciveisSuppliers || []).find(s => (cleanStr(s.cpfCnpj || s.cpf) === cleanEntryCpf)) ||
+                (perCapitaConfig.estocaveisSuppliers || []).find(s => (cleanStr(s.cpfCnpj || s.cpf) === cleanEntryCpf));
       if (p) supplierName = p.name;
     }
 
@@ -1278,7 +1283,7 @@ const App: React.FC = () => {
             itemName: item.name,
             supplierName: supplierName,
             supplierCpf: supplierCpf,
-            lotNumber: item.lotNumber || 'MANUAL',
+            lotNumber: item.lotNumber || 'UNICO',
             quantity: item.kg,
             value: item.value || 0,
             barcode: item.barcode || barcode || '',
@@ -1301,14 +1306,18 @@ const App: React.FC = () => {
       await Promise.all(logEntries.map(le => set(le.ref, le.entry)));
 
       // 2. Sincronizar com as entregas do fornecedor
+      const entryDate = invoiceDate || date;
       if (mainSupplier) {
-        const supplierRef = child(suppliersRef, supplierCpf);
+        const supplierRef = child(suppliersRef, mainSupplier.cpf);
         await runTransaction(supplierRef, (currentData: Supplier) => {
           if (currentData) {
-            const deliveries = Array.isArray(currentData.deliveries) 
+            let deliveries = Array.isArray(currentData.deliveries) 
               ? [...currentData.deliveries] 
               : Object.values(currentData.deliveries || {});
             
+            // Remover agendamento pendente do mesmo dia
+            deliveries = deliveries.filter((d: any) => !(d.date === entryDate && d.item === 'AGENDAMENTO PENDENTE'));
+
             logEntries.forEach((le, idx) => {
               const item = items[idx];
               const newDelivery: any = {
@@ -1322,6 +1331,7 @@ const App: React.FC = () => {
                 invoiceNumber: String(invoiceNumber || '').trim(),
                 barcode: item.barcode || barcode || '',
                 type: type,
+                status: 'CONCLUÍDO',
                 lots: [{
                   id: le.lotId,
                   lotNumber: item.lotNumber || 'MANUAL',
@@ -1346,12 +1356,15 @@ const App: React.FC = () => {
         await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
           if (currentData) {
             const findAndAdd = (list: any[] | undefined) => {
-              const s = list?.find(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
+              const s = list?.find(p => (cleanStr(p.cpfCnpj || p.cpf) === cleanEntryCpf));
               if (s) {
-                const deliveries = Array.isArray(s.deliveries)
+                let deliveries = Array.isArray(s.deliveries)
                   ? [...s.deliveries]
                   : Object.values(s.deliveries || {});
                 
+                // Remover agendamento pendente do mesmo dia
+                deliveries = deliveries.filter((d: any) => !(d.date === entryDate && d.item === 'AGENDAMENTO PENDENTE'));
+
                 logEntries.forEach((le, idx) => {
                   const item = items[idx];
                   const newDelivery: any = {
@@ -1364,6 +1377,7 @@ const App: React.FC = () => {
                     invoiceUploaded: true,
                     invoiceNumber: String(invoiceNumber || '').trim(),
                     barcode: item.barcode || barcode || '',
+                    status: 'CONCLUÍDO',
                     lots: [{
                       id: le.lotId,
                       lotNumber: item.lotNumber || 'MANUAL',
@@ -1709,20 +1723,24 @@ const App: React.FC = () => {
             }
         }
 
+        const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+        const cleanPayloadCpf = cleanStr(payload.supplierCpf);
+
         // Find supplier in both main list and perCapitaConfig
-        const ppaisProducer = (perCapitaConfig.ppaisProducers || []).find(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
-        const pereciveisSupplier = (perCapitaConfig.pereciveisSuppliers || []).find(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
-        const estocavelSupplier = (perCapitaConfig.estocaveisSuppliers || []).find(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
-        const mainSupplier = (suppliers || []).find(s => s.cpf === payload.supplierCpf);
+        const ppaisProducer = (perCapitaConfig.ppaisProducers || []).find(p => (cleanStr(p.cpfCnpj || p.cpf) === cleanPayloadCpf));
+        const pereciveisSupplier = (perCapitaConfig.pereciveisSuppliers || []).find(p => (cleanStr(p.cpfCnpj || p.cpf) === cleanPayloadCpf));
+        const estocavelSupplier = (perCapitaConfig.estocaveisSuppliers || []).find(p => (cleanStr(p.cpfCnpj || p.cpf) === cleanPayloadCpf));
+        const mainSupplier = (suppliers || []).find(s => cleanStr(s.cpf) === cleanPayloadCpf);
         
         const supplier = mainSupplier || ppaisProducer || pereciveisSupplier || estocavelSupplier;
 
         const lotId = `lot-${Date.now()}`;
+        const entryDate = payload.invoiceDate || new Date().toISOString().split('T')[0];
         const entry: any = {
             id: newRef.key || `ent-${Date.now()}`,
             type: 'entrada',
             timestamp: new Date().toISOString(),
-            date: payload.invoiceDate || new Date().toISOString().split('T')[0],
+            date: entryDate,
             itemName: payload.itemName,
             supplierName: supplier?.name || 'Desconhecido',
             supplierCpf: payload.supplierCpf,
@@ -1735,7 +1753,7 @@ const App: React.FC = () => {
             deliveryId: '',
             invoiceUrl: finalInvoiceUrl
         };
-        if (payload.invoiceNumber !== undefined) entry.inboundInvoice = payload.invoiceNumber;
+        if (payload.invoiceNumber !== undefined) entry.inboundInvoice = String(payload.invoiceNumber || '').trim();
         if (payload.expirationDate !== undefined) entry.expirationDate = payload.expirationDate;
 
         await set(newRef, entry);
@@ -1744,15 +1762,17 @@ const App: React.FC = () => {
         if (supplier) {
             const newDelivery = {
                 id: `sync-${Date.now()}`,
-                date: payload.invoiceDate || new Date().toISOString().split('T')[0],
+                date: entryDate,
                 time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
                 item: payload.itemName,
                 kg: Number(payload.quantity || 0),
                 value: Number(payload.value || 0),
-                invoiceUploaded: !!finalInvoiceUrl,
+                invoiceUploaded: true, // Se está registrando a entrada com NF, ela está "carregada" no sistema
                 invoiceNumber: String(payload.invoiceNumber || '').trim(),
                 barcode: payload.barcode || '',
-                invoiceUrl: finalInvoiceUrl,
+                invoiceUrl: finalInvoiceUrl || '',
+                pd: payload.pdNumber || '',
+                status: 'CONCLUÍDO',
                 lots: [{
                     id: lotId,
                     lotNumber: payload.lotNumber || 'UNICO',
@@ -1765,9 +1785,13 @@ const App: React.FC = () => {
             if (mainSupplier) {
                 const deliveriesRef = child(suppliersRef, `${mainSupplier.cpf}/deliveries`);
                 await runTransaction(deliveriesRef, (currentDeliveries) => {
-                    const deliveries = Array.isArray(currentDeliveries) 
-                        ? currentDeliveries 
+                    let deliveries = Array.isArray(currentDeliveries) 
+                        ? [...currentDeliveries] 
                         : (currentDeliveries ? Object.values(currentDeliveries) : []);
+                    
+                    // Remover agendamento pendente do mesmo dia
+                    deliveries = deliveries.filter((d: any) => !(d.date === entryDate && d.item === 'AGENDAMENTO PENDENTE'));
+                    
                     deliveries.push(newDelivery as any);
                     return deliveries;
                 });
@@ -1777,17 +1801,17 @@ const App: React.FC = () => {
                 let producerIdx = -1;
 
                 const ppList = perCapitaConfig.ppaisProducers || [];
-                producerIdx = ppList.findIndex(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
+                producerIdx = ppList.findIndex(p => (cleanStr(p.cpfCnpj || p.cpf) === cleanPayloadCpf));
                 if (producerIdx !== -1) {
                     listKey = 'ppaisProducers';
                 } else {
                     const perecList = perCapitaConfig.pereciveisSuppliers || [];
-                    producerIdx = perecList.findIndex(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
+                    producerIdx = perecList.findIndex(p => (cleanStr(p.cpfCnpj || p.cpf) === cleanPayloadCpf));
                     if (producerIdx !== -1) {
                         listKey = 'pereciveisSuppliers';
                     } else {
                         const estocList = perCapitaConfig.estocaveisSuppliers || [];
-                        producerIdx = estocList.findIndex(p => (p.cpfCnpj === payload.supplierCpf || p.cpf === payload.supplierCpf));
+                        producerIdx = estocList.findIndex(p => (cleanStr(p.cpfCnpj || p.cpf) === cleanPayloadCpf));
                         if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
                     }
                 }
@@ -1796,9 +1820,13 @@ const App: React.FC = () => {
                     // Update only the specific producer's deliveries to avoid locking the entire config
                     const producerDeliveriesRef = child(perCapitaConfigRef, `${listKey}/${producerIdx}/deliveries`);
                     await runTransaction(producerDeliveriesRef, (currentDeliveries) => {
-                        const deliveries = Array.isArray(currentDeliveries) 
-                            ? currentDeliveries 
+                        let deliveries = Array.isArray(currentDeliveries) 
+                            ? [...currentDeliveries] 
                             : (currentDeliveries ? Object.values(currentDeliveries) : []);
+                        
+                        // Remover agendamento pendente do mesmo dia
+                        deliveries = deliveries.filter((d: any) => !(d.date === entryDate && d.item === 'AGENDAMENTO PENDENTE'));
+                        
                         deliveries.push(newDelivery);
                         return deliveries;
                     });

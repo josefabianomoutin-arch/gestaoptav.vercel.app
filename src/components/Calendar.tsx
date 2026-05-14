@@ -87,8 +87,15 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeek
       } else {
         dayClasses += " cursor-pointer";
         const isPast = currentDate < new Date(new Date().setHours(0,0,0,0));
-        const needsInvoice = hasDeliveries && deliveriesOnThisDate.some(d => !d.invoiceUploaded);
-        const allFulfilled = hasDeliveries && deliveriesOnThisDate.every(d => d.invoiceUploaded);
+        const hasDeliveries = deliveriesOnThisDate.length > 0;
+        const realDeliveries = deliveriesOnThisDate.filter(d => d.item !== 'AGENDAMENTO PENDENTE');
+        const needsInvoice = hasDeliveries && (realDeliveries.length > 0 
+           ? realDeliveries.some(d => !d.invoiceUploaded)
+           : deliveriesOnThisDate.some(d => !d.invoiceUploaded));
+           
+        const allFulfilled = hasDeliveries && (realDeliveries.length > 0
+           ? realDeliveries.every(d => d.invoiceUploaded)
+           : deliveriesOnThisDate.every(d => d.invoiceUploaded));
 
         if (needsInvoice && (isPast || dateString === new Date().toISOString().split('T')[0])) {
           dayClasses += " bg-red-500 hover:bg-red-600 text-white font-bold shadow-inner";

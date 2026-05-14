@@ -60,6 +60,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   onManualInvoiceEntry,
   mode = 'admin',
   perCapitaConfig,
+  acquisitionItems = [],
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter] = useState<'all' | 'pending' | 'opened'>('all');
@@ -165,8 +166,6 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
       pcLists.forEach(listKey => {
         ensureArray(perCapitaConfig[listKey]).forEach((pcSupplier: any) => {
           if (!pcSupplier) return;
-          // Avoid duplication if already in main suppliers list (combinedSuppliers should prevent this but let's be safe)
-          if (invoices.some(inv => inv.supplierCpf === pcSupplier.cpfCnpj)) return;
 
           const deliveries = ensureArray(pcSupplier.deliveries) as any[];
           const grouped = deliveries.reduce((acc, d) => {
@@ -174,14 +173,15 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             const invoiceNum = String(d.invoiceNumber || 'S/N').trim();
             const cleanDInvoice = cleanStr(invoiceNum);
 
-            const isExit = d.type === 'saída';
+            const isExit = d.type === 'saída' || d.type === 'saida';
             if (mode === 'warehouse_entry' && isExit) return acc;
             if (mode === 'warehouse_exit' && !isExit) return acc;
 
-            if (!acc[invoiceNum]) {
-              acc[invoiceNum] = {
+            const invKey = invoiceNum;
+            if (!acc[invKey]) {
+              acc[invKey] = {
                 supplierName: pcSupplier.name,
-                supplierCpf: pcSupplier.cpfCnpj,
+                supplierCpf: pcSupplier.cpfCnpj || pcSupplier.cpf,
                 invoiceNumber: invoiceNum,
                 invoiceUrl: d.invoiceUrl,
                 date: d.invoiceDate || d.date,
@@ -193,7 +193,12 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
               };
             }
             
-            acc[invoiceNum].items.push({ ...d });
+            acc[invKey].items.push({ ...d });
+
+            if (new Date(d.date) < new Date(acc[invKey].date)) {
+              acc[invKey].date = d.date;
+            }
+
             return acc;
           }, {} as Record<string, any>);
           
@@ -400,6 +405,11 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
         }
     }
 
+    // Include all acquisitionItems regardless of supplier
+    ensureArray(acquisitionItems).forEach(ai => {
+       if (ai.name) items.add(ai.name);
+    });
+
     // Also include items already in warehouseLog for this supplier
     warehouseLog.forEach(log => {
         if (cleanStr(log.supplierCpf) === cleanActiveCpf || cleanStr(log.supplierName) === cleanStr(selectedSupplier?.name)) {
@@ -409,7 +419,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     });
 
     return Array.from(items).sort();
-  }, [suppliers, perCapitaConfig, manualEntryData.supplierCpf, editingInvoice?.supplierCpf, warehouseLog]);
+  }, [suppliers, perCapitaConfig, manualEntryData.supplierCpf, editingInvoice?.supplierCpf, warehouseLog, acquisitionItems]);
 
   const handleManualSave = async () => {
     if (!manualEntryData.supplierCpf || !manualEntryData.invoiceNumber || !manualEntryData.date) {
