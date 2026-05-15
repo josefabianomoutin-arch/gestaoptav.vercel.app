@@ -282,7 +282,14 @@ export interface VehicleExitOrder {
     fctNumber?: string;
     companions?: any[];
     observations?: string;
-    checklist?: Record<string, boolean>;
+    checklist?: {
+        water?: boolean | 'NA';
+        oil?: boolean | 'NA';
+        tires?: boolean | 'NA';
+        lights?: boolean | 'NA';
+        wipers?: boolean | 'NA';
+        bypassed: boolean;
+    };
     validatedBy?: string;
     validationTimestamp?: string;
     assetNumber?: string;

@@ -999,6 +999,10 @@ const App: React.FC = () => {
 
   const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: any[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string): Promise<{ success: boolean; message?: string }> => {
     try {
+      console.log('handleUpdateInvoiceItems:', { supplierCpf, invoiceNumber, itemsCount: items.length });
+      
+      const targetInvoice = String(invoiceNumber).trim();
+      
       // --- UNIFICAÇÃO: Atualizar também o warehouseLog ---
       const logSnapshot = await get(warehouseLogRef);
       const allLogs = logSnapshot.val() || {};
@@ -1008,10 +1012,12 @@ const App: React.FC = () => {
           const entry = allLogs[key];
           const entryInvRaw = String(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '').trim();
           const entryInv = entryInvRaw || 'S/N';
-          if (entry.supplierCpf === supplierCpf && entryInv === String(invoiceNumber).trim()) {
+          
+          if (entry.supplierCpf === supplierCpf && entryInv === targetInvoice) {
               const itemMatch = (it: any) => 
-                (it.name === (entry.item || entry.itemName) || it.itemName === (entry.item || entry.itemName) || it.id === entry.id);
+                (it.name === (entry.item || entry.itemName) || it.itemName === (entry.item || entry.itemName) || (it.id && it.id === (entry.id || entry.deliveryId)));
               const itemUpdate = items.find(itemMatch);
+              
               if (itemUpdate) {
                   logUpdates[`${key}/inboundInvoice`] = newInvoiceNumber || entry.inboundInvoice || '';
                   logUpdates[`${key}/invoiceNumber`] = newInvoiceNumber || entry.invoiceNumber || '';
@@ -1040,7 +1046,8 @@ const App: React.FC = () => {
           const list = ensureArray<any>(current);
           const newList = [];
           for (const d of list) {
-            if (d.invoiceNumber === invoiceNumber) {
+            const dInv = String(d.invoiceNumber || '').trim();
+            if (dInv === targetInvoice) {
               const itemMatch = (it: any) => (it.id === d.id || it.name === d.item || it.itemName === d.item);
               const itemUpdate = items.find(itemMatch);
               if (itemUpdate) {
@@ -1078,7 +1085,8 @@ const App: React.FC = () => {
             const list = ensureArray<any>(current);
             const newList = [];
             for (const d of list) {
-              if (d.invoiceNumber === invoiceNumber) {
+              const dInv = String(d.invoiceNumber || '').trim();
+              if (dInv === targetInvoice) {
                 const itemMatch = (it: any) => (it.id === d.id || it.name === d.item || it.itemName === d.item);
                 const itemUpdate = items.find(itemMatch);
                 if (itemUpdate) {

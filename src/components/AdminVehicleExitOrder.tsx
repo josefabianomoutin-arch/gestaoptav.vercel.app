@@ -109,11 +109,11 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
     const [reportFilter, setReportFilter] = useState<'all' | 'concluida' | 'aberta'>('all');
     const [vehicleChecklist, setVehicleChecklist] = useState({
-        water: null as boolean | null,
-        oil: null as boolean | null,
-        tires: null as boolean | null,
-        lights: null as boolean | null,
-        wipers: null as boolean | null,
+        water: null as boolean | 'NA' | null,
+        oil: null as boolean | 'NA' | null,
+        tires: null as boolean | 'NA' | null,
+        lights: null as boolean | 'NA' | null,
+        wipers: null as boolean | 'NA' | null,
         bypassed: false
     });
     const [isChecklistCompleted, setIsChecklistCompleted] = useState(false);
@@ -558,13 +558,14 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         printWindow.document.close();
     };
 
-    const handleGenerateReportPDF = () => {
+    const handleGenerateReportPDF = (filterOverride?: 'all' | 'concluida' | 'aberta') => {
+        const activeFilter = filterOverride || reportFilter;
         let filteredOrders = printMonth 
             ? orders.filter(o => o.date.startsWith(printMonth))
             : orders;
 
-        if (reportFilter !== 'all') {
-            filteredOrders = filteredOrders.filter(o => o.status === reportFilter);
+        if (activeFilter !== 'all') {
+            filteredOrders = filteredOrders.filter(o => o.status === activeFilter);
         }
 
         if (filteredOrders.length === 0) {
@@ -578,7 +579,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         doc.setFontSize(16);
         doc.setTextColor(79, 70, 229); // Indigo-600
         
-        const filterTitle = reportFilter === 'concluida' ? ' - CONCLUÍDAS' : reportFilter === 'aberta' ? ' - EM ANDAMENTO' : '';
+        const filterTitle = activeFilter === 'concluida' ? ' - CONCLUÍDAS' : activeFilter === 'aberta' ? ' - EM ANDAMENTO' : '';
         doc.text(`RELATÓRIO DE ORDENS DE SAÍDA${filterTitle}${printMonth ? ` - ${printMonth.split('-').reverse().join('/')}` : ''}`, 105, 15, { align: 'center' });
         
         doc.setFontSize(10);
@@ -586,21 +587,37 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         doc.text('PENITENCIÁRIA DE TAIÚVA', 105, 22, { align: 'center' });
         doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 105, 28, { align: 'center' });
 
-        const tableData = filteredOrders.map(order => [
-            order.date.split('-').reverse().join('/'),
-            `${order.vehicle}\n(${order.plate})`,
-            order.responsibleServer,
-            order.destination,
-            order.exitTime || '-',
-            order.returnTime || '-',
-            order.checklist && !order.checklist.bypassed ? 
-                (`ÁGUA: ${order.checklist.water ? 'OK' : 'NÃO OK'}\n` +
-                `ÓLEO: ${order.checklist.oil ? 'OK' : 'NÃO OK'}\n` +
-                `PNEUS: ${order.checklist.tires ? 'OK' : 'NÃO OK'}\n` +
-                `LUZES: ${order.checklist.lights ? 'OK' : 'NÃO OK'}\n` +
-                `LIMP.: ${order.checklist.wipers ? 'OK' : 'NÃO OK'}`) :
-                'O policial, optou por não realizar a inspeção prévia e procedeu à assunção da responsabilidade do veículo'
-        ]);
+        const skipMessage = 'O policial, optou por não realizar a inspeção prévia e procedeu à assunção da responsabilidade do veículo';
+
+        const tableData = filteredOrders.map(order => {
+            let checklistStr = '';
+            if (order.checklist && !order.checklist.bypassed) {
+                const items = [
+                    { label: 'ÁGUA', val: order.checklist.water },
+                    { label: 'ÓLEO', val: order.checklist.oil },
+                    { label: 'PNEUS', val: order.checklist.tires },
+                    { label: 'LUZES', val: order.checklist.lights },
+                    { label: 'LIMP.', val: order.checklist.wipers }
+                ];
+                
+                checklistStr = items.map(it => {
+                    if (it.val === 'NA') return `${it.label}: ${skipMessage}`;
+                    return `${it.label}: ${it.val ? 'OK' : 'NÃO OK'}`;
+                }).join('\n');
+            } else {
+                checklistStr = skipMessage;
+            }
+
+            return [
+                order.date.split('-').reverse().join('/'),
+                `${order.vehicle}\n(${order.plate})`,
+                order.responsibleServer,
+                order.destination,
+                order.exitTime || '-',
+                order.returnTime || '-',
+                checklistStr
+            ];
+        });
 
         autoTable(doc, {
             startY: 35,
@@ -1145,22 +1162,26 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                     })()}
                                 </select>
 
-                                <select
-                                    value={reportFilter}
-                                    onChange={(e) => setReportFilter(e.target.value as any)}
-                                    className="bg-white hover:bg-gray-50 text-emerald-900 border border-emerald-200 px-4 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all outline-none w-full sm:w-auto"
-                                >
-                                    <option value="all">Filtro: Todos Registros</option>
-                                    <option value="concluida">Filtro: Concluídos</option>
-                                    <option value="aberta">Filtro: Em Andamento</option>
-                                </select>
-
                                 <button 
-                                    onClick={() => handleGenerateReportPDF()}
+                                    onClick={() => handleGenerateReportPDF('all')}
                                     className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 px-6 rounded-2xl transition-all shadow-xl shadow-emerald-100 active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2 group"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m3.243-4.243a4 4 0 015.657 0L12 14.142l1.101-1.101a4 4 0 015.657 0M12 12V3" /></svg>
-                                    Download Relatório
+                                    Relatório Geral
+                                </button>
+                                <button 
+                                    onClick={() => handleGenerateReportPDF('concluida')}
+                                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-black py-4 px-6 rounded-2xl transition-all shadow-xl shadow-blue-100 active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2 group"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                    Relatório Concluídos
+                                </button>
+                                <button 
+                                    onClick={() => handleGenerateReportPDF('aberta')}
+                                    className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white font-black py-4 px-6 rounded-2xl transition-all shadow-xl shadow-amber-100 active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2 group"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    Relatório Em Andamento
                                 </button>
                             </div>
                         
@@ -2332,6 +2353,13 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                 onClick={() => setVehicleChecklist(prev => ({ ...prev, [item.id]: false }))}
                                                 className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${vehicleChecklist[item.id as keyof typeof vehicleChecklist] === false ? 'bg-red-600 text-white shadow-lg shadow-red-100 scale-105' : 'bg-white text-gray-400 border border-gray-200 hover:border-red-200 hover:text-red-600'}`}
                                             >
+                                                NÃO OK
+                                            </button>
+                                            <button 
+                                                onClick={() => setVehicleChecklist(prev => ({ ...prev, [item.id]: 'NA' }))}
+                                                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${vehicleChecklist[item.id as keyof typeof vehicleChecklist] === 'NA' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 scale-105' : 'bg-white text-gray-400 border border-gray-200 hover:border-indigo-200 hover:text-indigo-600'}`}
+                                            >
+                                                N/A
                                             </button>
                                         </div>
                                     </div>
