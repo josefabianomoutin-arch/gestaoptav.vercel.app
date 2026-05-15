@@ -761,8 +761,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     const timeoutPromise = new Promise<never>((_, reject) => 
                                         setTimeout(() => {
                                             uploadTask.cancel();
-                                            reject(new Error("O envio demorou mais que 60s. Verifique sua conexão."));
-                                        }, 60000)
+                                            reject(new Error("O envio demorou para ser concluído. Verifique sua conexão ou tente um arquivo menor."));
+                                        }, 180000) // 3 minutes
                                     );
 
                                     const url = await Promise.race([uploadPromise, timeoutPromise]);
@@ -772,10 +772,10 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                         description: 'Atualizando base de dados em tempo real...' 
                                     });
 
-                                    // Update database with 20s timeout (more generous but still capped)
+                                    // Update database with more generous timeout
                                     const dbPromise = onUpdateInvoiceUrl(inv.supplierCpf, inv.invoiceNumber, url);
                                     const dbTimeoutPromise = new Promise((_, reject) => 
-                                        setTimeout(() => reject(new Error("Tempo limite excedido ao sincronizar Banco de Dados. A nota foi enviada, mas o vínculo falhou.")), 20000)
+                                        setTimeout(() => reject(new Error("Tempo limite excedido ao sincronizar Banco de Dados. A nota foi enviada, mas o vínculo falhou.")), 60000)
                                     );
 
                                     const result: any = await Promise.race([dbPromise, dbTimeoutPromise]);

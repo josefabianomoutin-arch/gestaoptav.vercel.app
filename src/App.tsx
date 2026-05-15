@@ -738,7 +738,7 @@ const App: React.FC = () => {
 
       const fetchWithTimeout = async (dbRef: any) => {
           const fetchPromise = get(dbRef);
-          const timeout = new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Timeout ao ler banco de dados")), 10000));
+          const timeout = new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Timeout ao ler banco de dados")), 30000));
           return Promise.race([fetchPromise, timeout]);
       };
 
@@ -1826,8 +1826,8 @@ const App: React.FC = () => {
                     const timeoutPromise = new Promise<never>((_, reject) => 
                         setTimeout(() => {
                             uploadTask.cancel();
-                            reject(new Error("Timeout no upload do PDF (60s)"));
-                        }, 60000)
+                            reject(new Error("Timeout no upload do PDF (180s)"));
+                        }, 180000)
                     );
                     
                     finalInvoiceUrl = await Promise.race([uploadPromise, timeoutPromise]);
