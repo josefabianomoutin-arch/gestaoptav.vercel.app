@@ -593,15 +593,13 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             order.destination,
             order.exitTime || '-',
             order.returnTime || '-',
-            order.checklist ? 
-                (order.checklist.bypassed ? 
-                    'INSPEÇÃO NÃO REALIZADA\n(Responsável assumiu os riscos\nsem checagem dos itens)' :
-                    `ÁGUA: ${order.checklist.water ? 'OK' : 'NÃO OK'}\n` +
-                    `ÓLEO: ${order.checklist.oil ? 'OK' : 'NÃO OK'}\n` +
-                    `PNEUS: ${order.checklist.tires ? 'OK' : 'NÃO OK'}\n` +
-                    `LUZES: ${order.checklist.lights ? 'OK' : 'NÃO OK'}\n` +
-                    `LIMP.: ${order.checklist.wipers ? 'OK' : 'NÃO OK'}`
-                ) : 'N/A'
+            order.checklist && !order.checklist.bypassed ? 
+                (`ÁGUA: ${order.checklist.water ? 'OK' : 'NÃO OK'}\n` +
+                `ÓLEO: ${order.checklist.oil ? 'OK' : 'NÃO OK'}\n` +
+                `PNEUS: ${order.checklist.tires ? 'OK' : 'NÃO OK'}\n` +
+                `LUZES: ${order.checklist.lights ? 'OK' : 'NÃO OK'}\n` +
+                `LIMP.: ${order.checklist.wipers ? 'OK' : 'NÃO OK'}`) :
+                'O policial, optou por não realizar a inspeção prévia e procedeu à assunção da responsabilidade do veículo'
         ]);
 
         autoTable(doc, {
