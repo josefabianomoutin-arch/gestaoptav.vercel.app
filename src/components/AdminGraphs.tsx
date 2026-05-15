@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   PieChart, Pie, Cell, AreaChart, Area 
 } from 'recharts';
-import type { Supplier, WarehouseMovement, CleaningLog, FinancialRecord, VehicleExitOrder, ThirdPartyEntryLog, DirectorPerCapitaLog, PerCapitaConfig, AcquisitionItem, Delivery } from '../types';
+import type { Supplier, WarehouseMovement, CleaningLog, FinancialRecord, VehicleExitOrder, ThirdPartyEntryLog, DirectorPerCapitaLog, PerCapitaConfig, AcquisitionItem } from '../types';
 
 interface AdminGraphsProps {
   suppliers: Supplier[];

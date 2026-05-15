@@ -647,7 +647,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                                                               } else {
                                                                                   toast.success('Nota enviada com sucesso!');
                                                                               }
-                                                                          } catch (err) {
+                                                                          } catch (_err) {
                                                                               toast.error('Erro de conexão ao enviar a nota.');
                                                                           }
                                                                       };

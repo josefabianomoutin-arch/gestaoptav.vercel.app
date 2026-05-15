@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { ensureArray } from '../lib/utils';
-import type { Supplier, Delivery, WarehouseMovement, PerCapitaConfig } from '../types';
+import type { Supplier, WarehouseMovement, PerCapitaConfig } from '../types';
 
 interface AdminAnalyticsProps {
   suppliers: Supplier[];

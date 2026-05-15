@@ -155,7 +155,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         }
 
                         deliveries.push({
-                            id: d.id || `del-${Math.random()}`,
+                            id: d.id || `del-${crypto.randomUUID().substring(0, 8)}`,
                             invoiceUrl: d.invoiceUrl,
                             date: d.invoiceDate || d.date,
                             timestamp: finalTimestamp,
@@ -189,7 +189,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     finalTimestamp = isNaN(parsedDate.getTime()) ? 0 : parsedDate.getTime();
                                 }
                                 deliveries.push({
-                                    id: d.id || `del-pc-${Math.random()}`,
+                                    id: d.id || `del-pc-${crypto.randomUUID().substring(0, 8)}`,
                                     invoiceUrl: d.invoiceUrl,
                                     date: d.invoiceDate || d.date,
                                     timestamp: finalTimestamp || 0,

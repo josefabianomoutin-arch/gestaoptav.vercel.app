@@ -115,7 +115,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
         
         const newSupplier: PerCapitaSupplier = {
             ...existing,
-            id: editingId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 11)),
+            id: editingId || crypto.randomUUID(),
             name: name.toUpperCase(),
             cpfCnpj,
             processNumber,

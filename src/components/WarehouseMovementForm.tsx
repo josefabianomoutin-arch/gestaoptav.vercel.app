@@ -390,7 +390,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             quantity: qtyVal,
             lot: manualLot || 'UNICO',
             exp: manualExp,
-            barcode: manualBarcode || Math.random().toString(36).substr(2, 9).toUpperCase(),
+            barcode: manualBarcode || crypto.randomUUID().substring(0, 10).toUpperCase(),
             inboundInvoice: manualInboundNf?.number,
             availableBefore: manualInboundNf?.availableQuantity || 0,
             pdNumber: manualPd,

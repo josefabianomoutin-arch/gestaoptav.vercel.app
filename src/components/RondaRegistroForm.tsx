@@ -393,7 +393,7 @@ const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ systemPasswords =
                                         const sig = {
                                             name: signName,
                                             timestamp: now.toLocaleString('pt-BR'),
-                                            hash: (Math.random() + 1).toString(36).substring(2).toUpperCase()
+                                            hash: crypto.randomUUID().substring(0, 12).toUpperCase()
                                         };
                                         setDigitalSignature(sig);
                                         setIsSignatureModalOpen(false);

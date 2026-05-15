@@ -728,7 +728,7 @@ const App: React.FC = () => {
       console.error('Erro ao agendar entrega:', error);
       toast.error('Erro ao agendar entrega.');
     }
-  }, [suppliers, suppliersRef, warehouseLogRef, perCapitaConfigRef]);
+  }, []);
 
   const handleUpdateInvoiceUrl = useCallback(async (supplierCpf: string, invoiceNumber: string, finalInvoiceUrl: string) => {
     try {
@@ -795,7 +795,7 @@ const App: React.FC = () => {
       console.error("Error updating supplier invoice URL:", e);
       return { success: false, message: 'Erro interno ao atualizar nota.' };
     }
-  }, [suppliersRef, perCapitaConfigRef, suppliers]);
+  }, [suppliers]);
 
 
 
@@ -857,7 +857,7 @@ const App: React.FC = () => {
       console.error("Error marking invoice as opened:", e);
       return { success: false, message: 'Erro ao marcar nota como aberta.' };
     }
-  }, [perCapitaConfigRef, suppliersRef, suppliers]);
+  }, [suppliers]);
 
   const handleDeleteDelivery = async (supplierCpf: string, deliveryId: string) => {
     try {
@@ -1077,8 +1077,8 @@ const App: React.FC = () => {
               usedLogKeys.add(logKey);
               logUpdates[`${logKey}/inboundInvoice`] = newInvoiceNumber || invoiceNumber;
               logUpdates[`${logKey}/invoiceNumber`] = newInvoiceNumber || invoiceNumber;
-              logUpdates[`${logKey}/quantity`] = Number(item.kg);
-              logUpdates[`${logKey}/kg`] = Number(item.kg);
+              logUpdates[`${logKey}/quantity`] = Number(item.kg) || 0;
+              logUpdates[`${logKey}/kg`] = Number(item.kg) || 0;
               logUpdates[`${logKey}/value`] = item.value !== undefined ? Number(item.value) : (existingLogsForKey[logKey].value || 0);
               logUpdates[`${logKey}/lotNumber`] = item.lotNumber || '';
               logUpdates[`${logKey}/expirationDate`] = item.expirationDate || '';
@@ -1087,7 +1087,7 @@ const App: React.FC = () => {
               logUpdates[`${logKey}/date`] = newDate || existingLogsForKey[logKey].date || '';
           } else {
               const newRef = push(warehouseLogRef);
-              const newId = newRef.key || `it-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+              const newId = newRef.key || `it-${Date.now()}-${crypto.randomUUID().substring(0, 8)}`;
               logUpdates[newId] = {
                   id: newId,
                   type: 'entrada',
@@ -1098,8 +1098,8 @@ const App: React.FC = () => {
                   supplierCpf: supplierCpf,
                   invoiceNumber: newInvoiceNumber || invoiceNumber,
                   inboundInvoice: newInvoiceNumber || invoiceNumber,
-                  quantity: Number(item.kg),
-                  kg: Number(item.kg),
+                  quantity: Number(item.kg) || 0,
+                  kg: Number(item.kg) || 0,
                   value: Number(item.value) || 0,
                   lotNumber: item.lotNumber || 'UNICO',
                   expirationDate: item.expirationDate || '',
@@ -1125,7 +1125,7 @@ const App: React.FC = () => {
         const updated = items.map(it => {
           const original = currentList.find(d => d && clean(d.invoiceNumber) === targetInvoice && (it.id === d.id || (d.id && it.id === d.id) || clean(it.name) === clean(d.itemName || d.item)));
           return {
-            id: it.id || original?.id || `del-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            id: it.id || original?.id || `del-${Date.now()}-${crypto.randomUUID().substring(0, 8)}`,
             ...original,
             invoiceNumber: newInvoiceNumber || invoiceNumber,
             date: newDate || original?.date || new Date().toISOString().split('T')[0],
@@ -1787,7 +1787,7 @@ const App: React.FC = () => {
         if (finalInvoiceUrl && (finalInvoiceUrl.startsWith('data:application/pdf') || finalInvoiceUrl.startsWith('data:pdf/') || (finalInvoiceUrl.startsWith('data:') && finalInvoiceUrl.includes('base64')))) {
             console.log("Detectado possível PDF/Arquivo base64, iniciando upload para Storage...");
             try {
-                const invoiceId = `inv_entry_NF${String(payload.invoiceNumber || 'S-N').replace(/[^\w-]/g, '_')}_${Date.now()}_${Math.random().toString(36).substring(2, 5)}.pdf`;
+                const invoiceId = `inv_entry_NF${String(payload.invoiceNumber || 'S-N').replace(/[^\w-]/g, '_')}_${Date.now()}_${crypto.randomUUID().substring(0, 4)}.pdf`;
                 const fileRef = storageRef(storage, `invoices/${invoiceId}`);
                 
                 const parts = finalInvoiceUrl.split(',');

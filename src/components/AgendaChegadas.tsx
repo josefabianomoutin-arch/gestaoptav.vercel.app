@@ -165,7 +165,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                 toast.success("Chegada registrada!");
             }
             setIsArrivalModalOpen(false);
-        } catch (e) {
+        } catch (_e) {
             toast.error("Erro ao salvar chegada.");
         }
     };
@@ -177,7 +177,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
             await onSaveInvoice(invoiceInfo.supplierCpf, selectedItem.allIds, invoiceNumber, invoiceUrl, deliveries, invoiceDate);
             toast.success("Nota fiscal cadastrada com sucesso!");
             setIsInvoiceModalOpen(false);
-        } catch (e) {
+        } catch (_e) {
             toast.error("Erro ao salvar nota fiscal.");
         }
     };
