@@ -6,7 +6,7 @@ import type { Supplier, Delivery, WarehouseMovement, AcquisitionItem } from '../
 import { Download, Search, FileCheck, Trash2, RotateCcw, Plus, X, Edit2, Printer, Barcode as BarcodeIcon, Upload, Calendar, FileText, Package } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app, storage } from '../firebaseConfig';
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from 'sonner';
 import ConfirmModal from './ConfirmModal';
 
@@ -724,48 +724,26 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     
                                     const fileRef = storageRef(storage, `invoices/${cleanCpf}/${cleanInvoice}/${cleanFileName}`);
                                     
-                                    // Upload Resumable for better feedback and robustness
-                                    const uploadTask = uploadBytesResumable(fileRef, file);
+                                    // Upload using simple uploadBytes for better reliability on flaky connections
+                                    toast.loading('Enviando nota...', { id: toastId, description: 'Transferindo arquivo para o servidor...' });
                                     
-                                    const uploadPromise = new Promise<string>((resolve, reject) => {
-                                        let lastProgress = -1;
-                                        uploadTask.on('state_changed', 
-                                            (snapshot) => {
-                                                const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                                                if (progress !== lastProgress) {
-                                                    lastProgress = progress;
-                                                    toast.loading(`Enviando nota: ${progress}%`, { 
-                                                        id: toastId,
-                                                        description: progress < 100 ? 'Transferindo arquivo para o servidor...' : 'Finalizando transferência...'
-                                                    });
-                                                }
-                                            }, 
-                                            (error) => {
-                                                console.error('Snapshot error:', error);
-                                                reject(error);
-                                            }, 
-                                            async () => {
-                                                try {
-                                                    // Wrap getDownloadURL in a 10s timeout just in case it hangs
-                                                    const urlPromise = getDownloadURL(fileRef);
-                                                    const urlTimeout = new Promise<string>((_, r) => setTimeout(() => r(new Error("Timeout ao obter link do arquivo")), 10000));
-                                                    const downloadUrl = await Promise.race([urlPromise, urlTimeout]);
-                                                    resolve(downloadUrl as string);
-                                                } catch (err) {
-                                                    reject(err);
-                                                }
-                                            }
-                                        );
-                                    });
+                                    const uploadPromise = async () => {
+                                        await uploadBytes(fileRef, file);
+                                        toast.loading('Obtendo link de download...', { id: toastId, description: 'Finalizando transferência...' });
+                                        
+                                        // Wrap getDownloadURL in a 10s timeout just in case it hangs
+                                        const urlPromise = getDownloadURL(fileRef);
+                                        const urlTimeout = new Promise<string>((_, r) => setTimeout(() => r(new Error("Timeout ao obter link do arquivo")), 10000));
+                                        return await Promise.race([urlPromise, urlTimeout]);
+                                    };
 
                                     const timeoutPromise = new Promise<never>((_, reject) => 
                                         setTimeout(() => {
-                                            uploadTask.cancel();
                                             reject(new Error("O envio demorou para ser concluído. Verifique sua conexão ou tente um arquivo menor."));
                                         }, 180000) // 3 minutes
                                     );
 
-                                    const url = await Promise.race([uploadPromise, timeoutPromise]);
+                                    const url = await Promise.race([uploadPromise(), timeoutPromise]);
                                     
                                     toast.loading('Relacionando nota aos lançamentos...', { 
                                         id: toastId, 

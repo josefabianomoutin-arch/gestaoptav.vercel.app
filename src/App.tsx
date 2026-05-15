@@ -15,7 +15,7 @@ import JulioDashboard from './components/JulioDashboard';
 import ServiceOrderDashboard from './components/ServiceOrderDashboard';
 import InfobarTicker from './components/InfobarTicker';
 import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
-import { ref as storageRef, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
+import { ref as storageRef, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { app, storage } from './firebaseConfig';
 import { getCombinedSuppliers } from './lib/supplierUtils';
 import { ensureArray } from './lib/utils';
@@ -1803,34 +1803,18 @@ const App: React.FC = () => {
                     
                     console.log("Blob criado, tamanho:", blob.size, "Enviando para storage via resumable...");
                     
-                    const uploadTask = uploadBytesResumable(fileRef, blob);
-                    
-                    const uploadPromise = new Promise<string>((resolve, reject) => {
-                        uploadTask.on('state_changed', 
-                            (snapshot) => {
-                                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                                console.log(`Upload da nota em progresso: ${Math.round(progress)}%`);
-                            }, 
-                            (error) => reject(error), 
-                            async () => {
-                                try {
-                                    const url = await getDownloadURL(fileRef);
-                                    resolve(url);
-                                } catch (err) {
-                                    reject(err);
-                                }
-                            }
-                        );
-                    });
+                    const uploadPromise = async () => {
+                        await uploadBytes(fileRef, blob);
+                        return await getDownloadURL(fileRef);
+                    };
 
                     const timeoutPromise = new Promise<never>((_, reject) => 
                         setTimeout(() => {
-                            uploadTask.cancel();
                             reject(new Error("Timeout no upload do PDF (180s)"));
                         }, 180000)
                     );
                     
-                    finalInvoiceUrl = await Promise.race([uploadPromise, timeoutPromise]);
+                    finalInvoiceUrl = await Promise.race([uploadPromise(), timeoutPromise]);
                     console.log("Upload concluído com sucesso:", finalInvoiceUrl);
                 }
             } catch (storageError) {
