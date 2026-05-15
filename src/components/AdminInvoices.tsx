@@ -550,15 +550,15 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
               {filteredInvoices.length > 0 ? filteredInvoices.map((inv) => {
-                const hasPd = !!inv.pd;
+                const hasPd = !!inv.pd && inv.pd !== '0' && inv.pd !== 0;
                 return (
                 <tr key={`${inv.supplierCpf}-${inv.invoiceNumber}`} className={`transition-all group ${!hasPd ? 'bg-rose-50/30 hover:bg-rose-50/60' : 'hover:bg-slate-50'}`}>
                   <td className="px-3 py-3 text-center">
                     <div className="flex flex-col items-center gap-1">
-                        <span className={`text-[10px] font-black uppercase tracking-tighter px-2.5 py-1 rounded-lg border-2 shadow-sm min-w-[65px] text-center ${inv.pd ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-rose-600 border-rose-500 text-white animate-pulse'}`}>
-                        {inv.pd ? inv.pd : 'S/PD'}
+                        <span className={`text-[10px] font-black uppercase tracking-tighter px-2.5 py-1 rounded-lg border-2 shadow-sm min-w-[65px] text-center ${hasPd ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-rose-600 border-rose-500 text-white animate-pulse'}`}>
+                        {hasPd ? inv.pd : 'S/PD'}
                         </span>
-                        {!inv.pd && <span className="text-[6px] font-black text-rose-500 uppercase">Aguardando PD</span>}
+                        {!hasPd && <span className="text-[6px] font-black text-rose-500 uppercase">Aguardando PD</span>}
                     </div>
                   </td>
                   <td className="px-4 py-3">

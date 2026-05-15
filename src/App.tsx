@@ -1083,7 +1083,7 @@ const App: React.FC = () => {
               logUpdates[`${logKey}/lotNumber`] = item.lotNumber || '';
               logUpdates[`${logKey}/expirationDate`] = item.expirationDate || '';
               logUpdates[`${logKey}/barcode`] = item.barcode || '';
-              logUpdates[`${logKey}/pdNumber`] = pd || item.pd || '';
+              logUpdates[`${logKey}/pdNumber`] = pd ?? item.pd ?? '';
               logUpdates[`${logKey}/date`] = newDate || existingLogsForKey[logKey].date || '';
           } else {
               const newRef = push(warehouseLogRef);
@@ -1104,7 +1104,7 @@ const App: React.FC = () => {
                   lotNumber: item.lotNumber || 'UNICO',
                   expirationDate: item.expirationDate || '',
                   barcode: item.barcode || '',
-                  pdNumber: pd || item.pd || ''
+                  pdNumber: pd ?? item.pd ?? ''
               };
           }
       }
@@ -1139,8 +1139,8 @@ const App: React.FC = () => {
             barcode: it.barcode || barcode || '',
             receiptTermNumber: receiptTermNumber || original?.receiptTermNumber || '',
             invoiceDate: invoiceDate || original?.invoiceDate || '',
-            pdNumber: pd || it.pd || original?.pdNumber || '',
-            pd: pd || it.pd || original?.pd || ''
+            pdNumber: pd ?? it.pd ?? original?.pdNumber ?? '',
+            pd: pd ?? it.pd ?? original?.pd ?? ''
           };
         });
         return [...others, ...updated];
