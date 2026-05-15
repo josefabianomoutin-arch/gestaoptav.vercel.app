@@ -107,11 +107,13 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
     // Checklist Modal State
     const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
+    const [reportFilter, setReportFilter] = useState<'all' | 'concluida' | 'aberta'>('all');
     const [vehicleChecklist, setVehicleChecklist] = useState({
         water: null as boolean | null,
         oil: null as boolean | null,
         tires: null as boolean | null,
         lights: null as boolean | null,
+        wipers: null as boolean | null,
         bypassed: false
     });
     const [isChecklistCompleted, setIsChecklistCompleted] = useState(false);
@@ -557,12 +559,16 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     };
 
     const handleGenerateReportPDF = () => {
-        const filteredOrders = printMonth 
+        let filteredOrders = printMonth 
             ? orders.filter(o => o.date.startsWith(printMonth))
             : orders;
 
+        if (reportFilter !== 'all') {
+            filteredOrders = filteredOrders.filter(o => o.status === reportFilter);
+        }
+
         if (filteredOrders.length === 0) {
-            alert("Nenhuma ordem encontrada para o mês selecionado.");
+            alert("Nenhuma ordem encontrada para os filtros selecionados.");
             return;
         }
 
@@ -571,7 +577,9 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         // Header
         doc.setFontSize(16);
         doc.setTextColor(79, 70, 229); // Indigo-600
-        doc.text(`RELATÓRIO DE ORDENS DE SAÍDA E CHECKLIST${printMonth ? ` - ${printMonth.split('-').reverse().join('/')}` : ''}`, 105, 15, { align: 'center' });
+        
+        const filterTitle = reportFilter === 'concluida' ? ' - CONCLUÍDAS' : reportFilter === 'aberta' ? ' - EM ANDAMENTO' : '';
+        doc.text(`RELATÓRIO DE ORDENS DE SAÍDA${filterTitle}${printMonth ? ` - ${printMonth.split('-').reverse().join('/')}` : ''}`, 105, 15, { align: 'center' });
         
         doc.setFontSize(10);
         doc.setTextColor(100, 100, 100);
@@ -591,7 +599,8 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                     `ÁGUA: ${order.checklist.water ? 'OK' : 'NÃO OK'}\n` +
                     `ÓLEO: ${order.checklist.oil ? 'OK' : 'NÃO OK'}\n` +
                     `PNEUS: ${order.checklist.tires ? 'OK' : 'NÃO OK'}\n` +
-                    `LUZES: ${order.checklist.lights ? 'OK' : 'NÃO OK'}`
+                    `LUZES: ${order.checklist.lights ? 'OK' : 'NÃO OK'}\n` +
+                    `LIMP.: ${order.checklist.wipers ? 'OK' : 'NÃO OK'}`
                 ) : 'N/A'
         ]);
 
@@ -914,6 +923,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 oil: null,
                 tires: null,
                 lights: null,
+                wipers: null,
                 bypassed: false
             });
             setIsModalOpen(false); // Fecha o modal da ordem para não travar
@@ -1119,31 +1129,42 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                     )}
                     
                     <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <select
-                                value={printMonth}
-                                onChange={(e) => setPrintMonth(e.target.value)}
-                                className="bg-white hover:bg-gray-50 text-indigo-900 border border-indigo-200 px-4 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all outline-none"
-                            >
-                                <option value="" className="text-black">Todos os Meses</option>
-                                {(() => {
-                                    const currentYear = new Date().getFullYear();
-                                    return ['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => {
-                                        const ym = `${currentYear}-${m}`;
-                                        const d = new Date(currentYear, parseInt(m) - 1, 15);
-                                        const label = `${d.toLocaleDateString('pt-BR', { month: 'long' })} DE ${currentYear}`.toUpperCase();
-                                        return <option key={ym} value={ym} className="text-black">{label}</option>;
-                                    });
-                                })()}
-                            </select>
-                            <button 
-                                onClick={() => handleGenerateReportPDF()}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 px-6 rounded-2xl transition-all shadow-xl shadow-emerald-100 active:scale-95 uppercase text-xs tracking-widest flex items-center gap-2 group"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m3.243-4.243a4 4 0 015.657 0L12 14.142l1.101-1.101a4 4 0 015.657 0M12 12V3" /></svg>
-                                Relatório PDF
-                            </button>
-                        </div>
+                            <div className="flex flex-col sm:flex-row items-center gap-2">
+                                <select
+                                    value={printMonth}
+                                    onChange={(e) => setPrintMonth(e.target.value)}
+                                    className="bg-white hover:bg-gray-50 text-indigo-900 border border-indigo-200 px-4 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all outline-none w-full sm:w-auto"
+                                >
+                                    <option value="" className="text-black">Todos os Meses</option>
+                                    {(() => {
+                                        const currentYear = new Date().getFullYear();
+                                        return ['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => {
+                                            const ym = `${currentYear}-${m}`;
+                                            const d = new Date(currentYear, parseInt(m) - 1, 15);
+                                            const label = `${d.toLocaleDateString('pt-BR', { month: 'long' })} DE ${currentYear}`.toUpperCase();
+                                            return <option key={ym} value={ym} className="text-black">{label}</option>;
+                                        });
+                                    })()}
+                                </select>
+
+                                <select
+                                    value={reportFilter}
+                                    onChange={(e) => setReportFilter(e.target.value as any)}
+                                    className="bg-white hover:bg-gray-50 text-emerald-900 border border-emerald-200 px-4 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all outline-none w-full sm:w-auto"
+                                >
+                                    <option value="all">Filtro: Todos Registros</option>
+                                    <option value="concluida">Filtro: Concluídos</option>
+                                    <option value="aberta">Filtro: Em Andamento</option>
+                                </select>
+
+                                <button 
+                                    onClick={() => handleGenerateReportPDF()}
+                                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 px-6 rounded-2xl transition-all shadow-xl shadow-emerald-100 active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2 group"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m3.243-4.243a4 4 0 015.657 0L12 14.142l1.101-1.101a4 4 0 015.657 0M12 12V3" /></svg>
+                                    Download Relatório
+                                </button>
+                            </div>
                         
                         {!readOnly && !securityMode && (
                             <div className="flex justify-end gap-3">
@@ -2297,7 +2318,8 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                     { id: 'water', label: 'Nível da água do radiador' },
                                     { id: 'oil', label: 'Nível do óleo' },
                                     { id: 'tires', label: 'Calibragem dos pneus' },
-                                    { id: 'lights', label: 'Luzes de sinalização' }
+                                    { id: 'lights', label: 'Luzes de sinalização' },
+                                    { id: 'wipers', label: 'Borrachas dos limpadores' }
                                 ].map((item) => (
                                     <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100 group hover:bg-indigo-50/30 transition-all gap-3">
                                         <span className="text-[11px] font-black text-gray-600 uppercase tracking-tight group-hover:text-indigo-900 transition-colors w-full sm:w-auto">{item.label}</span>
@@ -2331,7 +2353,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                 <button 
                                     onClick={() => {
                                         // Se algum item não foi marcado (null), pede confirmação para assumir riscos
-                                        if (vehicleChecklist.water === null || vehicleChecklist.oil === null || vehicleChecklist.tires === null || vehicleChecklist.lights === null) {
+                                        if (vehicleChecklist.water === null || vehicleChecklist.oil === null || vehicleChecklist.tires === null || vehicleChecklist.lights === null || vehicleChecklist.wipers === null) {
                                             setConfirmConfig({
                                                 isOpen: true,
                                                 title: 'ASSUMIR RISCOS',

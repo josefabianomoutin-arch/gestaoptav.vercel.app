@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Clock } from 'lucide-react';
 import { VehicleInspection, VehicleAsset, DriverAsset } from '../types';
 
 interface VehicleInspectionTabProps {
@@ -39,6 +40,8 @@ const VehicleInspectionTab: React.FC<VehicleInspectionTabProps> = ({
     wheelDescription: '',
     damageIssues: [],
     damageDescription: '',
+    wiperIssues: [],
+    wiperDescription: '',
     currentKM: '',
     nextOilChangeKM: '',
     oilChangeDescription: ''
@@ -68,8 +71,12 @@ const VehicleInspectionTab: React.FC<VehicleInspectionTabProps> = ({
     'PORTAS', 'CAPÔ', 'CARROCERIA', 'PARALAMAS', 'PARACHOQUES',
     'VIDROS', 'GIROFLEX', 'CADEADOS, TRAVAS E CHAVES'
   ];
+  
+  const wiperOptions = [
+    'LIMPADOR DIANTEIRO (BORRACHA)', 'LIMPADOR TRASEIRO (BORRACHA)', 'ACIONAMENTO DO ESGUICHO'
+  ];
 
-  const handleCheckboxChange = (category: 'lightingIssues' | 'fluidIssues' | 'mechanicIssues' | 'wheelIssues' | 'damageIssues', option: string) => {
+  const handleCheckboxChange = (category: 'lightingIssues' | 'fluidIssues' | 'mechanicIssues' | 'wheelIssues' | 'damageIssues' | 'wiperIssues', option: string) => {
     setFormData(prev => {
       const currentList = prev[category];
       if (currentList.includes(option)) {
@@ -110,6 +117,8 @@ const VehicleInspectionTab: React.FC<VehicleInspectionTabProps> = ({
       wheelDescription: '',
       damageIssues: [],
       damageDescription: '',
+      wiperIssues: [],
+      wiperDescription: '',
       currentKM: '',
       nextOilChangeKM: '',
       oilChangeDescription: ''
@@ -137,6 +146,8 @@ const VehicleInspectionTab: React.FC<VehicleInspectionTabProps> = ({
       wheelDescription: inspection.wheelDescription || '',
       damageIssues: inspection.damageIssues || [],
       damageDescription: inspection.damageDescription || '',
+      wiperIssues: inspection.wiperIssues || [],
+      wiperDescription: inspection.wiperDescription || '',
       currentKM: inspection.currentKM || '',
       nextOilChangeKM: inspection.nextOilChangeKM || '',
       oilChangeDescription: inspection.oilChangeDescription || ''
@@ -470,6 +481,82 @@ const VehicleInspectionTab: React.FC<VehicleInspectionTabProps> = ({
                       onChange={e => setFormData({...formData, damageDescription: e.target.value})}
                       placeholder="Informar as avarias encontradas."
                       className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all min-h-[80px]"
+                    />
+                  </div>
+                </div>
+
+                {/* Borrachas dos limpadores */}
+                <div className="pt-6 space-y-4">
+                  <div>
+                    <h4 className="font-black text-gray-800 uppercase tracking-widest text-sm">Limpadores de Para-brisa</h4>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-widest">Selecionar as que não estão conformes</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {wiperOptions.map(opt => (
+                      <label key={opt} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors">
+                        <input 
+                          type="checkbox" 
+                          checked={formData.wiperIssues?.includes(opt)}
+                          onChange={() => handleCheckboxChange('wiperIssues', opt)}
+                          className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                        />
+                        <span className="text-xs font-bold text-gray-700">{opt}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Descrição do Problema Encontrado</label>
+                    <textarea
+                      value={formData.wiperDescription}
+                      onChange={e => setFormData({...formData, wiperDescription: e.target.value})}
+                      placeholder="Informar o problema nas borrachas ou esguicho dos limpadores."
+                      className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all min-h-[80px]"
+                    />
+                  </div>
+                </div>
+
+                {/* Quilometragem e Óleo */}
+                <div className="bg-white p-6 rounded-3xl border-2 border-gray-100 space-y-4">
+                  <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
+                    <div className="bg-amber-100 p-2 rounded-xl">
+                      <Clock className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <h4 className="text-[11px] font-black text-amber-950 uppercase tracking-widest leading-none">Controle de Quilometragem e Óleo</h4>
+                      <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tight mt-1">KM atual e previsão de troca</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">KM Atual</label>
+                      <input
+                        type="text"
+                        value={formData.currentKM}
+                        onChange={e => setFormData({...formData, currentKM: e.target.value})}
+                        placeholder="Ex: 125.400"
+                        className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all font-mono"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Próxima Troca de Óleo</label>
+                      <input
+                        type="text"
+                        value={formData.nextOilChangeKM}
+                        onChange={e => setFormData({...formData, nextOilChangeKM: e.target.value})}
+                        placeholder="Ex: 135.400"
+                        className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Necessita trocar óleo?</label>
+                    <textarea
+                      value={formData.oilChangeDescription}
+                      onChange={e => setFormData({...formData, oilChangeDescription: e.target.value})}
+                      placeholder="Descrever se necessita realizar a troca de óleo ou observações sobre o lubrificante."
+                      className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all min-h-[80px]"
                     />
                   </div>
                 </div>
