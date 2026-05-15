@@ -348,6 +348,9 @@ export interface VehicleInspection {
     wheelDescription?: string;
     damageIssues?: string[];
     damageDescription?: string;
+    currentKM?: string;
+    nextOilChangeKM?: string;
+    oilChangeDescription?: string;
 }
 
 export interface ServiceOrder {

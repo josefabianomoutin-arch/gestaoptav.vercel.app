@@ -38,7 +38,10 @@ const VehicleInspectionTab: React.FC<VehicleInspectionTabProps> = ({
     wheelIssues: [],
     wheelDescription: '',
     damageIssues: [],
-    damageDescription: ''
+    damageDescription: '',
+    currentKM: '',
+    nextOilChangeKM: '',
+    oilChangeDescription: ''
   });
 
   const lightingOptions = [
@@ -106,7 +109,10 @@ const VehicleInspectionTab: React.FC<VehicleInspectionTabProps> = ({
       wheelIssues: [],
       wheelDescription: '',
       damageIssues: [],
-      damageDescription: ''
+      damageDescription: '',
+      currentKM: '',
+      nextOilChangeKM: '',
+      oilChangeDescription: ''
     });
     setIsModalOpen(true);
   };
@@ -130,7 +136,10 @@ const VehicleInspectionTab: React.FC<VehicleInspectionTabProps> = ({
       wheelIssues: inspection.wheelIssues || [],
       wheelDescription: inspection.wheelDescription || '',
       damageIssues: inspection.damageIssues || [],
-      damageDescription: inspection.damageDescription || ''
+      damageDescription: inspection.damageDescription || '',
+      currentKM: inspection.currentKM || '',
+      nextOilChangeKM: inspection.nextOilChangeKM || '',
+      oilChangeDescription: inspection.oilChangeDescription || ''
     });
     setIsModalOpen(true);
   };
@@ -156,6 +165,7 @@ const VehicleInspectionTab: React.FC<VehicleInspectionTabProps> = ({
                 <th className="p-4 text-left">Data/Hora</th>
                 <th className="p-4 text-left">Veículo</th>
                 <th className="p-4 text-left">Motorista</th>
+                <th className="p-4 text-left">KM Atual</th>
                 <th className="p-4 text-left">Tipo</th>
                 <th className="p-4 text-right">Ações</th>
               </tr>
@@ -174,6 +184,9 @@ const VehicleInspectionTab: React.FC<VehicleInspectionTabProps> = ({
                     </td>
                     <td className="p-4 text-gray-600">
                       {driver ? driver.name : 'Desconhecido'}
+                    </td>
+                    <td className="p-4 font-mono text-xs text-gray-500">
+                      {inspection.currentKM || '---'}
                     </td>
                     <td className="p-4">
                       <span className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest ${inspection.type === 'INÍCIO DO PLANTÃO' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -264,6 +277,39 @@ const VehicleInspectionTab: React.FC<VehicleInspectionTabProps> = ({
                     <option value="QUEBRA DURANTE O PERCURSO">QUEBRA DURANTE O PERCURSO</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">KM Atual</label>
+                  <input
+                    type="text"
+                    value={formData.currentKM}
+                    onChange={e => setFormData({...formData, currentKM: e.target.value})}
+                    placeholder="Informer a quilometragem atual"
+                    className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Próxima Troca de Óleo</label>
+                  <input
+                    type="text"
+                    value={formData.nextOilChangeKM}
+                    onChange={e => setFormData({...formData, nextOilChangeKM: e.target.value})}
+                    placeholder="Informer a KM da próxima troca"
+                    className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Necessita realizar a troca de óleo? (Descrever se sim)</label>
+                <textarea
+                  value={formData.oilChangeDescription}
+                  onChange={e => setFormData({...formData, oilChangeDescription: e.target.value})}
+                  placeholder="Descrever se necessita realizar a troca de óleo ou observações sobre o óleo."
+                  className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all min-h-[80px]"
+                />
               </div>
 
               {formData.type === 'QUEBRA DURANTE O PERCURSO' && (
