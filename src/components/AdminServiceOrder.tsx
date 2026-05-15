@@ -324,23 +324,43 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
     }
   };
 
-  const generateControlReport = () => {
+  const generateControlReport = (type: 'all' | 'finished' | 'ongoing' | 'pending' = 'all') => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const ongoingCount = orders.filter(o => o.status !== 'concluido' && o.status !== 'cancelado').length;
-    const finishedCount = orders.filter(o => o.status === 'concluido' || o.status === 'cancelado').length;
-    const pendingCount = orders.filter(o => o.status === 'pendente').length;
+    let filteredOrdersForReport = [...orders];
+    let reportTitle = 'RELATÓRIO GERAL DE MANUTENÇÕES';
 
-    const reportTitle = 'RELATÓRIO GERAL DE MANUTENÇÕES';
+    if (type === 'finished') {
+      filteredOrdersForReport = orders.filter(o => o.status === 'concluido' || o.status === 'cancelado');
+      reportTitle = 'RELATÓRIO DE MANUTENÇÕES FINALIZADAS';
+    } else if (type === 'ongoing') {
+      filteredOrdersForReport = orders.filter(o => o.status === 'em_andamento');
+      reportTitle = 'RELATÓRIO DE MANUTENÇÕES EM ANDAMENTO';
+    } else if (type === 'pending') {
+      filteredOrdersForReport = orders.filter(o => o.status === 'pendente');
+      reportTitle = 'RELATÓRIO DE MANUTENÇÕES PENDENTES';
+    }
 
-    const allOrdersSorted = [...orders].sort((a, b) => {
+    const globalTotal = orders.length;
+    const globalOngoing = orders.filter(o => o.status === 'em_andamento').length;
+    const globalFinished = orders.filter(o => o.status === 'concluido' || o.status === 'cancelado').length;
+    const globalPending = orders.filter(o => o.status === 'pendente').length;
+
+    const allOrdersSorted = filteredOrdersForReport.sort((a, b) => {
       const statusOrder: Record<string, number> = { 'pendente': 0, 'em_andamento': 1, 'concluido': 2, 'cancelado': 3 };
       if (statusOrder[a.status] !== statusOrder[b.status]) return (statusOrder[a.status] ?? 4) - (statusOrder[b.status] ?? 4);
       
       const priorityWeight: Record<string, number> = { 'ALTA': 0, 'MÉDIA': 1, 'BAIXA': 2 };
       return (priorityWeight[a.priority] ?? 3) - (priorityWeight[b.priority] ?? 3);
     });
+
+    const typeLabels = {
+        all: 'Total de Registros',
+        finished: 'Registros Finalizados',
+        ongoing: 'Registros em Andamento',
+        pending: 'Registros Pendentes'
+    };
 
     printWindow.document.write(`
       <html>
@@ -387,9 +407,10 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               flex: 1;
               background: white;
               border: 1px solid #e2e8f0;
-              padding: 8px 4px;
-              border-radius: 10px;
+              padding: 10px 4px;
+              border-radius: 12px;
               text-align: center;
+              box-shadow: 0 1px 2px rgba(0,0,0,0.05);
             }
             .card .label { 
               font-size: 8px; 
@@ -410,6 +431,19 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
             .val-ongoing { color: #2563eb; }
             .val-finished { color: #059669; }
             
+            .report-info {
+                background: #4f46e5;
+                color: white;
+                padding: 15px 25px;
+                border-radius: 12px;
+                margin-bottom: 20px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .report-info-text { font-weight: 900; text-transform: uppercase; font-style: italic; letter-spacing: -0.02em; }
+            .report-info-count { font-weight: 900; font-size: 20px; }
+
             table { 
               width: 100%; 
               border-collapse: collapse; 
@@ -421,7 +455,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
             }
             th { 
-              background: #4f46e5; 
+              background: #1e293b; 
               color: white; 
               text-align: left; 
               padding: 14px 12px; 
@@ -473,26 +507,31 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
         <body>
           <div class="header">
             <h1>Seção de Infraestrutura e Logística</h1>
-            <p>${reportTitle}</p>
+            <p>Panorama Geral do Sistema</p>
           </div>
 
           <div class="summary-cards">
             <div class="card">
               <div class="label">Total Geral</div>
-              <div class="value val-total">${orders.length}</div>
+              <div class="value val-total">${globalTotal}</div>
             </div>
             <div class="card">
               <div class="label">Pendentes</div>
-              <div class="value val-pending">${pendingCount}</div>
+              <div class="value val-pending">${globalPending}</div>
             </div>
             <div class="card">
               <div class="label">Em Andamento</div>
-              <div class="value val-ongoing">${ongoingCount}</div>
+              <div class="value val-ongoing">${globalOngoing}</div>
             </div>
             <div class="card">
               <div class="label">Finalizadas</div>
-              <div class="value val-finished">${finishedCount}</div>
+              <div class="value val-finished">${globalFinished}</div>
             </div>
+          </div>
+
+          <div class="report-info">
+            <div class="report-info-text">${typeLabels[type]}</div>
+            <div class="report-info-count">${filteredOrdersForReport.length}</div>
           </div>
 
           <table>
@@ -509,7 +548,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               </tr>
             </thead>
             <tbody>
-              ${allOrdersSorted.map(o => {
+              ${allOrdersSorted.length > 0 ? allOrdersSorted.map(o => {
                 const schedule = maintenanceSchedules.find(ms => ms.serviceOrderId === o.id);
                 const pplsCount = schedule?.ppls?.filter(p => p.trim() !== '').length || 0;
                 const toolsCount = schedule?.tools?.filter(t => t.trim() !== '').length || 0;
@@ -547,7 +586,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                     <td>${schedule ? new Date(schedule.date).toLocaleDateString('pt-BR') : '---'}</td>
                   </tr>
                 `;
-              }).join('')}
+              }).join('') : '<tr><td colspan="8" style="text-align: center; padding: 40px; font-weight: 900; color: #94a3b8; text-transform: uppercase;">Nenhum registro localizado para este filtro</td></tr>'}
             </tbody>
           </table>
 
@@ -558,7 +597,6 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
           <script>
             window.onload = () => {
               window.print();
-              // window.close(); // Opcional
             };
           </script>
         </body>
@@ -612,13 +650,40 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
             </button>
           </div>
 
-          <button
-            onClick={generateControlReport}
-            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 font-black py-3 px-6 rounded-2xl text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm active:scale-95"
-          >
-            <FileText className="h-4 w-4" />
-            Relatório de Controle
-          </button>
+          <div className="flex bg-indigo-50 p-1.5 rounded-2xl border border-indigo-100 shadow-sm gap-1">
+            <button
+              onClick={() => generateControlReport('all')}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2.5 px-4 rounded-xl text-[9px] uppercase tracking-widest transition-all flex items-center gap-2 shadow-md active:scale-95"
+              title="Relatório Completo"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Todos
+            </button>
+            <button
+              onClick={() => generateControlReport('pending')}
+              className="bg-white hover:bg-amber-50 text-amber-600 border border-amber-100 font-black py-2.5 px-4 rounded-xl text-[9px] uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm active:scale-95"
+              title="Relatório de Pendentes"
+            >
+              <Clock className="h-3.5 w-3.5" />
+              Pendentes
+            </button>
+            <button
+              onClick={() => generateControlReport('ongoing')}
+              className="bg-white hover:bg-blue-50 text-blue-600 border border-blue-100 font-black py-2.5 px-4 rounded-xl text-[9px] uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm active:scale-95"
+              title="Relatório de Em Andamento"
+            >
+              <AlertCircle className="h-3.5 w-3.5" />
+              Andamento
+            </button>
+            <button
+              onClick={() => generateControlReport('finished')}
+              className="bg-white hover:bg-emerald-50 text-emerald-600 border border-emerald-100 font-black py-2.5 px-4 rounded-xl text-[9px] uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm active:scale-95"
+              title="Relatório de Concluídos"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Concluídos
+            </button>
+          </div>
         </div>
       </div>
 

@@ -6,7 +6,7 @@ import type { Supplier, Delivery, WarehouseMovement, AcquisitionItem } from '../
 import { Download, Search, FileCheck, Trash2, RotateCcw, Plus, X, Edit2, Printer, Barcode as BarcodeIcon, Upload, Calendar, FileText, Package } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app, storage } from '../firebaseConfig';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { toast } from 'sonner';
 import ConfirmModal from './ConfirmModal';
 
@@ -705,22 +705,93 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                         accept="application/pdf,image/*"
                         onChange={async (e) => {
                             if (e.target.files && e.target.files[0]) {
-                                const toastId = toast.loading('Enviando nota...');
+                                const toastId = toast.loading('Iniciando envio...', { description: 'Aguarde um momento...' });
                                 try {
                                     const file = e.target.files[0];
+                                    
+                                    // Validation
+                                    if (file.size > 5 * 1024 * 1024) {
+                                        toast.error('Arquivo muito grande (máx 5MB)', { id: toastId });
+                                        return;
+                                    }
+
                                     // Clean metadata from path
                                     const cleanCpf = String(inv.supplierCpf || 'S-CPF').replace(/[^\w-]/g, '_');
                                     const cleanInvoice = String(inv.invoiceNumber || 'S-N').replace(/[^\w-]/g, '_');
                                     const cleanFileName = file.name.replace(/[^\w.-]/g, '_');
                                     
                                     const fileRef = storageRef(storage, `invoices/${cleanCpf}/${cleanInvoice}/${cleanFileName}`);
-                                    await uploadBytes(fileRef, file);
-                                    const url = await getDownloadURL(fileRef);
-                                    await onUpdateInvoiceUrl(inv.supplierCpf, inv.invoiceNumber, url);
-                                    toast.success('Nota enviada com sucesso!', { id: toastId });
+                                    
+                                    // Upload Resumable for better feedback and robustness
+                                    const uploadTask = uploadBytesResumable(fileRef, file);
+                                    
+                                    const uploadPromise = new Promise<string>((resolve, reject) => {
+                                        let lastProgress = -1;
+                                        uploadTask.on('state_changed', 
+                                            (snapshot) => {
+                                                const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                                                if (progress !== lastProgress) {
+                                                    lastProgress = progress;
+                                                    toast.loading(`Enviando nota: ${progress}%`, { 
+                                                        id: toastId,
+                                                        description: progress < 100 ? 'Transferindo arquivo para o servidor...' : 'Finalizando transferência...'
+                                                    });
+                                                }
+                                            }, 
+                                            (error) => {
+                                                console.error('Snapshot error:', error);
+                                                reject(error);
+                                            }, 
+                                            async () => {
+                                                try {
+                                                    // Wrap getDownloadURL in a 10s timeout just in case it hangs
+                                                    const urlPromise = getDownloadURL(fileRef);
+                                                    const urlTimeout = new Promise<string>((_, r) => setTimeout(() => r(new Error("Timeout ao obter link do arquivo")), 10000));
+                                                    const downloadUrl = await Promise.race([urlPromise, urlTimeout]);
+                                                    resolve(downloadUrl as string);
+                                                } catch (err) {
+                                                    reject(err);
+                                                }
+                                            }
+                                        );
+                                    });
+
+                                    const timeoutPromise = new Promise<never>((_, reject) => 
+                                        setTimeout(() => {
+                                            uploadTask.cancel();
+                                            reject(new Error("O envio demorou mais que 60s. Verifique sua conexão."));
+                                        }, 60000)
+                                    );
+
+                                    const url = await Promise.race([uploadPromise, timeoutPromise]);
+                                    
+                                    toast.loading('Relacionando nota aos lançamentos...', { 
+                                        id: toastId, 
+                                        description: 'Atualizando base de dados em tempo real...' 
+                                    });
+
+                                    // Update database with 20s timeout (more generous but still capped)
+                                    const dbPromise = onUpdateInvoiceUrl(inv.supplierCpf, inv.invoiceNumber, url);
+                                    const dbTimeoutPromise = new Promise((_, reject) => 
+                                        setTimeout(() => reject(new Error("Tempo limite excedido ao sincronizar Banco de Dados. A nota foi enviada, mas o vínculo falhou.")), 20000)
+                                    );
+
+                                    const result: any = await Promise.race([dbPromise, dbTimeoutPromise]);
+                                    
+                                    if (result && result.success === false) {
+                                        throw new Error(result.message || 'Falha ao vincular nota ao fornecedor');
+                                    }
+
+                                    toast.success('Nota enviada e vinculada com sucesso!', { id: toastId, description: 'O processo foi concluído.' });
                                 } catch (error: any) {
-                                    console.error('Storage error:', error);
-                                    toast.error(`Erro ao enviar a nota: ${error?.message || 'Erro desconhecido'}`, { id: toastId });
+                                    console.error('Final upload handler error:', error);
+                                    let errorMsg = error?.message || 'Falha no processamento';
+                                    if (error?.code === 'storage/retry-limit-exceeded') errorMsg = "Muitas tentativas falhas. Verifique sua internet.";
+                                    if (error?.code === 'storage/quota-exceeded') errorMsg = "Cota do servidor excedida. Contate o administrador.";
+                                    
+                                    toast.error(`Erro: ${errorMsg}`, { id: toastId });
+                                } finally {
+                                    e.target.value = '';
                                 }
                             }
                         }} 

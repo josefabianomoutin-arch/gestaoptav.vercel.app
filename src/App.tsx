@@ -15,7 +15,7 @@ import JulioDashboard from './components/JulioDashboard';
 import ServiceOrderDashboard from './components/ServiceOrderDashboard';
 import InfobarTicker from './components/InfobarTicker';
 import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
-import { ref as storageRef, getDownloadURL, uploadBytes } from 'firebase/storage';
+import { ref as storageRef, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 import { app, storage } from './firebaseConfig';
 import { getCombinedSuppliers } from './lib/supplierUtils';
 import { ensureArray } from './lib/utils';
@@ -725,18 +725,29 @@ const App: React.FC = () => {
 
   const handleUpdateInvoiceUrl = useCallback(async (supplierCpf: string, invoiceNumber: string, finalInvoiceUrl: string) => {
     try {
-      const snapshotPC = await get(perCapitaConfigRef);
+      const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+      const targetCpf = cleanStr(supplierCpf);
+      const targetInv = cleanStr(invoiceNumber);
+
+      // Add timeout to fetch to prevent hanging on slow connections
+      const fetchWithTimeout = async (dbRef: any) => {
+          const fetchPromise = get(dbRef);
+          const timeout = new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Timeout ao ler banco de dados")), 10000));
+          return Promise.race([fetchPromise, timeout]);
+      };
+
+      const snapshotPC = await fetchWithTimeout(perCapitaConfigRef);
       const currentData = snapshotPC.val() as PerCapitaConfig;
       if (currentData) {
         let found = false;
         const updateList = async (list: any[] | undefined, listName: string) => {
-          if (!list) return false;
-          const index = list.findIndex(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
+          if (!list || found) return false;
+          const index = list.findIndex(p => (cleanStr(p.cpfCnpj || p.cpf) === targetCpf));
           if (index !== -1) {
             const deliveries = list[index].deliveries || [];
             let updatedAny = false;
             const updatedDeliveries = (deliveries || []).map((d: any) => {
-              if (String(d.invoiceNumber) === String(invoiceNumber)) {
+              if (cleanStr(d.invoiceNumber) === targetInv) {
                 updatedAny = true;
                 return { ...d, invoiceUrl: finalInvoiceUrl };
               }
@@ -757,20 +768,38 @@ const App: React.FC = () => {
 
         if (found) return { success: true };
       }
-    } catch (e) {
-      console.error("Error updating supplier invoice URL in PC:", e);
-    }
 
-    const snapshot = await get(child(suppliersRef, supplierCpf));
-    const currentData = snapshot.val() as Supplier;
-    if (currentData && currentData.deliveries) {
-      const deliveries = currentData.deliveries.map(d => 
-        String(d.invoiceNumber) === String(invoiceNumber) ? { ...d, invoiceUrl: finalInvoiceUrl } : d
-      );
-      await update(child(suppliersRef, supplierCpf), { deliveries });
-      return { success: true };
+      // Check in main suppliers list
+      // Note: we can't easily iterate all suppliers here if we use the CPF as key, 
+      // but we should check the most likely key first (the passed clean or original CPF)
+      const tryCpf = async (cpf: string) => {
+          const snapshot = await get(child(suppliersRef, cpf));
+          const data = snapshot.val() as Supplier;
+          if (data && data.deliveries) {
+              let updatedAny = false;
+              const deliveries = data.deliveries.map(d => {
+                  if (cleanStr(d.invoiceNumber) === targetInv) {
+                      updatedAny = true;
+                      return { ...d, invoiceUrl: finalInvoiceUrl };
+                  }
+                  return d;
+              });
+              if (updatedAny) {
+                  await update(child(suppliersRef, cpf), { deliveries });
+                  return true;
+              }
+          }
+          return false;
+      };
+
+      if (await tryCpf(supplierCpf)) return { success: true };
+      if (supplierCpf !== targetCpf && await tryCpf(targetCpf)) return { success: true };
+
+      return { success: false, message: 'Dados do fornecedor não encontrados.' };
+    } catch (e) {
+      console.error("Error updating supplier invoice URL:", e);
+      return { success: false, message: 'Erro interno ao atualizar nota.' };
     }
-    return { success: false, message: 'Dados do fornecedor não encontrados.' };
   }, [suppliersRef, perCapitaConfigRef]);
 
 
@@ -1701,15 +1730,36 @@ const App: React.FC = () => {
                     }
                     const blob = new Blob([ab], { type: mimeString });
                     
-                    console.log("Blob criado, tamanho:", blob.size, "Enviando para storage...");
+                    console.log("Blob criado, tamanho:", blob.size, "Enviando para storage via resumable...");
                     
-                    const uploadPromise = uploadBytes(fileRef, blob);
-                    const timeoutPromise = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error("Timeout no upload do PDF para o Storage")), 60000)
+                    const uploadTask = uploadBytesResumable(fileRef, blob);
+                    
+                    const uploadPromise = new Promise<string>((resolve, reject) => {
+                        uploadTask.on('state_changed', 
+                            (snapshot) => {
+                                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                                console.log(`Upload da nota em progresso: ${Math.round(progress)}%`);
+                            }, 
+                            (error) => reject(error), 
+                            async () => {
+                                try {
+                                    const url = await getDownloadURL(fileRef);
+                                    resolve(url);
+                                } catch (err) {
+                                    reject(err);
+                                }
+                            }
+                        );
+                    });
+
+                    const timeoutPromise = new Promise<never>((_, reject) => 
+                        setTimeout(() => {
+                            uploadTask.cancel();
+                            reject(new Error("Timeout no upload do PDF (60s)"));
+                        }, 60000)
                     );
                     
-                    await Promise.race([uploadPromise, timeoutPromise]);
-                    finalInvoiceUrl = await getDownloadURL(fileRef);
+                    finalInvoiceUrl = await Promise.race([uploadPromise, timeoutPromise]);
                     console.log("Upload concluído com sucesso:", finalInvoiceUrl);
                 }
             } catch (storageError) {
