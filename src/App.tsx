@@ -178,7 +178,11 @@ const App: React.FC = () => {
     onValue(suppliersRef, (snapshot) => {
       const data = snapshot.val();
       console.log("Firebase Suppliers Data:", data);
-      const list = data ? Object.values(data) : [];
+      const list = data ? Object.entries(data).map(([key, value]: [string, any]) => ({
+        ...value,
+        id: value.id || key,
+        cpf: value.cpf || key // Ensure CPF is taken from key if missing
+      })) : [];
       setSuppliers(list as Supplier[]);
       try {
         localStorage.setItem('cached_suppliers', JSON.stringify(list));
@@ -188,7 +192,10 @@ const App: React.FC = () => {
     });
     onValue(warehouseLogRef, (snapshot) => {
       const data = snapshot.val();
-      const list = data ? Object.values(data) : [];
+      const list = data ? Object.entries(data).map(([key, value]: [string, any]) => ({
+        ...value,
+        id: value.id || key
+      })) : [];
       setWarehouseLog(list as WarehouseMovement[]);
       try {
         localStorage.setItem('cached_warehouseLog', JSON.stringify(list));
@@ -725,194 +732,220 @@ const App: React.FC = () => {
 
   const handleUpdateInvoiceUrl = useCallback(async (supplierCpf: string, invoiceNumber: string, finalInvoiceUrl: string) => {
     try {
-      const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
-      const targetCpf = cleanStr(supplierCpf);
-      const targetInv = cleanStr(invoiceNumber);
+      const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+      const targetCpf = clean(supplierCpf);
+      const targetInv = clean(invoiceNumber);
 
-      // Add timeout to fetch to prevent hanging on slow connections
       const fetchWithTimeout = async (dbRef: any) => {
           const fetchPromise = get(dbRef);
           const timeout = new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Timeout ao ler banco de dados")), 10000));
           return Promise.race([fetchPromise, timeout]);
       };
 
+      // 1. Check in PerCapita
       const snapshotPC = await fetchWithTimeout(perCapitaConfigRef);
-      const currentData = snapshotPC.val() as PerCapitaConfig;
-      if (currentData) {
-        let found = false;
-        const updateList = async (list: any[] | undefined, listName: string) => {
-          if (!list || found) return false;
-          const index = list.findIndex(p => (cleanStr(p.cpfCnpj || p.cpf) === targetCpf));
-          if (index !== -1) {
-            const deliveries = list[index].deliveries || [];
+      const currentPC = snapshotPC.val() as PerCapitaConfig;
+      if (currentPC) {
+        const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+        for (const lKey of lists) {
+          const list = ensureArray(currentPC[lKey]);
+          const idx = list.findIndex(p => clean(p.cpfCnpj || p.cpf) === targetCpf);
+          if (idx !== -1) {
+            const deliveries = ensureArray(list[idx].deliveries);
             let updatedAny = false;
-            const updatedDeliveries = (deliveries || []).map((d: any) => {
-              if (cleanStr(d.invoiceNumber) === targetInv) {
+            const updatedDeliveries = deliveries.map((d: any) => {
+              if (clean(d.invoiceNumber) === targetInv) {
                 updatedAny = true;
                 return { ...d, invoiceUrl: finalInvoiceUrl };
               }
               return d;
             });
             if (updatedAny) {
-              await update(child(perCapitaConfigRef, `${listName}/${index}`), { deliveries: updatedDeliveries });
-              found = true;
-              return true;
+              await update(child(perCapitaConfigRef, `${lKey}/${idx}`), { deliveries: updatedDeliveries });
+              return { success: true };
             }
           }
-          return false;
-        };
-
-        await updateList(currentData.ppaisProducers, 'ppaisProducers');
-        if (!found) await updateList(currentData.pereciveisSuppliers, 'pereciveisSuppliers');
-        if (!found) await updateList(currentData.estocaveisSuppliers, 'estocaveisSuppliers');
-
-        if (found) return { success: true };
+        }
       }
 
-      // Check in main suppliers list
-      // Note: we can't easily iterate all suppliers here if we use the CPF as key, 
-      // but we should check the most likely key first (the passed clean or original CPF)
-      const tryCpf = async (cpf: string) => {
-          const snapshot = await get(child(suppliersRef, cpf));
-          const data = snapshot.val() as Supplier;
-          if (data && data.deliveries) {
-              let updatedAny = false;
-              const deliveries = data.deliveries.map(d => {
-                  if (cleanStr(d.invoiceNumber) === targetInv) {
-                      updatedAny = true;
-                      return { ...d, invoiceUrl: finalInvoiceUrl };
-                  }
-                  return d;
-              });
-              if (updatedAny) {
-                  await update(child(suppliersRef, cpf), { deliveries });
-                  return true;
-              }
+      // 2. Check in Main Suppliers
+      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      if (mainSupplier) {
+        const supRef = child(suppliersRef, mainSupplier.id || targetCpf);
+        const snapshotSup = await fetchWithTimeout(supRef);
+        const data = snapshotSup.val() as Supplier;
+        if (data && data.deliveries) {
+          let updatedAny = false;
+          const deliveries = data.deliveries.map(d => {
+            if (clean(d.invoiceNumber) === targetInv) {
+              updatedAny = true;
+              return { ...d, invoiceUrl: finalInvoiceUrl };
+            }
+            return d;
+          });
+          if (updatedAny) {
+            await update(supRef, { deliveries });
+            return { success: true };
           }
-          return false;
-      };
-
-      if (await tryCpf(supplierCpf)) return { success: true };
-      if (supplierCpf !== targetCpf && await tryCpf(targetCpf)) return { success: true };
+        }
+      }
 
       return { success: false, message: 'Dados do fornecedor não encontrados.' };
     } catch (e) {
       console.error("Error updating supplier invoice URL:", e);
       return { success: false, message: 'Erro interno ao atualizar nota.' };
     }
-  }, [suppliersRef, perCapitaConfigRef]);
+  }, [suppliersRef, perCapitaConfigRef, suppliers]);
 
 
 
   const handleMarkInvoiceAsOpened = useCallback(async (supplierCpf: string, invoiceNumber: string) => {
     try {
+      const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+      const targetCpf = clean(supplierCpf);
+      const targetInv = clean(invoiceNumber);
+
+      // 1. Try PerCapita
       await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
         if (currentData) {
-          const findAndMark = (list: any[] | undefined) => {
-            const s = list?.find(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
-            if (s && s.deliveries) {
-              s.deliveries = s.deliveries.map((d: any) => {
-                if (d.invoiceNumber === invoiceNumber && !d.isOpened && !d.opened) {
+          const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+          for (const lKey of lists) {
+            const list = ensureArray(currentData[lKey]);
+            const idx = list.findIndex(p => clean(p.cpfCnpj || p.cpf) === targetCpf);
+            if (idx !== -1) {
+              const deliveries = ensureArray(list[idx].deliveries);
+              let changed = false;
+              const updated = deliveries.map(d => {
+                if (clean(d.invoiceNumber) === targetInv && !d.isOpened && !d.opened) {
+                  changed = true;
                   return { ...d, isOpened: true, opened: true };
                 }
                 return d;
               });
-              return true;
-            }
-            return false;
-          };
-          if (!findAndMark(currentData.ppaisProducers)) {
-            if (!findAndMark(currentData.pereciveisSuppliers)) {
-              findAndMark(currentData.estocaveisSuppliers);
+              if (changed) {
+                list[idx].deliveries = updated;
+                return currentData;
+              }
             }
           }
         }
         return currentData;
       });
+
+      // 2. Try Main Suppliers
+      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      if (mainSupplier) {
+        const supRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
+        await runTransaction(supRef, (currentDeliveries) => {
+          if (Array.isArray(currentDeliveries)) {
+            let changed = false;
+            const updated = currentDeliveries.map(d => {
+              if (clean(d.invoiceNumber) === targetInv && !d.isOpened && !d.opened) {
+                changed = true;
+                return { ...d, isOpened: true, opened: true };
+              }
+              return d;
+            });
+            if (changed) return updated;
+          }
+          return currentDeliveries;
+        });
+      }
+
       return { success: true };
     } catch (e) {
-      console.error("Error marking per capita invoice as opened:", e);
-      return { success: false };
+      console.error("Error marking invoice as opened:", e);
+      return { success: false, message: 'Erro ao marcar nota como aberta.' };
     }
-  }, [suppliers]);
+  }, [perCapitaConfigRef, suppliersRef, suppliers]);
 
   const handleDeleteDelivery = async (supplierCpf: string, deliveryId: string) => {
     try {
+      const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+      const targetCpf = clean(supplierCpf);
+
       // 1. Clean up warehouseLog first if there's a matching entry
       const logSnapshot = await get(warehouseLogRef);
       const allLogs = logSnapshot.val() || {};
       const logKeysToDelete = Object.keys(allLogs).filter(key => {
           const entry = allLogs[key];
-          return entry.supplierCpf === supplierCpf && entry.deliveryId === deliveryId;
+          return clean(entry.supplierCpf) === targetCpf && (entry.deliveryId === deliveryId || entry.id === deliveryId);
       });
 
       if (logKeysToDelete.length > 0) {
           await Promise.all(logKeysToDelete.map(key => remove(child(warehouseLogRef, key))));
       }
 
-      const isMainSupplier = suppliers.some(s => s && s.cpf === supplierCpf);
-      if (isMainSupplier) {
-        const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
+      // 2. Try Main Suppliers
+      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      if (mainSupplier) {
+        const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
         await runTransaction(deliveriesRef, (current) => {
-          if (!current) return current;
-          const list = ensureArray<any>(current);
-          return list.filter(d => d && d.id !== deliveryId);
+          if (!current || !Array.isArray(current)) return current;
+          return current.filter(d => d && d.id !== deliveryId);
         });
         return { success: true };
       }
 
+      // 3. Try Per Capita
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
-        const producers = ensureArray(perCapitaConfig[listKey]);
-        const idx = producers.findIndex((p: any) => p && (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
+        const list = ensureArray(perCapitaConfig[listKey]);
+        const idx = list.findIndex((p: any) => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
-            if (!current) return current;
-            const list = ensureArray<any>(current);
-            return list.filter(d => d && d.id !== deliveryId);
+            if (!current || !Array.isArray(current)) return current;
+            return current.filter(d => d && d.id !== deliveryId);
           });
           return { success: true };
         }
       }
-      return { success: false, message: 'Fornecedor não encontrado.' };
+
+      return { success: true };
     } catch (e) {
       console.error("Error deleting delivery:", e);
-      return { success: false, message: 'Erro ao excluir entrega.' };
+      return { success: false, message: 'Erro ao excluir lançamento.' };
     }
   };
 
+
   const handleUpdateDelivery = async (supplierCpf: string, deliveryId: string, updates: Partial<Delivery>) => {
     try {
-      const isMainSupplier = suppliers.some(s => s && s.cpf === supplierCpf);
-      if (isMainSupplier) {
-        const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
+      const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+      const targetCpf = clean(supplierCpf);
+
+      // 1. Try Main Suppliers
+      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      if (mainSupplier) {
+        const supRef = child(suppliersRef, mainSupplier.id || targetCpf);
+        const deliveriesRef = child(supRef, `deliveries`);
         await runTransaction(deliveriesRef, (current) => {
-          if (!current) return current;
-          const list = ensureArray<any>(current);
-          return list.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
+          if (!current || !Array.isArray(current)) return current;
+          return current.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
         });
         return { success: true };
       }
 
+      // 2. Try Per Capita
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
-        const producers = ensureArray(perCapitaConfig[listKey]);
-        const idx = producers.findIndex((p: any) => p && (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
+        const list = ensureArray(perCapitaConfig[listKey]);
+        const idx = list.findIndex((p: any) => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
-            if (!current) return current;
-            const list = ensureArray<any>(current);
-            return list.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
+            if (!current || !Array.isArray(current)) return current;
+            return current.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
           });
           return { success: true };
         }
       }
-      return { success: false, message: 'Fornecedor não encontrado.' };
+
+      return { success: false, message: 'Lançamento não encontrado.' };
     } catch (e) {
       console.error("Error updating delivery:", e);
-      return { success: false, message: 'Erro ao atualizar entrega.' };
+      return { success: false, message: 'Erro ao atualizar lançamento.' };
     }
   };
 
@@ -1001,36 +1034,84 @@ const App: React.FC = () => {
     try {
       console.log('handleUpdateInvoiceItems:', { supplierCpf, invoiceNumber, itemsCount: items.length });
       
-      const targetInvoice = String(invoiceNumber).trim();
+      const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+      const targetInvoice = clean(invoiceNumber);
+      const targetCpf = clean(supplierCpf);
+
+      let supplierName = '';
+      const mainSup = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      if (mainSup) {
+        supplierName = mainSup.name;
+      } else {
+        const pcSup = (perCapitaConfig.ppaisProducers || []).find(s => (clean(s.cpfCnpj || s.cpf) === targetCpf)) || 
+                      (perCapitaConfig.pereciveisSuppliers || []).find(s => (clean(s.cpfCnpj || s.cpf) === targetCpf)) ||
+                      (perCapitaConfig.estocaveisSuppliers || []).find(s => (clean(s.cpfCnpj || s.cpf) === targetCpf));
+        if (pcSup) supplierName = pcSup.name;
+      }
       
-      // --- UNIFICAÇÃO: Atualizar também o warehouseLog ---
       const logSnapshot = await get(warehouseLogRef);
       const allLogs = logSnapshot.val() || {};
       const logUpdates: any = {};
       
+      const existingLogsForKey: Record<string, any> = {};
       Object.keys(allLogs).forEach(key => {
           const entry = allLogs[key];
-          const entryInvRaw = String(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '').trim();
-          const entryInv = entryInvRaw || 'S/N';
-          
-          if (entry.supplierCpf === supplierCpf && entryInv === targetInvoice) {
-              const itemMatch = (it: any) => 
-                (it.name === (entry.item || entry.itemName) || it.itemName === (entry.item || entry.itemName) || (it.id && it.id === (entry.id || entry.deliveryId)));
-              const itemUpdate = items.find(itemMatch);
-              
-              if (itemUpdate) {
-                  logUpdates[`${key}/inboundInvoice`] = newInvoiceNumber || entry.inboundInvoice || '';
-                  logUpdates[`${key}/invoiceNumber`] = newInvoiceNumber || entry.invoiceNumber || '';
-                  logUpdates[`${key}/quantity`] = itemUpdate.kg;
-                  logUpdates[`${key}/value`] = itemUpdate.value !== undefined ? itemUpdate.value : (entry.value || 0);
-                  logUpdates[`${key}/lotNumber`] = itemUpdate.lotNumber || entry.lotNumber || '';
-                  logUpdates[`${key}/expirationDate`] = itemUpdate.expirationDate || entry.expirationDate || '';
-                  logUpdates[`${key}/barcode`] = itemUpdate.barcode || entry.barcode || '';
-                  logUpdates[`${key}/pdNumber`] = pd || itemUpdate.pd || entry.pdNumber || '';
-                  logUpdates[`${key}/date`] = newDate || entry.date || '';
-              } else {
-                  logUpdates[key] = null;
-              }
+          const entryInv = clean(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '');
+          const entryCpf = clean(entry.supplierCpf || '');
+          if (entryCpf === targetCpf && entryInv === targetInvoice) {
+              existingLogsForKey[key] = entry;
+          }
+      });
+
+      const usedLogKeys = new Set<string>();
+      for (const item of items) {
+          const itName = clean(item.name || item.itemName || '');
+          const logKey = Object.keys(existingLogsForKey).find(k => {
+              if (usedLogKeys.has(k)) return false;
+              const logEntry = existingLogsForKey[k];
+              const logName = clean(logEntry.itemName || logEntry.item || '');
+              return (item.id === logEntry.id || item.id === logEntry.deliveryId || itName === logName);
+          });
+
+          if (logKey) {
+              usedLogKeys.add(logKey);
+              logUpdates[`${logKey}/inboundInvoice`] = newInvoiceNumber || invoiceNumber;
+              logUpdates[`${logKey}/invoiceNumber`] = newInvoiceNumber || invoiceNumber;
+              logUpdates[`${logKey}/quantity`] = Number(item.kg);
+              logUpdates[`${logKey}/kg`] = Number(item.kg);
+              logUpdates[`${logKey}/value`] = item.value !== undefined ? Number(item.value) : (existingLogsForKey[logKey].value || 0);
+              logUpdates[`${logKey}/lotNumber`] = item.lotNumber || '';
+              logUpdates[`${logKey}/expirationDate`] = item.expirationDate || '';
+              logUpdates[`${logKey}/barcode`] = item.barcode || '';
+              logUpdates[`${logKey}/pdNumber`] = pd || item.pd || '';
+              logUpdates[`${logKey}/date`] = newDate || existingLogsForKey[logKey].date || '';
+          } else {
+              const newRef = push(warehouseLogRef);
+              const newId = newRef.key || `it-${Date.now()}-${Math.random()}`;
+              logUpdates[newId] = {
+                  id: newId,
+                  type: 'entrada',
+                  timestamp: new Date().toISOString(),
+                  date: newDate || new Date().toISOString().split('T')[0],
+                  itemName: item.name,
+                  supplierName: supplierName || 'FORNECEDOR EDITADO',
+                  supplierCpf: supplierCpf,
+                  invoiceNumber: newInvoiceNumber || invoiceNumber,
+                  inboundInvoice: newInvoiceNumber || invoiceNumber,
+                  quantity: Number(item.kg),
+                  kg: Number(item.kg),
+                  value: Number(item.value) || 0,
+                  lotNumber: item.lotNumber || 'UNICO',
+                  expirationDate: item.expirationDate || '',
+                  barcode: item.barcode || '',
+                  pdNumber: pd || item.pd || ''
+              };
+          }
+      }
+
+      Object.keys(existingLogsForKey).forEach(k => {
+          if (!usedLogKeys.has(k)) {
+              logUpdates[k] = null;
           }
       });
 
@@ -1038,100 +1119,71 @@ const App: React.FC = () => {
           await update(warehouseLogRef, logUpdates);
       }
 
-      const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-      if (isMainSupplier) {
-        const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
-        await runTransaction(deliveriesRef, (current) => {
-          if (!current) return current;
-          const list = ensureArray<any>(current);
-          const newList = [];
-          for (const d of list) {
-            const dInv = String(d.invoiceNumber || '').trim();
-            if (dInv === targetInvoice) {
-              const itemMatch = (it: any) => (it.id === d.id || it.name === d.item || it.itemName === d.item);
-              const itemUpdate = items.find(itemMatch);
-              if (itemUpdate) {
-                newList.push({
-                  ...d,
-                  invoiceNumber: newInvoiceNumber || d.invoiceNumber,
-                  date: newDate || d.date,
-                  kg: itemUpdate.kg,
-                  value: itemUpdate.value !== undefined ? itemUpdate.value : d.value,
-                  lotNumber: itemUpdate.lotNumber || d.lotNumber,
-                  expirationDate: itemUpdate.expirationDate || d.expirationDate,
-                  barcode: itemUpdate.barcode || barcode || d.barcode,
-                  receiptTermNumber: receiptTermNumber || d.receiptTermNumber,
-                  invoiceDate: invoiceDate || d.invoiceDate,
-                  pd: pd || itemUpdate.pd || d.pd
-                });
-              }
-            } else {
-              newList.push(d);
-            }
-          }
-          return newList;
+      const updateDeliveries = (list: any[]) => {
+        const others = ensureArray(list).filter(d => clean(d.invoiceNumber) !== targetInvoice);
+        const updated = items.map(it => {
+          const original = ensureArray(list).find(d => clean(d.invoiceNumber) === targetInvoice && (it.id === d.id || clean(it.name) === clean(d.itemName || d.item)));
+          return {
+            id: it.id || original?.id || `del-${Date.now()}-${Math.random()}`,
+            ...original,
+            invoiceNumber: newInvoiceNumber || invoiceNumber,
+            date: newDate || original?.date || new Date().toISOString().split('T')[0],
+            itemName: it.name,
+            item: it.name,
+            kg: Number(it.kg),
+            quantity: Number(it.kg),
+            value: Number(it.value),
+            lotNumber: it.lotNumber || '',
+            expirationDate: it.expirationDate || '',
+            barcode: it.barcode || barcode || '',
+            receiptTermNumber: receiptTermNumber || original?.receiptTermNumber || '',
+            invoiceDate: invoiceDate || original?.invoiceDate || '',
+            pd: pd || it.pd || original?.pd || ''
+          };
         });
+        return [...others, ...updated];
+      };
+
+      if (mainSup) {
+        const supRef = child(suppliersRef, `${mainSup.id || targetCpf}/deliveries`);
+        await runTransaction(supRef, (current) => updateDeliveries(current));
         return { success: true };
       }
 
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
-      for (const listKey of lists) {
-        const producers = ensureArray(perCapitaConfig[listKey]);
-        const idx = producers.findIndex((p: any) => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
+      for (const lKey of lists) {
+        const list = ensureArray(perCapitaConfig[lKey]);
+        const idx = list.findIndex(p => clean(p.cpfCnpj || p.cpf) === targetCpf);
         if (idx !== -1) {
-          const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
-          await runTransaction(deliveriesRef, (current) => {
-            if (!current) return current;
-            const list = ensureArray<any>(current);
-            const newList = [];
-            for (const d of list) {
-              const dInv = String(d.invoiceNumber || '').trim();
-              if (dInv === targetInvoice) {
-                const itemMatch = (it: any) => (it.id === d.id || it.name === d.item || it.itemName === d.item);
-                const itemUpdate = items.find(itemMatch);
-                if (itemUpdate) {
-                  newList.push({
-                    ...d,
-                    invoiceNumber: newInvoiceNumber || d.invoiceNumber,
-                    date: newDate || d.date,
-                    kg: itemUpdate.kg,
-                    value: itemUpdate.value !== undefined ? itemUpdate.value : d.value,
-                    lotNumber: itemUpdate.lotNumber || d.lotNumber,
-                    expirationDate: itemUpdate.expirationDate || d.expirationDate,
-                    barcode: itemUpdate.barcode || barcode || d.barcode,
-                    receiptTermNumber: receiptTermNumber || d.receiptTermNumber,
-                    invoiceDate: invoiceDate || d.invoiceDate,
-                    pd: pd || itemUpdate.pd || d.pd
-                  });
-                }
-              } else {
-                newList.push(d);
-              }
-            }
-            return newList;
-          });
+          const dRef = child(perCapitaConfigRef, `${lKey}/${idx}/deliveries`);
+          await runTransaction(dRef, (current) => updateDeliveries(current));
           return { success: true };
         }
       }
-      return { success: false, message: 'Fornecedor não encontrado.' };
+
+      return { success: true };
     } catch (e) {
-      console.error("Error updating invoice items:", e);
-      return { success: false, message: 'Erro ao atualizar itens da nota.' };
+      console.error("Error in handleUpdateInvoiceItems:", e);
+      return { success: false, message: 'Erro ao atualizar itens da nota: ' + (e instanceof Error ? e.message : String(e)) };
     }
   };
 
   const handleReopenInvoice = async (supplierCpf: string, invoiceNumber: string) => {
-    const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-    if (isMainSupplier) {
-      const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
+    const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+    const targetCpf = clean(supplierCpf);
+    const targetInvoice = clean(invoiceNumber);
+    
+    const mainSupplier = suppliers.find(s => clean(s.cpf) === targetCpf);
+    if (mainSupplier) {
+      const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
       await runTransaction(deliveriesRef, (currentDeliveries) => {
         if (Array.isArray(currentDeliveries)) {
           const deliveries = currentDeliveries as any[];
-          const entriesForNf = deliveries.filter(d => d.invoiceNumber === invoiceNumber);
+          const entriesForNf = deliveries.filter(d => clean(d.invoiceNumber) === targetInvoice);
           if (entriesForNf.length > 0) {
             const baseDate = entriesForNf[0].date;
             const baseTime = entriesForNf[0].time;
-            const filtered = deliveries.filter(d => d.invoiceNumber !== invoiceNumber);
+            const filtered = deliveries.filter(d => clean(d.invoiceNumber) !== targetInvoice);
             filtered.push({
               id: `reopen-${Date.now()}`,
               date: baseDate,
@@ -1150,17 +1202,15 @@ const App: React.FC = () => {
     let listKey: 'ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers' | null = null;
     let producerIdx = -1;
 
-    if (perCapitaConfig.ppaisProducers) {
-      producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
-      if (producerIdx !== -1) listKey = 'ppaisProducers';
-    }
-    if (listKey === null && perCapitaConfig.pereciveisSuppliers) {
-      producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
-      if (producerIdx !== -1) listKey = 'pereciveisSuppliers';
-    }
-    if (listKey === null && perCapitaConfig.estocaveisSuppliers) {
-      producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
-      if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
+    const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+    for (const lKey of lists) {
+      const list = ensureArray(perCapitaConfig[lKey]);
+      const idx = list.findIndex((p: any) => clean(p.cpfCnpj || p.cpf) === targetCpf);
+      if (idx !== -1) {
+        listKey = lKey;
+        producerIdx = idx;
+        break;
+      }
     }
 
     if (listKey && producerIdx !== -1) {
@@ -1168,11 +1218,11 @@ const App: React.FC = () => {
       await runTransaction(deliveriesRef, (currentDeliveries) => {
         if (Array.isArray(currentDeliveries)) {
           const deliveries = currentDeliveries as any[];
-          const entriesForNf = deliveries.filter((d: any) => d.invoiceNumber === invoiceNumber);
+          const entriesForNf = deliveries.filter((d: any) => clean(d.invoiceNumber) === targetInvoice);
           if (entriesForNf.length > 0) {
             const baseDate = entriesForNf[0].date;
             const baseTime = entriesForNf[0].time;
-            const filtered = deliveries.filter((d: any) => d.invoiceNumber !== invoiceNumber);
+            const filtered = deliveries.filter((d: any) => clean(d.invoiceNumber) !== targetInvoice);
             filtered.push({
               id: `reopen-${Date.now()}`,
               date: baseDate,
@@ -1190,21 +1240,26 @@ const App: React.FC = () => {
 
   const handleDeleteInvoice = async (supplierCpf: string, invoiceNumber: string, retries = 5) => {
     console.log('handleDeleteInvoice chamado:', supplierCpf, invoiceNumber);
+    const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+    const targetCpf = clean(supplierCpf);
+    const targetInvoice = clean(invoiceNumber);
+
     for (let i = 0; i < retries; i++) {
       try {
-        const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+        const mainSupplier = suppliers.find(s => clean(s.cpf) === targetCpf);
         
         // --- NOVO: Deletar também do log do almoxarifado ---
         const logSnapshot = await get(warehouseLogRef);
         const allLogs = logSnapshot.val() || {};
         const logKeysToDelete = Object.keys(allLogs).filter(key => {
             const entry = allLogs[key];
-            const entryInvRaw = String(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '').trim();
-            const entryInv = entryInvRaw || 'S/N';
-            const isTarget = entry.supplierCpf === supplierCpf && entryInv === String(invoiceNumber).trim();
+            const entryInv = clean(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || 'S/N');
+            const entryCpf = clean(entry.supplierCpf || '');
             
-            if (isTarget && String(invoiceNumber).trim() === 'S/N') {
-                if ((entry.item || entry.itemName) === 'AGENDAMENTO PENDENTE') return false;
+            const isTarget = entryCpf === targetCpf && entryInv === targetInvoice;
+            
+            if (isTarget && targetInvoice === 'SN') {
+                if (clean(entry.item || entry.itemName) === 'AGENDAMENTO PENDENTE') return false;
             }
             return isTarget;
         });
@@ -1214,17 +1269,16 @@ const App: React.FC = () => {
             await Promise.all(logKeysToDelete.map(key => remove(child(warehouseLogRef, key))));
         }
 
-        if (isMainSupplier) {
-          const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
-          console.log(`Iniciando transação MainSupplier (tentativa ${i + 1}):`, supplierCpf);
+        if (mainSupplier) {
+          const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
+          console.log(`Iniciando transação MainSupplier (tentativa ${i + 1}):`, targetCpf);
           await runTransaction(deliveriesRef, (currentDeliveries) => {
             if (Array.isArray(currentDeliveries)) {
               return currentDeliveries.filter(d => {
-                const dInv = String(d.invoiceNumber || 'S/N').trim();
-                const isTargetInvoice = dInv === String(invoiceNumber).trim();
+                const dInv = clean(d.invoiceNumber || 'S/N');
+                const isTargetInvoice = dInv === targetInvoice;
                 
-                if (isTargetInvoice && invoiceNumber === 'S/N') {
-                    // Prevenir exclusão acidental de agendamentos pendentes ao excluir nota S/N
+                if (isTargetInvoice && targetInvoice === 'SN') {
                     if (d.item === 'AGENDAMENTO PENDENTE') return true; 
                 }
                 return !isTargetInvoice;
@@ -1236,32 +1290,28 @@ const App: React.FC = () => {
           return { success: true };
         }
 
+        const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
         let listKey: 'ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers' | null = null;
         let producerIdx = -1;
-
-        if (perCapitaConfig.ppaisProducers) {
-          producerIdx = perCapitaConfig.ppaisProducers.findIndex(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
-          if (producerIdx !== -1) listKey = 'ppaisProducers';
-        }
-        if (listKey === null && perCapitaConfig.pereciveisSuppliers) {
-          producerIdx = perCapitaConfig.pereciveisSuppliers.findIndex(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
-          if (producerIdx !== -1) listKey = 'pereciveisSuppliers';
-        }
-        if (listKey === null && perCapitaConfig.estocaveisSuppliers) {
-          producerIdx = perCapitaConfig.estocaveisSuppliers.findIndex(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
-          if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
+        for (const lKey of lists) {
+          const list = ensureArray(perCapitaConfig[lKey]);
+          const idx = list.findIndex((p: any) => clean(p.cpfCnpj || p.cpf) === targetCpf);
+          if (idx !== -1) {
+            listKey = lKey;
+            producerIdx = idx;
+            break;
+          }
         }
 
         if (listKey && producerIdx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${producerIdx}/deliveries`);
           await runTransaction(deliveriesRef, (currentDeliveries) => {
             if (Array.isArray(currentDeliveries)) {
-              return currentDeliveries.filter((d: any) => {
-                const dInv = String(d.invoiceNumber || 'S/N').trim();
-                const isTargetInvoice = dInv === String(invoiceNumber).trim();
+              return (currentDeliveries as any[]).filter(d => {
+                const dInv = clean(d.invoiceNumber || 'S/N');
+                const isTargetInvoice = dInv === targetInvoice;
                 
-                if (isTargetInvoice && invoiceNumber === 'S/N') {
-                    // Prevenir exclusão acidental de agendamentos pendentes ao excluir nota S/N
+                if (isTargetInvoice && targetInvoice === 'SN') {
                     if (d.item === 'AGENDAMENTO PENDENTE') return true; 
                 }
                 return !isTargetInvoice;

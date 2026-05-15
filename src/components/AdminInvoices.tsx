@@ -76,6 +76,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   
   const [newItem, setNewItem] = useState({ name: '', kg: 0, value: 0, lotNumber: '', expirationDate: '', barcode: '' });
     const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
+    const [originalInvoiceNumber, setOriginalInvoiceNumber] = useState<string>('');
 
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
@@ -464,6 +465,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
   const handleEditItems = async (invoice: any) => {
     setEditingInvoice(invoice);
+    setOriginalInvoiceNumber(invoice.invoiceNumber);
   };
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
@@ -1164,26 +1166,36 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                       <button onClick={() => setEditingInvoice(null)} className="flex-1 bg-white border border-gray-200 h-12 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-gray-50 transition-all">Sair</button>
                       <button 
                         onClick={async () => {
-                            const res = await onUpdateInvoiceItems(
-                                editingInvoice.supplierCpf, 
-                                editingInvoice.invoiceNumber, 
-                                editingInvoice.items.map((it: any) => ({
-                                    name: it.item || it.itemName,
-                                    kg: it.kg,
-                                    value: it.value,
-                                    lotNumber: it.lotNumber,
-                                    expirationDate: it.expirationDate,
-                                    barcode: it.barcode,
-                                    id: it.id
-                                })),
-                                undefined, undefined, editingInvoice.invoiceDate || editingInvoice.date, undefined, editingInvoice.invoiceDate || editingInvoice.date,
-                                editingInvoice.pd
-                            );
-                            if (res.success) {
-                                toast.success("Alterações salvas!");
-                                setEditingInvoice(null);
-                            } else {
-                                toast.error(res.message || "Erro.");
+                            try {
+                                const res = await onUpdateInvoiceItems(
+                                    editingInvoice.supplierCpf, 
+                                    originalInvoiceNumber, // Busca pelo número original
+                                    editingInvoice.items.map((it: any) => ({
+                                        id: it.id,
+                                        name: it.item || it.itemName,
+                                        kg: Number(it.kg || it.quantity || 0),
+                                        value: Number(it.value || 0),
+                                        lotNumber: it.lotNumber,
+                                        expirationDate: it.expirationDate,
+                                        barcode: it.barcode,
+                                        pd: editingInvoice.pd
+                                    })),
+                                    undefined, 
+                                    editingInvoice.invoiceNumber, // Novo número (se mudou)
+                                    editingInvoice.date, 
+                                    editingInvoice.receiptTermNumber, 
+                                    editingInvoice.invoiceDate || editingInvoice.date, 
+                                    editingInvoice.pd
+                                );
+                                if (res.success) {
+                                    toast.success("Alterações salvas!");
+                                    setEditingInvoice(null);
+                                } else {
+                                    toast.error(res.message || "Erro.");
+                                }
+                            } catch (error) {
+                                console.error("Error updating invoice:", error);
+                                toast.error("Ocorreu um erro ao salvar.");
                             }
                         }}
                         className="flex-1 bg-indigo-600 text-white h-12 rounded-xl font-black text-[9px] uppercase tracking-widest shadow-lg hover:bg-indigo-700 transition-all"

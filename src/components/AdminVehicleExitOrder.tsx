@@ -107,7 +107,6 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
     // Checklist Modal State
     const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
-    const [reportFilter, setReportFilter] = useState<'all' | 'concluida' | 'aberta'>('all');
     const [vehicleChecklist, setVehicleChecklist] = useState({
         water: null as boolean | 'NA' | null,
         oil: null as boolean | 'NA' | null,
@@ -590,23 +589,22 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         const skipMessage = 'O policial, optou por não realizar a inspeção prévia e procedeu à assunção da responsabilidade do veículo';
 
         const tableData = filteredOrders.map(order => {
-            let checklistStr = '';
-            if (order.checklist && !order.checklist.bypassed) {
-                const items = [
-                    { label: 'ÁGUA', val: order.checklist.water },
-                    { label: 'ÓLEO', val: order.checklist.oil },
-                    { label: 'PNEUS', val: order.checklist.tires },
-                    { label: 'LUZES', val: order.checklist.lights },
-                    { label: 'LIMP.', val: order.checklist.wipers }
-                ];
-                
-                checklistStr = items.map(it => {
-                    if (it.val === 'NA') return `${it.label}: ${skipMessage}`;
-                    return `${it.label}: ${it.val ? 'OK' : 'NÃO OK'}`;
-                }).join('\n');
-            } else {
-                checklistStr = skipMessage;
-            }
+            const items = [
+                { label: 'ÁGUA', val: order.checklist?.water },
+                { label: 'ÓLEO', val: order.checklist?.oil },
+                { label: 'PNEUS', val: order.checklist?.tires },
+                { label: 'LUZES', val: order.checklist?.lights },
+                { label: 'LIMP.', val: order.checklist?.wipers }
+            ];
+
+            const checklistStr = order.checklist?.bypassed 
+                ? items.map(it => `${it.label}: ${skipMessage}`).join('\n')
+                : order.checklist 
+                    ? items.map(it => {
+                        if (it.val === 'NA' || it.val === undefined || it.val === null) return `${it.label}: ${skipMessage}`;
+                        return `${it.label}: ${it.val ? 'OK' : 'NÃO OK'}`;
+                    }).join('\n')
+                    : skipMessage;
 
             return [
                 order.date.split('-').reverse().join('/'),
@@ -901,10 +899,11 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             const orderWithChecklist = {
                 ...finalData,
                 checklist: {
-                    water: vehicleChecklist.water || false,
-                    oil: vehicleChecklist.oil || false,
-                    tires: vehicleChecklist.tires || false,
-                    lights: vehicleChecklist.lights || false,
+                    water: vehicleChecklist.water ?? 'NA',
+                    oil: vehicleChecklist.oil ?? 'NA',
+                    tires: vehicleChecklist.tires ?? 'NA',
+                    lights: vehicleChecklist.lights ?? 'NA',
+                    wipers: vehicleChecklist.wipers ?? 'NA',
                     bypassed: vehicleChecklist.bypassed || false
                 }
             };
