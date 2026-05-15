@@ -816,9 +816,9 @@ const App: React.FC = () => {
               const deliveries = ensureArray(list[idx].deliveries);
               let changed = false;
               const updated = deliveries.map(d => {
-                if (clean(d.invoiceNumber) === targetInv && !d.isOpened && !d.opened) {
+                if (clean(d.invoiceNumber) === targetInv && !d.isOpened) {
                   changed = true;
-                  return { ...d, isOpened: true, opened: true };
+                  return { ...d, isOpened: true };
                 }
                 return d;
               });
@@ -840,9 +840,9 @@ const App: React.FC = () => {
           if (Array.isArray(currentDeliveries)) {
             let changed = false;
             const updated = currentDeliveries.map(d => {
-              if (clean(d.invoiceNumber) === targetInv && !d.isOpened && !d.opened) {
+              if (clean(d.invoiceNumber) === targetInv && !d.isOpened) {
                 changed = true;
-                return { ...d, isOpened: true, opened: true };
+                return { ...d, isOpened: true };
               }
               return d;
             });
@@ -1087,7 +1087,7 @@ const App: React.FC = () => {
               logUpdates[`${logKey}/date`] = newDate || existingLogsForKey[logKey].date || '';
           } else {
               const newRef = push(warehouseLogRef);
-              const newId = newRef.key || `it-${Date.now()}-${Math.random()}`;
+              const newId = newRef.key || `it-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
               logUpdates[newId] = {
                   id: newId,
                   type: 'entrada',
@@ -1120,51 +1120,64 @@ const App: React.FC = () => {
       }
 
       const updateDeliveries = (list: any[]) => {
-        const others = ensureArray(list).filter(d => clean(d.invoiceNumber) !== targetInvoice);
+        const currentList = ensureArray(list);
+        const others = currentList.filter(d => d && clean(d.invoiceNumber) !== targetInvoice);
         const updated = items.map(it => {
-          const original = ensureArray(list).find(d => clean(d.invoiceNumber) === targetInvoice && (it.id === d.id || clean(it.name) === clean(d.itemName || d.item)));
+          const original = currentList.find(d => d && clean(d.invoiceNumber) === targetInvoice && (it.id === d.id || (d.id && it.id === d.id) || clean(it.name) === clean(d.itemName || d.item)));
           return {
-            id: it.id || original?.id || `del-${Date.now()}-${Math.random()}`,
+            id: it.id || original?.id || `del-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
             ...original,
             invoiceNumber: newInvoiceNumber || invoiceNumber,
             date: newDate || original?.date || new Date().toISOString().split('T')[0],
             itemName: it.name,
             item: it.name,
-            kg: Number(it.kg),
-            quantity: Number(it.kg),
-            value: Number(it.value),
+            kg: Number(it.kg || 0),
+            quantity: Number(it.kg || 0),
+            value: Number(it.value || 0),
             lotNumber: it.lotNumber || '',
             expirationDate: it.expirationDate || '',
             barcode: it.barcode || barcode || '',
             receiptTermNumber: receiptTermNumber || original?.receiptTermNumber || '',
             invoiceDate: invoiceDate || original?.invoiceDate || '',
+            pdNumber: pd || it.pd || original?.pdNumber || '',
             pd: pd || it.pd || original?.pd || ''
           };
         });
         return [...others, ...updated];
       };
 
+      if (!suppliers || suppliers.length === 0) {
+        console.warn("Suppliers not loaded yet during update attempt.");
+      }
+
+      let supplierFound = false;
       if (mainSup) {
         const supRef = child(suppliersRef, `${mainSup.id || targetCpf}/deliveries`);
         await runTransaction(supRef, (current) => updateDeliveries(current));
-        return { success: true };
+        supplierFound = true;
+      } else {
+        const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+        for (const lKey of lists) {
+          const list = ensureArray(perCapitaConfig ? perCapitaConfig[lKey] : []);
+          const idx = list.findIndex(p => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
+          if (idx !== -1) {
+            const dRef = child(perCapitaConfigRef, `${lKey}/${idx}/deliveries`);
+            await runTransaction(dRef, (current) => updateDeliveries(current));
+            supplierFound = true;
+            break;
+          }
+        }
       }
 
-      const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
-      for (const lKey of lists) {
-        const list = ensureArray(perCapitaConfig[lKey]);
-        const idx = list.findIndex(p => clean(p.cpfCnpj || p.cpf) === targetCpf);
-        if (idx !== -1) {
-          const dRef = child(perCapitaConfigRef, `${lKey}/${idx}/deliveries`);
-          await runTransaction(dRef, (current) => updateDeliveries(current));
-          return { success: true };
-        }
+      if (!supplierFound) {
+        console.warn("Supplier not found in any list during invoice update:", { supplierCpf, targetCpf });
       }
 
       return { success: true };
     } catch (e) {
       console.error("Error in handleUpdateInvoiceItems:", e);
-      return { success: false, message: 'Erro ao atualizar itens da nota: ' + (e instanceof Error ? e.message : String(e)) };
+      const msg = e instanceof Error ? e.message : String(e);
+      return { success: false, message: 'Erro ao atualizar itens da nota: ' + msg };
     }
   };
 

@@ -558,7 +558,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     };
 
     const handleGenerateReportPDF = (filterOverride?: 'all' | 'concluida' | 'aberta') => {
-        const activeFilter = filterOverride || reportFilter;
+        const activeFilter = filterOverride || 'all';
         let filteredOrders = printMonth 
             ? orders.filter(o => o.date.startsWith(printMonth))
             : orders;
@@ -598,11 +598,11 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             ];
 
             const checklistStr = order.checklist?.bypassed 
-                ? items.map(it => `${it.label}: ${skipMessage}`).join('\n')
+                ? skipMessage
                 : order.checklist 
                     ? items.map(it => {
-                        if (it.val === 'NA' || it.val === undefined || it.val === null) return `${it.label}: ${skipMessage}`;
-                        return `${it.label}: ${it.val ? 'OK' : 'NÃO OK'}`;
+                        const status = it.val === 'NA' || it.val === undefined || it.val === null ? 'N/A' : (it.val ? 'OK' : 'NÃO OK');
+                        return `${it.label}: ${status}`;
                     }).join('\n')
                     : skipMessage;
 
