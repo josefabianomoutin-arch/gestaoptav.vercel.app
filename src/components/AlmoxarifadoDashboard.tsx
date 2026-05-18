@@ -221,8 +221,27 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         finalTimestamp = 0;
                     }
 
+                    let foundSupplierName = l.supplierName && l.supplierName !== 'Desconhecido' ? l.supplierName : 'Desconhecido';
+                    if (foundSupplierName === 'Desconhecido' && l.supplierCpf) {
+                        const supplier = suppliers?.find(s => s.cpf === l.supplierCpf || s.cpfCnpj === l.supplierCpf);
+                        if (supplier) {
+                            foundSupplierName = supplier.name;
+                        } else if (perCapitaConfig) {
+                            const allPcSuppliers = [
+                                ...(perCapitaConfig.ppaisProducers || []),
+                                ...(perCapitaConfig.pereciveisSuppliers || []),
+                                ...(perCapitaConfig.estocaveisSuppliers || [])
+                            ];
+                            const pcSupplier = allPcSuppliers.find(s => s.cpf === l.supplierCpf || s.cpfCnpj === l.supplierCpf);
+                            if (pcSupplier) {
+                                foundSupplierName = pcSupplier.name;
+                            }
+                        }
+                    }
+
                     deliveries.push({
                         ...l,
+                        supplierName: foundSupplierName,
                         itemName: l.itemName || l.item || 'Item s/ nome',
                         quantity: Number(l.quantity || l.kg || l.weight) || 0,
                         inboundInvoice: l.inboundInvoice || l.invoiceNumber,
@@ -1348,11 +1367,11 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                             <span className={`text-[5px] font-black ${log.type === 'entrada' ? 'bg-emerald-500' : 'bg-rose-500'} text-white px-1 py-0.5 rounded uppercase tracking-tighter shadow-sm`}>{log.type}</span>
                                                             {log.pd && <span className="text-[5px] font-black bg-indigo-500 text-white px-1 py-0.5 rounded uppercase tracking-tighter shadow-sm">PD {log.pd}</span>}
                                                         </div>
-                                                        <h4 className="text-[8px] font-black text-slate-800 uppercase leading-tight mb-0.5 line-clamp-2 h-7 group-hover:text-indigo-600 transition-colors">{log.itemName}</h4>
+                                                        <h4 className="text-[8px] font-black text-slate-800 uppercase leading-tight mb-0.5 line-clamp-2 h-7 group-hover:text-indigo-600 transition-colors">{log.supplierName}</h4>
                                                     </div>
 
                                                     <div className="mt-auto">
-                                                        <p className="text-[6px] text-slate-400 font-bold uppercase truncate mb-1">{log.supplierName}</p>
+                                                        <p className="text-[6px] text-slate-400 font-bold uppercase truncate mb-1" title={log.itemName}>{log.itemName}</p>
                                                         
                                                         <div className="pt-1 border-t border-slate-50 grid grid-cols-2 gap-1">
                                                             <div className="flex flex-col">

@@ -724,17 +724,32 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     
                                     const fileRef = storageRef(storage, `invoices/${cleanCpf}/${cleanInvoice}/${cleanFileName}`);
                                     
-                                    // Upload using simple uploadBytes for better reliability on flaky connections
+                                    // Upload using backend proxy to bypass CORS and flaky direct storage connections
                                     toast.loading('Enviando nota...', { id: toastId, description: 'Transferindo arquivo para o servidor...' });
                                     
                                     const uploadPromise = async () => {
-                                        await uploadBytes(fileRef, file);
-                                        toast.loading('Obtendo link de download...', { id: toastId, description: 'Finalizando transferência...' });
+                                        const reader = new FileReader();
+                                        const base64Promise = new Promise<string>((resolve, reject) => {
+                                            reader.onload = () => resolve(reader.result as string);
+                                            reader.onerror = reject;
+                                            reader.readAsDataURL(file);
+                                        });
+                                        const base64 = await base64Promise;
                                         
-                                        // Wrap getDownloadURL in a 10s timeout just in case it hangs
-                                        const urlPromise = getDownloadURL(fileRef);
-                                        const urlTimeout = new Promise<string>((_, r) => setTimeout(() => r(new Error("Timeout ao obter link do arquivo")), 10000));
-                                        return await Promise.race([urlPromise, urlTimeout]);
+                                        const bucket = 'gestao-ppais.firebasestorage.app';
+                                        const path = `invoices/${cleanCpf}/${cleanInvoice}/${cleanFileName}`;
+                                        
+                                        const res = await fetch('/api/proxy-storage-upload', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ bucket, path, base64, contentType: file.type })
+                                        });
+                                        
+                                        const data = await res.json();
+                                        if (!data.success) {
+                                            throw new Error(data.error || 'Erro no servidor ao enviar arquivo');
+                                        }
+                                        return data.url;
                                     };
 
                                     const timeoutPromise = new Promise<never>((_, reject) => 
