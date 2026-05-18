@@ -26,7 +26,7 @@ const getWeekNumber = (d: Date): number => {
 };
 
 const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdPartyEntries, onCancelDeliveries, onDeleteThirdPartyEntry }) => {
-    const [activeSubTab, setActiveSubTab] = useState<'daily' | 'weekly' | 'report'>('daily');
+    const [activeSubTab, setActiveSubTab] = useState<'daily' | 'weekly' | 'report' | 'late'>('daily');
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState('');
 
@@ -376,6 +376,12 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                     className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${activeSubTab === 'report' ? 'bg-purple-600 text-white shadow-lg' : 'text-purple-400 hover:bg-purple-50'}`}
                 >
                     Romaneio
+                </button>
+                <button 
+                    onClick={() => setActiveSubTab('late')} 
+                    className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${activeSubTab === 'late' ? 'bg-rose-600 text-white shadow-lg' : 'text-rose-400 hover:bg-rose-50'}`}
+                >
+                    Atrasos
                 </button>
             </div>
 
@@ -852,6 +858,8 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
                         </button>
                     </div>
                 </div>
+            ) : activeSubTab === 'late' ? (
+                <WeeklyScheduleControl suppliers={suppliers} thirdPartyEntries={thirdPartyEntries} filterLate={true} title="Relatório de Atrasos" subtitle="Fornecedores que não realizaram entregas nas semanas agendadas" />
             ) : (
                 <WeeklyScheduleControl suppliers={suppliers} thirdPartyEntries={thirdPartyEntries} />
             )}

@@ -9,6 +9,7 @@ interface WeeklyScheduleControlProps {
     title?: string;
     subtitle?: string;
     itespOnly?: boolean;
+    filterLate?: boolean;
 }
 
 const getWeekNumber = (d: Date): number => {
@@ -50,7 +51,8 @@ const WeeklyScheduleControl: React.FC<WeeklyScheduleControlProps> = ({
     thirdPartyEntries = [],
     title = "Controle Semanal de Entregas", 
     subtitle = "Acompanhamento de agendamentos vs faturamentos reais.",
-    itespOnly = false
+    itespOnly = false,
+    filterLate = false
 }) => {
     const [selectedWeek, setSelectedWeek] = useState<number>(getWeekNumber(new Date()));
 
@@ -146,7 +148,9 @@ const WeeklyScheduleControl: React.FC<WeeklyScheduleControlProps> = ({
             failed: log.status !== 'concluido' && new Date(log.date + 'T23:59:59').getTime() < new Date().getTime()
         }));
 
-        return [...supplierData, ...thirdPartyData].filter(item => item.hasScheduled || item.hasDelivered);
+        const data = [...supplierData, ...thirdPartyData].filter(item => item.hasScheduled || item.hasDelivered);
+
+        return data;
     }, [filteredSuppliers, thirdPartyEntries, selectedWeek]);
 
     const stats = useMemo(() => {
@@ -155,6 +159,13 @@ const WeeklyScheduleControl: React.FC<WeeklyScheduleControlProps> = ({
         const failed = weeklyData.filter(d => d.failed).length;
         return { total, delivered, failed };
     }, [weeklyData]);
+
+    const renderedData = useMemo(() => {
+        if (filterLate) {
+            return weeklyData.filter(item => item.failed);
+        }
+        return weeklyData;
+    }, [weeklyData, filterLate]);
 
     return (
         <div className="space-y-6 animate-fade-in">
@@ -204,7 +215,7 @@ const WeeklyScheduleControl: React.FC<WeeklyScheduleControlProps> = ({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {weeklyData.length > 0 ? weeklyData.map((item, idx) => (
+                            {renderedData.length > 0 ? renderedData.map((item, idx) => (
                                 <tr key={idx} className="hover:bg-gray-50 transition-colors">
                                     <td className="p-5">
                                         <div className="flex items-center gap-2 mb-1">
