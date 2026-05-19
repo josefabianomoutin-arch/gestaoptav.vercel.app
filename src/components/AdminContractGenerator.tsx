@@ -14,7 +14,53 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
     const isCoopcresp = producer.name.trim().toUpperCase() === 'COOPCRESP';
 
     const handlePrint = () => {
-        window.print();
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+        
+        const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+            .map(el => el.outerHTML)
+            .join('\n');
+            
+        const content = contractRef.current?.innerHTML || '';
+        
+        const doc = iframe.contentWindow?.document;
+        if (doc) {
+            doc.open();
+            doc.write(`
+                <!DOCTYPE html>
+                <html>
+                    <head>
+                        <title>Contrato - ${producer.name}</title>
+                        ${styles}
+                        <style>
+                            body { margin: 0; padding: 0; background: white; }
+                            .contract-container { width: 100% !important; margin: 0 !important; padding: 10mm 15mm !important; }
+                            @media print {
+                                * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="contract-container text-[10pt] font-sans">
+                            ${content}
+                        </div>
+                    </body>
+                </html>
+            `);
+            doc.close();
+            
+            iframe.onload = () => {
+                iframe.contentWindow?.focus();
+                iframe.contentWindow?.print();
+                setTimeout(() => document.body.removeChild(iframe), 1000);
+            };
+        }
     };
 
     const today = new Date();
@@ -327,20 +373,6 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         -webkit-print-color-adjust: exact;
                     }
                     @media print {
-                        body * {
-                            visibility: hidden;
-                        }
-                        .contract-container, .contract-container * {
-                            visibility: visible;
-                        }
-                        .contract-container {
-                            position: absolute !important;
-                            left: 0 !important;
-                            top: 0 !important;
-                            width: 100% !important;
-                            margin: 0 !important;
-                            padding: 10mm !important;
-                        }
                         .page-break-before { page-break-before: always; break-before: page; }
                     }
                     /* Ensure red text is black and bold in PDF */
