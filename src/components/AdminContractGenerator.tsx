@@ -39,8 +39,8 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     onClick={handlePrint}
                     className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl uppercase text-xs tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                    Gerar Contrato PDF
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                    Imprimir Contrato
                 </button>
             </div>
 
@@ -327,6 +327,20 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                         -webkit-print-color-adjust: exact;
                     }
                     @media print {
+                        body * {
+                            visibility: hidden;
+                        }
+                        .contract-container, .contract-container * {
+                            visibility: visible;
+                        }
+                        .contract-container {
+                            position: absolute !important;
+                            left: 0 !important;
+                            top: 0 !important;
+                            width: 100% !important;
+                            margin: 0 !important;
+                            padding: 10mm !important;
+                        }
                         .page-break-before { page-break-before: always; break-before: page; }
                     }
                     /* Ensure red text is black and bold in PDF */
