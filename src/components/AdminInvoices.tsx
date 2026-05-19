@@ -727,8 +727,35 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     toast.loading('Enviando nota...', { id: toastId, description: 'Transferindo arquivo para o servidor...' });
                                     
                                     const uploadPromise = async () => {
-                                        await uploadBytes(fileRef, file);
-                                        return await getDownloadURL(fileRef);
+                                        const reader = new FileReader();
+                                        const base64Promise = new Promise<string>((resolve, reject) => {
+                                            reader.onload = () => resolve(reader.result as string);
+                                            reader.onerror = reject;
+                                            reader.readAsDataURL(file);
+                                        });
+                                        const base64 = await base64Promise;
+                                        
+                                        const bucket = 'gestao-ppais.firebasestorage.app';
+                                        const path = `invoices/${cleanCpf}/${cleanInvoice}/${cleanFileName}`;
+                                        
+                                        const res = await fetch('/api/proxy-storage-upload', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ bucket, path, base64, contentType: file.type })
+                                        });
+                                        
+                                        const text = await res.text();
+                                        let data;
+                                        try {
+                                            data = JSON.parse(text);
+                                        } catch (e: any) {
+                                            throw new Error(`Erro no servidor (${res.status}): Resposta inválida. O arquivo pode ser muito grande ou a internet oscilou.`, { cause: e });
+                                        }
+                                        
+                                        if (!data.success) {
+                                            throw new Error(data.error || 'Erro no servidor ao enviar arquivo');
+                                        }
+                                        return data.url;
                                     };
 
                                     const timeoutPromise = new Promise<never>((_, reject) => 
