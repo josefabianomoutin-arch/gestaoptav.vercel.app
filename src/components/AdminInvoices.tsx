@@ -920,9 +920,21 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                 <div className="space-y-1">
                                     <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Quantidade (Kg)</label>
                                     <input 
-                                        type="number" 
-                                        value={newItem.kg || ''} 
-                                        onChange={e => updateNewItemValue(newItem.name, Number(e.target.value))}
+                                        type="text" 
+                                        value={(newItem as any)._editKg ?? (newItem.kg === 0 ? '' : newItem.kg)} 
+                                        onChange={e => {
+                                            const val = e.target.value.replace(',', '.');
+                                            if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                                const newKg = val === '' ? 0 : Number(val);
+                                                setNewItem({ ...newItem, kg: newKg, _editKg: val } as any);
+                                                updateNewItemValue(newItem.name, newKg);
+                                            }
+                                        }}
+                                        onBlur={() => {
+                                            const resetItem = { ...newItem };
+                                            delete (resetItem as any)._editKg;
+                                            setNewItem(resetItem);
+                                        }}
                                         className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px]" 
                                     />
                                 </div>
@@ -930,12 +942,17 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     <label className="text-[8px] font-black text-emerald-600 uppercase tracking-widest ml-0.5">Valor Total Item na NF (R$)</label>
                                     <input 
                                         type="text" 
-                                        value={newItem.value === 0 ? '' : newItem.value} 
+                                        value={(newItem as any)._editValue ?? (newItem.value === 0 ? '' : newItem.value)} 
                                         onChange={e => {
                                             const val = e.target.value.replace(',', '.');
-                                            if (val === '' || !isNaN(Number(val))) {
-                                                setNewItem({...newItem, value: val === '' ? 0 : Number(val)});
+                                            if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                                setNewItem({...newItem, value: val === '' ? 0 : Number(val), _editValue: val} as any);
                                             }
+                                        }}
+                                        onBlur={() => {
+                                            const resetItem = { ...newItem };
+                                            delete (resetItem as any)._editValue;
+                                            setNewItem(resetItem);
                                         }}
                                         className="w-full bg-white border border-emerald-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-emerald-400 font-bold text-[10px]" 
                                     />
@@ -1079,12 +1096,20 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                   <div className="space-y-0.5">
                                       <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Peso/Qtd (Kg)</label>
                                       <input 
-                                          type="number" 
-                                          value={item.kg} 
+                                          type="text" 
+                                          value={item._editKg ?? (item.kg === 0 ? '' : item.kg)} 
                                           onChange={e => {
-                                              const newKg = Number(e.target.value);
+                                              const val = e.target.value.replace(',', '.');
+                                              if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                                  const newKg = val === '' ? 0 : Number(val);
+                                                  const newItems = [...editingInvoice.items];
+                                                  newItems[idx] = { ...item, kg: newKg, _editKg: val };
+                                                  setEditingInvoice({ ...editingInvoice, items: newItems });
+                                              }
+                                          }}
+                                          onBlur={() => {
                                               const newItems = [...editingInvoice.items];
-                                              newItems[idx] = { ...item, kg: newKg };
+                                              delete newItems[idx]._editKg;
                                               setEditingInvoice({ ...editingInvoice, items: newItems });
                                           }}
                                           className="w-full h-9 px-3 rounded-lg border-2 border-gray-100 outline-none focus:border-indigo-400 font-bold text-[10px]" 
@@ -1107,15 +1132,20 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                       <label className="text-[8px] font-black text-indigo-600 uppercase tracking-widest ml-0.5">Valor Total Item na NF (R$)</label>
                                       <input 
                                           type="text" 
-                                          value={item.value === 0 ? '' : item.value} 
+                                          value={item._editValue ?? (item.value === 0 ? '' : item.value)} 
                                           onChange={e => {
                                               const val = e.target.value.replace(',', '.');
-                                              if (val === '' || !isNaN(Number(val))) {
+                                              if (val === '' || /^\d*\.?\d*$/.test(val)) {
                                                   const newTotal = val === '' ? 0 : Number(val);
                                                   const newItems = [...editingInvoice.items];
-                                                  newItems[idx] = { ...item, value: newTotal };
+                                                  newItems[idx] = { ...item, value: newTotal, _editValue: val };
                                                   setEditingInvoice({ ...editingInvoice, items: newItems });
                                               }
+                                          }}
+                                          onBlur={() => {
+                                              const newItems = [...editingInvoice.items];
+                                              delete newItems[idx]._editValue;
+                                              setEditingInvoice({ ...editingInvoice, items: newItems });
                                           }}
                                           className="w-full h-9 px-3 rounded-lg border-2 border-indigo-100 outline-none focus:border-indigo-400 font-bold text-[10px] bg-white" 
                                       />
