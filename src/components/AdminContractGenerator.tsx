@@ -9,6 +9,7 @@ interface AdminContractGeneratorProps {
 const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ producer }) => {
     const contractRef = useRef<HTMLDivElement>(null);
     const [manualContractNumber, setManualContractNumber] = React.useState('');
+    const [manualContractDate, setManualContractDate] = React.useState('');
 
     const totalValue = producer.contractItems?.reduce((acc, item) => acc + (item.totalKg * item.valuePerKg), 0) || 0;
     const isCoopcresp = producer.name.trim().toUpperCase() === 'COOPCRESP';
@@ -63,23 +64,37 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
         }
     };
 
-    const today = new Date();
-    const day = today.getDate();
-    const month = today.toLocaleString('pt-BR', { month: 'long' });
-    const year = today.getFullYear();
+    const baseDate = manualContractDate ? new Date(manualContractDate + 'T12:00:00') : new Date();
+    const day = baseDate.getDate();
+    const month = baseDate.toLocaleString('pt-BR', { month: 'long' });
+    const year = baseDate.getFullYear();
+
+    const extenso = ['zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'onze', 'doze', 'treze', 'catorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove', 'vinte', 'vinte e um', 'vinte e dois', 'vinte e três', 'vinte e quatro', 'vinte e cinco', 'vinte e seis', 'vinte e sete', 'vinte e oite', 'vinte e nove', 'trinta', 'trinta e um'];
+    const diaExtenso = day === 1 ? 'primeiro (01)' : `${extenso[day]} (${day.toString().padStart(2, '0')})`;
 
     return (
         <div className="p-8 space-y-8 print:p-0 print:space-y-0">
-            <div className="flex justify-between items-center print:hidden">
-                <div className="flex-1 max-w-xs">
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Número do Contrato</label>
-                    <input 
-                        type="text" 
-                        value={manualContractNumber}
-                        onChange={(e) => setManualContractNumber(e.target.value)}
-                        placeholder="Ex: 73"
-                        className="w-full p-3 bg-white border border-zinc-200 rounded-xl font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    />
+            <div className="flex justify-between items-center print:hidden flex-wrap gap-4">
+                <div className="flex gap-4 flex-1">
+                    <div className="w-48">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Número do Contrato</label>
+                        <input 
+                            type="text" 
+                            value={manualContractNumber}
+                            onChange={(e) => setManualContractNumber(e.target.value)}
+                            placeholder="Ex: 73"
+                            className="w-full p-3 bg-white border border-zinc-200 rounded-xl font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                        />
+                    </div>
+                    <div className="w-48">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Data do Contrato</label>
+                        <input 
+                            type="date" 
+                            value={manualContractDate}
+                            onChange={(e) => setManualContractDate(e.target.value)}
+                            className="w-full p-3 bg-white border border-zinc-200 rounded-xl font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                        />
+                    </div>
                 </div>
                 <button 
                     onClick={handlePrint}
@@ -113,7 +128,7 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                     </div>
 
                 <p className="text-justify mb-4">
-                    Aos <span className="text-black font-bold">{day === 8 ? 'oito(8)' : `${day}(${day})`}</span> dias do mês de <span className="text-black font-bold">{month.charAt(0).toUpperCase() + month.slice(1)}</span> do ano de <span className="text-black font-bold">{year}</span>, nesta cidade de Taiúva, comparecem de um lado o Estado de São Paulo, Secretaria de Administração Penitenciária, por intermédio da Penitenciária de Taiúva, inscrita no CNPJ sob o n.º 96.291.141/0152-92, neste ato representada pelo Senhor <strong>DOUGLAS FERNANDO SEMENZIN GALDINO</strong>, brasileiro, Chefe de Departamento, portador da CI/RG nº 32.518574-8-SSP/SP e inscrito no CPF/MF. nº 290.990.228-59, doravante designado simplesmente Contratante, e, de outro lado, {isCoopcresp ? (
+                    Aos <span className="text-black font-bold">{diaExtenso}</span> dias do mês de <span className="text-black font-bold">{month.charAt(0).toUpperCase() + month.slice(1)}</span> do ano de <span className="text-black font-bold">{year}</span>, nesta cidade de Taiúva, comparecem de um lado o Estado de São Paulo, Secretaria de Administração Penitenciária, por intermédio da Penitenciária de Taiúva, inscrita no CNPJ sob o n.º 96.291.141/0152-92, neste ato representada pelo Senhor <strong>DOUGLAS FERNANDO SEMENZIN GALDINO</strong>, brasileiro, Chefe de Departamento, portador da CI/RG nº 32.518574-8-SSP/SP e inscrito no CPF/MF. nº 290.990.228-59, doravante designado simplesmente Contratante, e, de outro lado, {isCoopcresp ? (
                         <><span className="text-black font-bold">{producer.representativeName || 'NOME DO REPRESENTANTE'}</span> e CPF <span className="text-black font-bold">{producer.representativeCpf || '000.000.000-00'}</span> representando a <span className="text-black font-bold">COOPCRESP</span> (cooperativa), com sede na <span className="text-black font-bold">RESTINGA</span>, inscrito/a no CNPJ/MF ou CPF nº <span className="text-black font-bold">24201681000114</span></>
                     ) : (
                         <><span className="text-black font-bold">{producer.name}</span> (Agricultor Familiar), <span className="text-black font-bold">{producer.address || 'ENDEREÇO'}</span>, com sede na <span className="text-black font-bold">{producer.city || 'CIDADE'}</span>, inscrito/a no CNPJ/MF ou CPF nº <span className="text-black font-bold">{producer.cpfCnpj}</span></>
@@ -128,10 +143,10 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                 <table className="w-full mb-4 text-[7pt] table-fixed contract-table border-collapse border border-black uppercase font-sans">
                     <thead>
                         <tr className="bg-zinc-50 font-bold border-b border-black">
-                            <th className="p-1 border border-black w-[65%]">Item</th>
-                            <th className="p-1 border border-black w-[15%] text-center">Qtd</th>
-                            <th className="p-1 border border-black w-[10%] text-right">Valor Unit.</th>
-                            <th className="p-1 border border-black w-[10%] text-right">Valor</th>
+                            <th className="p-1 border border-black w-[58%]">Item</th>
+                            <th className="p-1 border border-black w-[12%] text-center">Qtd</th>
+                            <th className="p-1 border border-black w-[15%] text-right">Valor Unit.</th>
+                            <th className="p-1 border border-black w-[15%] text-right">Valor</th>
                         </tr>
                     </thead>
                     <tbody>
