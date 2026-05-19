@@ -1804,19 +1804,8 @@ const App: React.FC = () => {
                     console.log("Blob criado, tamanho:", blob.size, "Enviando para storage via resumable...");
                     
                     const uploadPromise = async () => {
-                        const bucket = 'gestao-ppais.firebasestorage.app';
-                        
-                        const res = await fetch('/api/proxy-storage-upload', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ bucket, path: `invoices/${invoiceId}`, base64: finalInvoiceUrl, contentType: mimeString })
-                        });
-                        
-                        const data = await res.json();
-                        if (!data.success) {
-                            throw new Error(data.error || 'Erro no servidor ao enviar arquivo');
-                        }
-                        return data.url;
+                        await uploadBytes(fileRef, blob);
+                        return await getDownloadURL(fileRef);
                     };
 
                     const timeoutPromise = new Promise<never>((_, reject) => 

@@ -724,32 +724,11 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     
                                     const fileRef = storageRef(storage, `invoices/${cleanCpf}/${cleanInvoice}/${cleanFileName}`);
                                     
-                                    // Upload using backend proxy to bypass CORS and flaky direct storage connections
                                     toast.loading('Enviando nota...', { id: toastId, description: 'Transferindo arquivo para o servidor...' });
                                     
                                     const uploadPromise = async () => {
-                                        const reader = new FileReader();
-                                        const base64Promise = new Promise<string>((resolve, reject) => {
-                                            reader.onload = () => resolve(reader.result as string);
-                                            reader.onerror = reject;
-                                            reader.readAsDataURL(file);
-                                        });
-                                        const base64 = await base64Promise;
-                                        
-                                        const bucket = 'gestao-ppais.firebasestorage.app';
-                                        const path = `invoices/${cleanCpf}/${cleanInvoice}/${cleanFileName}`;
-                                        
-                                        const res = await fetch('/api/proxy-storage-upload', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ bucket, path, base64, contentType: file.type })
-                                        });
-                                        
-                                        const data = await res.json();
-                                        if (!data.success) {
-                                            throw new Error(data.error || 'Erro no servidor ao enviar arquivo');
-                                        }
-                                        return data.url;
+                                        await uploadBytes(fileRef, file);
+                                        return await getDownloadURL(fileRef);
                                     };
 
                                     const timeoutPromise = new Promise<never>((_, reject) => 
