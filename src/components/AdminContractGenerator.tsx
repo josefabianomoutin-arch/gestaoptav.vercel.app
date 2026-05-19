@@ -82,25 +82,23 @@ const AdminContractGenerator: React.FC<AdminContractGeneratorProps> = ({ produce
                 <table className="w-full mb-4 text-[7pt] table-fixed contract-table border-collapse border border-black uppercase font-sans">
                     <thead>
                         <tr className="bg-zinc-50 font-bold border-b border-black">
-                            <th className="p-1 border border-black w-[15%]">Agricultor</th>
-                            <th className="p-1 border border-black w-[12%] text-center">CPF</th>
-                            <th className="p-1 border border-black w-[58%]">Item</th>
-                            <th className="p-1 border border-black w-[7%] text-center">Qtd</th>
-                            <th className="p-1 border border-black w-[8%] text-right">Valor</th>
+                            <th className="p-1 border border-black w-[65%]">Item</th>
+                            <th className="p-1 border border-black w-[15%] text-center">Qtd</th>
+                            <th className="p-1 border border-black w-[10%] text-right">Valor Unit.</th>
+                            <th className="p-1 border border-black w-[10%] text-right">Valor</th>
                         </tr>
                     </thead>
                     <tbody>
                         {producer.contractItems?.map((item, idx) => (
                             <tr key={idx} className="border-b border-black">
-                                <td className="p-1 border border-black align-middle text-center">{producer.name}</td>
-                                <td className="p-1 border border-black align-middle text-center">{producer.cpfCnpj}</td>
                                 <td className="p-1 border border-black align-middle text-justify leading-snug">{item.name}</td>
                                 <td className="p-1 text-center border border-black align-middle whitespace-nowrap">{roundToTwoDecimalPlaces(item.totalKg).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} {item.unit || 'kg'}</td>
+                                <td className="p-1 text-right border border-black align-middle whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valuePerKg)}</td>
                                 <td className="p-1 text-right border border-black align-middle whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(roundToTwoDecimalPlaces(item.totalKg) * item.valuePerKg)}</td>
                             </tr>
                         ))}
                         <tr className="font-bold">
-                            <td colSpan={4} className="p-1 text-right border border-black uppercase text-[8pt]">Valor Total do Contrato</td>
+                            <td colSpan={3} className="p-1 text-right border border-black uppercase text-[8pt]">Valor Total do Contrato</td>
                             <td className="p-1 text-right border border-black whitespace-nowrap text-[8pt]">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}</td>
                         </tr>
                     </tbody>
