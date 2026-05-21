@@ -1030,7 +1030,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: any[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string): Promise<{ success: boolean; message?: string }> => {
+  const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: any[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string, supplierNameHint?: string): Promise<{ success: boolean; message?: string }> => {
     try {
       console.log('handleUpdateInvoiceItems:', { supplierCpf, invoiceNumber, itemsCount: items.length });
       
@@ -1038,29 +1038,46 @@ const App: React.FC = () => {
       const targetInvoice = clean(invoiceNumber);
       const targetCpf = clean(supplierCpf);
 
-      let supplierName = '';
-      const mainSup = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      let supplierName = supplierNameHint || '';
+      const targetNameClean = clean(supplierName);
+      
+      let mainSup = null;
+      let pcSup = null;
+
+      const findSup = (s: any) => {
+          if (!s) return false;
+          const sCpf = clean(s.cpf || s.cpfCnpj);
+          if (targetCpf && sCpf === targetCpf) return true;
+          if (targetNameClean && clean(s.name) === targetNameClean) return true;
+          return false;
+      };
+
+      mainSup = (suppliers || []).find(findSup);
       if (mainSup) {
-        supplierName = mainSup.name;
+          supplierName = mainSup.name;
       } else {
-        const pcSup = (perCapitaConfig.ppaisProducers || []).find(s => (clean(s.cpfCnpj || s.cpf) === targetCpf)) || 
-                      (perCapitaConfig.pereciveisSuppliers || []).find(s => (clean(s.cpfCnpj || s.cpf) === targetCpf)) ||
-                      (perCapitaConfig.estocaveisSuppliers || []).find(s => (clean(s.cpfCnpj || s.cpf) === targetCpf));
-        if (pcSup) supplierName = pcSup.name;
+        const pcLists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+        for (const lKey of pcLists) {
+          pcSup = ensureArray(perCapitaConfig ? perCapitaConfig[lKey] : []).find(findSup);
+          if (pcSup) {
+            supplierName = pcSup.name;
+            break;
+          }
+        }
       }
       
+      const updatedTargetNameClean = clean(supplierName);
       const logSnapshot = await get(warehouseLogRef);
       const allLogs = logSnapshot.val() || {};
       const logUpdates: any = {};
       
       const existingLogsForKey: Record<string, any> = {};
-      const targetNameClean = clean(supplierName);
       Object.keys(allLogs).forEach(key => {
           const entry = allLogs[key];
           const entryInv = clean(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '');
           const entryCpf = clean(entry.supplierCpf || '');
           const entryName = clean(entry.supplierName || '');
-          if ((entryCpf === targetCpf || (targetNameClean && entryName === targetNameClean)) && entryInv === targetInvoice) {
+          if ((entryCpf === targetCpf || (updatedTargetNameClean && entryName === updatedTargetNameClean)) && entryInv === targetInvoice) {
               existingLogsForKey[key] = entry;
           }
       });
@@ -1155,21 +1172,29 @@ const App: React.FC = () => {
       }
 
       let supplierFound = false;
-      if (mainSup) {
-        const supRef = child(suppliersRef, `${mainSup.id || targetCpf}/deliveries`);
+
+      // Update in Main Suppliers if found
+      const mainSups = (suppliers || []).filter(findSup);
+      for (const mSup of mainSups) {
+        const supRef = child(suppliersRef, `${mSup.id || targetCpf}/deliveries`);
         await runTransaction(supRef, (current) => updateDeliveries(current));
         supplierFound = true;
-      } else {
-        const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
-        for (const lKey of lists) {
-          const list = ensureArray(perCapitaConfig ? perCapitaConfig[lKey] : []);
-          const idx = list.findIndex(p => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
-          if (idx !== -1) {
-            const dRef = child(perCapitaConfigRef, `${lKey}/${idx}/deliveries`);
-            await runTransaction(dRef, (current) => updateDeliveries(current));
-            supplierFound = true;
-            break;
-          }
+      }
+
+      // Update in Per Capita Config if found
+      const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+      for (const lKey of lists) {
+        const list = ensureArray(perCapitaConfig ? perCapitaConfig[lKey] : []);
+        // Find ALL matching indices in this list
+        const indices = list.reduce((acc, s, i) => {
+          if (findSup(s)) acc.push(i);
+          return acc;
+        }, [] as number[]);
+        
+        for (const idx of indices) {
+          const dRef = child(perCapitaConfigRef, `${lKey}/${idx}/deliveries`);
+          await runTransaction(dRef, (current) => updateDeliveries(current));
+          supplierFound = true;
         }
       }
 
@@ -1286,8 +1311,11 @@ const App: React.FC = () => {
             await Promise.all(logKeysToDelete.map(key => remove(child(warehouseLogRef, key))));
         }
 
-        if (mainSupplier) {
-          const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
+        let deletedAny = false;
+
+        const mainSups = suppliers.filter(s => clean(s.cpf) === targetCpf);
+        for (const mSup of mainSups) {
+          const deliveriesRef = child(suppliersRef, `${mSup.id || targetCpf}/deliveries`);
           console.log(`Iniciando transação MainSupplier (tentativa ${i + 1}):`, targetCpf);
           await runTransaction(deliveriesRef, (currentDeliveries) => {
             if (Array.isArray(currentDeliveries)) {
@@ -1303,43 +1331,40 @@ const App: React.FC = () => {
             }
             return currentDeliveries;
           });
+          deletedAny = true;
           console.log('Transação de exclusão concluída para MainSupplier');
-          return { success: true };
         }
 
         const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
-        let listKey: 'ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers' | null = null;
-        let producerIdx = -1;
         for (const lKey of lists) {
           const list = ensureArray(perCapitaConfig[lKey]);
-          const idx = list.findIndex((p: any) => clean(p.cpfCnpj || p.cpf) === targetCpf);
-          if (idx !== -1) {
-            listKey = lKey;
-            producerIdx = idx;
-            break;
+          const indices = list.reduce((acc, p, idx) => {
+            if (clean((p as any).cpfCnpj || (p as any).cpf) === targetCpf) acc.push(idx);
+            return acc;
+          }, [] as number[]);
+
+          for (const idx of indices) {
+            const deliveriesRef = child(perCapitaConfigRef, `${lKey}/${idx}/deliveries`);
+            await runTransaction(deliveriesRef, (currentDeliveries) => {
+              if (Array.isArray(currentDeliveries)) {
+                return (currentDeliveries as any[]).filter(d => {
+                  const dInv = clean(d.invoiceNumber || 'S/N');
+                  const isTargetInvoice = dInv === targetInvoice;
+                  
+                  if (isTargetInvoice && targetInvoice === 'SN') {
+                      if (d.item === 'AGENDAMENTO PENDENTE') return true; 
+                  }
+                  return !isTargetInvoice;
+                });
+              }
+              return currentDeliveries;
+            });
+            deletedAny = true;
+            console.log('Transação de exclusão concluída para PerCapita indexada');
           }
         }
-
-        if (listKey && producerIdx !== -1) {
-          const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${producerIdx}/deliveries`);
-          await runTransaction(deliveriesRef, (currentDeliveries) => {
-            if (Array.isArray(currentDeliveries)) {
-              return (currentDeliveries as any[]).filter(d => {
-                const dInv = clean(d.invoiceNumber || 'S/N');
-                const isTargetInvoice = dInv === targetInvoice;
-                
-                if (isTargetInvoice && targetInvoice === 'SN') {
-                    if (d.item === 'AGENDAMENTO PENDENTE') return true; 
-                }
-                return !isTargetInvoice;
-              });
-            }
-            return currentDeliveries;
-          });
-          console.log('Transação de exclusão concluída para PerCapita indexada');
-          return { success: true };
-        }
-        console.log('Transação de exclusão concluída para PerCapita');
+        
+        console.log('Transação de exclusão concluída para fornecedores');
         return { success: true };
       } catch (error) {
         console.log('--- INÍCIO DO ERRO ---');

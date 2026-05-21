@@ -24,7 +24,8 @@ interface AdminInvoicesProps {
     newDate?: string, 
     receiptTermNumber?: string, 
     invoiceDate?: string, 
-    pd?: string
+    pd?: string,
+    supplierNameHint?: string
   ) => Promise<{ success: boolean; message?: string }>;
   onUpdateInvoiceUrl: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => Promise<{ success: boolean; message?: string }>;
   onManualInvoiceEntry: (
@@ -632,7 +633,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                         <body>
                                             <div class="label">
                                                 <div>
-                                                    <h1>${it.item || it.itemName || ''}</h1>
+                                                    <h1>${String(it.item || it.itemName || '').split(';')[0].split(' ').slice(0, 2).join(' ')}</h1>
                                                     <h2>Fornecedor: ${inv.supplierName}</h2>
                                                     <p>NF: ${inv.invoiceNumber} | Data: ${new Date(inv.date).toLocaleDateString()}</p>
                                                     <p>Lote: ${it.lotNumber || 'N/A'} | Validade: ${it.expirationDate ? it.expirationDate.split('-').reverse().join('/') : 'N/A'}</p>
@@ -1214,7 +1215,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     editingInvoice.date, 
                                     editingInvoice.receiptTermNumber, 
                                     editingInvoice.invoiceDate || editingInvoice.date, 
-                                    editingInvoice.pd
+                                    editingInvoice.pd,
+                                    editingInvoice.supplierName
                                 );
                                 if (res.success) {
                                     toast.success("Alterações salvas!");
