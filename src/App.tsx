@@ -1054,11 +1054,13 @@ const App: React.FC = () => {
       const logUpdates: any = {};
       
       const existingLogsForKey: Record<string, any> = {};
+      const targetNameClean = clean(supplierName);
       Object.keys(allLogs).forEach(key => {
           const entry = allLogs[key];
           const entryInv = clean(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '');
           const entryCpf = clean(entry.supplierCpf || '');
-          if (entryCpf === targetCpf && entryInv === targetInvoice) {
+          const entryName = clean(entry.supplierName || '');
+          if ((entryCpf === targetCpf || (targetNameClean && entryName === targetNameClean)) && entryInv === targetInvoice) {
               existingLogsForKey[key] = entry;
           }
       });
@@ -1070,7 +1072,9 @@ const App: React.FC = () => {
               if (usedLogKeys.has(k)) return false;
               const logEntry = existingLogsForKey[k];
               const logName = clean(logEntry.itemName || logEntry.item || '');
-              return (item.id === logEntry.id || item.id === logEntry.deliveryId || itName === logName);
+              if (item.id && logEntry.id && item.id === logEntry.id) return true;
+              if (item.id && logEntry.deliveryId && item.id === logEntry.deliveryId) return true;
+              return itName === logName;
           });
 
           if (logKey) {
