@@ -26,6 +26,7 @@ export interface Delivery {
     receiptTermNumber?: string;
     nl?: string;
     pd?: string;
+    ne?: string;
     arrivalTime?: string;
     lots?: LotInfo[];
 }
@@ -89,6 +90,7 @@ export interface WarehouseMovement {
     barcode?: string;
     nlNumber?: string;
     pdNumber?: string;
+    neNumber?: string;
     value?: number;
     weight?: number;
     invoiceUrl?: string;

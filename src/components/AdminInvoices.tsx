@@ -18,14 +18,15 @@ interface AdminInvoicesProps {
   onUpdateInvoiceItems: (
     supplierCpf: string, 
     invoiceNumber: string, 
-    items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string }[], 
+    items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string; pd?: string; ne?: string }[], 
     barcode?: string, 
     newInvoiceNumber?: string, 
     newDate?: string, 
     receiptTermNumber?: string, 
     invoiceDate?: string, 
     pd?: string,
-    supplierNameHint?: string
+    supplierNameHint?: string,
+    ne?: string
   ) => Promise<{ success: boolean; message?: string }>;
   onUpdateInvoiceUrl: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => Promise<{ success: boolean; message?: string }>;
   onManualInvoiceEntry: (
@@ -37,7 +38,9 @@ interface AdminInvoicesProps {
     receiptTermNumber?: string, 
     invoiceDate?: string, 
     pd?: string,
-    type?: 'entrada' | 'saída'
+    type?: 'entrada' | 'saída',
+    invoiceUrl?: string,
+    ne?: string
   ) => Promise<{ success: boolean; message?: string }>;
   mode?: 'admin' | 'warehouse_entry' | 'warehouse_exit';
   onRegisterExit?: (payload: any) => Promise<{ success: boolean; message: string }>;
@@ -71,6 +74,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     date: '', 
     invoiceNumber: '', 
     pd: '', 
+    ne: '',
     type: mode === 'warehouse_exit' ? 'saída' : 'entrada',
     items: [] as { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string }[]
   });
@@ -131,7 +135,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
               isOpened: d.isOpened || false,
               receiptTermNumber: d.receiptTermNumber,
               nl: d.nl,
-              pd: d.pd || movement?.pdNumber || ''
+              pd: d.pd || movement?.pdNumber || '',
+              ne: d.ne || movement?.neNumber || ''
             };
           }
           
@@ -196,7 +201,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                 items: [],
                 isOpened: d.isOpened || d.opened || false,
                 receiptTermNumber: d.receiptTermNumber,
-                pd: d.pd || ''
+                pd: d.pd || '',
+                ne: d.ne || ''
               };
             }
             
@@ -452,7 +458,9 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
         '', '', 
         manualEntryData.date, 
         manualEntryData.pd,
-        manualEntryData.type as any
+        manualEntryData.type as any,
+        undefined,
+        manualEntryData.ne
     );
     if (res.success) {
         toast.success("NF registrada com sucesso!");
@@ -462,6 +470,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             date: '', 
             invoiceNumber: '', 
             pd: '', 
+            ne: '',
             type: mode === 'warehouse_exit' ? 'saída' : 'entrada',
             items: []
         });
@@ -867,10 +876,14 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                               <input type="text" value={manualEntryData.invoiceNumber} onChange={e => setManualEntryData({...manualEntryData, invoiceNumber: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1">
                               <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">PD (Opcional)</label>
-                              <input type="text" value={manualEntryData.pd} onChange={e => setManualEntryData({...manualEntryData, pd: e.target.value})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
+                              <input type="text" value={manualEntryData.pd} onChange={e => setManualEntryData({...manualEntryData, pd: e.target.value.toUpperCase()})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
+                          </div>
+                          <div className="space-y-1">
+                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">NE (Opcional)</label>
+                              <input type="text" value={manualEntryData.ne} onChange={e => setManualEntryData({...manualEntryData, ne: e.target.value.toUpperCase()})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px]" />
                           </div>
                         </div>
                       </div>
@@ -1049,10 +1062,14 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                       <button onClick={() => setEditingInvoice(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="h-5 w-5" /></button>
                   </div>
                   <div className="p-6 space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mb-2">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mb-2">
                         <div className="space-y-0.5">
                             <label className="text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-0.5">Parecer de Despesa (PD)</label>
                             <input type="text" value={editingInvoice.pd || ''} onChange={e => setEditingInvoice({...editingInvoice, pd: e.target.value.toUpperCase()})} className="w-full h-10 px-3 rounded-xl border-2 border-indigo-100 outline-none focus:border-indigo-400 font-bold text-[11px] uppercase" />
+                        </div>
+                        <div className="space-y-0.5">
+                            <label className="text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-0.5">Nota de Empenho (NE)</label>
+                            <input type="text" value={editingInvoice.ne || ''} onChange={e => setEditingInvoice({...editingInvoice, ne: e.target.value.toUpperCase()})} className="w-full h-10 px-3 rounded-xl border-2 border-indigo-100 outline-none focus:border-indigo-400 font-bold text-[11px] uppercase bg-white" />
                         </div>
                         <div className="space-y-0.5">
                             <label className="text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-0.5">Data da Nota</label>
@@ -1214,7 +1231,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                         lotNumber: it.lotNumber,
                                         expirationDate: it.expirationDate,
                                         barcode: it.barcode,
-                                        pd: editingInvoice.pd
+                                        pd: editingInvoice.pd,
+                                        ne: editingInvoice.ne
                                     })),
                                     undefined, 
                                     editingInvoice.invoiceNumber, // Novo número (se mudou)
@@ -1222,7 +1240,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                     editingInvoice.receiptTermNumber, 
                                     editingInvoice.invoiceDate || editingInvoice.date, 
                                     editingInvoice.pd,
-                                    editingInvoice.supplierName
+                                    editingInvoice.supplierName,
+                                    editingInvoice.ne
                                 );
                                 if (res.success) {
                                     toast.success("Alterações salvas!");

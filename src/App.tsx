@@ -1030,7 +1030,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: any[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string, supplierNameHint?: string): Promise<{ success: boolean; message?: string }> => {
+  const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: any[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string, supplierNameHint?: string, ne?: string): Promise<{ success: boolean; message?: string }> => {
     try {
       console.log('handleUpdateInvoiceItems:', { supplierCpf, invoiceNumber, itemsCount: items.length });
       
@@ -1109,6 +1109,7 @@ const App: React.FC = () => {
               logUpdates[`${logKey}/expirationDate`] = item.expirationDate || '';
               logUpdates[`${logKey}/barcode`] = item.barcode || '';
               logUpdates[`${logKey}/pdNumber`] = pd ?? item.pd ?? '';
+              logUpdates[`${logKey}/neNumber`] = ne ?? item.ne ?? '';
               logUpdates[`${logKey}/date`] = newDate || existingLogsForKey[logKey].date || '';
           } else {
               const newRef = push(warehouseLogRef);
@@ -1129,7 +1130,8 @@ const App: React.FC = () => {
                   lotNumber: item.lotNumber || 'UNICO',
                   expirationDate: item.expirationDate || '',
                   barcode: item.barcode || '',
-                  pdNumber: pd ?? item.pd ?? ''
+                  pdNumber: pd ?? item.pd ?? '',
+                  neNumber: ne ?? item.ne ?? ''
               };
           }
       }
@@ -1167,7 +1169,9 @@ const App: React.FC = () => {
             receiptTermNumber: receiptTermNumber || original?.receiptTermNumber || '',
             invoiceDate: invoiceDate || original?.invoiceDate || '',
             pdNumber: pd ?? it.pd ?? original?.pdNumber ?? '',
-            pd: pd ?? it.pd ?? original?.pd ?? ''
+            pd: pd ?? it.pd ?? original?.pd ?? '',
+            neNumber: ne ?? it.ne ?? original?.neNumber ?? '',
+            ne: ne ?? it.ne ?? original?.ne ?? ''
           };
         });
         return [...others, ...updated];
@@ -1388,7 +1392,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleManualInvoiceEntry = async (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string, type: 'entrada' | 'saída' = 'entrada', invoiceUrl?: string) => {
+  const handleManualInvoiceEntry = async (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string, type: 'entrada' | 'saída' = 'entrada', invoiceUrl?: string, ne?: string) => {
     let supplierName = '';
     const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
     const cleanEntryCpf = cleanStr(supplierCpf);
@@ -1423,6 +1427,7 @@ const App: React.FC = () => {
             value: item.value || 0,
             barcode: item.barcode || barcode || '',
             pdNumber: pd || '',
+            neNumber: ne || '',
             lotId: lotId,
             deliveryId: ''
         };
@@ -1478,6 +1483,7 @@ const App: React.FC = () => {
               if (invoiceDate !== undefined) newDelivery.invoiceDate = invoiceDate;
               if (receiptTermNumber !== undefined) newDelivery.receiptTermNumber = receiptTermNumber;
               if (pd !== undefined) newDelivery.pd = pd;
+              if (ne !== undefined) newDelivery.ne = ne;
               if (invoiceUrl !== undefined) newDelivery.invoiceUrl = invoiceUrl;
               if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
 
@@ -1524,6 +1530,7 @@ const App: React.FC = () => {
                   if (invoiceDate !== undefined) newDelivery.invoiceDate = invoiceDate;
                   if (receiptTermNumber !== undefined) newDelivery.receiptTermNumber = receiptTermNumber;
                   if (pd !== undefined) newDelivery.pd = pd;
+                  if (ne !== undefined) newDelivery.ne = ne;
                   if (invoiceUrl !== undefined) newDelivery.invoiceUrl = invoiceUrl;
                   if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
 
