@@ -593,9 +593,16 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                   </td>
                   <td className="px-4 py-3">
                     <div className="text-[11px] font-black text-zinc-900 uppercase line-clamp-1 leading-tight mb-1">{inv.supplierName}</div>
-                    <div className="text-[7.5px] text-zinc-400 font-bold tracking-widest leading-none flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-zinc-200"></div>
-                        {inv.supplierCpf}
+                    <div className="flex flex-col gap-1.5">
+                        <div className="text-[7.5px] text-zinc-400 font-bold tracking-widest leading-none flex items-center gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-zinc-200"></div>
+                            {inv.supplierCpf}
+                        </div>
+                        {inv.ne && (
+                            <div className="flex items-center gap-1 text-[9px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded w-fit tracking-wider">
+                                NE {inv.ne}
+                            </div>
+                        )}
                     </div>
                   </td>
                   <td className="px-4 py-3">
