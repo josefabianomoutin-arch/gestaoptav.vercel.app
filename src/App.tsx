@@ -1081,6 +1081,8 @@ const App: React.FC = () => {
               existingLogsForKey[key] = entry;
           }
       });
+      
+      console.log('handleUpdateInvoiceItems existing logs:', Object.keys(existingLogsForKey).length, existingLogsForKey);
 
       const usedLogKeys = new Set<string>();
       for (const item of items) {
@@ -1098,6 +1100,8 @@ const App: React.FC = () => {
               usedLogKeys.add(logKey);
               logUpdates[`${logKey}/inboundInvoice`] = newInvoiceNumber || invoiceNumber;
               logUpdates[`${logKey}/invoiceNumber`] = newInvoiceNumber || invoiceNumber;
+              logUpdates[`${logKey}/itemName`] = item.name;
+              logUpdates[`${logKey}/item`] = item.name;
               logUpdates[`${logKey}/quantity`] = Number(item.kg) || 0;
               logUpdates[`${logKey}/kg`] = Number(item.kg) || 0;
               logUpdates[`${logKey}/value`] = item.value !== undefined ? Number(item.value) : (existingLogsForKey[logKey].value || 0);
@@ -1135,6 +1139,8 @@ const App: React.FC = () => {
               logUpdates[k] = null;
           }
       });
+
+      console.log('handleUpdateInvoiceItems applying logUpdates:', logUpdates);
 
       if (Object.keys(logUpdates).length > 0) {
           await update(warehouseLogRef, logUpdates);

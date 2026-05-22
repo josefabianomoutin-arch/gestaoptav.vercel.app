@@ -105,7 +105,13 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             const cleanDInvoice = cleanStr(invoiceNum);
             const movement = warehouseLog.find(log => {
                 const cleanLogInv = cleanStr(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice);
-                return cleanLogInv === cleanDInvoice;
+                const cleanLogItem = cleanStr(log.item || log.itemName);
+                const cleanDItem = cleanStr(d.item);
+                const cleanLogId = cleanStr(log.id);
+                const cleanDId = cleanStr(d.id);
+                return cleanLogInv === cleanDInvoice &&
+                       (cleanLogItem === cleanDItem || (cleanLogId && cleanLogId === cleanDId)) &&
+                       (cleanStr(log.supplierCpf) === cleanStr(supplier.cpf) || cleanStr(log.supplierName) === cleanStr(supplier.name));
             });
           const isExit = (d as any).type === 'saída' || (movement && movement.type === 'saída');
           
