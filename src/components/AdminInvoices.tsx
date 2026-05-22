@@ -5,8 +5,7 @@ import { ensureArray } from '../lib/utils';
 import type { Supplier, Delivery, WarehouseMovement, AcquisitionItem } from '../types';
 import { Download, Search, FileCheck, Trash2, RotateCcw, Plus, X, Edit2, Printer, Barcode as BarcodeIcon, Upload, Calendar, FileText, Package } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
-import { app, storage } from '../firebaseConfig';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { app } from '../firebaseConfig';
 import { toast } from 'sonner';
 import ConfirmModal from './ConfirmModal';
 
@@ -64,7 +63,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   onManualInvoiceEntry,
   mode = 'admin',
   perCapitaConfig,
-  acquisitionItems = [],
+  _acquisitionItems = [],
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter] = useState<'all' | 'pending' | 'opened'>('all');
@@ -230,9 +229,10 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     // Mirror entries from warehouseLog that might not be in supplier deliveries
     (warehouseLog || []).forEach(log => {
       if (!log || (log.item || log.itemName) === 'AGENDAMENTO PENDENTE') return;
-      const invNum = String(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice || 'S/N').trim();
+      const anyLog = log as any;
+      const invNum = String(anyLog.invoiceNumber || anyLog.inboundInvoice || anyLog.outboundInvoice || 'S/N').trim();
 
-      const isExit = log.type === 'saída' || log.type === 'saida';
+      const isExit = anyLog.type === 'saída' || anyLog.type === 'saida';
       if (mode === 'warehouse_entry' && isExit) return;
       if (mode === 'warehouse_exit' && !isExit) return;
 
@@ -241,51 +241,59 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
       // Check if this invoice is already in our list
       const existingInv = invoices.find(inv => 
         cleanStr(inv.invoiceNumber) === cleanLogInv &&
-        (cleanStr(inv.supplierName) === cleanStr(log.supplierName) || cleanStr(inv.supplierCpf) === cleanStr(log.supplierCpf))
+        (cleanStr(inv.supplierName) === cleanStr(anyLog.supplierName) || cleanStr(inv.supplierCpf) === cleanStr(anyLog.supplierCpf))
       );
 
       if (existingInv) {
+        if (!existingInv.invoiceUrl && anyLog.invoiceUrl) {
+          existingInv.invoiceUrl = anyLog.invoiceUrl;
+        }
+        if (!existingInv.ne && (anyLog.neNumber || anyLog.ne)) {
+          existingInv.ne = anyLog.neNumber || anyLog.ne;
+        }
         // Check if item is already in existing invoice
         const hasItem = existingInv.items.some((it: any) => 
-          cleanStr(it.item) === cleanStr(log.item || log.itemName) && 
-          Number(it.kg || 0) === Number(log.kg || log.quantity || 0) &&
-          cleanStr(it.barcode) === cleanStr(log.barcode)
+          cleanStr(it.item) === cleanStr(anyLog.item || anyLog.itemName) && 
+          Number(it.kg || 0) === Number(anyLog.kg || anyLog.quantity || 0) &&
+          cleanStr(it.barcode) === cleanStr(anyLog.barcode)
         );
         if (!hasItem) {
           existingInv.items.push({
-            id: log.id,
-            item: log.item || log.itemName,
-            kg: log.kg || log.quantity || 0,
-            value: log.value || 0,
-            date: log.date,
-            barcode: log.barcode,
-            lotNumber: log.lotNumber,
-            expirationDate: log.expirationDate,
-            pd: log.pdNumber,
+            id: anyLog.id,
+            item: anyLog.item || anyLog.itemName,
+            kg: anyLog.kg || anyLog.quantity || 0,
+            value: anyLog.value || 0,
+            date: anyLog.date,
+            barcode: anyLog.barcode,
+            lotNumber: anyLog.lotNumber,
+            expirationDate: anyLog.expirationDate,
+            pd: anyLog.pdNumber,
             isManual: true
           });
-          if (log.pdNumber && !existingInv.pd) existingInv.pd = log.pdNumber;
+          if (anyLog.pdNumber && !existingInv.pd) existingInv.pd = anyLog.pdNumber;
         }
       } else {
         // Create new invoice entry from log
         invoices.push({
-          supplierName: log.supplierName,
-          supplierCpf: log.supplierCpf,
+          supplierName: anyLog.supplierName,
+          supplierCpf: anyLog.supplierCpf,
           invoiceNumber: invNum,
-          date: log.date,
+          invoiceUrl: anyLog.invoiceUrl || '',
+          date: anyLog.date,
           items: [{
-            id: log.id,
-            item: log.item || log.itemName,
-            kg: log.kg || log.quantity || 0,
-            value: log.value || 0,
-            date: log.date,
-            barcode: log.barcode,
-            lotNumber: log.lotNumber,
-            expirationDate: log.expirationDate,
-            pd: log.pdNumber,
+            id: anyLog.id,
+            item: anyLog.item || anyLog.itemName,
+            kg: anyLog.kg || anyLog.quantity || 0,
+            value: anyLog.value || 0,
+            date: anyLog.date,
+            barcode: anyLog.barcode,
+            lotNumber: anyLog.lotNumber,
+            expirationDate: anyLog.expirationDate,
+            pd: anyLog.pdNumber,
             isManual: true
           }],
-          pd: log.pdNumber,
+          pd: anyLog.pdNumber,
+          ne: anyLog.neNumber || anyLog.ne || '',
           isOpened: true, // Manual logs are considered "handled"
           isManualEntry: true
         });
@@ -599,7 +607,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                             {inv.supplierCpf}
                         </div>
                         {inv.ne && (
-                            <div className="flex items-center gap-1 text-[9px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded w-fit tracking-wider">
+                            <div className="flex items-center gap-1.5 text-[9.5px]/none font-black bg-emerald-50 text-emerald-950 border-2 border-emerald-800 px-2.5 py-1 rounded w-fit uppercase tracking-wider font-mono shadow-xs">
                                 NE {inv.ne}
                             </div>
                         )}
@@ -740,13 +748,6 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                         return;
                                     }
 
-                                    // Clean metadata from path
-                                    const cleanCpf = String(inv.supplierCpf || 'S-CPF').replace(/[^\w-]/g, '_');
-                                    const cleanInvoice = String(inv.invoiceNumber || 'S-N').replace(/[^\w-]/g, '_');
-                                    const cleanFileName = file.name.replace(/[^\w.-]/g, '_');
-                                    
-                                    const fileRef = storageRef(storage, `invoices/${cleanCpf}/${cleanInvoice}/${cleanFileName}`);
-                                    
                                     toast.loading('Enviando nota...', { id: toastId, description: 'Transferindo arquivo para o servidor...' });
                                     
                                     const uploadPromise = async () => {
@@ -1223,6 +1224,31 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                           </div>
                           );
                       })}
+                      
+                      <div className="pb-4">
+                          <button
+                              type="button"
+                              onClick={() => {
+                                  const newItems = [...editingInvoice.items, {
+                                      id: `it-new-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                                      item: '',
+                                      itemName: '',
+                                      name: '',
+                                      kg: 0,
+                                      value: 0,
+                                      lotNumber: 'UNICO',
+                                      expirationDate: '',
+                                      barcode: '',
+                                      isManual: true
+                                  }];
+                                  setEditingInvoice({ ...editingInvoice, items: newItems });
+                                  toast.info("Novo item em branco adicionado à nota. Selecione o produto e informe o peso/valor.");
+                              }}
+                              className="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold rounded-lg border border-indigo-200 text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                          >
+                              <Plus className="h-3 w-3" /> Incluir Item na Edição (Catálogo do Fornecedor)
+                          </button>
+                      </div>
                   </div>
                   <div className="p-6 bg-zinc-50 border-t border-gray-100 flex gap-2.5">
                       <button onClick={() => setEditingInvoice(null)} className="flex-1 bg-white border border-gray-200 h-12 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-gray-50 transition-all">Sair</button>

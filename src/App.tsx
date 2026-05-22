@@ -15,8 +15,7 @@ import JulioDashboard from './components/JulioDashboard';
 import ServiceOrderDashboard from './components/ServiceOrderDashboard';
 import InfobarTicker from './components/InfobarTicker';
 import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
-import { ref as storageRef, getDownloadURL, uploadBytes } from 'firebase/storage';
-import { app, storage } from './firebaseConfig';
+import { app } from './firebaseConfig';
 import { getCombinedSuppliers } from './lib/supplierUtils';
 import { ensureArray } from './lib/utils';
 
@@ -1298,7 +1297,7 @@ const App: React.FC = () => {
 
     for (let i = 0; i < retries; i++) {
       try {
-        const mainSupplier = suppliers.find(s => clean(s.cpf) === targetCpf);
+        const _mainSupplier = suppliers.find(s => clean(s.cpf) === targetCpf);
         
         // --- NOVO: Deletar também do log do almoxarifado ---
         const logSnapshot = await get(warehouseLogRef);
@@ -1374,7 +1373,7 @@ const App: React.FC = () => {
           }
         }
         
-        console.log('Transação de exclusão concluída para fornecedores');
+        console.log('Transação de exclusão concluída para fornecedores. Algo deletado?', deletedAny);
         return { success: true };
       } catch (error) {
         console.log('--- INÍCIO DO ERRO ---');
@@ -1830,7 +1829,6 @@ const App: React.FC = () => {
             console.log("Detectado possível PDF/Arquivo base64, iniciando upload para Storage...");
             try {
                 const invoiceId = `inv_entry_NF${String(payload.invoiceNumber || 'S-N').replace(/[^\w-]/g, '_')}_${Date.now()}_${crypto.randomUUID().substring(0, 4)}.pdf`;
-                const fileRef = storageRef(storage, `invoices/${invoiceId}`);
                 
                 const parts = finalInvoiceUrl.split(',');
                 if (parts.length > 1) {

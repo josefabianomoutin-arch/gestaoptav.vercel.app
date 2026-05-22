@@ -138,14 +138,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const imageDeliveries = useMemo(() => {
         try {
             const deliveries: any[] = [];
-            const seenUrls = new Set<string>();
             
             ensureArray(suppliers).forEach(s => {
                 if (!s) return;
                 const supplierDeliveries = ensureArray(s.deliveries);
                 supplierDeliveries.forEach((d: any) => {
-                    if (d && d.invoiceUrl && !seenUrls.has(d.invoiceUrl)) {
-                        seenUrls.add(d.invoiceUrl);
+                    if (d) {
                         let finalTimestamp = d.timestamp;
                         if (!finalTimestamp && d.date) {
                             const parsedDate = new Date(d.date + 'T12:00:00');
@@ -156,7 +154,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
                         deliveries.push({
                             id: d.id || `del-${crypto.randomUUID().substring(0, 8)}`,
-                            invoiceUrl: d.invoiceUrl,
+                            invoiceUrl: d.invoiceUrl || '',
                             date: d.invoiceDate || d.date,
                             timestamp: finalTimestamp,
                             type: 'entrada',
@@ -164,12 +162,13 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             supplierCpf: s.cpf || '',
                             itemName: d.item || 'Item s/ nome',
                             quantity: Number(d.kg || d.quantity) || 0,
-                            inboundInvoice: d.invoiceNumber,
-                            receiptTermNumber: d.receiptTermNumber,
-                            nl: d.nl,
-                            pd: d.pd,
-                            lotNumber: d.lotNumber,
-                            expirationDate: d.expirationDate,
+                            inboundInvoice: d.invoiceNumber || '',
+                            receiptTermNumber: d.receiptTermNumber || '',
+                            nl: d.nl || d.nlNumber || '',
+                            pd: d.pd || d.pdNumber || '',
+                            ne: d.ne || d.neNumber || '',
+                            lotNumber: d.lotNumber || '',
+                            expirationDate: d.expirationDate || '',
                         });
                     }
                 });
@@ -181,8 +180,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     ensureArray(perCapitaConfig[listKey]).forEach((p: any) => {
                         if (!p) return;
                         ensureArray(p.deliveries).forEach((d: any) => {
-                            if (d && d.invoiceUrl && !seenUrls.has(d.invoiceUrl)) {
-                                seenUrls.add(d.invoiceUrl);
+                            if (d) {
                                 let finalTimestamp = d.timestamp;
                                 if (!finalTimestamp && d.date) {
                                     const parsedDate = new Date(d.date + 'T12:00:00');
@@ -190,7 +188,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 }
                                 deliveries.push({
                                     id: d.id || `del-pc-${crypto.randomUUID().substring(0, 8)}`,
-                                    invoiceUrl: d.invoiceUrl,
+                                    invoiceUrl: d.invoiceUrl || '',
                                     date: d.invoiceDate || d.date,
                                     timestamp: finalTimestamp || 0,
                                     type: 'entrada',
@@ -198,11 +196,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     supplierCpf: p.cpfCnpj || p.cpf || '',
                                     itemName: d.item || 'Item s/ nome',
                                     quantity: Number(d.kg || d.quantity) || 0,
-                                    inboundInvoice: d.invoiceNumber,
-                                    receiptTermNumber: d.receiptTermNumber,
-                                    pd: d.pd,
-                                    lotNumber: d.lotNumber,
-                                    expirationDate: d.expirationDate,
+                                    inboundInvoice: d.invoiceNumber || '',
+                                    receiptTermNumber: d.receiptTermNumber || '',
+                                    pd: d.pd || d.pdNumber || '',
+                                    ne: d.ne || d.neNumber || '',
+                                    lotNumber: d.lotNumber || '',
+                                    expirationDate: d.expirationDate || '',
                                 });
                             }
                         });
@@ -211,19 +210,19 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             }
 
             (warehouseLog || []).forEach(l => {
-                if (l && l.invoiceUrl && !seenUrls.has(l.invoiceUrl)) {
-                    seenUrls.add(l.invoiceUrl);
-                    let finalTimestamp = l.timestamp ? new Date(l.timestamp).getTime() : 0;
-                    if ((!finalTimestamp || isNaN(finalTimestamp)) && l.date) {
-                        const parsedDate = new Date(l.date + 'T12:00:00');
+                if (l) {
+                    const anyL = l as any;
+                    let finalTimestamp = anyL.timestamp ? new Date(anyL.timestamp).getTime() : 0;
+                    if ((!finalTimestamp || isNaN(finalTimestamp)) && anyL.date) {
+                        const parsedDate = new Date(anyL.date + 'T12:00:00');
                         finalTimestamp = isNaN(parsedDate.getTime()) ? 0 : parsedDate.getTime();
                     } else if (!finalTimestamp || isNaN(finalTimestamp)) {
                         finalTimestamp = 0;
                     }
 
-                    let foundSupplierName = l.supplierName && l.supplierName !== 'Desconhecido' ? l.supplierName : 'Desconhecido';
-                    if (foundSupplierName === 'Desconhecido' && l.supplierCpf) {
-                        const supplier = suppliers?.find(s => s.cpf === l.supplierCpf || s.cpfCnpj === l.supplierCpf);
+                    let foundSupplierName = anyL.supplierName && anyL.supplierName !== 'Desconhecido' ? anyL.supplierName : 'Desconhecido';
+                    if (foundSupplierName === 'Desconhecido' && anyL.supplierCpf) {
+                        const supplier = suppliers?.find(s => s && (s.cpf === anyL.supplierCpf || s.cpfCnpj === anyL.supplierCpf));
                         if (supplier) {
                             foundSupplierName = supplier.name;
                         } else if (perCapitaConfig) {
@@ -232,7 +231,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 ...(perCapitaConfig.pereciveisSuppliers || []),
                                 ...(perCapitaConfig.estocaveisSuppliers || [])
                             ];
-                            const pcSupplier = allPcSuppliers.find(s => s.cpf === l.supplierCpf || s.cpfCnpj === l.supplierCpf);
+                            const pcSupplier = allPcSuppliers.find(s => s && (s.cpf === anyL.supplierCpf || s.cpfCnpj === anyL.supplierCpf));
                             if (pcSupplier) {
                                 foundSupplierName = pcSupplier.name;
                             }
@@ -240,19 +239,95 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     }
 
                     deliveries.push({
-                        ...l,
-                        supplierName: foundSupplierName,
-                        itemName: l.itemName || l.item || 'Item s/ nome',
-                        quantity: Number(l.quantity || l.kg || l.weight) || 0,
-                        inboundInvoice: l.inboundInvoice || l.invoiceNumber,
-                        nl: l.nlNumber || (l as any).nl,
-                        pd: l.pdNumber || (l as any).pd,
+                        id: anyL.id || `log-${crypto.randomUUID().substring(0, 8)}`,
+                        invoiceUrl: anyL.invoiceUrl || '',
+                        date: anyL.date,
                         timestamp: finalTimestamp,
+                        type: anyL.type || 'entrada',
+                        supplierName: foundSupplierName,
+                        supplierCpf: anyL.supplierCpf || '',
+                        itemName: anyL.itemName || anyL.item || 'Item s/ nome',
+                        quantity: Number(anyL.quantity || anyL.kg || anyL.weight) || 0,
+                        inboundInvoice: anyL.inboundInvoice || anyL.invoiceNumber || '',
+                        receiptTermNumber: anyL.receiptTermNumber || '',
+                        nl: anyL.nlNumber || anyL.nl || '',
+                        pd: anyL.pdNumber || anyL.pd || '',
+                        ne: anyL.neNumber || anyL.ne || '',
+                        lotNumber: anyL.lotNumber || '',
+                        expirationDate: anyL.expirationDate || '',
                     });
                 }
             });
 
-            return deliveries;
+            const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+            
+            // Map to store first valid URL and NE for each (supplier, invoice) group
+            const urlAndNeMap = new Map<string, { url: string; ne: string; pd: string; receipt: string; date: string }>();
+            
+            deliveries.forEach(d => {
+                const cleanCpf = cleanStr(d.supplierCpf);
+                const cleanInv = cleanStr(d.inboundInvoice);
+                if (cleanCpf && cleanInv && cleanInv !== 'SN' && cleanInv !== 'PENDENTE') {
+                    const key = `${cleanCpf}_${cleanInv}`;
+                    const current = urlAndNeMap.get(key);
+                    const url = d.invoiceUrl || current?.url || '';
+                    const ne = d.ne || current?.ne || '';
+                    const pd = d.pd || current?.pd || '';
+                    const receipt = d.receiptTermNumber || current?.receipt || '';
+                    const date = d.date || current?.date || '';
+                    urlAndNeMap.set(key, { url, ne, pd, receipt, date });
+                }
+            });
+
+            // Group and remove duplication using combined supplier CPF and invoice number
+            const finalGroups: Record<string, any> = {};
+            deliveries.forEach(d => {
+                const cleanCpf = cleanStr(d.supplierCpf);
+                const cleanInv = cleanStr(d.inboundInvoice);
+                
+                // Propagate URL and metadata when applicable
+                if (cleanCpf && cleanInv && cleanInv !== 'SN' && cleanInv !== 'PENDENTE') {
+                    const key = `${cleanCpf}_${cleanInv}`;
+                    const propagated = urlAndNeMap.get(key);
+                    if (propagated) {
+                        if (!d.invoiceUrl && propagated.url) d.invoiceUrl = propagated.url;
+                        if (!d.ne && propagated.ne) d.ne = propagated.ne;
+                        if (!d.pd && propagated.pd) d.pd = propagated.pd;
+                        if (!d.receiptTermNumber && propagated.receipt) d.receiptTermNumber = propagated.receipt;
+                    }
+                }
+
+                // We only display entries that contain an invoice visual attachment
+                if (!d.invoiceUrl) return;
+
+                const groupKey = `${cleanCpf}_${cleanInv || d.id}`;
+                if (!finalGroups[groupKey]) {
+                    finalGroups[groupKey] = {
+                        ...d,
+                        itemNamesList: [d.itemName],
+                    };
+                } else {
+                    const existing = finalGroups[groupKey];
+                    if (!existing.invoiceUrl && d.invoiceUrl) existing.invoiceUrl = d.invoiceUrl;
+                    if (d.itemName && !existing.itemNamesList.includes(d.itemName)) {
+                        existing.itemNamesList.push(d.itemName);
+                    }
+                    existing.quantity += d.quantity;
+                    if (!existing.pd && d.pd) existing.pd = d.pd;
+                    if (!existing.ne && d.ne) existing.ne = d.ne;
+                    if (!existing.nl && d.nl) existing.nl = d.nl;
+                    if (!existing.receiptTermNumber && d.receiptTermNumber) existing.receiptTermNumber = d.receiptTermNumber;
+                }
+            });
+
+            const uniqueDeliveries = Object.values(finalGroups).map((g: any) => {
+                if (g.itemNamesList && g.itemNamesList.length > 0) {
+                    g.itemName = Array.from(new Set(g.itemNamesList)).filter(Boolean).join(', ');
+                }
+                return g;
+            });
+
+            return uniqueDeliveries;
         } catch (error) {
             console.error("Critical error in imageDeliveries memo:", error);
             return [];
@@ -1366,6 +1441,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                         <div className="flex flex-wrap gap-0.5 mb-1">
                                                             <span className={`text-[5px] font-black ${log.type === 'entrada' ? 'bg-emerald-500' : 'bg-rose-500'} text-white px-1 py-0.5 rounded uppercase tracking-tighter shadow-sm`}>{log.type}</span>
                                                             {log.pd && <span className="text-[5px] font-black bg-indigo-500 text-white px-1 py-0.5 rounded uppercase tracking-tighter shadow-sm">PD {log.pd}</span>}
+                                                            {log.ne && <span className="text-[5px] font-black bg-[#ecfdf5] text-[#064e3b] border border-[#047857] px-1 py-0.5 rounded uppercase tracking-tighter shadow-sm">NE {log.ne}</span>}
                                                         </div>
                                                         <h4 className="text-[8px] font-black text-slate-800 uppercase leading-tight mb-0.5 line-clamp-2 h-7 group-hover:text-indigo-600 transition-colors">{log.supplierName}</h4>
                                                     </div>
