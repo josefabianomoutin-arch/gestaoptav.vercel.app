@@ -82,6 +82,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   const [newItem, setNewItem] = useState({ name: '', kg: 0, value: 0, lotNumber: '', expirationDate: '', barcode: '' });
     const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
     const [originalInvoiceNumber, setOriginalInvoiceNumber] = useState<string>('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
@@ -411,9 +412,9 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
     // Search in perCapitaConfig
     if (perCapitaConfig && cleanActiveCpf) {
-        const pEntry = ensureArray<any>(perCapitaConfig.ppaisProducers).find((p: any) => cleanStr(p.cpfCnpj) === cleanActiveCpf);
-        const fEntry = ensureArray<any>(perCapitaConfig.pereciveisSuppliers).find((f: any) => cleanStr(f.cpfCnpj) === cleanActiveCpf);
-        const eEntry = ensureArray<any>(perCapitaConfig.estocaveisSuppliers).find((e: any) => cleanStr(e.cpfCnpj) === cleanActiveCpf);
+        const pEntry = ensureArray<any>(perCapitaConfig.ppaisProducers).find((p: any) => cleanStr(p.cpfCnpj || p.cpf) === cleanActiveCpf);
+        const fEntry = ensureArray<any>(perCapitaConfig.pereciveisSuppliers).find((f: any) => cleanStr(f.cpfCnpj || f.cpf) === cleanActiveCpf);
+        const eEntry = ensureArray<any>(perCapitaConfig.estocaveisSuppliers).find((e: any) => cleanStr(e.cpfCnpj || e.cpf) === cleanActiveCpf);
         const pcEntry = pEntry || fEntry || eEntry;
         
         if (pcEntry) {
@@ -424,21 +425,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
         }
     }
 
-    // Include all acquisitionItems regardless of supplier
-    ensureArray(acquisitionItems).forEach(ai => {
-       if (ai.name) items.add(ai.name);
-    });
-
-    // Also include items already in warehouseLog for this supplier
-    warehouseLog.forEach(log => {
-        if (cleanStr(log.supplierCpf) === cleanActiveCpf || cleanStr(log.supplierName) === cleanStr(selectedSupplier?.name)) {
-            const name = log.itemName || log.item;
-            if (name) items.add(name);
-        }
-    });
-
-    return Array.from(items).sort();
-  }, [suppliers, perCapitaConfig, manualEntryData.supplierCpf, editingInvoice?.supplierCpf, warehouseLog, acquisitionItems]);
+    return Array.from(items).sort((a, b) => a.localeCompare(b));
+  }, [suppliers, perCapitaConfig, manualEntryData.supplierCpf, editingInvoice?.supplierCpf]);
 
   const handleManualSave = async () => {
     if (!manualEntryData.supplierCpf || !manualEntryData.invoiceNumber || !manualEntryData.date) {
@@ -449,39 +437,45 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
         toast.error("Adicione pelo menos um item à nota.");
         return;
     }
-    const res = await onManualInvoiceEntry(
-        manualEntryData.supplierCpf, 
-        manualEntryData.date, 
-        manualEntryData.invoiceNumber, 
-        manualEntryData.items.map(it => ({
-            name: it.name,
-            kg: it.kg,
-            value: it.value,
-            lotNumber: it.lotNumber || 'MANUAL',
-            expirationDate: it.expirationDate,
-            barcode: it.barcode
-        })), 
-        '', '', 
-        manualEntryData.date, 
-        manualEntryData.pd,
-        manualEntryData.type as any,
-        undefined,
-        manualEntryData.ne
-    );
-    if (res.success) {
-        toast.success("NF registrada com sucesso!");
-        setIsManualModalOpen(false);
-        setManualEntryData({ 
-            supplierCpf: '', 
-            date: '', 
-            invoiceNumber: '', 
-            pd: '', 
-            ne: '',
-            type: mode === 'warehouse_exit' ? 'saída' : 'entrada',
-            items: []
-        });
-    } else {
-        toast.error(res.message || "Erro ao registrar NF.");
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+        const res = await onManualInvoiceEntry(
+            manualEntryData.supplierCpf, 
+            manualEntryData.date, 
+            manualEntryData.invoiceNumber, 
+            manualEntryData.items.map(it => ({
+                name: it.name,
+                kg: it.kg,
+                value: it.value,
+                lotNumber: it.lotNumber || 'MANUAL',
+                expirationDate: it.expirationDate,
+                barcode: it.barcode
+            })), 
+            '', '', 
+            manualEntryData.date, 
+            manualEntryData.pd,
+            manualEntryData.type as any,
+            undefined,
+            manualEntryData.ne
+        );
+        if (res.success) {
+            toast.success("NF registrada com sucesso!");
+            setIsManualModalOpen(false);
+            setManualEntryData({ 
+                supplierCpf: '', 
+                date: '', 
+                invoiceNumber: '', 
+                pd: '', 
+                ne: '',
+                type: mode === 'warehouse_exit' ? 'saída' : 'entrada',
+                items: []
+            });
+        } else {
+            toast.error(res.message || "Erro ao registrar NF.");
+        }
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -1050,7 +1044,9 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                   </div>
                   <div className="p-6 bg-zinc-50 border-t border-gray-100 flex gap-2.5">
                       <button onClick={() => setIsManualModalOpen(false)} className="flex-1 bg-white border border-gray-200 h-12 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-gray-50 active:scale-95 transition-all">Cancelar</button>
-                      <button onClick={handleManualSave} className="flex-1 bg-indigo-600 text-white h-12 rounded-xl font-black text-[9px] uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all">Confirmar Registro</button>
+                      <button onClick={handleManualSave} disabled={isSubmitting} className="flex-1 bg-indigo-600 text-white h-12 rounded-xl font-black text-[9px] uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        {isSubmitting ? 'Salvando...' : 'Confirmar Registro'}
+                      </button>
                   </div>
               </motion.div>
           </div>
