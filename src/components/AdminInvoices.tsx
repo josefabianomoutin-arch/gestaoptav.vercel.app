@@ -100,9 +100,12 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     const invoices: any[] = [];
     const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
 
+    const processedCpfs = new Set<string>();
+
     ensureArray(suppliers).forEach(supplier => {
       if (!supplier) return;
-          const deliveries = ensureArray(supplier.deliveries) as Delivery[];
+      processedCpfs.add(cleanStr(supplier.cpf));
+      const deliveries = ensureArray(supplier.deliveries) as Delivery[];
           const grouped = deliveries.reduce((acc, d) => {
             if (!d || d.item === 'AGENDAMENTO PENDENTE') return acc;
             const invoiceNum = String(d.invoiceNumber || 'S/N').trim();
@@ -179,6 +182,9 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
       pcLists.forEach(listKey => {
         ensureArray(perCapitaConfig[listKey]).forEach((pcSupplier: any) => {
           if (!pcSupplier) return;
+          const pcCpf = cleanStr(pcSupplier.cpfCnpj || pcSupplier.cpf);
+          if (processedCpfs.has(pcCpf)) return;
+          processedCpfs.add(pcCpf);
 
           const deliveries = ensureArray(pcSupplier.deliveries) as any[];
           const grouped = deliveries.reduce((acc, d) => {
@@ -241,7 +247,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
         // Check if item is already in existing invoice
         const hasItem = existingInv.items.some((it: any) => 
           cleanStr(it.item) === cleanStr(log.item || log.itemName) && 
-          it.kg === (log.kg || log.quantity) &&
+          Number(it.kg || 0) === Number(log.kg || log.quantity || 0) &&
           cleanStr(it.barcode) === cleanStr(log.barcode)
         );
         if (!hasItem) {
