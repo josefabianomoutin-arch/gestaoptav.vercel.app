@@ -150,10 +150,10 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
     
     return PTRES_OPTIONS.map(p => {
       const naturezas = allNaturezas.map(n => {
-        const rec = records.filter(r => r.ptres.trim() === p && r.natureza === n && r.tipo === 'RECURSO')
+        const rec = records.filter(r => (r.ptres || '').trim() === p && r.natureza === n && r.tipo === 'RECURSO')
                            .reduce((acc, curr) => acc + (Number(curr.valorRecebido) || 0), 0);
-        const gast = records.filter(r => r.ptres.trim() === p && r.natureza === n && r.tipo === 'DESPESA')
-                            .reduce((acc, curr) => acc + Number(curr.valorUtilizado), 0);
+        const gast = records.filter(r => (r.ptres || '').trim() === p && r.natureza === n && r.tipo === 'DESPESA')
+                            .reduce((acc, curr) => acc + (Number(curr.valorUtilizado) || 0), 0);
         return { 
             codigo: n, 
             label: n === '339030' ? 'Peças / Materiais' : n === '339039' ? 'Outros Serviços' : 'Outros', 
@@ -178,8 +178,8 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
 
   const filteredRecords = useMemo(() => {
     return records.filter(r => {
-        const matchesSearch = r.ptres.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            r.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        const matchesSearch = (r.ptres || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (r.descricao || r.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (r.numeroProcesso || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (r.numeroEmpenho || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (r.modalidade || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -484,7 +484,7 @@ const MovementsGrid: React.FC<{ allRecords: FinancialRecord[], filteredRecords: 
     return (
         <div className="space-y-16">
             {PTRES_OPTIONS.map(ptres => {
-                const groupDisplayRecords = filteredRecords.filter(r => r.ptres.trim() === ptres);
+                const groupDisplayRecords = filteredRecords.filter(r => (r.ptres || '').trim() === ptres);
                 if (groupDisplayRecords.length === 0) return null;
 
                 return (
@@ -509,7 +509,7 @@ const MovementsGrid: React.FC<{ allRecords: FinancialRecord[], filteredRecords: 
                                 if (natRecords.length === 0) return null;
 
                                 // CÁLCULO DE VALORES POR NATUREZA DENTRO DO PTRES
-                                const natTotals = allRecords.filter(r => r.ptres.trim() === ptres && r.natureza === natureza).reduce((acc, r) => {
+                                const natTotals = allRecords.filter(r => (r.ptres || '').trim() === ptres && r.natureza === natureza).reduce((acc, r) => {
                                     if (r.tipo === 'RECURSO') acc.recurso += (Number(r.valorRecebido) || 0);
                                     if (r.tipo === 'DESPESA') acc.gasto += (Number(r.valorUtilizado) || 0);
                                     return acc;

@@ -17,7 +17,7 @@ import InfobarTicker from './components/InfobarTicker';
 import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
 import { app } from './firebaseConfig';
 import { getCombinedSuppliers } from './lib/supplierUtils';
-import { ensureArray } from './lib/utils';
+import { ensureArray, safeLocalStorageSetItem } from './lib/utils';
 
 let database: any;
 let rootRef: any;
@@ -183,11 +183,7 @@ const App: React.FC = () => {
         cpf: value.cpf || key // Ensure CPF is taken from key if missing
       })) : [];
       setSuppliers(list as Supplier[]);
-      try {
-        localStorage.setItem('cached_suppliers', JSON.stringify(list));
-      } catch (e) {
-        console.warn("Failed to cache suppliers:", e);
-      }
+      safeLocalStorageSetItem('cached_suppliers', JSON.stringify(list));
     });
     onValue(warehouseLogRef, (snapshot) => {
       const data = snapshot.val();
@@ -196,18 +192,14 @@ const App: React.FC = () => {
         id: value.id || key
       })) : [];
       setWarehouseLog(list as WarehouseMovement[]);
-      try {
-        localStorage.setItem('cached_warehouseLog', JSON.stringify(list));
-      } catch (e) {
-        console.warn("Failed to cache warehouseLog:", e);
-      }
+      safeLocalStorageSetItem('cached_warehouseLog', JSON.stringify(list));
     });
     onValue(perCapitaConfigRef, (snapshot) => {
       const data = snapshot.val();
       console.log("Firebase PerCapitaConfig Data:", data);
       const config = data || {};
       setPerCapitaConfig(config);
-      localStorage.setItem('cached_perCapitaConfig', JSON.stringify(config));
+      safeLocalStorageSetItem('cached_perCapitaConfig', JSON.stringify(config));
     });
     onValue(cleaningLogsRef, (snapshot) => {
       const data = snapshot.val();
@@ -239,13 +231,13 @@ const App: React.FC = () => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setThirdPartyEntries(list as ThirdPartyEntryLog[]);
-      localStorage.setItem('cached_thirdPartyEntries', JSON.stringify(list));
+      safeLocalStorageSetItem('cached_thirdPartyEntries', JSON.stringify(list));
     });
     onValue(acquisitionItemsRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setAcquisitionItems(list as AcquisitionItem[]);
-      localStorage.setItem('cached_acquisitionItems', JSON.stringify(list));
+      safeLocalStorageSetItem('cached_acquisitionItems', JSON.stringify(list));
     });
     onValue(vehicleExitOrdersRef, (snapshot) => {
       const data = snapshot.val();

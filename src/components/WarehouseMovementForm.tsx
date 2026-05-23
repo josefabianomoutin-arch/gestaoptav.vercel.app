@@ -3,6 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, X, Package, Calendar, FileText, Barcode, Copy, Printer, Trash2 } from 'lucide-react';
 import type { Supplier, WarehouseMovement } from '../types';
 import { toast } from 'sonner';
+import { safeLocalStorageSetItem } from '../lib/utils';
 
 interface WarehouseMovementFormProps {
     suppliers: Supplier[];
@@ -541,7 +542,11 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                 timestamp: new Date().toISOString()
             }));
             offlineEntries.push(...newEntries);
-            localStorage.setItem('offline_warehouse_entries', JSON.stringify(offlineEntries));
+            try {
+                safeLocalStorageSetItem('offline_warehouse_entries', JSON.stringify(offlineEntries));
+            } catch (e) {
+                console.error("Failed to write offline entries to local storage:", e);
+            }
             alert("Sistema offline! Lançamentos salvos localmente para futura sincronização.");
             setItems([]);
             setManualNf('');

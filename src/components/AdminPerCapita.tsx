@@ -111,8 +111,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [perCapitaConfig]);
 
     useEffect(() => {
-        localStorage.setItem('perCapita_staffCount', staffCount.toString());
-        localStorage.setItem('perCapita_inmateCount', inmateCount.toString());
+        try {
+            localStorage.setItem('perCapita_staffCount', staffCount.toString());
+            localStorage.setItem('perCapita_inmateCount', inmateCount.toString());
+        } catch (e) {
+            console.warn("Could not preserve staff/inmate count locally:", e);
+        }
     }, [staffCount, inmateCount]);
 
     const handleSave = async () => {

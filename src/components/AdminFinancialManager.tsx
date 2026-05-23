@@ -304,12 +304,12 @@ const AdminFinancialManager: React.FC<AdminFinancialManagerProps> = ({ records, 
             <p>Data de Emissão: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
             
             ${PTRES_OPTIONS.map(ptres => {
-                const ptresRecords = records.filter(r => r.ptres.trim() === ptres);
+                const ptresRecords = records.filter(r => (r.ptres || '').trim() === ptres);
                 if (ptresRecords.length === 0) return '';
 
                 const ptresTotals = ptresRecords.reduce((acc, r) => ({
                     rec: acc.rec + (r.tipo === 'RECURSO' ? (Number(r.valorRecebido) || 0) : 0),
-                    gast: acc.gast + (r.tipo === 'DESPESA' ? Number(r.valorUtilizado) : 0)
+                    gast: acc.gast + (r.tipo === 'DESPESA' ? (Number(r.valorUtilizado) || 0) : 0)
                 }), { rec: 0, gast: 0 });
 
                 return `
@@ -374,10 +374,10 @@ const AdminFinancialManager: React.FC<AdminFinancialManagerProps> = ({ records, 
     
     return PTRES_OPTIONS.map(p => {
       const naturezas = allNaturezas.map(n => {
-        const rec = records.filter(r => r.ptres.trim() === p && r.natureza === n && r.tipo === 'RECURSO')
+        const rec = records.filter(r => (r.ptres || '').trim() === p && r.natureza === n && r.tipo === 'RECURSO')
                            .reduce((acc, curr) => acc + (Number(curr.valorRecebido) || 0), 0);
-        const gast = records.filter(r => r.ptres.trim() === p && r.natureza === n && r.tipo === 'DESPESA')
-                            .reduce((acc, curr) => acc + Number(curr.valorUtilizado), 0);
+        const gast = records.filter(r => (r.ptres || '').trim() === p && r.natureza === n && r.tipo === 'DESPESA')
+                            .reduce((acc, curr) => acc + (Number(curr.valorUtilizado) || 0), 0);
         return { 
             codigo: n!, 
             label: n === '339030' ? 'Peças / Materiais' : n === '339039' ? 'Outros Serviços' : 'Outros', 
@@ -642,7 +642,7 @@ const AdminFinancialManager: React.FC<AdminFinancialManagerProps> = ({ records, 
             </button>
         </div>
         {PTRES_OPTIONS.map(ptres => {
-          const ptresRecords = records.filter(r => r.ptres.trim() === ptres);
+          const ptresRecords = records.filter(r => (r.ptres || '').trim() === ptres);
           if (ptresRecords.length === 0) return null;
 
           return (

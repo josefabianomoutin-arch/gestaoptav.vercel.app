@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Upload, Download, RefreshCw, Database, Package, Trash2, TrendingUp, BarChart as BarChartIcon, Monitor, Loader2, Users, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { safeLocalStorageSetItem } from '../lib/utils';
 
 interface SynchronizationModuleProps {
     onSyncWithFirebase: (data: any[]) => Promise<boolean>;
@@ -208,10 +209,10 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
                 const { suppliers, items, config, menu } = data.payload;
                 
                 // Save to local storage for offline use
-                localStorage.setItem('cached_suppliers', JSON.stringify(suppliers));
-                localStorage.setItem('cached_acquisitionItems', JSON.stringify(items));
-                localStorage.setItem('cached_perCapitaConfig', JSON.stringify(config));
-                localStorage.setItem('cached_standardMenu', JSON.stringify(menu));
+                safeLocalStorageSetItem('cached_suppliers', JSON.stringify(suppliers));
+                safeLocalStorageSetItem('cached_acquisitionItems', JSON.stringify(items));
+                safeLocalStorageSetItem('cached_perCapitaConfig', JSON.stringify(config));
+                safeLocalStorageSetItem('cached_standardMenu', JSON.stringify(menu));
 
                 toast.success("Base de dados local atualizada! Recarregue a página para aplicar.");
                 setTimeout(() => window.location.reload(), 1500);
@@ -310,7 +311,11 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
         const newList = [...pendingEntries];
         newList.splice(index, 1);
         setPendingEntries(newList);
-        localStorage.setItem('offline_warehouse_entries', JSON.stringify(newList));
+        try {
+            safeLocalStorageSetItem('offline_warehouse_entries', JSON.stringify(newList));
+        } catch (e) {
+            console.error("Failed to update pending offline entries storage:", e);
+        }
         toast.success("Lançamento offline removido.");
     };
 
@@ -418,7 +423,11 @@ const SynchronizationModule: React.FC<SynchronizationModuleProps> = ({ onSyncWit
                                         value={syncPath}
                                         onChange={(e) => {
                                             setSyncPath(e.target.value);
-                                            localStorage.setItem('sync_path_local', e.target.value);
+                                            try {
+                                                localStorage.setItem('sync_path_local', e.target.value);
+                                            } catch (err) {
+                                                console.warn("Could not save sync path locally:", err);
+                                            }
                                         }}
                                         placeholder="Ex: Z:\Sincronizacao"
                                         className="w-full bg-white border border-indigo-100 rounded-xl pl-3 pr-10 py-2.5 text-[10px] font-mono focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm shadow-indigo-50 transition-all"
