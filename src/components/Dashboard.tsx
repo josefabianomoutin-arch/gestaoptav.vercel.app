@@ -427,38 +427,81 @@ const Dashboard: React.FC<DashboardProps> = ({
   const allowedWeeksArray = supplier.allowedWeeks || [];
   const todayWeek = getWeekNumber(SIMULATED_TODAY);
   
+  const lateWeeks: number[] = [];
+
   // 1. If there are pending appointments in the past
-  const hasPastPending = deliveriesList.some(d => {
+  deliveriesList.forEach(d => {
     if (d.item === 'AGENDAMENTO PENDENTE') {
       const dDate = new Date(d.date + 'T00:00:00');
-      return dDate < SIMULATED_TODAY;
+      if (dDate < SIMULATED_TODAY) {
+        const wNo = getWeekNumber(dDate);
+        if (!lateWeeks.includes(wNo)) {
+          lateWeeks.push(wNo);
+        }
+      }
     }
-    return false;
   });
-  
-  let isLateCalc = hasPastPending;
 
   // 2. Check each allowed week prior to today's week
-  if (!isLateCalc) {
-    for (const w of allowedWeeksArray) {
-      if (w < todayWeek) {
-        // Did they deliver in this week?
-        const hasDelivery = deliveriesList.some(d => {
-          const dDate = new Date(d.date + 'T00:00:00');
-          const isCompleted = d.item !== 'AGENDAMENTO PENDENTE' && (d.invoiceNumber || d.invoiceUploaded);
-          return getWeekNumber(dDate) === w && isCompleted;
-        });
-        if (!hasDelivery) {
-          isLateCalc = true;
-          break;
+  for (const w of allowedWeeksArray) {
+    if (w < todayWeek) {
+      // Did they deliver in this week?
+      const hasDelivery = deliveriesList.some(d => {
+        const dDate = new Date(d.date + 'T00:00:00');
+        const isCompleted = d.item !== 'AGENDAMENTO PENDENTE' && (d.invoiceNumber || d.invoiceUploaded);
+        return getWeekNumber(dDate) === w && isCompleted;
+      });
+      if (!hasDelivery) {
+        if (!lateWeeks.includes(w)) {
+          lateWeeks.push(w);
         }
       }
     }
   }
 
+  lateWeeks.sort((a, b) => a - b);
+  const isLateCalc = lateWeeks.length > 0;
+
+  // 3. Invoice or PDF missing (pendência de envio da nota fiscal)
+  const hasInvoicePendency = deliveriesList.some(d => {
+    if (d.item === 'AGENDAMENTO PENDENTE') return false;
+    const dDate = new Date(d.date + 'T00:00:00');
+    // Past or today deliveries that are completed but don't have invoiceNumber or invoiceUrl
+    return dDate <= SIMULATED_TODAY && (!d.invoiceNumber || !d.invoiceUrl);
+  });
+
+  // 4. Current week alert check: was the current week allowed but no delivery has been scheduled yet?
+  const isCurrentWeekAllowed = allowedWeeksArray.includes(todayWeek);
+  const hasDeliveryInCurrentWeek = deliveriesList.some(d => {
+    const dDate = new Date(d.date + 'T00:00:00');
+    return getWeekNumber(dDate) === todayWeek;
+  });
+  const needsSchedulingCurrentWeek = isCurrentWeekAllowed && !hasDeliveryInCurrentWeek;
+
+  // Let's build the array of warning messages to display inside the marquee
+  const alertMessages: string[] = [];
+
+  if (isLateCalc) {
+    const weekLabel = lateWeeks.length === 1 ? 'SEMANA' : 'SEMANAS';
+    alertMessages.push(`⚠️ ATENÇÃO, CONFORME AGENDAMENTOS E CRONOGRAMAS HÁ ENTREGAS A SEREM REALIZADAS • ENTREGA EM ATRASO (${weekLabel}: ${lateWeeks.join(', ')})`);
+  }
+
+  if (hasInvoicePendency) {
+    alertMessages.push("⚠️ CONSTA PENDENCIA DE ENVIO DA NOTA FISCAL - FAVOR REGULARIZAR");
+  }
+
+  if (needsSchedulingCurrentWeek) {
+    alertMessages.push("⚠️ ATENÇÃO SEMANA DE ENTREGA REALIZAR O AGENDAMENTO");
+  }
+
+  const isYellowAlert = alertMessages.length > 0;
+  const marqueeText = isYellowAlert 
+    ? alertMessages.join(' • ') 
+    : '✅ ENTREGA DENTRO DO CRONOGRAMA • PARABÉNS! SEU CONTRATO ENCONTRA-SE TOTALMENTE EM DIA COM TODAS AS ENTREGAS PROGRAMADAS! AGRADECEMOS SUA EFICIÊNCIA • ENTREGA DENTRO DO CRONOGRAMA ✅';
+
   const deliveryStatus = {
-    isLate: isLateCalc,
-    message: isLateCalc ? 'ENTREGA EM ATRASO' : 'ENTREGA DENTRO DO CRONOGRAMA'
+    isLate: isYellowAlert,
+    message: marqueeText
   };
 
   return (
@@ -505,10 +548,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </span>
             <div className="flex-1 overflow-hidden select-none">
               <marquee className="font-extrabold text-[11px] uppercase tracking-wider block" scrollamount="4">
-                {deliveryStatus.isLate 
-                  ? '⚠️ ENTREGA EM ATRASO • ATENÇÃO, CONFORME AGENDAMENTOS E CRONOGRAMAS HÁ ENTREGAS NÃO FINALIZADAS! POR FAVOR COMPAREÇA OU ENTRE EM CONTATO COM O ALMOXARIFADO DE TAIÚVA • ENTREGA EM ATRASO ⚠️' 
-                  : '✅ ENTREGA DENTRO DO CRONOGRAMA • PARABÉNS! SEU CONTRATO ENCONTRA-SE TOTALMENTE EM DIA COM TODAS AS ENTREGAS PROGRAMADAS! AGRADECEMOS SUA EFICIÊNCIA • ENTREGA DENTRO DO CRONOGRAMA ✅'
-                }
+                {deliveryStatus.message}
               </marquee>
             </div>
           </div>
