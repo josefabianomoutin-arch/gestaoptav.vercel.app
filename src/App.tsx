@@ -687,6 +687,9 @@ const App: React.FC = () => {
 
   const handleScheduleDelivery = useCallback(async (supplierCpf: string, date: string, time: string) => {
     try {
+      const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+      const targetCpf = clean(supplierCpf);
+
       // Check Per Capita suppliers FIRST to prioritize Per Capita scheduling
       const timeoutPromisePC = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao agendar entrega Per Capita')), 10000));
       
@@ -695,7 +698,7 @@ const App: React.FC = () => {
         runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
           if (currentData) {
               const findAndAdd = (list: any[] | undefined) => {
-                const s = list?.find(p => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
+                const s = list?.find(p => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
                 if (s) {
                   const deliveries = Array.isArray(s.deliveries) ? [...s.deliveries] : Object.values(s.deliveries || {});
                   deliveries.push({
@@ -722,12 +725,36 @@ const App: React.FC = () => {
         timeoutPromisePC
       ]);
 
-      if (pcFound) return;
+      if (pcFound) {
+        toast.success('Agendamento realizado!');
+        return;
+      }
+
+      // If not in per capita lists, schedule inside the Main Suppliers list
+      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      if (mainSupplier) {
+        const supRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
+        await runTransaction(supRef, (current) => {
+          const list = ensureArray<any>(current);
+          list.push({
+            id: `del-${Date.now()}`,
+            date,
+            time,
+            item: 'AGENDAMENTO PENDENTE',
+            invoiceUploaded: false
+          });
+          return list;
+        });
+        toast.success('Agendamento realizado!');
+        return;
+      }
+
+      toast.error('Fornecedor não encontrado para agendar.');
     } catch (error) {
       console.error('Erro ao agendar entrega:', error);
       toast.error('Erro ao agendar entrega.');
     }
-  }, []);
+  }, [suppliers]);
 
   const handleUpdateInvoiceUrl = useCallback(async (supplierCpf: string, invoiceNumber: string, finalInvoiceUrl: string) => {
     try {
@@ -2905,7 +2932,7 @@ const App: React.FC = () => {
         );
       }
 
-      const currentSupplier = suppliers.find(s => s.cpf === user.cpf);
+      const currentSupplier = suppliers.find(s => s && s.cpf && String(s.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
       if (currentSupplier) {
         // Calculate weeks from Per Capita if registered
         let finalWeeks = ensureArray<number>(currentSupplier.allowedWeeks).filter(w => w <= 18);
@@ -2935,8 +2962,19 @@ const App: React.FC = () => {
             finalWeeks = Array.from(new Set([...finalWeeks, ...Array.from(extraWeeks)])).sort((a, b) => a - b);
         }
 
+        const pDeliveriesRaw = ensureArray<any>(perCapitaEntry?.deliveries);
+        const extDeliveriesRaw = ensureArray<any>(currentSupplier.deliveries);
+        const mergedDeliveries = Array.from(
+          new Map<string, any>(
+            [...pDeliveriesRaw, ...extDeliveriesRaw]
+              .filter(d => d && d.id)
+              .map(d => [String(d.id), d])
+          ).values()
+        );
+
         const supplierWithUpdatedData = {
           ...currentSupplier,
+          deliveries: mergedDeliveries,
           allowedWeeks: finalWeeks
         };
 

@@ -62,13 +62,16 @@ export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any
     const mappedPereciveis = pereciveis.map(mapToSupplier);
     const mappedEstocaveis = estocaveis.map(mapToSupplier);
 
+    const cleanCpf = (c: any) => String(c || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
     const all = [...suppliers, ...mappedProducers, ...mappedPereciveis, ...mappedEstocaveis];
     const uniqueMap = new Map<string, Supplier>();
     all.forEach(s => {
-        if (s.cpf) {
-            const existing = uniqueMap.get(s.cpf);
+        if (s && s.cpf) {
+            const key = cleanCpf(s.cpf);
+            if (!key) return;
+            const existing = uniqueMap.get(key);
             if (!existing) {
-                uniqueMap.set(s.cpf, { ...s });
+                uniqueMap.set(key, { ...s });
             } else {
                 const sDeliveriesRaw = ensureArray<any>(s.deliveries);
                 const extDeliveriesRaw = ensureArray<any>(existing.deliveries);
@@ -83,7 +86,7 @@ export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any
                 const mergedItems = [...extItemsRaw, ...sItemsRaw].filter(item => item && (item.name || (item as any).itemName));
                 const uniqueItems = Array.from(new Map(mergedItems.map((item: any) => [((item.name || item.itemName) + (item.period || '')), item])).values());
 
-                uniqueMap.set(s.cpf, {
+                uniqueMap.set(key, {
                     ...existing,
                     deliveries: uniqueDeliveries,
                     allowedWeeks: mergedWeeks,

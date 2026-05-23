@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ensureArray } from '../lib/utils';
-import type { Supplier, Delivery, WarehouseMovement, AcquisitionItem } from '../types';
+import type { Supplier, WarehouseMovement, AcquisitionItem } from '../types';
 import { Download, Search, FileCheck, Trash2, RotateCcw, Plus, X, Edit2, Printer, Barcode as BarcodeIcon, Upload, Calendar, FileText, Package } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app } from '../firebaseConfig';
@@ -190,7 +190,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     supplierMap.forEach(supplier => {
       const deliveries = supplier.deliveries as any[];
       const grouped = deliveries.reduce((acc, d) => {
-        if (!d || d.item === 'AGENDAMENTO PENDENTE') return acc;
+        if (!d || (d.item === 'AGENDAMENTO PENDENTE' && !d.invoiceNumber)) return acc;
         const invoiceNum = String(d.invoiceNumber || 'S/N').trim();
         const cleanDInvoice = cleanStr(invoiceNum);
         
