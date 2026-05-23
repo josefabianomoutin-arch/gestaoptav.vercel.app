@@ -423,12 +423,50 @@ const Dashboard: React.FC<DashboardProps> = ({
     printWindow.document.close();
   };
 
+  const deliveriesList = ensureArray<any>(supplier.deliveries);
+  const allowedWeeksArray = supplier.allowedWeeks || [];
+  const todayWeek = getWeekNumber(SIMULATED_TODAY);
+  
+  // 1. If there are pending appointments in the past
+  const hasPastPending = deliveriesList.some(d => {
+    if (d.item === 'AGENDAMENTO PENDENTE') {
+      const dDate = new Date(d.date + 'T00:00:00');
+      return dDate < SIMULATED_TODAY;
+    }
+    return false;
+  });
+  
+  let isLateCalc = hasPastPending;
+
+  // 2. Check each allowed week prior to today's week
+  if (!isLateCalc) {
+    for (const w of allowedWeeksArray) {
+      if (w < todayWeek) {
+        // Did they deliver in this week?
+        const hasDelivery = deliveriesList.some(d => {
+          const dDate = new Date(d.date + 'T00:00:00');
+          const isCompleted = d.item !== 'AGENDAMENTO PENDENTE' && (d.invoiceNumber || d.invoiceUploaded);
+          return getWeekNumber(dDate) === w && isCompleted;
+        });
+        if (!hasDelivery) {
+          isLateCalc = true;
+          break;
+        }
+      }
+    }
+  }
+
+  const deliveryStatus = {
+    isLate: isLateCalc,
+    message: isLateCalc ? 'ENTREGA EM ATRASO' : 'ENTREGA DENTRO DO CRONOGRAMA'
+  };
+
   return (
     <div className={`min-h-screen text-gray-800 pb-20 transition-colors duration-500 relative overflow-hidden ${isAbrilVerde ? 'bg-[#f0fdf4]' : 'bg-gray-50'}`}>
       {isAbrilVerde && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none flex flex-col items-center justify-center opacity-[0.015] select-none">
           <h1 className="text-[20vw] font-black text-emerald-900 rotate-[-12deg] whitespace-nowrap">ABRIL VERDE</h1>
-          <h1 className="text-[15vw] font-black text-emerald-900 rotate-[-12deg] whitespace-nowrap mt-[-5vw]">SEGURANÇA</h1>
+          <h1 className="text-[15vw] font-black text-emerald-950 rotate-[-12deg] whitespace-nowrap mt-[-5vw]">SEGURANÇA</h1>
         </div>
       )}
       <header className={`shadow-md p-4 flex justify-between items-center sticky top-0 z-50 transition-all duration-500 ${isAbrilVerde ? 'bg-emerald-950 text-white' : 'bg-white'}`}>
@@ -451,6 +489,31 @@ const Dashboard: React.FC<DashboardProps> = ({
             {isSpeaking ? <Volume2 className="h-5 w-5 animate-pulse" /> : <HelpCircle className="h-5 w-5" />}
           </button>
         </div>
+
+        {/* Letreiro de Texto Corrido (Marquee/Letreiro de Texto) */}
+        <div className="flex-1 max-w-sm md:max-w-xl lg:max-w-3xl mx-6 hidden sm:block">
+          <div className={`px-5 py-3 rounded-2xl flex items-center gap-3.5 overflow-hidden border-2 shadow-sm transition-all duration-350 ${
+            deliveryStatus.isLate 
+              ? 'bg-yellow-50 border-yellow-400 text-yellow-700 font-sans' 
+              : 'bg-green-50 border-green-400 text-green-700 font-sans'
+          }`}>
+            <span className="relative flex h-3 w-3 flex-shrink-0">
+              {deliveryStatus.isLate && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+              )}
+              <span className={`relative inline-flex rounded-full h-3 w-3 ${deliveryStatus.isLate ? 'bg-yellow-500' : 'bg-green-500'}`}></span>
+            </span>
+            <div className="flex-1 overflow-hidden select-none">
+              <marquee className="font-extrabold text-[11px] uppercase tracking-wider block" scrollamount="4">
+                {deliveryStatus.isLate 
+                  ? '⚠️ ENTREGA EM ATRASO • ATENÇÃO, CONFORME AGENDAMENTOS E CRONOGRAMAS HÁ ENTREGAS NÃO FINALIZADAS! POR FAVOR COMPAREÇA OU ENTRE EM CONTATO COM O ALMOXARIFADO DE TAIÚVA • ENTREGA EM ATRASO ⚠️' 
+                  : '✅ ENTREGA DENTRO DO CRONOGRAMA • PARABÉNS! SEU CONTRATO ENCONTRA-SE TOTALMENTE EM DIA COM TODAS AS ENTREGAS PROGRAMADAS! AGRADECEMOS SUA EFICIÊNCIA • ENTREGA DENTRO DO CRONOGRAMA ✅'
+                }
+              </marquee>
+            </div>
+          </div>
+        </div>
+
         <button onClick={onLogout} className={`font-black py-2.5 px-6 rounded-xl transition-all border text-[10px] uppercase tracking-widest active:scale-95 ${isAbrilVerde ? 'bg-emerald-900 text-emerald-100 border-emerald-800 hover:bg-rose-600 hover:text-white hover:border-rose-500' : 'bg-red-50 text-red-600 border-red-100 hover:bg-red-600 hover:text-white'}`}>Sair</button>
       </header>
 
