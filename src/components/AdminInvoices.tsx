@@ -96,6 +96,50 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     onConfirm: () => {},
   });
 
+  const allMappedSuppliers = useMemo(() => {
+    const sList: { id: string; name: string; cpf: string; contractItems?: any[] }[] = [];
+    const seenCpf = new Set<string>();
+    const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+
+    // 1. Add traditional suppliers
+    ensureArray(suppliers).forEach(s => {
+      if (!s) return;
+      const cleanC = cleanStr(s.cpf);
+      if (cleanC && !seenCpf.has(cleanC)) {
+        seenCpf.add(cleanC);
+        sList.push({
+          id: s.id || s.cpf,
+          name: s.name,
+          cpf: s.cpf,
+          contractItems: s.contractItems || []
+        });
+      }
+    });
+
+    // 2. Add perCapitaConfig suppliers/producers from all tabs
+    if (perCapitaConfig) {
+      const pcLists = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+      pcLists.forEach(listKey => {
+        ensureArray(perCapitaConfig[listKey]).forEach((pcSupplier: any) => {
+          if (!pcSupplier) return;
+          const cpf = pcSupplier.cpfCnpj || pcSupplier.cpf || '';
+          const cleanC = cleanStr(cpf);
+          if (cleanC && !seenCpf.has(cleanC)) {
+            seenCpf.add(cleanC);
+            sList.push({
+              id: pcSupplier.id || cpf,
+              name: pcSupplier.name,
+              cpf: cpf,
+              contractItems: pcSupplier.contractItems || []
+            });
+          }
+        });
+      });
+    }
+
+    return sList.sort((a, b) => a.name.localeCompare(b.name));
+  }, [suppliers, perCapitaConfig]);
+
   const allInvoices = useMemo(() => {
     const invoices: any[] = [];
     const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
@@ -409,32 +453,32 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     const activeSupplierCpf = manualEntryData.supplierCpf || editingInvoice?.supplierCpf;
     const cleanActiveCpf = cleanStr(activeSupplierCpf);
     
-    // Search in main suppliers
-    const selectedSupplier = ensureArray(suppliers).find(s => cleanStr(s.cpf) === cleanActiveCpf);
-    if (selectedSupplier) {
-        ensureArray(selectedSupplier.contractItems).forEach((ci: any) => {
+    // Search in all mapped suppliers (traditional + all PPAIS tabs)
+    const matchedSuppliers = allMappedSuppliers.filter(s => cleanStr(s.cpf) === cleanActiveCpf);
+    matchedSuppliers.forEach(supplier => {
+        ensureArray(supplier.contractItems).forEach((ci: any) => {
             if (ci.name) items.add(ci.name);
             if (ci.itemName) items.add(ci.itemName);
         });
-    }
+    });
 
-    // Search in perCapitaConfig
+    // Search specifically in perCapitaConfig as backup
     if (perCapitaConfig && cleanActiveCpf) {
-        const pEntry = ensureArray<any>(perCapitaConfig.ppaisProducers).find((p: any) => cleanStr(p.cpfCnpj || p.cpf) === cleanActiveCpf);
-        const fEntry = ensureArray<any>(perCapitaConfig.pereciveisSuppliers).find((f: any) => cleanStr(f.cpfCnpj || f.cpf) === cleanActiveCpf);
-        const eEntry = ensureArray<any>(perCapitaConfig.estocaveisSuppliers).find((e: any) => cleanStr(e.cpfCnpj || e.cpf) === cleanActiveCpf);
-        const pcEntry = pEntry || fEntry || eEntry;
-        
-        if (pcEntry) {
-            ensureArray<any>(pcEntry.contractItems).forEach((ci: any) => {
-                if (ci.name) items.add(ci.name);
-                if (ci.itemName) items.add(ci.itemName);
+        const pcLists = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+        pcLists.forEach(listKey => {
+            ensureArray<any>(perCapitaConfig[listKey]).forEach((pcSupplier: any) => {
+                if (pcSupplier && cleanStr(pcSupplier.cpfCnpj || pcSupplier.cpf) === cleanActiveCpf) {
+                    ensureArray<any>(pcSupplier.contractItems).forEach((ci: any) => {
+                        if (ci.name) items.add(ci.name);
+                        if (ci.itemName) items.add(ci.itemName);
+                    });
+                }
             });
-        }
+        });
     }
 
     return Array.from(items).sort((a, b) => a.localeCompare(b));
-  }, [suppliers, perCapitaConfig, manualEntryData.supplierCpf, editingInvoice?.supplierCpf]);
+  }, [allMappedSuppliers, perCapitaConfig, manualEntryData.supplierCpf, editingInvoice?.supplierCpf]);
 
   const handleManualSave = async () => {
     if (!manualEntryData.supplierCpf || !manualEntryData.invoiceNumber || !manualEntryData.date) {
@@ -876,7 +920,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Fornecedor</label>
                             <select value={manualEntryData.supplierCpf} onChange={e => setManualEntryData({...manualEntryData, supplierCpf: e.target.value, items: []})} className="w-full bg-slate-50 border-2 border-gray-100 rounded-xl h-10 px-3 shadow-inner outline-none focus:ring-4 focus:ring-indigo-50 font-bold text-[10px] uppercase">
                                 <option value="">Selecione...</option>
-                                {suppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
+                                {allMappedSuppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
                             </select>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
