@@ -225,6 +225,22 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
             pd: d.pd || d.pdNumber || movement?.pdNumber || '',
             ne: d.ne || d.neNumber || movement?.neNumber || ''
           };
+        } else {
+          if (!acc[invKey].invoiceUrl && d.invoiceUrl) {
+            acc[invKey].invoiceUrl = d.invoiceUrl;
+          }
+          if (!acc[invKey].receiptTermNumber && d.receiptTermNumber) {
+            acc[invKey].receiptTermNumber = d.receiptTermNumber;
+          }
+          if (!acc[invKey].nl && d.nl) {
+            acc[invKey].nl = d.nl;
+          }
+          if (!acc[invKey].pd && (d.pd || d.pdNumber)) {
+            acc[invKey].pd = d.pd || d.pdNumber;
+          }
+          if (!acc[invKey].ne && (d.ne || d.neNumber)) {
+            acc[invKey].ne = d.ne || d.neNumber;
+          }
         }
         
         // Tentar buscar o valor registrado no warehouseLog para este item específico desta nota
@@ -760,9 +776,25 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                         )}
                     </div>
                   </td>
-                  <td className="px-3 py-1.5">
+                  <td className="px-3 py-1.5 font-sans">
                     <div className="flex items-center justify-center gap-1">
-                      <button onClick={() => handleOpenPdf(inv.invoiceUrl)} className="p-1 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-600 hover:text-white transition-all" title="Ver PDF"><Download className="h-3 w-3" /></button>
+                      {inv.invoiceUrl ? (
+                        <button 
+                          onClick={() => handleOpenPdf(inv.invoiceUrl)} 
+                          className="p-1.5 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-600 hover:text-white transition-all shadow-xs" 
+                          title="Visualizar Nota Fiscal em PDF"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </button>
+                      ) : (
+                        <button 
+                          disabled 
+                          className="p-1.5 bg-gray-100 text-gray-400 rounded-md cursor-not-allowed shadow-xs opacity-50" 
+                          title="Nenhuma Nota Fiscal anexada pelo produtor"
+                        >
+                          <Download className="h-3.5 w-3.5 animate-pulse" />
+                        </button>
+                      )}
                       
                       {/* Upload Button */}
                       <input 

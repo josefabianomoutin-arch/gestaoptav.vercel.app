@@ -768,6 +768,8 @@ const App: React.FC = () => {
           return Promise.race([fetchPromise, timeout]);
       };
 
+      let anyUpdated = false;
+
       // 1. Check in PerCapita
       const snapshotPC = await fetchWithTimeout(perCapitaConfigRef);
       const currentPC = snapshotPC.val() as PerCapitaConfig;
@@ -788,7 +790,7 @@ const App: React.FC = () => {
             });
             if (updatedAny) {
               await update(child(perCapitaConfigRef, `${lKey}/${idx}`), { deliveries: updatedDeliveries });
-              return { success: true };
+              anyUpdated = true;
             }
           }
         }
@@ -811,12 +813,34 @@ const App: React.FC = () => {
           });
           if (updatedAny) {
             await update(supRef, { deliveries });
-            return { success: true };
+            anyUpdated = true;
           }
         }
       }
 
-      return { success: false, message: 'Dados do fornecedor não encontrados.' };
+      // 3. Check and update in warehouseLog
+      const snapshotLog = await fetchWithTimeout(warehouseLogRef);
+      const currentLog = snapshotLog.val();
+      if (currentLog) {
+        const logUpdates: Record<string, any> = {};
+        let logUpdatedAny = false;
+        Object.entries(currentLog).forEach(([key, record]: [string, any]) => {
+          if (record && clean(record.supplierCpf) === targetCpf && clean(record.invoiceNumber || record.inboundInvoice || record.outboundInvoice) === targetInv) {
+            logUpdates[`${key}/invoiceUrl`] = finalInvoiceUrl;
+            logUpdatedAny = true;
+          }
+        });
+        if (logUpdatedAny) {
+          await update(warehouseLogRef, logUpdates);
+          anyUpdated = true;
+        }
+      }
+
+      if (anyUpdated) {
+        return { success: true };
+      }
+
+      return { success: false, message: 'Dados do fornecedor não encontrados nos cadastros ou nenhuma entrega correspondente.' };
     } catch (e) {
       console.error("Error updating supplier invoice URL:", e);
       return { success: false, message: 'Erro interno ao atualizar nota.' };
