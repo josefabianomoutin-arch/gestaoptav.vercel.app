@@ -144,131 +144,121 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     const invoices: any[] = [];
     const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
 
-    const processedCpfs = new Set<string>();
+    // 1. Unify all supplier definitions and deliveries by CPF to handle dual presence elegantly
+    const supplierMap = new Map<string, { name: string; cpf: string; deliveries: any[] }>();
 
     ensureArray(suppliers).forEach(supplier => {
       if (!supplier) return;
-      processedCpfs.add(cleanStr(supplier.cpf));
-      const deliveries = ensureArray(supplier.deliveries) as Delivery[];
-          const grouped = deliveries.reduce((acc, d) => {
-            if (!d || d.item === 'AGENDAMENTO PENDENTE') return acc;
-            const invoiceNum = String(d.invoiceNumber || 'S/N').trim();
-            const cleanDInvoice = cleanStr(invoiceNum);
-            const movement = warehouseLog.find(log => {
-                const cleanLogInv = cleanStr(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice);
-                const cleanLogItem = cleanStr(log.item || log.itemName);
-                const cleanDItem = cleanStr(d.item);
-                const cleanLogId = cleanStr(log.id);
-                const cleanDId = cleanStr(d.id);
-                return cleanLogInv === cleanDInvoice &&
-                       (cleanLogItem === cleanDItem || (cleanLogId && cleanLogId === cleanDId)) &&
-                       (cleanStr(log.supplierCpf) === cleanStr(supplier.cpf) || cleanStr(log.supplierName) === cleanStr(supplier.name));
-            });
-          const isExit = (d as any).type === 'saída' || (movement && movement.type === 'saída');
-          
-          if (mode === 'warehouse_entry' && isExit) return acc;
-          if (mode === 'warehouse_exit' && !isExit) return acc;
-
-          const invKey = invoiceNum;
-          if (!acc[invKey]) {
-            acc[invKey] = {
-              supplierName: supplier.name,
-              supplierCpf: supplier.cpf,
-              invoiceNumber: invoiceNum,
-              invoiceUrl: d.invoiceUrl,
-              date: d.invoiceDate || d.date, 
-              originalDate: d.date,
-              items: [],
-              isOpened: d.isOpened || false,
-              receiptTermNumber: d.receiptTermNumber,
-              nl: d.nl,
-              pd: d.pd || movement?.pdNumber || '',
-              ne: d.ne || movement?.neNumber || ''
-            };
-          }
-          
-          // Tentar buscar o valor registrado no warehouseLog para este item específico desta nota
-          const itemMovement = warehouseLog.find(log => {
-            const cleanLogInv = cleanStr(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice);
-            const cleanLogItem = cleanStr(log.item || log.itemName);
-            const cleanDItem = cleanStr(d.item);
-            const cleanDId = cleanStr(d.id);
-            const cleanLogId = cleanStr(log.id);
-            
-            return cleanLogInv === cleanDInvoice &&
-                   (cleanLogItem === cleanDItem || (cleanLogId && cleanLogId === cleanDId)) &&
-                   (cleanStr(log.supplierCpf) === cleanStr(supplier.cpf) || cleanStr(log.supplierName) === cleanStr(supplier.name));
-          });
-
-          const itemValue = itemMovement?.value || d.value || 0;
-          const barcode = itemMovement?.barcode || d.barcode || '';
-          acc[invKey].items.push({ 
-            ...d, 
-            value: itemValue, 
-            barcode,
-            lotNumber: itemMovement?.lotNumber || d.lotNumber,
-            expirationDate: itemMovement?.expirationDate || d.expirationDate,
-            pd: itemMovement?.pdNumber || d.pd
-          });
-          
-          if (new Date(d.date) < new Date(acc[invKey].date)) {
-            acc[invKey].date = d.date;
-          }
-        return acc;
-      }, {} as Record<string, any>);
-      
-      Object.values(grouped).forEach(inv => invoices.push(inv));
+      const cleanC = cleanStr(supplier.cpf);
+      if (cleanC) {
+        supplierMap.set(cleanC, {
+          name: supplier.name,
+          cpf: supplier.cpf,
+          deliveries: [...ensureArray(supplier.deliveries)]
+        });
+      }
     });
 
-    // --- FIX: Include perCapitaConfig deliveries ---
     if (perCapitaConfig) {
       const pcLists = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       pcLists.forEach(listKey => {
         ensureArray(perCapitaConfig[listKey]).forEach((pcSupplier: any) => {
           if (!pcSupplier) return;
-          const pcCpf = cleanStr(pcSupplier.cpfCnpj || pcSupplier.cpf);
-          if (processedCpfs.has(pcCpf)) return;
-          processedCpfs.add(pcCpf);
-
-          const deliveries = ensureArray(pcSupplier.deliveries) as any[];
-          const grouped = deliveries.reduce((acc, d) => {
-            if (!d || d.item === 'AGENDAMENTO PENDENTE') return acc;
-            const invoiceNum = String(d.invoiceNumber || 'S/N').trim();
-
-            const isExit = d.type === 'saída' || d.type === 'saida';
-            if (mode === 'warehouse_entry' && isExit) return acc;
-            if (mode === 'warehouse_exit' && !isExit) return acc;
-
-            const invKey = invoiceNum;
-            if (!acc[invKey]) {
-              acc[invKey] = {
-                supplierName: pcSupplier.name,
-                supplierCpf: pcSupplier.cpfCnpj || pcSupplier.cpf,
-                invoiceNumber: invoiceNum,
-                invoiceUrl: d.invoiceUrl,
-                date: d.invoiceDate || d.date,
-                originalDate: d.date,
-                items: [],
-                isOpened: d.isOpened || d.opened || false,
-                receiptTermNumber: d.receiptTermNumber,
-                pd: d.pd || '',
-                ne: d.ne || ''
-              };
+          const cpf = pcSupplier.cpfCnpj || pcSupplier.cpf || '';
+          const cleanC = cleanStr(cpf);
+          if (cleanC) {
+            const currentDeliveries = ensureArray(pcSupplier.deliveries);
+            if (supplierMap.has(cleanC)) {
+              const existing = supplierMap.get(cleanC)!;
+              const mergedDeliveriesMap = new Map<string, any>();
+              existing.deliveries.forEach((d: any) => { if (d && d.id) mergedDeliveriesMap.set(String(d.id), d); });
+              currentDeliveries.forEach((d: any) => { if (d && d.id) mergedDeliveriesMap.set(String(d.id), d); });
+              existing.deliveries = Array.from(mergedDeliveriesMap.values());
+            } else {
+              supplierMap.set(cleanC, {
+                name: pcSupplier.name,
+                cpf: cpf,
+                deliveries: [...currentDeliveries]
+              });
             }
-            
-            acc[invKey].items.push({ ...d });
-
-            if (new Date(d.date) < new Date(acc[invKey].date)) {
-              acc[invKey].date = d.date;
-            }
-
-            return acc;
-          }, {} as Record<string, any>);
-          
-          Object.values(grouped).forEach(inv => invoices.push(inv));
+          }
         });
       });
     }
+
+    // Now group each unified supplier's deliveries into invoices!
+    supplierMap.forEach(supplier => {
+      const deliveries = supplier.deliveries as any[];
+      const grouped = deliveries.reduce((acc, d) => {
+        if (!d || d.item === 'AGENDAMENTO PENDENTE') return acc;
+        const invoiceNum = String(d.invoiceNumber || 'S/N').trim();
+        const cleanDInvoice = cleanStr(invoiceNum);
+        
+        const movement = warehouseLog.find(log => {
+          const cleanLogInv = cleanStr(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice);
+          const cleanLogItem = cleanStr(log.item || log.itemName);
+          const cleanDItem = cleanStr(d.item);
+          const cleanLogId = cleanStr(log.id);
+          const cleanDId = cleanStr(d.id);
+          return cleanLogInv === cleanDInvoice &&
+                 (cleanLogItem === cleanDItem || (cleanLogId && cleanLogId === cleanDId)) &&
+                 (cleanStr(log.supplierCpf) === cleanStr(supplier.cpf) || cleanStr(log.supplierName) === cleanStr(supplier.name));
+        });
+
+        const isExit = d.type === 'saída' || d.type === 'saida' || (movement && movement.type === 'saída');
+        if (mode === 'warehouse_entry' && isExit) return acc;
+        if (mode === 'warehouse_exit' && !isExit) return acc;
+
+        const invKey = invoiceNum;
+        if (!acc[invKey]) {
+          acc[invKey] = {
+            supplierName: supplier.name,
+            supplierCpf: supplier.cpf,
+            invoiceNumber: invoiceNum,
+            invoiceUrl: d.invoiceUrl,
+            date: d.invoiceDate || d.date, 
+            originalDate: d.date,
+            items: [],
+            isOpened: d.isOpened || d.opened || false,
+            receiptTermNumber: d.receiptTermNumber,
+            nl: d.nl,
+            pd: d.pd || d.pdNumber || movement?.pdNumber || '',
+            ne: d.ne || d.neNumber || movement?.neNumber || ''
+          };
+        }
+        
+        // Tentar buscar o valor registrado no warehouseLog para este item específico desta nota
+        const itemMovement = warehouseLog.find(log => {
+          const cleanLogInv = cleanStr(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice);
+          const cleanLogItem = cleanStr(log.item || log.itemName);
+          const cleanDItem = cleanStr(d.item);
+          const cleanDId = cleanStr(d.id);
+          const cleanLogId = cleanStr(log.id);
+          
+          return cleanLogInv === cleanDInvoice &&
+                 (cleanLogItem === cleanDItem || (cleanLogId && cleanLogId === cleanDId)) &&
+                 (cleanStr(log.supplierCpf) === cleanStr(supplier.cpf) || cleanStr(log.supplierName) === cleanStr(supplier.name));
+        });
+
+        const itemValue = itemMovement?.value || d.value || 0;
+        const barcode = itemMovement?.barcode || d.barcode || '';
+        acc[invKey].items.push({ 
+          ...d, 
+          value: itemValue, 
+          barcode,
+          lotNumber: itemMovement?.lotNumber || d.lotNumber,
+          expirationDate: itemMovement?.expirationDate || d.expirationDate,
+          pd: itemMovement?.pdNumber || d.pd
+        });
+        
+        if (new Date(d.date) < new Date(acc[invKey].date)) {
+          acc[invKey].date = d.date;
+        }
+        return acc;
+      }, {} as Record<string, any>);
+      
+      Object.values(grouped).forEach(inv => invoices.push(inv));
+    });
 
     // Mirror entries from warehouseLog that might not be in supplier deliveries
     (warehouseLog || []).forEach(log => {

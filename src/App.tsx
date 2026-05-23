@@ -875,18 +875,7 @@ const App: React.FC = () => {
           await Promise.all(logKeysToDelete.map(key => remove(child(warehouseLogRef, key))));
       }
 
-      // 2. Try Main Suppliers
-      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
-      if (mainSupplier) {
-        const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
-        await runTransaction(deliveriesRef, (current) => {
-          if (!current || !Array.isArray(current)) return current;
-          return current.filter(d => d && d.id !== deliveryId);
-        });
-        return { success: true };
-      }
-
-      // 3. Try Per Capita
+      // 2. Try Per Capita FIRST
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const list = ensureArray(perCapitaConfig[listKey]);
@@ -899,6 +888,17 @@ const App: React.FC = () => {
           });
           return { success: true };
         }
+      }
+
+      // 3. Try Main Suppliers
+      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      if (mainSupplier) {
+        const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
+        await runTransaction(deliveriesRef, (current) => {
+          if (!current || !Array.isArray(current)) return current;
+          return current.filter(d => d && d.id !== deliveryId);
+        });
+        return { success: true };
       }
 
       return { success: true };
@@ -914,19 +914,7 @@ const App: React.FC = () => {
       const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
       const targetCpf = clean(supplierCpf);
 
-      // 1. Try Main Suppliers
-      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
-      if (mainSupplier) {
-        const supRef = child(suppliersRef, mainSupplier.id || targetCpf);
-        const deliveriesRef = child(supRef, `deliveries`);
-        await runTransaction(deliveriesRef, (current) => {
-          if (!current || !Array.isArray(current)) return current;
-          return current.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
-        });
-        return { success: true };
-      }
-
-      // 2. Try Per Capita
+      // 1. Try Per Capita FIRST
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const list = ensureArray(perCapitaConfig[listKey]);
@@ -939,6 +927,18 @@ const App: React.FC = () => {
           });
           return { success: true };
         }
+      }
+
+      // 2. Try Main Suppliers
+      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      if (mainSupplier) {
+        const supRef = child(suppliersRef, mainSupplier.id || targetCpf);
+        const deliveriesRef = child(supRef, `deliveries`);
+        await runTransaction(deliveriesRef, (current) => {
+          if (!current || !Array.isArray(current)) return current;
+          return current.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
+        });
+        return { success: true };
       }
 
       return { success: false, message: 'Lançamento não encontrado.' };
@@ -960,18 +960,7 @@ const App: React.FC = () => {
         updatedAt: new Date().toISOString()
       }));
 
-      const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-      if (isMainSupplier) {
-        const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
-        await runTransaction(deliveriesRef, (current) => {
-          const list = ensureArray<any>(current);
-          const otherDeliveries = list.filter(d => !deliveryIds.includes(d.id));
-          return [...otherDeliveries, ...enrichedDeliveries];
-        });
-        toast.success('Nota Fiscal salva com sucesso!');
-        return;
-      }
-
+      // 1. Try Per Capita FIRST to prioritize Per Capita mappings
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
@@ -987,6 +976,20 @@ const App: React.FC = () => {
           return;
         }
       }
+
+      // 2. Try Main Suppliers
+      const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+      if (isMainSupplier) {
+        const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
+        await runTransaction(deliveriesRef, (current) => {
+          const list = ensureArray<any>(current);
+          const otherDeliveries = list.filter(d => !deliveryIds.includes(d.id));
+          return [...otherDeliveries, ...enrichedDeliveries];
+        });
+        toast.success('Nota Fiscal salva com sucesso!');
+        return;
+      }
+
       toast.error('Fornecedor não encontrado para salvar nota.');
     } catch (e) {
       console.error("Error saving invoice:", e);
@@ -996,18 +999,7 @@ const App: React.FC = () => {
 
   const handleCancelDeliveries = async (supplierCpf: string, deliveryIds: string[]): Promise<void> => {
     try {
-      const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-      if (isMainSupplier) {
-        const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
-        await runTransaction(deliveriesRef, (current) => {
-          if (!current) return current;
-          const list = ensureArray<any>(current);
-          return list.filter(d => !deliveryIds.includes(d.id));
-        });
-        toast.success('Agendamentos excluídos.');
-        return;
-      }
-
+      // 1. Try Per Capita FIRST to prioritize Per Capita mappings
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
@@ -1022,6 +1014,19 @@ const App: React.FC = () => {
           toast.success('Agendamentos excluídos.');
           return;
         }
+      }
+
+      // 2. Try Main Suppliers
+      const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
+      if (isMainSupplier) {
+        const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
+        await runTransaction(deliveriesRef, (current) => {
+          if (!current) return current;
+          const list = ensureArray<any>(current);
+          return list.filter(d => !deliveryIds.includes(d.id));
+        });
+        toast.success('Agendamentos excluídos.');
+        return;
       }
     } catch (e) {
       console.error("Error canceling deliveries:", e);
