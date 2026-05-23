@@ -1437,6 +1437,18 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                 </div>
 
                                                 <div className="p-2 flex flex-col flex-grow">
+                                                    {(() => {
+                                                        const hasPd = !!log.pd && log.pd !== '0' && log.pd !== 0 && String(log.pd).trim() !== '';
+                                                        return (
+                                                            <div className={`text-center py-1.5 px-2 rounded-lg text-[7px] font-black uppercase tracking-wider mb-2 border ${
+                                                                hasPd 
+                                                                ? 'bg-yellow-400 text-yellow-950 border-yellow-500 shadow-xs' 
+                                                                : 'bg-yellow-400 text-yellow-950 border-yellow-500 animate-pulse shadow-sm'
+                                                            }`}>
+                                                                {hasPd ? `PAGAMENTO CONFIRMADO - PD: ${log.pd}` : 'FALTA PAGAMENTO - PD'}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                     <div className="mb-1">
                                                         <div className="flex flex-wrap gap-0.5 mb-1">
                                                             <span className={`text-[5px] font-black ${log.type === 'entrada' ? 'bg-emerald-500' : 'bg-rose-500'} text-white px-1 py-0.5 rounded uppercase tracking-tighter shadow-sm`}>{log.type}</span>
