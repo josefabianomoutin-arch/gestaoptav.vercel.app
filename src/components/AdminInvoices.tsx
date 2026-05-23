@@ -63,7 +63,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   onManualInvoiceEntry,
   mode = 'admin',
   perCapitaConfig,
-  _acquisitionItems = [],
+  acquisitionItems: _acquisitionItems = [],
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter] = useState<'all' | 'pending' | 'opened'>('all');
@@ -748,6 +748,11 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                         return;
                                     }
 
+                                    // Local metadata for path identification
+                                    const cleanCpf = String(inv.supplierCpf || 'S-CPF').replace(/[^\w-]/g, '_');
+                                    const cleanInvoice = String(inv.invoiceNumber || 'S-N').replace(/[^\w-]/g, '_');
+                                    const cleanFileName = file.name.replace(/[^\w.-]/g, '_');
+                                    
                                     toast.loading('Enviando nota...', { id: toastId, description: 'Transferindo arquivo para o servidor...' });
                                     
                                     const uploadPromise = async () => {
