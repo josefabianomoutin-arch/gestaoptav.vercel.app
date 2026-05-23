@@ -41,6 +41,24 @@ const superNormalize = (text: string) => {
         .trim();
 };
 
+const getWeekNumber = (d: Date): number => {
+    const target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    target.setUTCDate(target.getUTCDate() + 4 - (target.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((target.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return weekNo;
+};
+
+const getSundayOfWeek = (year: number, weekNum: number): Date => {
+    const janFirst = new Date(year, 0, 1);
+    const dayOffset = (4 - (janFirst.getDay() || 7));
+    const firstThursday = new Date(year, 0, 1 + dayOffset);
+    const targetThursday = new Date(firstThursday.getTime() + (weekNum - 1) * 7 * 24 * 60 * 60 * 1000);
+    const targetSunday = new Date(targetThursday.getTime() + 3 * 24 * 60 * 60 * 1000);
+    targetSunday.setHours(23, 59, 59, 999);
+    return targetSunday;
+};
+
 const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, suppliers, onDeleteEntry, perCapitaConfig }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<'all' | 'entrada' | 'saída'>('all');
@@ -237,6 +255,33 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         if (deliveredWeight >= monthlyWeight * 0.95) status = 'CONCLUÍDO';
                         else status = 'EM ANDAMENTO';
                     }
+
+                    const [activeYearStr, activeMonthStr] = activeMonthTab.split('-');
+                    const activeYear = parseInt(activeYearStr);
+                    const activeMonthIdx = parseInt(activeMonthStr) - 1;
+
+                    const firstDayOfMonth = new Date(activeYear, activeMonthIdx, 1);
+                    const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
+                    const today = new Date();
+
+                    let isLate = false;
+                    if (status !== 'CONCLUÍDO') {
+                        for (const w of weeks) {
+                            const absoluteWeek = firstWeekOfYear + (w - 1);
+                            const sunday = getSundayOfWeek(activeYear, absoluteWeek);
+                            
+                            if (today > sunday) {
+                                const hasDeliveryInWeek = deliveredForThis.some(l => {
+                                    const dDate = new Date(l.date + 'T00:00:00');
+                                    return getWeekNumber(dDate) === absoluteWeek;
+                                });
+                                if (!hasDeliveryInWeek) {
+                                    isLate = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
                     
                     grouped[it.name].producers.push({
                         supplier: s.name,
@@ -246,7 +291,8 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         totalContractValue: (it.totalKg || 0) * (it.valuePerKg || 0),
                         weeks: weeks,
                         deliveredWeight,
-                        status
+                        status,
+                        isLate
                     });
                     
                     grouped[it.name].totalItemWeight += monthlyWeight;
@@ -573,13 +619,20 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                                 <td className="px-4 py-3 text-right font-mono text-zinc-400 font-bold">{prod.totalContractWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} KG</td>
                                                 <td className="px-4 py-3 text-right font-mono text-zinc-400 font-bold">{formatCurrency(prod.totalContractValue)}</td>
                                                 <td className="px-4 py-3 text-center">
-                                                    <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase italic tracking-tighter ${
-                                                        prod.status === 'CONCLUÍDO' ? 'bg-green-100 text-green-600' :
-                                                        prod.status === 'EM ANDAMENTO' ? 'bg-indigo-100 text-indigo-600' :
-                                                        'bg-gray-100 text-gray-400'
-                                                    }`}>
-                                                        {prod.status}
-                                                    </span>
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase italic tracking-tighter ${
+                                                            prod.status === 'CONCLUÍDO' ? 'bg-green-100 text-green-600' :
+                                                            prod.status === 'EM ANDAMENTO' ? 'bg-indigo-100 text-indigo-600' :
+                                                            'bg-gray-100 text-gray-400'
+                                                        }`}>
+                                                            {prod.status}
+                                                        </span>
+                                                        {prod.isLate && (
+                                                            <span className="bg-yellow-100 text-yellow-700 border-2 border-yellow-400 text-[8px] font-black px-3 py-1 rounded uppercase italic tracking-tighter shadow-sm flex items-center justify-center">
+                                                                EM ATRASO
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}

@@ -431,12 +431,27 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
 
     const normalize = (rows: any[], baseId: string): MenuRow[] => {
       const defaultRow = { period: '', foodItem: '', preparationDetails: '', contractedItem: '', unitWeight: '', totalWeight: '' };
-      return (rows || []).map((row, i) => ({
-        ...defaultRow,
-        ...row,
-        id: row.id || `${baseId}-${i}`,
-        foodItem: row.foodItem || row.description || '', // Compatibility with old data
-      }));
+      return (rows || []).map((row, i) => {
+        let finalContractedItem = row.contractedItem || '';
+        
+        // If the contractedItem is a 2-letter abbreviation, try to resolve it back to the full item name
+        if (finalContractedItem && finalContractedItem.length === 2) {
+          const matchedFullItem = availableContractItems.find(item => 
+            item.toUpperCase().startsWith(finalContractedItem.toUpperCase())
+          );
+          if (matchedFullItem) {
+            finalContractedItem = matchedFullItem;
+          }
+        }
+
+        return {
+          ...defaultRow,
+          ...row,
+          contractedItem: finalContractedItem,
+          id: row.id || `${baseId}-${i}`,
+          foodItem: row.foodItem || row.description || (finalContractedItem ? finalContractedItem.substring(0, 2).toUpperCase() : ''), // Compatibility with old data & auto-generate code
+        };
+      });
     };
 
     let rowsToSet: MenuRow[];
@@ -472,8 +487,11 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
     const updated = [...currentMenu];
     const newRow = { ...updated[index], [field]: value };
 
-    // LÓGICA DE AUTO-PREENCHIMENTO DO PESO UNITÁRIO
+    // LÓGICA DE AUTO-PREENCHIMENTO DO PESO UNITÁRIO E DUAS PRIMEIRAS LETRAS DO ITEM
     if (field === 'contractedItem') {
+        const itemTwoLetters = value ? value.substring(0, 2).toUpperCase() : '';
+        newRow.foodItem = itemTwoLetters;
+
         const suggestedWeight = weightsLookupMap.get(value);
         if (suggestedWeight) {
             newRow.unitWeight = suggestedWeight;
@@ -493,7 +511,8 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onUpdateDailyMenus({ ...dailyMenus, [selectedDate]: currentMenu.filter(r => r.foodItem || r.contractedItem || r.unitWeight || r.preparationDetails) });
+      // Save all 20 rows of currentMenu to keep indices static and avoid disappearing/shifting rows
+      await onUpdateDailyMenus({ ...dailyMenus, [selectedDate]: currentMenu });
       alert(isLoadedFromSaved ? 'Cardápio atualizado com sucesso!' : 'Cardápio do dia salvo com sucesso!');
     } catch {
       alert('Erro ao salvar.');
@@ -628,7 +647,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
                           <tr><td colspan="3" class="period-header">${period}</td></tr>
                           ${groupedMenu[period].map(row => `
                             <tr>
-                              <td>${row.contractedItem || row.foodItem || '-'}</td>
+                              <td>${row.foodItem || row.contractedItem || '-'}</td>
                               <td style="text-align: right;">${row.unitWeight}</td>
                               <td style="text-align: right;">${row.totalWeight}</td>
                             </tr>
@@ -928,16 +947,22 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
                                                 </select>
                                             </td>
                                             <td className="p-1 border">
-                                                <select
-                                                    value={row.contractedItem || ''}
-                                                    onChange={(e) => handleInputChange(idx, 'contractedItem', e.target.value)}
-                                                    className="w-full p-2 bg-transparent outline-none focus:bg-white border-none rounded text-gray-700 font-bold text-xs uppercase"
-                                                >
-                                                    <option value="">-- Selecionar Item --</option>
-                                                    {availableContractItems.map(item => (
-                                                        <option key={item} value={item}>{item}</option>
-                                                    ))}
-                                                </select>
+                                                <div className="relative w-full min-h-[36px]" title={row.contractedItem || 'Nenhum item selecionado'}>
+                                                    <select
+                                                        value={row.contractedItem || ''}
+                                                        onChange={(e) => handleInputChange(idx, 'contractedItem', e.target.value)}
+                                                        className="w-full p-2 bg-transparent outline-none focus:bg-white border-none rounded text-gray-700 font-bold text-xs uppercase opacity-0 focus:opacity-100 absolute inset-0 z-10 cursor-pointer"
+                                                    >
+                                                        <option value="">-- Selecionar Item --</option>
+                                                        {availableContractItems.map(item => (
+                                                            <option key={item} value={item}>{item}</option>
+                                                        ))}
+                                                    </select>
+                                                    <div className="w-full p-2 text-gray-700 font-bold text-xs uppercase pointer-events-none truncate bg-transparent flex items-center justify-between">
+                                                        <span className="truncate">{row.contractedItem ? (row.foodItem || row.contractedItem.substring(0, 2).toUpperCase()) : '-- Selecionar Item --'}</span>
+                                                        <span className="text-gray-400 font-normal ml-1 flex-shrink-0 text-[10px]">▼</span>
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td className="p-1 border">
                                                 <input
