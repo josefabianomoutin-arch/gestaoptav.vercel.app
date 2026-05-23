@@ -950,6 +950,9 @@ const App: React.FC = () => {
 
   const handleSaveInvoice = async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string): Promise<void> => {
     try {
+      const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+      const targetCpf = clean(supplierCpf);
+
       const enrichedDeliveries = updatedDeliveries.map(d => ({
         ...d,
         invoiceNumber,
@@ -964,12 +967,12 @@ const App: React.FC = () => {
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
-        const idx = producers.findIndex((p: any) => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
+        const idx = producers.findIndex((p: any) => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
             const list = ensureArray<any>(current);
-            const otherDeliveries = list.filter(d => !deliveryIds.includes(d.id));
+            const otherDeliveries = list.filter(d => d && !deliveryIds.includes(d.id));
             return [...otherDeliveries, ...enrichedDeliveries];
           });
           toast.success('Nota Fiscal salva com sucesso!');
@@ -978,12 +981,12 @@ const App: React.FC = () => {
       }
 
       // 2. Try Main Suppliers
-      const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-      if (isMainSupplier) {
-        const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
+      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      if (mainSupplier) {
+        const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
         await runTransaction(deliveriesRef, (current) => {
           const list = ensureArray<any>(current);
-          const otherDeliveries = list.filter(d => !deliveryIds.includes(d.id));
+          const otherDeliveries = list.filter(d => d && !deliveryIds.includes(d.id));
           return [...otherDeliveries, ...enrichedDeliveries];
         });
         toast.success('Nota Fiscal salva com sucesso!');
@@ -999,17 +1002,20 @@ const App: React.FC = () => {
 
   const handleCancelDeliveries = async (supplierCpf: string, deliveryIds: string[]): Promise<void> => {
     try {
+      const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+      const targetCpf = clean(supplierCpf);
+
       // 1. Try Per Capita FIRST to prioritize Per Capita mappings
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
-        const idx = producers.findIndex((p: any) => (p.cpfCnpj === supplierCpf || p.cpf === supplierCpf));
+        const idx = producers.findIndex((p: any) => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
             if (!current) return current;
             const list = ensureArray<any>(current);
-            return list.filter(d => !deliveryIds.includes(d.id));
+            return list.filter(d => d && !deliveryIds.includes(d.id));
           });
           toast.success('Agendamentos excluídos.');
           return;
@@ -1017,13 +1023,13 @@ const App: React.FC = () => {
       }
 
       // 2. Try Main Suppliers
-      const isMainSupplier = suppliers.some(s => s.cpf === supplierCpf);
-      if (isMainSupplier) {
-        const deliveriesRef = child(suppliersRef, `${supplierCpf}/deliveries`);
+      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      if (mainSupplier) {
+        const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
         await runTransaction(deliveriesRef, (current) => {
           if (!current) return current;
           const list = ensureArray<any>(current);
-          return list.filter(d => !deliveryIds.includes(d.id));
+          return list.filter(d => d && !deliveryIds.includes(d.id));
         });
         toast.success('Agendamentos excluídos.');
         return;
