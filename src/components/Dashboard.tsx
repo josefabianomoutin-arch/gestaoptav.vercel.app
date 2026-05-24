@@ -518,13 +518,27 @@ const Dashboard: React.FC<DashboardProps> = ({
     return dDate <= SIMULATED_TODAY && (!d.invoiceNumber || !d.invoiceUrl);
   });
 
-  // 4. Current week alert check: was the current week allowed but no delivery has been scheduled yet?
-  const isCurrentWeekAllowed = allowedWeeksArray.includes(todayWeek) && isWeekInArrivedMonth(todayWeek);
-  const hasDeliveryInCurrentWeek = deliveriesList.some(d => {
-    const dDate = new Date(d.date + 'T00:00:00');
-    return getWeekNumber(dDate) === todayWeek;
+  // 4. Current month alert check: are there ANY allowed weeks in the current month (May) that do not have a scheduled delivery yet?
+  const currentMonthName = monthsList[currentMonthIdx]; // "maio"
+  const isWeekInCurrentMonth = (w: number): boolean => {
+    if (supplier.monthlySchedule && Object.keys(supplier.monthlySchedule).length > 0) {
+      const weeksForMonth = supplier.monthlySchedule?.[currentMonthName] || supplier.monthlySchedule?.[currentMonthName.toUpperCase()] || [];
+      return weeksForMonth.includes(w);
+    } else {
+      const wMonthIdx = getWeekMonth(w);
+      const wMonthName = monthsList[wMonthIdx];
+      return wMonthName === currentMonthName;
+    }
+  };
+
+  const hasPendingSchedulingInCurrentMonth = allowedWeeksArray.some(w => {
+    if (!isWeekInCurrentMonth(w)) return false;
+    const hasDeliveryInWeek = deliveriesList.some(d => {
+      const dDate = new Date(d.date + 'T00:00:00');
+      return getWeekNumber(dDate) === w;
+    });
+    return !hasDeliveryInWeek;
   });
-  const needsSchedulingCurrentWeek = isCurrentWeekAllowed && !hasDeliveryInCurrentWeek;
 
   // Let's build the array of warning messages to display inside the marquee
   const alertMessages: string[] = [];
@@ -538,7 +552,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     alertMessages.push("⚠️ CONSTA PENDENCIA DE ENVIO DA NOTA FISCAL - FAVOR REGULARIZAR");
   }
 
-  if (needsSchedulingCurrentWeek) {
+  if (hasPendingSchedulingInCurrentMonth) {
     alertMessages.push("⚠️ ATENÇÃO SEMANA DE ENTREGA REALIZAR O AGENDAMENTO");
   }
 

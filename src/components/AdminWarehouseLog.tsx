@@ -449,22 +449,27 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             // 1. Verify Scheduling Delay (Atraso de Agendamento):
             // Check each allowed week to see if there is any scheduled delivery.
             for (const w of allowedWeeksArray) {
-                if (w <= todayWeek && isWeekInCurrentMonth(w)) {
+                if (isWeekInCurrentMonth(w)) {
                     const deliveriesInWeek = deliveriesList.filter(d => {
                         const dDate = new Date(d.date + 'T00:00:00');
                         return getWeekNumber(dDate) === w;
                     });
 
                     if (deliveriesInWeek.length === 0) {
-                        if (w === todayWeek) {
+                        if (w < todayWeek) {
                             schedulingDelays.push({
                                 week: w,
-                                info: `Semana ${w} (Semana Atual): Necessário realizar o agendamento obrigatório.`
+                                info: `Semana ${w}: Prazo para agendamento expirado (Mês corrente). Nenhuma entrega foi programada.`
+                            });
+                        } else if (w === todayWeek) {
+                            schedulingDelays.push({
+                                week: w,
+                                info: `Semana ${w} (Semana Atual): ATENÇÃO SEMANA DE ENTREGA REALIZAR O AGENDAMENTO`
                             });
                         } else {
                             schedulingDelays.push({
                                 week: w,
-                                info: `Semana ${w}: Prazo para agendamento expirado. Nenhuma entrega foi programada.`
+                                info: `Semana ${w} (Semana Futura): ATENÇÃO SEMANA DE ENTREGA REALIZAR O AGENDAMENTO`
                             });
                         }
                     }
