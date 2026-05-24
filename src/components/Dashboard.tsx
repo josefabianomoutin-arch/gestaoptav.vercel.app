@@ -426,7 +426,47 @@ const Dashboard: React.FC<DashboardProps> = ({
   const deliveriesList = ensureArray<any>(supplier.deliveries);
   const allowedWeeksArray = supplier.allowedWeeks || [];
   const todayWeek = getWeekNumber(SIMULATED_TODAY);
-  
+  const currentMonthIdx = SIMULATED_TODAY.getMonth(); // 4 for May 2026
+
+  const monthsList = [
+    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+  ];
+
+  // Define period-specific months that are valid for activeContractPeriod
+  const periodMonths = activeContractPeriod === '2_3_QUAD'
+    ? ['maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+    : ['janeiro', 'fevereiro', 'março', 'abril'];
+
+  // Filter it down to only months of the current period that have already arrived (<= currentMonthIdx)
+  const arrivedMonths = periodMonths.filter(m => {
+    const mIdx = monthsList.indexOf(m);
+    return mIdx <= currentMonthIdx;
+  });
+
+  // Helper to determine the month of a week number in 2026
+  const getWeekMonth = (weekNum: number): number => {
+    const janFirst = new Date(2026, 0, 1);
+    const dayOffset = (4 - (janFirst.getDay() || 7));
+    const firstThursday = new Date(2026, 0, 1 + dayOffset);
+    const targetThursday = new Date(firstThursday.getTime() + (weekNum - 1) * 7 * 24 * 60 * 60 * 1000);
+    return targetThursday.getMonth();
+  };
+
+  // Helper to verify if a week belongs to any of the arrived months
+  const isWeekInArrivedMonth = (w: number): boolean => {
+    if (supplier.monthlySchedule && Object.keys(supplier.monthlySchedule).length > 0) {
+      return arrivedMonths.some(mName => {
+        const weeksForMonth = supplier.monthlySchedule?.[mName] || supplier.monthlySchedule?.[mName.toUpperCase()] || [];
+        return weeksForMonth.includes(w);
+      });
+    } else {
+      const wMonthIdx = getWeekMonth(w);
+      const wMonthName = monthsList[wMonthIdx];
+      return arrivedMonths.includes(wMonthName);
+    }
+  };
+
   const lateWeeks: number[] = [];
 
   // 1. If there are pending appointments in the past
@@ -435,8 +475,11 @@ const Dashboard: React.FC<DashboardProps> = ({
       const dDate = new Date(d.date + 'T00:00:00');
       if (dDate < SIMULATED_TODAY) {
         const wNo = getWeekNumber(dDate);
-        if (!lateWeeks.includes(wNo)) {
-          lateWeeks.push(wNo);
+        const dMonthName = monthsList[dDate.getMonth()];
+        if (arrivedMonths.includes(dMonthName) && isWeekInArrivedMonth(wNo)) {
+          if (!lateWeeks.includes(wNo)) {
+            lateWeeks.push(wNo);
+          }
         }
       }
     }
@@ -445,15 +488,17 @@ const Dashboard: React.FC<DashboardProps> = ({
   // 2. Check each allowed week prior to today's week
   for (const w of allowedWeeksArray) {
     if (w < todayWeek) {
-      // Did they deliver in this week?
-      const hasDelivery = deliveriesList.some(d => {
-        const dDate = new Date(d.date + 'T00:00:00');
-        const isCompleted = d.item !== 'AGENDAMENTO PENDENTE' && (d.invoiceNumber || d.invoiceUploaded);
-        return getWeekNumber(dDate) === w && isCompleted;
-      });
-      if (!hasDelivery) {
-        if (!lateWeeks.includes(w)) {
-          lateWeeks.push(w);
+      if (isWeekInArrivedMonth(w)) {
+        // Did they deliver in this week?
+        const hasDelivery = deliveriesList.some(d => {
+          const dDate = new Date(d.date + 'T00:00:00');
+          const isCompleted = d.item !== 'AGENDAMENTO PENDENTE' && (d.invoiceNumber || d.invoiceUploaded);
+          return getWeekNumber(dDate) === w && isCompleted;
+        });
+        if (!hasDelivery) {
+          if (!lateWeeks.includes(w)) {
+            lateWeeks.push(w);
+          }
         }
       }
     }
@@ -466,12 +511,15 @@ const Dashboard: React.FC<DashboardProps> = ({
   const hasInvoicePendency = deliveriesList.some(d => {
     if (d.item === 'AGENDAMENTO PENDENTE') return false;
     const dDate = new Date(d.date + 'T00:00:00');
+    const dMonthName = monthsList[dDate.getMonth()];
+    if (!arrivedMonths.includes(dMonthName)) return false;
+
     // Past or today deliveries that are completed but don't have invoiceNumber or invoiceUrl
     return dDate <= SIMULATED_TODAY && (!d.invoiceNumber || !d.invoiceUrl);
   });
 
   // 4. Current week alert check: was the current week allowed but no delivery has been scheduled yet?
-  const isCurrentWeekAllowed = allowedWeeksArray.includes(todayWeek);
+  const isCurrentWeekAllowed = allowedWeeksArray.includes(todayWeek) && isWeekInArrivedMonth(todayWeek);
   const hasDeliveryInCurrentWeek = deliveriesList.some(d => {
     const dDate = new Date(d.date + 'T00:00:00');
     return getWeekNumber(dDate) === todayWeek;

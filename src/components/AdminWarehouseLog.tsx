@@ -392,6 +392,217 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
         printWindow.document.close();
     };
 
+    const handlePrintLateSuppliersPDF = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const SIMULATED_TODAY_LOCAL = new Date('2026-05-07T00:00:00');
+        const todayWeek = getWeekNumber(SIMULATED_TODAY_LOCAL);
+        const currentMonthIdx = SIMULATED_TODAY_LOCAL.getMonth();
+
+        const monthsList = [
+            'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+            'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+        ];
+
+        const activeContractPeriod = currentMonthIdx >= 4 ? '2_3_QUAD' : '1_QUAD';
+
+        const periodMonths = activeContractPeriod === '2_3_QUAD'
+            ? ['maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+            : ['janeiro', 'fevereiro', 'março', 'abril'];
+
+        const arrivedMonths = periodMonths.filter(m => {
+            const mIdx = monthsList.indexOf(m);
+            return mIdx <= currentMonthIdx;
+        });
+
+        const getWeekMonth = (weekNum: number): number => {
+            const janFirst = new Date(2026, 0, 1);
+            const dayOffset = (4 - (janFirst.getDay() || 7));
+            const firstThursday = new Date(2026, 0, 1 + dayOffset);
+            const targetThursday = new Date(firstThursday.getTime() + (weekNum - 1) * 7 * 24 * 60 * 60 * 1000);
+            return targetThursday.getMonth();
+        };
+
+        const suppliersList = ensureArray<Supplier>(suppliers);
+
+        const lateSuppliersData = suppliersList.map(sup => {
+            const deliveriesList = ensureArray<any>(sup.deliveries);
+            const allowedWeeksArray = sup.allowedWeeks || [];
+
+            const isWeekInArrivedMonth = (w: number): boolean => {
+                if (sup.monthlySchedule && Object.keys(sup.monthlySchedule).length > 0) {
+                    return arrivedMonths.some(mName => {
+                        const weeksForMonth = sup.monthlySchedule?.[mName] || sup.monthlySchedule?.[mName.toUpperCase()] || [];
+                        return weeksForMonth.includes(w);
+                    });
+                } else {
+                    const wMonthIdx = getWeekMonth(w);
+                    const wMonthName = monthsList[wMonthIdx];
+                    return arrivedMonths.includes(wMonthName);
+                }
+            };
+
+            const lateWeeks: number[] = [];
+
+            // 1. Pending appointments in the past
+            deliveriesList.forEach(d => {
+                if (d.item === 'AGENDAMENTO PENDENTE') {
+                    const dDate = new Date(d.date + 'T00:00:00');
+                    if (dDate < SIMULATED_TODAY_LOCAL) {
+                        const wNo = getWeekNumber(dDate);
+                        const dMonthName = monthsList[dDate.getMonth()];
+                        if (arrivedMonths.includes(dMonthName) && isWeekInArrivedMonth(wNo)) {
+                            if (!lateWeeks.includes(wNo)) {
+                                lateWeeks.push(wNo);
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 2. Prior allowed weeks with no delivery completed
+            for (const w of allowedWeeksArray) {
+                if (w < todayWeek) {
+                    if (isWeekInArrivedMonth(w)) {
+                        const hasDelivery = deliveriesList.some(d => {
+                            const dDate = new Date(d.date + 'T00:00:00');
+                            const isCompleted = d.item !== 'AGENDAMENTO PENDENTE' && (d.invoiceNumber || d.invoiceUploaded);
+                            return getWeekNumber(dDate) === w && isCompleted;
+                        });
+                        if (!hasDelivery) {
+                            if (!lateWeeks.includes(w)) {
+                                lateWeeks.push(w);
+                            }
+                        }
+                    }
+                }
+            }
+
+            lateWeeks.sort((a, b) => a - b);
+
+            // Invoice pendency
+            const hasInvoicePendency = deliveriesList.some(d => {
+                if (d.item === 'AGENDAMENTO PENDENTE') return false;
+                const dDate = new Date(d.date + 'T00:00:00');
+                const dMonthName = monthsList[dDate.getMonth()];
+                if (!arrivedMonths.includes(dMonthName)) return false;
+
+                return dDate <= SIMULATED_TODAY_LOCAL && (!d.invoiceNumber || !d.invoiceUrl);
+            });
+
+            return {
+                supplier: sup,
+                lateWeeks,
+                hasInvoicePendency,
+                isLate: lateWeeks.length > 0
+            };
+        }).filter(item => item.isLate || item.hasInvoicePendency);
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Relatório de Entregas em Atraso e Pendências</title>
+                <style>
+                    body { font-family: sans-serif; padding: 30px; color: #1f2937; }
+                    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; }
+                    .title { font-size: 20px; font-weight: bold; color: #111827; text-transform: uppercase; margin: 0; }
+                    .meta { font-size: 11px; color: #4b5563; text-align: right; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
+                    th, td { border: 1px solid #e5e7eb; padding: 10px 12px; text-align: left; vertical-align: top; }
+                    th { background-color: #f9fafb; font-weight: bold; color: #374151; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
+                    .late-badge { display: inline-block; background-color: #fef2f2; color: #991b1b; padding: 3px 8px; font-weight: bold; font-size: 9px; border: 1px solid #fee2e2; border-radius: 4px; }
+                    .invoice-badge { display: inline-block; background-color: #fffbeb; color: #92400e; padding: 3px 8px; font-weight: bold; font-size: 9px; border: 1px solid #fef3c7; border-radius: 4px; margin-top: 4px; }
+                    .font-mono { font-family: monospace; }
+                    .font-bold { font-weight: bold; }
+                    .text-gray-500 { color: #6b7280; }
+                    .text-center { text-align: center; }
+                    @media print {
+                        @page { size: A4 portrait; margin: 15mm; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div>
+                        <h1 class="title">Fornecedores com Entregas em Atraso / Pendências</h1>
+                        <p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">Módulo de Estoque - Gestão de Dados P Taiúva 2026</p>
+                    </div>
+                    <div class="meta">
+                        <div>Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}</div>
+                        <div>Hora: ${new Date().toLocaleTimeString('pt-BR')}</div>
+                    </div>
+                </div>
+                
+                <p style="font-size: 12px; margin-bottom: 20px;">
+                    Este relatório lista todos os fornecedores que atualmente possuem entregas em atraso em relação ao cronograma obrigatório e agendamentos ou pendências de uploads de nota fiscal/mídia para o período letivo ativo.
+                </p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 25%;">Fornecedor</th>
+                            <th style="width: 35%;">Tipo de Alimento / Itens Contratados</th>
+                            <th style="width: 20%; text-align: center;">Semanas em Atraso</th>
+                            <th style="width: 20%;">Situação / Pendência</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${lateSuppliersData.length === 0 ? `
+                            <tr>
+                                <td colspan="4" class="text-center" style="padding: 20px; font-style: italic; color: #6b7280;">
+                                    Nenhum fornecedor com entregas em atraso ou pendências de nota fiscal encontrado neste período.
+                                </td>
+                            </tr>
+                        ` : lateSuppliersData.map(item => {
+                            const contractItemsNames = ensureArray<any>(item.supplier.contractItems)
+                                .map(it => it.name)
+                                .join(', ');
+
+                            const statusBadges = [];
+                            if (item.isLate) {
+                                statusBadges.push(`<span class="late-badge">⚠️ ATRASO NA SEMANA</span>`);
+                            }
+                            if (item.hasInvoicePendency) {
+                                statusBadges.push(`<span class="invoice-badge">⚠️ NOTA FISCAL PENDENTE</span>`);
+                            }
+
+                            return `
+                                <tr>
+                                    <td>
+                                        <div class="font-bold">${item.supplier.name}</div>
+                                        <div class="text-gray-500 font-mono" style="font-size: 9px; margin-top: 2px;">CPF/CNPJ: ${item.supplier.cpf}</div>
+                                    </td>
+                                    <td>
+                                        <div style="font-size: 10px; line-height: 1.4;">${contractItemsNames || '-'}</div>
+                                    </td>
+                                    <td class="font-bold font-mono text-center" style="font-size: 12px; color: #b91c1c; vertical-align: middle;">
+                                        ${item.isLate ? item.lateWeeks.join(', ') : '-'}
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                                            ${statusBadges.join('')}
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+
+                <script>
+                    window.onload = () => {
+                        window.print();
+                        window.close();
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
 
     const handlePrintLabel = (item: WarehouseMovement) => {
         const printWindow = window.open('', '_blank');
@@ -483,6 +694,13 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     <div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        <button 
+                            onClick={handlePrintLateSuppliersPDF}
+                            className="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-black py-1.5 px-4 rounded-xl transition-all shadow-sm active:scale-95 uppercase tracking-tighter text-[9px] flex items-center gap-1.5 italic"
+                        >
+                            <Clock className="h-3.5 w-3.5 text-amber-700" />
+                            PDF Atraso Fornecedores
+                        </button>
                         <button 
                             onClick={handlePrintPDF}
                             className="bg-zinc-800 hover:bg-black text-white font-black py-1.5 px-4 rounded-xl transition-all shadow-sm active:scale-95 uppercase tracking-tighter text-[9px] flex items-center gap-1.5 italic"
