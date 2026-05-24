@@ -139,9 +139,7 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!database) return;
-
-    // --- Persistence: Load from Local Storage on Mount ---
+    // --- Persistence: Load from Local Storage on Mount FIRST (offline-robust state loader) ---
     const collectionsToPersist = [
       { key: 'suppliers', setter: setSuppliers },
       { key: 'warehouseLog', setter: setWarehouseLog },
@@ -164,6 +162,8 @@ const App: React.FC = () => {
         }
       }
     });
+
+    if (!database) return;
 
     const connectedRef = ref(database, '.info/connected');
     onValue(connectedRef, (snap) => {

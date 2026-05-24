@@ -443,79 +443,123 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                 }
             };
 
-            const lateWeeks: number[] = [];
+            const schedulingDelays: { week: number; info: string }[] = [];
+            const deliveryDelays: { week: number; info: string }[] = [];
+            const invoiceDelays: { week: number; date: string; info: string }[] = [];
 
-            // 1. Pending appointments in the past
-            deliveriesList.forEach(d => {
-                if (d.item === 'AGENDAMENTO PENDENTE') {
-                    const dDate = new Date(d.date + 'T00:00:00');
-                    if (dDate < SIMULATED_TODAY_LOCAL) {
-                        const wNo = getWeekNumber(dDate);
-                        const dMonthName = monthsList[dDate.getMonth()];
-                        if (arrivedMonths.includes(dMonthName) && isWeekInArrivedMonth(wNo)) {
-                            if (!lateWeeks.includes(wNo)) {
-                                lateWeeks.push(wNo);
-                            }
-                        }
-                    }
+            // Helper to format date in Brazilian style DD/MM/YYYY
+            const formatDate = (dateStr: string) => {
+                if (!dateStr) return '';
+                const parts = dateStr.split('-');
+                if (parts.length === 3) {
+                    return `${parts[2]}/${parts[1]}/${parts[0]}`;
                 }
-            });
+                return dateStr;
+            };
 
-            // 2. Prior allowed weeks with no delivery completed
+            // 1. Verify Scheduling Delay (Atraso de Agendamento):
+            // Check each allowed week to see if there is any scheduled delivery.
             for (const w of allowedWeeksArray) {
-                if (w < todayWeek) {
-                    if (isWeekInArrivedMonth(w)) {
-                        const hasDelivery = deliveriesList.some(d => {
-                            const dDate = new Date(d.date + 'T00:00:00');
-                            const isCompleted = d.item !== 'AGENDAMENTO PENDENTE' && (d.invoiceNumber || d.invoiceUploaded);
-                            return getWeekNumber(dDate) === w && isCompleted;
-                        });
-                        if (!hasDelivery) {
-                            if (!lateWeeks.includes(w)) {
-                                lateWeeks.push(w);
-                            }
+                if (w <= todayWeek && isWeekInArrivedMonth(w)) {
+                    const deliveriesInWeek = deliveriesList.filter(d => {
+                        const dDate = new Date(d.date + 'T00:00:00');
+                        return getWeekNumber(dDate) === w;
+                    });
+
+                    if (deliveriesInWeek.length === 0) {
+                        if (w === todayWeek) {
+                            schedulingDelays.push({
+                                week: w,
+                                info: `Semana ${w} (Semana Atual): Necessário realizar o agendamento obrigatório.`
+                            });
+                        } else {
+                            schedulingDelays.push({
+                                week: w,
+                                info: `Semana ${w}: Prazo para agendamento expirado. Nenhuma entrega foi programada.`
+                            });
                         }
                     }
                 }
             }
 
-            lateWeeks.sort((a, b) => a - b);
-
-            // Invoice pendency
-            const hasInvoicePendency = deliveriesList.some(d => {
-                if (d.item === 'AGENDAMENTO PENDENTE') return false;
+            // 2. Verify Delivery Delay (Atraso de Entrega) & Invoice Delay (Atraso de Nota Fiscal):
+            // Check scheduled deliveries inside arrived months of active period
+            deliveriesList.forEach(d => {
                 const dDate = new Date(d.date + 'T00:00:00');
                 const dMonthName = monthsList[dDate.getMonth()];
-                if (!arrivedMonths.includes(dMonthName)) return false;
+                const w = getWeekNumber(dDate);
 
-                return dDate <= SIMULATED_TODAY_LOCAL && (!d.invoiceNumber || !d.invoiceUrl);
+                if (arrivedMonths.includes(dMonthName)) {
+                    if (d.item === 'AGENDAMENTO PENDENTE') {
+                        if (dDate < SIMULATED_TODAY_LOCAL) {
+                            deliveryDelays.push({
+                                week: w,
+                                info: `Agendamento pendente em aberto para a data de entrega: ${formatDate(d.date)} (Excedeu o prazo de entrega).`
+                            });
+                        }
+                    } else {
+                        // It is a real delivery item (delivered/completed status)
+                        // Checking if invoice details are missing (and date is past/today)
+                        if (dDate <= SIMULATED_TODAY_LOCAL && (!d.invoiceNumber || !d.invoiceUrl)) {
+                            invoiceDelays.push({
+                                week: w,
+                                date: d.date,
+                                info: `Entrega de "${d.item}" em ${formatDate(d.date)} efetuada, porém a respectiva Nota Fiscal / Comprovante de recebimento não foi inserida.`
+                            });
+                        }
+                    }
+                }
             });
+
+            // Sort all descriptive outputs
+            schedulingDelays.sort((a, b) => a.week - b.week);
+            deliveryDelays.sort((a, b) => a.week - b.week);
+            invoiceDelays.sort((a, b) => a.week - b.week);
+
+            const hasAnyPendency = schedulingDelays.length > 0 || deliveryDelays.length > 0 || invoiceDelays.length > 0;
 
             return {
                 supplier: sup,
-                lateWeeks,
-                hasInvoicePendency,
-                isLate: lateWeeks.length > 0
+                schedulingDelays,
+                deliveryDelays,
+                invoiceDelays,
+                hasAnyPendency
             };
-        }).filter(item => item.isLate || item.hasInvoicePendency);
+        }).filter(item => item.hasAnyPendency);
 
         const htmlContent = `
             <html>
             <head>
-                <title>Relatório de Entregas em Atraso e Pendências</title>
+                <title>Relatório Automatizado de Inconformidades e Pendências no Fluxo</title>
                 <style>
-                    body { font-family: sans-serif; padding: 30px; color: #1f2937; }
+                    body { font-family: 'Inter', system-ui, sans-serif; padding: 30px; color: #1f2937; line-height: 1.5; }
                     .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; }
-                    .title { font-size: 20px; font-weight: bold; color: #111827; text-transform: uppercase; margin: 0; }
-                    .meta { font-size: 11px; color: #4b5563; text-align: right; }
+                    .title { font-size: 18px; font-weight: 800; color: #111827; text-transform: uppercase; margin: 0; letter-spacing: -0.02em; }
+                    .meta { font-size: 11px; color: #4b5563; text-align: right; font-family: monospace; }
+                    .meta div { margin-bottom: 2px; }
                     table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
-                    th, td { border: 1px solid #e5e7eb; padding: 10px 12px; text-align: left; vertical-align: top; }
+                    th, td { border: 1px solid #e5e7eb; padding: 12px 14px; text-align: left; vertical-align: top; }
                     th { background-color: #f9fafb; font-weight: bold; color: #374151; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
-                    .late-badge { display: inline-block; background-color: #fef2f2; color: #991b1b; padding: 3px 8px; font-weight: bold; font-size: 9px; border: 1px solid #fee2e2; border-radius: 4px; }
-                    .invoice-badge { display: inline-block; background-color: #fffbeb; color: #92400e; padding: 3px 8px; font-weight: bold; font-size: 9px; border: 1px solid #fef3c7; border-radius: 4px; margin-top: 4px; }
-                    .font-mono { font-family: monospace; }
-                    .font-bold { font-weight: bold; }
-                    .text-gray-500 { color: #6b7280; }
+                    
+                    /* Detailed layout elements */
+                    .supplier-title { font-size: 13px; font-weight: 800; color: #111827; }
+                    .supplier-cpf { font-size: 9px; color: #6b7280; font-family: monospace; margin-top: 3px; }
+                    .items-list { font-size: 10px; color: #4b5563; line-height: 1.4; }
+
+                    /* Custom alert style panels */
+                    .panel-section { margin-top: 10px; border-radius: 8px; padding: 10px; border: 1px solid #e5e7eb; background: #fafafa; }
+                    .panel-group { margin-bottom: 12px; }
+                    .panel-group:last-child { margin-bottom: 0; }
+                    
+                    /* Status Badges */
+                    .section-badge { display: inline-flex; align-items: center; font-size: 8px; font-weight: 900; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.02em; }
+                    .badge-schedule { background-color: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+                    .badge-delivery { background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+                    .badge-invoice { background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+
+                    /* Detail line entries */
+                    .detail-entry { margin: 4px 0 0 12px; font-size: 10px; color: #374151; list-style-type: circle; line-height: 1.4; }
+                    
                     .text-center { text-align: center; }
                     @media print {
                         @page { size: A4 portrait; margin: 15mm; }
@@ -525,33 +569,33 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             <body>
                 <div class="header">
                     <div>
-                        <h1 class="title">Fornecedores com Entregas em Atraso / Pendências</h1>
-                        <p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">Módulo de Estoque - Gestão de Dados P Taiúva 2026</p>
+                        <h1 class="title">Relatório Consolidado de Pendências e Atrasos</h1>
+                        <p style="margin: 5px 0 0 0; font-size: 11px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026</p>
                     </div>
                     <div class="meta">
-                        <div>Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}</div>
-                        <div>Hora: ${new Date().toLocaleTimeString('pt-BR')}</div>
+                        <div><b>Emissão:</b> ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}</div>
+                        <div><b>Período Letivo Clave:</b> ${activeContractPeriod === '2_3_QUAD' ? 'MAI - DEZ (2º / 3º Quadrimestre)' : 'JAN - ABR (1º Quadrimestre)'}</div>
+                        <div><b>Data de Controle:</b> 07/05/2026</div>
                     </div>
                 </div>
                 
-                <p style="font-size: 12px; margin-bottom: 20px;">
-                    Este relatório lista todos os fornecedores que atualmente possuem entregas em atraso em relação ao cronograma obrigatório e agendamentos ou pendências de uploads de nota fiscal/mídia para o período letivo ativo.
+                <p style="font-size: 11px; color: #374151; margin-bottom: 20px; text-align: justify; line-height: 1.6;">
+                    Este relatório oficial compila o status operacional atual de entrega dos fornecedores designados. Foram validadas três fases críticas de conformidade do fluxo do estoque: **(1) Atraso no Agendamento** (ausência de reserva para semanas obrigatórias), **(2) Atraso de Entrega** (agendamentos de entrega pendentes cujas datas estão vencidas) e **(3) Atraso no Envio da Nota Fiscal / Comprovante** (entregas declaradas onde a nota fiscal digital ou foto de recebimento físico não foi indexada ao sistema).
                 </p>
 
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 25%;">Fornecedor</th>
-                            <th style="width: 35%;">Tipo de Alimento / Itens Contratados</th>
-                            <th style="width: 20%; text-align: center;">Semanas em Atraso</th>
-                            <th style="width: 20%;">Situação / Pendência</th>
+                            <th style="width: 28%;">Fornecedor / Identificação</th>
+                            <th style="width: 25%;">Itens Contratados</th>
+                            <th style="width: 47%;">Descritivo Detalhado das Inconformidades</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${lateSuppliersData.length === 0 ? `
                             <tr>
-                                <td colspan="4" class="text-center" style="padding: 20px; font-style: italic; color: #6b7280;">
-                                    Nenhum fornecedor com entregas em atraso ou pendências de nota fiscal encontrado neste período.
+                                <td colspan="3" class="text-center" style="padding: 30px; font-style: italic; color: #6b7280; font-size: 12px;">
+                                    Excelente! Nenhum fornecedor apresenta atrasos ou inconformidades no sistema durante o período verificado.
                                 </td>
                             </tr>
                         ` : lateSuppliersData.map(item => {
@@ -559,29 +603,54 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                 .map(it => it.name)
                                 .join(', ');
 
-                            const statusBadges = [];
-                            if (item.isLate) {
-                                statusBadges.push(`<span class="late-badge">⚠️ ATRASO NA SEMANA</span>`);
+                            let detailedPanelsHtml = '';
+
+                            // Build beautiful inline panels for each type if present
+                            if (item.schedulingDelays.length > 0) {
+                                detailedPanelsHtml += `
+                                    <div class="panel-group">
+                                        <span class="section-badge badge-schedule">⚠️ ATRASO NO AGENDAMENTO (SEMANA DE ENTREGA)</span>
+                                        ${item.schedulingDelays.map(sd => `
+                                            <div class="detail-entry"><b>Semana ${sd.week}:</b> ${sd.info}</div>
+                                        `).join('')}
+                                    </div>
+                                `;
                             }
-                            if (item.hasInvoicePendency) {
-                                statusBadges.push(`<span class="invoice-badge">⚠️ NOTA FISCAL PENDENTE</span>`);
+
+                            if (item.deliveryDelays.length > 0) {
+                                detailedPanelsHtml += `
+                                    <div class="panel-group">
+                                        <span class="section-badge badge-delivery">❌ ATRASO DE ENTREGA (AGENDAMENTO VENCIDO)</span>
+                                        ${item.deliveryDelays.map(dd => `
+                                            <div class="detail-entry"><b>Semana ${dd.week}:</b> ${dd.info}</div>
+                                        `).join('')}
+                                    </div>
+                                `;
+                            }
+
+                            if (item.invoiceDelays.length > 0) {
+                                detailedPanelsHtml += `
+                                    <div class="panel-group">
+                                        <span class="section-badge badge-invoice">📄 ATRASO NO ENVIO DA NOTA FISCAL / COMPROVANTE</span>
+                                        ${item.invoiceDelays.map(id => `
+                                            <div class="detail-entry"><b>Semana ${id.week}:</b> ${id.info}</div>
+                                        `).join('')}
+                                    </div>
+                                `;
                             }
 
                             return `
                                 <tr>
                                     <td>
-                                        <div class="font-bold">${item.supplier.name}</div>
-                                        <div class="text-gray-500 font-mono" style="font-size: 9px; margin-top: 2px;">CPF/CNPJ: ${item.supplier.cpf}</div>
+                                        <div class="supplier-title">${item.supplier.name}</div>
+                                        <div class="supplier-cpf">CPF/CNPJ: ${item.supplier.cpf || 'Não Informado'}</div>
                                     </td>
                                     <td>
-                                        <div style="font-size: 10px; line-height: 1.4;">${contractItemsNames || '-'}</div>
-                                    </td>
-                                    <td class="font-bold font-mono text-center" style="font-size: 12px; color: #b91c1c; vertical-align: middle;">
-                                        ${item.isLate ? item.lateWeeks.join(', ') : '-'}
+                                        <div class="items-list">${contractItemsNames || 'Sem itens no contrato ativo.'}</div>
                                     </td>
                                     <td>
-                                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                                            ${statusBadges.join('')}
+                                        <div class="panel-section">
+                                            ${detailedPanelsHtml}
                                         </div>
                                     </td>
                                 </tr>
@@ -692,15 +761,20 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             <div className="space-y-4">
                 <div className="flex flex-col md:flex-row justify-between items-start gap-4 pb-4 border-b border-gray-50">
                     <div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
                         <button 
                             onClick={handlePrintLateSuppliersPDF}
-                            className="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-black py-1.5 px-4 rounded-xl transition-all shadow-sm active:scale-95 uppercase tracking-tighter text-[9px] flex items-center gap-1.5 italic"
+                            className="border border-amber-200 bg-amber-50 hover:bg-amber-100 rounded-2xl p-1.5 px-4 flex items-center gap-3 transition-all cursor-pointer shadow-sm active:scale-95"
                         >
-                            <Clock className="h-3.5 w-3.5 text-amber-700" />
-                            PDF Atraso Fornecedores
+                            <div className="bg-amber-500 text-white p-1 rounded-lg">
+                                <Clock className="h-3 md:h-3.5 w-3 md:w-3.5" />
+                            </div>
+                            <div className="text-left">
+                                <h4 className="text-[10px] font-black text-amber-950 uppercase tracking-tighter italic leading-none">Relatório de Ativos em Atraso</h4>
+                                <p className="text-[8px] text-amber-500 font-bold uppercase tracking-widest mt-0.5">Gerar PDF de Fornecedores Pendentes</p>
+                            </div>
                         </button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
                         <button 
                             onClick={handlePrintPDF}
                             className="bg-zinc-800 hover:bg-black text-white font-black py-1.5 px-4 rounded-xl transition-all shadow-sm active:scale-95 uppercase tracking-tighter text-[9px] flex items-center gap-1.5 italic"
