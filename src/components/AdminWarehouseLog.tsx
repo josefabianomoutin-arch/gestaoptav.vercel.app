@@ -405,16 +405,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
         ];
 
-        const activeContractPeriod = currentMonthIdx >= 4 ? '2_3_QUAD' : '1_QUAD';
-
-        const periodMonths = activeContractPeriod === '2_3_QUAD'
-            ? ['maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
-            : ['janeiro', 'fevereiro', 'março', 'abril'];
-
-        const arrivedMonths = periodMonths.filter(m => {
-            const mIdx = monthsList.indexOf(m);
-            return mIdx <= currentMonthIdx;
-        });
+        const currentMonthName = monthsList[currentMonthIdx];
 
         const getWeekMonth = (weekNum: number): number => {
             const janFirst = new Date(2026, 0, 1);
@@ -430,16 +421,14 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             const deliveriesList = ensureArray<any>(sup.deliveries);
             const allowedWeeksArray = sup.allowedWeeks || [];
 
-            const isWeekInArrivedMonth = (w: number): boolean => {
+            const isWeekInCurrentMonth = (w: number): boolean => {
                 if (sup.monthlySchedule && Object.keys(sup.monthlySchedule).length > 0) {
-                    return arrivedMonths.some(mName => {
-                        const weeksForMonth = sup.monthlySchedule?.[mName] || sup.monthlySchedule?.[mName.toUpperCase()] || [];
-                        return weeksForMonth.includes(w);
-                    });
+                    const weeksForMonth = sup.monthlySchedule?.[currentMonthName] || sup.monthlySchedule?.[currentMonthName.toUpperCase()] || [];
+                    return weeksForMonth.includes(w);
                 } else {
                     const wMonthIdx = getWeekMonth(w);
                     const wMonthName = monthsList[wMonthIdx];
-                    return arrivedMonths.includes(wMonthName);
+                    return wMonthName === currentMonthName;
                 }
             };
 
@@ -460,7 +449,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             // 1. Verify Scheduling Delay (Atraso de Agendamento):
             // Check each allowed week to see if there is any scheduled delivery.
             for (const w of allowedWeeksArray) {
-                if (w <= todayWeek && isWeekInArrivedMonth(w)) {
+                if (w <= todayWeek && isWeekInCurrentMonth(w)) {
                     const deliveriesInWeek = deliveriesList.filter(d => {
                         const dDate = new Date(d.date + 'T00:00:00');
                         return getWeekNumber(dDate) === w;
@@ -483,13 +472,13 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             }
 
             // 2. Verify Delivery Delay (Atraso de Entrega) & Invoice Delay (Atraso de Nota Fiscal):
-            // Check scheduled deliveries inside arrived months of active period
+            // Check scheduled deliveries inside the current month
             deliveriesList.forEach(d => {
                 const dDate = new Date(d.date + 'T00:00:00');
                 const dMonthName = monthsList[dDate.getMonth()];
                 const w = getWeekNumber(dDate);
 
-                if (arrivedMonths.includes(dMonthName)) {
+                if (dMonthName === currentMonthName) {
                     if (d.item === 'AGENDAMENTO PENDENTE') {
                         if (dDate < SIMULATED_TODAY_LOCAL) {
                             deliveryDelays.push({
@@ -569,18 +558,18 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             <body>
                 <div class="header">
                     <div>
-                        <h1 class="title">Relatório Consolidado de Pendências e Atrasos</h1>
+                        <h1 class="title">Relatório de Ativos em Atraso (${currentMonthName.toUpperCase()} / 2026)</h1>
                         <p style="margin: 5px 0 0 0; font-size: 11px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026</p>
                     </div>
                     <div class="meta">
                         <div><b>Emissão:</b> ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}</div>
-                        <div><b>Período Letivo Clave:</b> ${activeContractPeriod === '2_3_QUAD' ? 'MAI - DEZ (2º / 3º Quadrimestre)' : 'JAN - ABR (1º Quadrimestre)'}</div>
+                        <div><b>Mês de Controle:</b> ${currentMonthName.toUpperCase()} / 2026</div>
                         <div><b>Data de Controle:</b> 07/05/2026</div>
                     </div>
                 </div>
                 
                 <p style="font-size: 11px; color: #374151; margin-bottom: 20px; text-align: justify; line-height: 1.6;">
-                    Este relatório oficial compila o status operacional atual de entrega dos fornecedores designados. Foram validadas três fases críticas de conformidade do fluxo do estoque: **(1) Atraso no Agendamento** (ausência de reserva para semanas obrigatórias), **(2) Atraso de Entrega** (agendamentos de entrega pendentes cujas datas estão vencidas) e **(3) Atraso no Envio da Nota Fiscal / Comprovante** (entregas declaradas onde a nota fiscal digital ou foto de recebimento físico não foi indexada ao sistema).
+                    Este relatório oficial compila o status operacional atual de entrega dos fornecedores designados <b>exclusivamente para o mês vigente de ${currentMonthName.toUpperCase()} / 2026</b>. Foram validadas três fases críticas de conformidade do fluxo do estoque: **(1) Atraso no Agendamento** (ausência de reserva para semanas obrigatórias do mês corrente), **(2) Atraso de Entrega** (agendamentos de entrega pendentes do mês corrente cujas datas estão vencidas) e **(3) Atraso no Envio da Nota Fiscal / Comprovante** (entregas declaradas no mês corrente onde a nota fiscal digital ou foto de recebimento físico não foi indexada ao sistema).
                 </p>
 
                 <table>
