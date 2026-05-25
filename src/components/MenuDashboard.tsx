@@ -15,6 +15,20 @@ interface MenuDashboardProps {
 const WEEK_DAYS_BR = ['DOMINGO', 'SEGUNDA-FEIRA', 'TERÇA-FEIRA', 'QUARTA-FEIRA', 'QUINTA-FEIRA', 'SEXTA-FEIRA', 'SÁBADO'];
 const MEAL_PERIODS = ['CAFÉ DA MANHÃ', 'ALMOÇO', 'JANTA', 'LANCHE NOITE'];
 
+const getFirstTwoWords = (text: string | undefined): string => {
+  if (!text) return '';
+  const words = text
+    .replace(/;/g, ' ')
+    .replace(/,/g, ' ')
+    .replace(/-/g, ' ')
+    .replace(/\(/g, ' ')
+    .replace(/\)/g, ' ')
+    .replace(/\//g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+  return words.slice(0, 2).join(' ').toUpperCase();
+};
+
 const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus, suppliers, onLogout, embedded, showPdfOnly }) => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -108,7 +122,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
         <div class="label-card">
           <div class="label-header">AMOSTRA 72 HORAS</div>
           <div class="label-content">
-            <div class="label-field"><strong>PREPARAÇÃO:</strong> <span>${row.foodItem || row.contractedItem || 'N/A'}</span></div>
+            <div class="label-field"><strong>PREPARAÇÃO:</strong> <span>${getFirstTwoWords(row.contractedItem) || row.foodItem || 'N/A'}</span></div>
             <div class="label-field"><strong>REFEIÇÃO:</strong> <span>${row.period || 'N/A'}</span></div>
             <div class="label-field"><strong>LOTE:</strong> <span>${lot}</span></div>
             <div class="label-field"><strong>NF:</strong> <span>${invoice}</span></div>
@@ -280,7 +294,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
                 const { lot, invoice, expiration } = findLotInfo(item.contractedItem || '');
                 return `
                   <tr>
-                    <td>${item.foodItem || item.contractedItem}</td>
+                    <td>${getFirstTwoWords(item.contractedItem) || item.foodItem || '-'}</td>
                     <td class="text-center">${lot}</td>
                     <td class="text-center">${invoice}</td>
                     <td class="text-center">${expiration}</td>
@@ -453,7 +467,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
                 const { lot, invoice } = findLotInfo(row.contractedItem || '');
                 return `
                   <tr>
-                    <td><strong>${row.foodItem || row.contractedItem || 'N/A'}</strong></td>
+                    <td><strong>${getFirstTwoWords(row.contractedItem) || row.foodItem || 'N/A'}</strong></td>
                     <td class="text-center">${row.unitWeight || '-'}</td>
                     <td class="text-center">${row.totalWeight || '-'}</td>
                     <td class="text-center">${lot}</td>
@@ -669,7 +683,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
                         </div>
                         <div className="flex-1">
                           <p className={`font-bold uppercase text-sm leading-tight transition-colors ${selectedRows.has(row.id) ? 'text-indigo-900' : 'text-slate-800'}`}>
-                            {row.foodItem || row.contractedItem || 'Item não especificado'}
+                            {getFirstTwoWords(row.contractedItem) || row.foodItem || 'Item não especificado'}
                           </p>
                           {row.preparationDetails && (
                             <p className="text-[10px] text-slate-400 mt-1 font-medium">{row.preparationDetails}</p>

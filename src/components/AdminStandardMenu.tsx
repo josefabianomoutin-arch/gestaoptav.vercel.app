@@ -48,6 +48,20 @@ const getDatesOfWeek = (week: number, year: number): string[] => {
     return dates;
 };
 
+const getFirstTwoWords = (text: string | undefined): string => {
+    if (!text) return '';
+    const words = text
+        .replace(/;/g, ' ')
+        .replace(/,/g, ' ')
+        .replace(/-/g, ' ')
+        .replace(/\(/g, ' ')
+        .replace(/\)/g, ' ')
+        .replace(/\//g, ' ')
+        .split(/\s+/)
+        .filter(Boolean);
+    return words.slice(0, 2).join(' ').toUpperCase();
+};
+
 
 const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMenus, onUpdateDailyMenus, inmateCount, suppliers }) => {
   const [activeSubTab, setActiveSubTab] = useState<'cardapio' | 'pesos'>('cardapio');
@@ -422,12 +436,14 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
   // Adjust state during rendering pattern to avoid useEffect cascading renders
   const [prevDate, setPrevDate] = useState(selectedDate);
   const [prevDailyMenusStr, setPrevDailyMenusStr] = useState(JSON.stringify(dailyMenus[selectedDate]));
+  const [prevAvailableItemsCount, setPrevAvailableItemsCount] = useState(availableContractItems.length);
   
   const currentDailyMenusStr = JSON.stringify(dailyMenus[selectedDate]);
 
-  if (selectedDate !== prevDate || currentDailyMenusStr !== prevDailyMenusStr) {
+  if (selectedDate !== prevDate || currentDailyMenusStr !== prevDailyMenusStr || availableContractItems.length !== prevAvailableItemsCount) {
     setPrevDate(selectedDate);
     setPrevDailyMenusStr(currentDailyMenusStr);
+    setPrevAvailableItemsCount(availableContractItems.length);
 
     const normalize = (rows: any[], baseId: string): MenuRow[] => {
       const defaultRow = { period: '', foodItem: '', preparationDetails: '', contractedItem: '', unitWeight: '', totalWeight: '' };
@@ -449,7 +465,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
           ...row,
           contractedItem: finalContractedItem,
           id: row.id || `${baseId}-${i}`,
-          foodItem: row.foodItem || row.description || (finalContractedItem ? finalContractedItem.substring(0, 2).toUpperCase() : ''), // Compatibility with old data & auto-generate code
+          foodItem: getFirstTwoWords(finalContractedItem) || row.foodItem || row.description || '', // Compatibility with old data & auto-generate code
         };
       });
     };
@@ -487,10 +503,10 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
     const updated = [...currentMenu];
     const newRow = { ...updated[index], [field]: value };
 
-    // LÓGICA DE AUTO-PREENCHIMENTO DO PESO UNITÁRIO E DUAS PRIMEIRAS LETRAS DO ITEM
+    // LÓGICA DE AUTO-PREENCHIMENTO DO PESO UNITÁRIO E DUAS PRIMEIRAS PALAVRAS DO ITEM
     if (field === 'contractedItem') {
-        const itemTwoLetters = value ? value.substring(0, 2).toUpperCase() : '';
-        newRow.foodItem = itemTwoLetters;
+        const firstTwoWords = getFirstTwoWords(value);
+        newRow.foodItem = firstTwoWords;
 
         const suggestedWeight = weightsLookupMap.get(value);
         if (suggestedWeight) {
@@ -647,7 +663,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
                           <tr><td colspan="3" class="period-header">${period}</td></tr>
                           ${groupedMenu[period].map(row => `
                             <tr>
-                              <td>${row.foodItem || row.contractedItem || '-'}</td>
+                              <td>${getFirstTwoWords(row.contractedItem) || row.foodItem || '-'}</td>
                               <td style="text-align: right;">${row.unitWeight}</td>
                               <td style="text-align: right;">${row.totalWeight}</td>
                             </tr>
@@ -848,7 +864,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
                             onChange={e => handleWeekChange(Number(e.target.value))}
                             className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-bold"
                         >
-                            {Array.from({ length: 18 }, (_, i) => i + 1).map(week => (
+                            {Array.from({ length: 52 }, (_, i) => i + 1).map(week => (
                                 <option key={week} value={week}>Semana {week}</option>
                             ))}
                         </select>
@@ -959,7 +975,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
                                                         ))}
                                                     </select>
                                                     <div className="w-full p-2 text-gray-700 font-bold text-xs uppercase pointer-events-none truncate bg-transparent flex items-center justify-between">
-                                                        <span className="truncate">{row.contractedItem ? (row.foodItem || row.contractedItem.substring(0, 2).toUpperCase()) : '-- Selecionar Item --'}</span>
+                                                        <span className="truncate">{row.contractedItem ? (getFirstTwoWords(row.contractedItem) || row.foodItem) : '-- Selecionar Item --'}</span>
                                                         <span className="text-gray-400 font-normal ml-1 flex-shrink-0 text-[10px]">▼</span>
                                                     </div>
                                                 </div>
