@@ -83,7 +83,9 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             totalOut: number,
             lot: string,
             exp: string,
-            timestamp: number
+            timestamp: number,
+            entryDate?: string,
+            barcode?: string
         } } = {};
 
         (warehouseLog || []).forEach(log => {
@@ -101,16 +103,23 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                     totalOut: 0,
                     lot: log.lotNumber || '',
                     exp: log.expirationDate || '',
-                    timestamp: ts
+                    timestamp: ts,
+                    entryDate: log.date || '',
+                    barcode: log.barcode || ''
                 };
             }
             if (log.type === 'entrada') {
                 stockMap[key].totalIn += (log.quantity || log.kg || 0);
                 if (log.lotNumber) stockMap[key].lot = log.lotNumber;
                 if (log.expirationDate) stockMap[key].exp = log.expirationDate;
+                if (log.date) stockMap[key].entryDate = log.date;
+                if (log.barcode) stockMap[key].barcode = log.barcode;
                 // Mantém o timestamp mais antigo para a NF se houver múltiplas entradas
                 const currentTs = log.timestamp || (log.date ? new Date(log.date + 'T12:00:00').getTime() : 0);
-                if (currentTs < stockMap[key].timestamp) stockMap[key].timestamp = currentTs;
+                if (currentTs < stockMap[key].timestamp) {
+                    stockMap[key].timestamp = currentTs;
+                    if (log.date) stockMap[key].entryDate = log.date;
+                }
             } else {
                 stockMap[key].totalOut += (log.quantity || log.kg || 0);
             }
@@ -160,7 +169,9 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             availableQuantity: nf.balance,
             lot: nf.lot,
             exp: nf.exp,
-            timestamp: nf.timestamp
+            timestamp: nf.timestamp,
+            entryDate: nf.entryDate,
+            barcode: nf.barcode
         });
         setManualLot(nf.lot);
         setManualExp(nf.exp);
@@ -463,6 +474,89 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                         try {
                             JsBarcode("#barcode-item", "${item.barcode}", {
                                 format: "CODE128", width: 1.2, height: 40, displayValue: true, margin: 0
+                            });
+                        } catch (e) { console.error(e); }
+                        setTimeout(() => { window.print(); window.close(); }, 500);
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
+    const handlePrintStockRemainingLabel = (nf: any, remainingQtyOverride?: number) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const qty = remainingQtyOverride !== undefined ? remainingQtyOverride : (nf.availableQuantity || 0);
+        const entryDateFormatted = nf.entryDate ? nf.entryDate.split('-').reverse().join('/') : '---';
+        const expFormatted = nf.exp ? nf.exp.split('-').reverse().join('/') : '---';
+        const supplierName = nf.supplierName || selectedSupplier?.name || 'FORNECEDOR';
+        const itemText = selectedItemName || nf.itemName || 'ITEM';
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Etiqueta de Saldo - ${itemText}</title>
+                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <style>
+                    @page { size: 100mm 50mm; margin: 0; }
+                    body { margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: white; color: #000; }
+                    .label-card {
+                        width: 100mm; height: 50mm;
+                        padding: 3mm 5mm; box-sizing: border-box;
+                        display: flex; flex-direction: column;
+                        border: 0.1mm solid #000;
+                    }
+                    .header-row { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 0.4mm solid #000; padding-bottom: 1px; }
+                    h1 { font-size: 11pt; margin: 0; font-weight: 900; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; }
+                    .tag-saldo-label { background: #000; color: #fff; padding: 1px 4px; font-size: 7.5pt; font-weight: bold; text-transform: uppercase; border-radius: 2px; margin-left: 5px; }
+                    h2 { font-size: 7.5pt; margin: 1mm 0; font-weight: bold; text-transform: uppercase; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                    .info-grid { display: flex; flex-wrap: wrap; font-size: 7.5pt; line-height: 1.2; flex-grow: 1; margin-top: 1mm; }
+                    .info-col { width: 50%; box-sizing: border-box; }
+                    .info-col p { margin: 0.4mm 0; }
+                    .info-col strong { font-weight: 900; }
+                    .balance-box { border: 0.6mm solid #000; padding: 1.5mm 3mm; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 25mm; }
+                    .balance-val { font-size: 13pt; font-weight: 900; }
+                    .balance-title { font-size: 5pt; font-weight: bold; letter-spacing: 0.5px; }
+                    .barcode-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+                    .barcode-svg { max-width: 90%; height: 12mm !important; }
+                </style>
+            </head>
+            <body>
+                <div class="label-card">
+                    <div class="header-row">
+                        <h1 title="${itemText}">${itemText.split(' ').slice(0, 3).join(' ')}</h1>
+                        <span class="tag-saldo-label">SALDO RESTANTE</span>
+                    </div>
+                    <h2>${supplierName}</h2>
+                    <div style="display: flex; gap: 4px; justify-content: space-between; align-items: center; flex-grow: 1;">
+                        <div class="info-grid">
+                            <div style="width: 100%;">
+                                <p><strong>REGISTRO:</strong> <span>ENTRADA DA NOTA</span></p>
+                                <p><strong>ORIGEM NF:</strong> <span>${nf.number || nf.nfNumber || 'N/A'}</span></p>
+                                <p><strong>LOTE:</strong> <span>${nf.lot || 'UNICO'}</span></p>
+                                <p><strong>VAL:</strong> <span>${expFormatted}</span></p>
+                                <p><strong>ENTRADA:</strong> <span>${entryDateFormatted}</span></p>
+                            </div>
+                        </div>
+                        <div class="balance-box">
+                            <span class="balance-title">O SALDO FICARÁ EM</span>
+                            <span class="balance-val">${qty.toFixed(2)} KG</span>
+                        </div>
+                    </div>
+                    <div class="barcode-container">
+                        <svg id="barcode-item-stock" class="barcode-svg"></svg>
+                    </div>
+                </div>
+                <script>
+                    window.onload = function() {
+                        try {
+                            const code = "${nf.barcode || '00000000'}";
+                            JsBarcode("#barcode-item-stock", code, {
+                                format: "CODE128", width: 1.2, height: 35, displayValue: true, margin: 0
                             });
                         } catch (e) { console.error(e); }
                         setTimeout(() => { window.print(); window.close(); }, 500);
@@ -789,12 +883,16 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                                             onClick={() => handleSelectSearchedNf(nf)}
                                             className="w-full p-2.5 hover:bg-red-50 text-left transition-all flex justify-between items-center group cursor-pointer"
                                         >
-                                            <div className="flex flex-col">
+                                            <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-[10px] font-black text-gray-900 leading-none group-hover:text-red-700 uppercase">NF {nf.nfNumber}</span>
                                                     <span className="text-[10px] font-black text-red-600 italic">• {nf.itemName}</span>
                                                 </div>
-                                                <span className="text-[8px] font-bold text-gray-400 mt-0.5 uppercase">{nf.supplierName}</span>
+                                                <span className="text-[8.5px] font-bold text-gray-500 uppercase">{nf.supplierName}</span>
+                                                <div className="flex items-center gap-2 mt-0.5 text-[8px] font-black text-gray-400">
+                                                    <span className="bg-slate-100 text-slate-700 px-1 py-0.2 rounded uppercase">ENTRADA: {nf.entryDate ? nf.entryDate.split('-').reverse().join('/') : '---'}</span>
+                                                    <span className="bg-amber-50 text-amber-700 px-1 py-0.2 rounded uppercase">VAL: {nf.exp ? nf.exp.split('-').reverse().join('/') : '---'}</span>
+                                                </div>
                                             </div>
                                             <div className="flex flex-col items-end">
                                                 <span className="text-xs font-black text-emerald-600 italic leading-none">{nf.balance.toFixed(2)} KG DISP.</span>
@@ -810,54 +908,155 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
 
                 <div className="bg-white border border-gray-100 rounded-lg p-2 space-y-2 shadow-inner">
                     {manualType === 'saída' && manualInboundNf ? (
-                        /* Saída logic remains compact */
-                        <div className="bg-indigo-50/50 p-2 rounded-lg border border-indigo-100 shadow-sm">
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                                <div className="flex items-center gap-2">
-                                    <div className="p-1.5 bg-white rounded-lg shadow-sm border border-indigo-100">
-                                        <Package className="h-4 w-4 text-indigo-600" />
+                        <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-205 shadow-md animate-fade-in space-y-3">
+                            {/* Cabecalho Principal */}
+                            <div className="flex justify-between items-start gap-4 border-b border-indigo-100 pb-2">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="p-2 bg-indigo-600 rounded-xl text-white shadow-md shadow-indigo-600/10">
+                                        <Package className="h-5 w-5" />
                                     </div>
                                     <div>
-                                        <h3 className="text-[10px] font-black text-gray-900 uppercase italic leading-none">{selectedItemName}</h3>
-                                        <p className="text-[8px] text-gray-500 font-bold uppercase mt-0.5 tracking-tight">
-                                            NF: {manualInboundNf.number} • FORN: {selectedSupplier?.name}
+                                        <h3 className="text-[12px] font-black text-gray-950 uppercase italic tracking-tight">{selectedItemName}</h3>
+                                        <p className="text-[8.5px] text-indigo-700 font-bold uppercase mt-0.5 tracking-wide">
+                                            FORN: {selectedSupplier?.name || manualInboundNf.supplierName || '---'}
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="text-right">
-                                        <p className="text-[6px] font-black text-gray-400 uppercase">SALDO</p>
-                                        <p className="text-sm font-black text-emerald-600 italic leading-none">{manualInboundNf.availableQuantity.toFixed(2)} kg</p>
-                                    </div>
-                                    
-                                    <div className="w-px h-6 bg-indigo-100 hidden md:block"></div>
+                                <button 
+                                    onClick={() => { setManualInboundNf(null); setSelectedItemName(''); setSelectedSupplierCpf(''); setNfSearchTerm(''); }}
+                                    className="p-1 text-gray-400 hover:text-red-600 hover:bg-indigo-100 rounded-lg transition-all"
+                                    title="Desmarcar item"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
 
-                                    <div className="flex items-center gap-1.5">
-                                        <div className="relative">
-                                            <input 
-                                                type="text" 
-                                                autoFocus
-                                                value={manualQuantity} 
-                                                onChange={e => setManualQuantity(e.target.value.replace(/[^0-9,.]/g, ''))} 
-                                                placeholder="0,00" 
-                                                className="w-16 h-7 px-2 border-2 border-indigo-600 rounded-lg bg-gray-900 text-white font-black text-center text-[10px] outline-none shadow-sm font-mono" 
-                                            />
-                                        </div>
-                                        <button 
-                                            type="button" 
-                                            onClick={handleAddItem}
-                                            disabled={!manualQuantity || parseFloat(manualQuantity.replace(',', '.')) <= 0}
-                                            className="h-7 px-3 rounded-lg font-black uppercase text-[8px] shadow-sm transition-all active:scale-95 disabled:bg-gray-200 disabled:text-gray-400 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1"
-                                        >
-                                            <Plus className="h-3 w-3" /> BAIXAR
-                                        </button>
+                            {/* Informações detalhadas da Entrada e Validade */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                {/* Entrada Info Box */}
+                                <div className="bg-white p-2 rounded-lg border border-indigo-100/50 flex items-center gap-2.5 shadow-xs">
+                                    <div className="p-1 bg-blue-50 text-blue-600 rounded-md">
+                                        <FileText className="h-3.5 w-3.5" />
                                     </div>
-                                    
-                                    <button 
-                                        onClick={() => { setManualInboundNf(null); setSelectedItemName(''); setSelectedSupplierCpf(''); setNfSearchTerm(''); }}
-                                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[6px] font-black text-gray-400 uppercase">DADOS DA NOTA DE ENTRADA</p>
+                                        <p className="text-[10px] font-bold text-gray-800 uppercase mt-0.5 truncate">NF {manualInboundNf.number}</p>
+                                        <p className="text-[8px] font-black text-blue-600 uppercase">
+                                            RECEBIDO EM: {manualInboundNf.entryDate ? manualInboundNf.entryDate.split('-').reverse().join('/') : '---'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Validade Info Box */}
+                                {(() => {
+                                    const expStatus = (() => {
+                                        if (!manualInboundNf.exp) return { label: 'SEM VALIDADE', color: 'text-gray-400 bg-gray-50 border-gray-100' };
+                                        const expDate = new Date(manualInboundNf.exp + 'T00:00:00');
+                                        const today = new Date();
+                                        today.setHours(0, 0, 0, 0);
+                                        const timeDiff = expDate.getTime() - today.getTime();
+                                        const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+                                        if (daysDiff < 0) {
+                                            return { label: 'VENCIDO!', color: 'text-red-700 bg-red-50 border-red-200 animate-pulse font-black' };
+                                        } else if (daysDiff <= 15) {
+                                            return { label: `CRÍTICO! VENCE EM ${daysDiff} DIAS`, color: 'text-red-600 bg-red-50 border-red-105 font-black' };
+                                        } else if (daysDiff <= 45) {
+                                            return { label: `VENCE EM ${daysDiff} DIAS`, color: 'text-amber-700 bg-amber-50 border-amber-200 font-bold' };
+                                        } else {
+                                            return { label: `VALIDADE REGULAR (${daysDiff} d)`, color: 'text-emerald-700 bg-emerald-50 border-emerald-100' };
+                                        }
+                                    })();
+
+                                    return (
+                                        <div className="bg-white p-2 rounded-lg border border-indigo-100/50 flex items-center gap-2.5 shadow-xs">
+                                            <div className="p-1 bg-amber-50 text-amber-600 rounded-md">
+                                                <Calendar className="h-3.5 w-3.5" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[6px] font-black text-gray-400 uppercase">CONTROLE DE VALIDADE</p>
+                                                <p className="text-[10px] font-bold text-gray-800 uppercase mt-0.5">
+                                                    VALIDADE: {manualInboundNf.exp ? manualInboundNf.exp.split('-').reverse().join('/') : 'N/A'}
+                                                </p>
+                                                <span className={`inline-block text-[7.5px] px-1 py-0.2 rounded font-black border uppercase mt-0.5 ${expStatus.color}`}>
+                                                    {expStatus.label}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Lote e Código de Barras Box */}
+                                <div className="bg-white p-2 rounded-lg border border-indigo-100/50 flex items-center gap-2.5 shadow-xs">
+                                    <div className="p-1 bg-slate-50 text-slate-600 rounded-md">
+                                        <Barcode className="h-3.5 w-3.5" />
+                                    </div>
+                                    <div className="flex-grow min-w-0">
+                                        <p className="text-[6px] font-black text-gray-400 uppercase">LOTE E IDENTIFICAÇÃO</p>
+                                        <p className="text-[10px] font-bold text-gray-800 uppercase mt-0.5 truncate">Lote: {manualInboundNf.lot || 'UNICO'}</p>
+                                        <p className="text-[8px] font-mono text-slate-500 font-bold uppercase truncate">
+                                            BARCODE: {manualInboundNf.barcode || 'N/A'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Painel de Controle de Baixa e Saldos Dinâmicos */}
+                            <div className="bg-indigo-900 text-white rounded-xl p-3 border border-indigo-950 shadow-inner flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
+                                {/* Estatísticas Dinâmicas de Estoque */}
+                                <div className="flex items-center gap-3 md:gap-4 divide-x divide-indigo-800">
+                                    <div className="flex flex-col">
+                                        <span className="text-[6.5px] font-black text-indigo-300 uppercase tracking-widest leading-none">Saldo em Estoque</span>
+                                        <span className="text-[15px] font-black text-white italic mt-1 leading-none">
+                                            {manualInboundNf.availableQuantity.toFixed(2)} kg
+                                        </span>
+                                    </div>
+                                    {parseFloat(manualQuantity.replace(',', '.')) > 0 && (
+                                        <div className="flex flex-col pl-3 md:pl-4 animate-fade-in">
+                                            <span className="text-[6.5px] font-black text-indigo-300 uppercase tracking-widest leading-none">Restará no Estoque</span>
+                                            <span className="text-[15px] font-black text-amber-300 italic mt-1 leading-none">
+                                                {Math.max(0, manualInboundNf.availableQuantity - (parseFloat(manualQuantity.replace(',', '.')) || 0)).toFixed(2)} kg
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Form Input de Retirada, Botão Etiqueta e Botão Baixa */}
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                    {/* Link/Botão para Etiqueta do Restante */}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const qtyLeft = Math.max(0, manualInboundNf.availableQuantity - (parseFloat(manualQuantity.replace(',', '.')) || 0));
+                                            handlePrintStockRemainingLabel(manualInboundNf, qtyLeft);
+                                        }}
+                                        className="h-8 px-2.5 rounded-lg font-black text-[8px] uppercase border border-indigo-700 hover:border-white bg-indigo-950 hover:bg-white hover:text-indigo-900 transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                                        title="Imprimir etiqueta do saldo que restará em estoque"
                                     >
-                                        <X className="h-4 w-4" />
+                                        <Printer className="h-3.5 w-3.5" /> Etiqueta do Restante
+                                    </button>
+
+                                    {/* Input da quantidade a ser baixada */}
+                                    <div className="relative flex items-center">
+                                        <input 
+                                            type="text" 
+                                            autoFocus
+                                            value={manualQuantity} 
+                                            onChange={e => setManualQuantity(e.target.value.replace(/[^0-9,.]/g, ''))} 
+                                            placeholder="0,00" 
+                                            className="w-20 h-8 px-2 border-2 border-indigo-400 rounded-lg bg-indigo-950 text-white font-black text-center text-[11px] outline-none shadow-sm font-mono placeholder:text-indigo-700 focus:border-white transition-all" 
+                                        />
+                                        <span className="absolute right-2 text-[7px] font-black text-indigo-400 pointer-events-none uppercase">KG</span>
+                                    </div>
+
+                                    {/* Botão Baixar */}
+                                    <button 
+                                        type="button" 
+                                        onClick={handleAddItem}
+                                        disabled={!manualQuantity || parseFloat(manualQuantity.replace(',', '.')) <= 0}
+                                        className="h-8 px-4 rounded-lg font-black uppercase text-[9px] shadow-md transition-all active:scale-95 disabled:bg-indigo-805 disabled:text-indigo-400 bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center gap-1 shadow-emerald-500/10"
+                                    >
+                                        <Plus className="h-3.5 w-3.5" /> CONFIRMAR BAIXA
                                     </button>
                                 </div>
                             </div>
