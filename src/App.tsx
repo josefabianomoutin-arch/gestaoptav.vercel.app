@@ -210,10 +210,14 @@ const App: React.FC = () => {
       setDirectorWithdrawals(data ? Object.values(data) : []);
     });
     onValue(standardMenuRef, (snapshot) => {
-      setStandardMenu(snapshot.val() || {});
+      const data = snapshot.val() || {};
+      setStandardMenu(data);
+      safeLocalStorageSetItem('cached_standardMenu', JSON.stringify(data));
     });
     onValue(dailyMenusRef, (snapshot) => {
-      setDailyMenus(snapshot.val() || {});
+      const data = snapshot.val() || {};
+      setDailyMenus(data);
+      safeLocalStorageSetItem('cached_dailyMenus', JSON.stringify(data));
     });
     onValue(financialRecordsRef, (snapshot) => {
       const data = snapshot.val();
@@ -281,7 +285,9 @@ const App: React.FC = () => {
     });
     onValue(publicInfoRef, (snapshot) => {
       const data = snapshot.val();
-      setPublicInfo(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setPublicInfo(list as PublicInfo[]);
+      safeLocalStorageSetItem('cached_publicInfo', JSON.stringify(list));
     });
   }, []);
 
@@ -1873,6 +1879,30 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateStandardMenu = async (m: any) => {
+    setStandardMenu(m);
+    safeLocalStorageSetItem('cached_standardMenu', JSON.stringify(m));
+    if (database && navigator.onLine) {
+      try {
+        await set(standardMenuRef, m);
+      } catch (err) {
+        console.warn("Could not save standard menu to database, offline cache kept:", err);
+      }
+    }
+  };
+
+  const handleUpdateDailyMenu = async (m: any) => {
+    setDailyMenus(m);
+    safeLocalStorageSetItem('cached_dailyMenus', JSON.stringify(m));
+    if (database && navigator.onLine) {
+      try {
+        await set(dailyMenusRef, m);
+      } catch (err) {
+        console.warn("Could not save daily menu to database, offline cache kept:", err);
+      }
+    }
+  };
+
   const handleRegisterWarehouseEntry = async (payload: any) => {
     console.log("Iniciando registro de entrada:", payload.itemName);
     try {
@@ -1952,7 +1982,7 @@ const App: React.FC = () => {
         const supplier = mainSupplier || ppaisProducer || pereciveisSupplier || estocavelSupplier;
 
         const lotId = `lot-${Date.now()}`;
-        const entryDate = payload.invoiceDate || new Date().toISOString().split('T')[0];
+        const entryDate = payload.invoiceDate || payload.date || new Date().toISOString().split('T')[0];
         const entry: any = {
             id: newRef.key || `ent-${Date.now()}`,
             type: 'entrada',
@@ -1970,7 +2000,11 @@ const App: React.FC = () => {
             deliveryId: '',
             invoiceUrl: finalInvoiceUrl
         };
-        if (payload.invoiceNumber !== undefined) entry.inboundInvoice = String(payload.invoiceNumber || '').trim();
+        if (payload.invoiceNumber !== undefined) {
+            entry.inboundInvoice = String(payload.invoiceNumber || '').trim();
+        } else if (payload.inboundInvoice !== undefined) {
+            entry.inboundInvoice = String(payload.inboundInvoice || '').trim();
+        }
         if (payload.expirationDate !== undefined) entry.expirationDate = payload.expirationDate;
 
         await set(newRef, entry);
@@ -2188,7 +2222,11 @@ const App: React.FC = () => {
             deliveryId: ''
         };
         if (payload.inboundInvoice !== undefined) exit.inboundInvoice = payload.inboundInvoice;
-        if (payload.outboundInvoice !== undefined) exit.outboundInvoice = payload.outboundInvoice;
+        if (payload.outboundInvoice !== undefined) {
+            exit.outboundInvoice = payload.outboundInvoice;
+        } else if (payload.invoiceNumber !== undefined) {
+            exit.outboundInvoice = payload.invoiceNumber;
+        }
         if (payload.expirationDate !== undefined) exit.expirationDate = payload.expirationDate;
 
         await set(newRef, exit);
@@ -2566,8 +2604,8 @@ const App: React.FC = () => {
             return { success: true, message: 'Inspeção atualizada' };
           }}
           onDeleteVehicleInspection={async (id) => remove(child(vehicleInspectionsRef, id))}
-          onUpdateStandardMenu={async (m) => set(standardMenuRef, m)}
-          onUpdateDailyMenu={async (m) => set(dailyMenusRef, m)}
+          onUpdateStandardMenu={handleUpdateStandardMenu}
+          onUpdateDailyMenu={handleUpdateDailyMenu}
           onRegisterEntry={handleRegisterWarehouseEntry}
           onRegisterWithdrawal={handleRegisterWarehouseWithdrawal}
           onReopenInvoice={handleReopenInvoice}
@@ -2691,8 +2729,8 @@ const App: React.FC = () => {
                validationRoles={validationRoles}
                standardMenu={standardMenu}
                dailyMenus={dailyMenus}
-               onUpdateStandardMenu={async (m: any) => set(standardMenuRef, m)}
-               onUpdateDailyMenu={async (m: any) => set(dailyMenusRef, m)}
+               onUpdateStandardMenu={handleUpdateStandardMenu}
+               onUpdateDailyMenu={handleUpdateDailyMenu}
              />;
     }
 

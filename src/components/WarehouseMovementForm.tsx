@@ -622,7 +622,9 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             const newEntries = items.map(item => ({
                 supplierCpf: selectedSupplierCpf,
                 date: manualDate,
+                invoiceDate: manualDate,
                 invoiceNumber: manualNf,
+                outboundInvoice: manualNf,
                 itemName: item.itemName,
                 quantity: item.quantity,
                 barcode: item.barcode,
@@ -641,7 +643,8 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             } catch (e) {
                 console.error("Failed to write offline entries to local storage:", e);
             }
-            alert("Sistema offline! Lançamentos salvos localmente para futura sincronização.");
+            toast.success("Lançamento salvo localmente com sucesso!");
+            toast.info("Sistema em Modo Offline: Registros salvos no navegador para sincronização futura.");
             setItems([]);
             setManualNf('');
             return;
