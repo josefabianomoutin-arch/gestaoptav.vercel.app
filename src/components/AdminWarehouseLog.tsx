@@ -446,7 +446,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
 
             const schedulingDelays: { week: number; info: string }[] = [];
             const deliveryDelays: { week: number; info: string }[] = [];
-            const invoiceDelays: { week: number; date: string; info: string; itemName: string; quantity: number; value: number }[] = [];
 
             // Helper to format date in Brazilian style DD/MM/YYYY
             const formatDate = (dateStr: string) => {
