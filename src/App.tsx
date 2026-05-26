@@ -1012,8 +1012,22 @@ const App: React.FC = () => {
         updatedAt: new Date().toISOString()
       }));
 
-      // 1. Try Per Capita FIRST to prioritize Per Capita mappings
+      // Find Main Supplier or Per Capita Info
+      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      let pcSup = null;
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+      for (const listKey of lists) {
+        const producers = ensureArray(perCapitaConfig[listKey]);
+        const found = producers.find((p: any) => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
+        if (found) {
+          pcSup = found;
+          break;
+        }
+      }
+
+      let saveSuccess = false;
+
+      // 1. Try Per Capita FIRST to prioritize Per Capita mappings
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
         const idx = producers.findIndex((p: any) => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
@@ -1024,20 +1038,101 @@ const App: React.FC = () => {
             const otherDeliveries = list.filter(d => d && !deliveryIds.includes(d.id));
             return [...otherDeliveries, ...enrichedDeliveries];
           });
-          toast.success('Nota Fiscal salva com sucesso!');
-          return;
+          saveSuccess = true;
+          break;
         }
       }
 
       // 2. Try Main Suppliers
-      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
-      if (mainSupplier) {
+      if (!saveSuccess && mainSupplier) {
         const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
         await runTransaction(deliveriesRef, (current) => {
           const list = ensureArray<any>(current);
           const otherDeliveries = list.filter(d => d && !deliveryIds.includes(d.id));
           return [...otherDeliveries, ...enrichedDeliveries];
         });
+        saveSuccess = true;
+      }
+
+      if (saveSuccess) {
+        // 3. Synchronize with warehouseLog if there are matching entries
+        if (database && navigator.onLine) {
+          try {
+            const logSnapshot = await get(warehouseLogRef);
+            const allLogs = logSnapshot.val() || {};
+            const targetInvoice = clean(invoiceNumber);
+            const existingLogsForKey: Record<string, any> = {};
+            
+            Object.keys(allLogs).forEach(key => {
+              const entry = allLogs[key];
+              const entryInv = clean(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '');
+              const entryCpf = clean(entry.supplierCpf || '');
+              if (entryCpf === targetCpf && entryInv === targetInvoice) {
+                existingLogsForKey[key] = entry;
+              }
+            });
+
+            if (Object.keys(existingLogsForKey).length > 0) {
+              const logUpdates: any = {};
+              const usedLogKeys = new Set<string>();
+
+              for (const item of updatedDeliveries) {
+                const itName = clean(item.item || item.itemName || '');
+                const logKey = Object.keys(existingLogsForKey).find(k => {
+                  if (usedLogKeys.has(k)) return false;
+                  const logEntry = existingLogsForKey[k];
+                  const logName = clean(logEntry.itemName || logEntry.item || '');
+                  if (item.id && logEntry.id && item.id === logEntry.id) return true;
+                  if (item.id && logEntry.deliveryId && item.id === logEntry.deliveryId) return true;
+                  return itName === logName;
+                });
+
+                if (logKey) {
+                  usedLogKeys.add(logKey);
+                  logUpdates[`${logKey}/itemName`] = item.item || item.itemName;
+                  logUpdates[`${logKey}/item`] = item.item || item.itemName;
+                  logUpdates[`${logKey}/quantity`] = Number(item.kg) || 0;
+                  logUpdates[`${logKey}/kg`] = Number(item.kg) || 0;
+                  logUpdates[`${logKey}/value`] = Number(item.value) || 0;
+                } else {
+                  const newRef = push(warehouseLogRef);
+                  const newId = newRef.key || `it-${Date.now()}`;
+                  logUpdates[newId] = {
+                    id: newId,
+                    type: 'entrada',
+                    timestamp: new Date().toISOString(),
+                    date: invoiceDate || new Date().toISOString().split('T')[0],
+                    itemName: item.item || item.itemName,
+                    supplierName: mainSupplier?.name || pcSup?.name || 'FORNECEDOR',
+                    supplierCpf: supplierCpf,
+                    invoiceNumber: invoiceNumber,
+                    inboundInvoice: invoiceNumber,
+                    quantity: Number(item.kg) || 0,
+                    kg: Number(item.kg) || 0,
+                    value: Number(item.value) || 0,
+                    lotNumber: 'UNICO',
+                    expirationDate: item.expirationDate || '',
+                    barcode: item.barcode || ''
+                  };
+                }
+              }
+
+              // Remove logs that are no longer present in the updated deliveries
+              Object.keys(existingLogsForKey).forEach(k => {
+                if (!usedLogKeys.has(k)) {
+                  logUpdates[k] = null;
+                }
+              });
+
+              if (Object.keys(logUpdates).length > 0) {
+                await update(warehouseLogRef, logUpdates);
+              }
+            }
+          } catch (err) {
+            console.warn("Error synchronizing warehouseLog:", err);
+          }
+        }
+
         toast.success('Nota Fiscal salva com sucesso!');
         return;
       }

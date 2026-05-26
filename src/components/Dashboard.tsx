@@ -924,6 +924,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {isEditInvoiceModalOpen && selectedInvoiceToEdit && (
         <EditInvoiceItemsModal
+          key={selectedInvoiceToEdit.invoiceNumber || 'edit-invoice-modal'}
           isOpen={isEditInvoiceModalOpen}
           invoice={selectedInvoiceToEdit}
           contractItems={supplier.contractItems || []}
