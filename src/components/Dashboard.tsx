@@ -9,8 +9,9 @@ import InvoiceUploader from './InvoiceUploader';
 import EmailConfirmationModal from './EmailConfirmationModal';
 import SendInvoiceModal from './SendInvoiceModal';
 import ConfirmModal from './ConfirmModal';
+import EditInvoiceItemsModal from './EditInvoiceItemsModal';
 import { speechService } from '../services/speechService';
-import { HelpCircle, Volume2, Calendar as CalendarIcon, FileText, Search, Download, Upload, Plus } from 'lucide-react';
+import { HelpCircle, Volume2, Calendar as CalendarIcon, FileText, Search, Download, Upload, Plus, Edit2 } from 'lucide-react';
 import { HOLIDAYS_2026 } from '../constants';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app } from '../firebaseConfig';
@@ -66,6 +67,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isSendInvoiceModalOpen, setIsSendInvoiceModalOpen] = useState(false);
+  const [selectedInvoiceToEdit, setSelectedInvoiceToEdit] = useState<any | null>(null);
+  const [isEditInvoiceModalOpen, setIsEditInvoiceModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'calendar' | 'invoices'>('calendar');
   const [invoiceToSend, setInvoiceToSend] = useState<{ date: string; deliveries: Delivery[] } | null>(null);
   const [deliveriesToShow, setDeliveriesToShow] = useState<Delivery[]>([]);
@@ -778,6 +781,18 @@ const Dashboard: React.FC<DashboardProps> = ({
                                           </td>
                                           <td className="p-4 text-center">
                                               <div className="flex items-center justify-center gap-3">
+                                                  <button 
+                                                      onClick={() => {
+                                                          setSelectedInvoiceToEdit(invoice);
+                                                          setIsEditInvoiceModalOpen(true);
+                                                      }}
+                                                      className="inline-flex items-center gap-2 bg-amber-50 text-amber-700 hover:bg-amber-100 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-sm active:scale-95 cursor-pointer"
+                                                      title="Editar Itens da Nota"
+                                                  >
+                                                      <Edit2 className="h-3.5 w-3.5" />
+                                                      Editar Itens
+                                                  </button>
+
                                                   {invoice.invoiceUrl ? (
                                                       <button 
                                                           onClick={() => handleOpenPdf(invoice.invoiceUrl)}
@@ -904,6 +919,23 @@ const Dashboard: React.FC<DashboardProps> = ({
           contractItems={supplier.contractItems || []}
           onClose={handleCloseSendInvoiceModal} 
           onSave={(invoiceNumber, invoiceUrl, deliveries, invoiceDate) => onSaveInvoice(supplier.cpf, deliveries.map(d => d.id), invoiceNumber, invoiceUrl, deliveries, invoiceDate)}
+        />
+      )}
+
+      {isEditInvoiceModalOpen && selectedInvoiceToEdit && (
+        <EditInvoiceItemsModal
+          isOpen={isEditInvoiceModalOpen}
+          invoice={selectedInvoiceToEdit}
+          contractItems={supplier.contractItems || []}
+          onClose={() => {
+            setIsEditInvoiceModalOpen(false);
+            setSelectedInvoiceToEdit(null);
+          }}
+          onSave={async (invoiceNumber, invoiceUrl, updatedDeliveries, invoiceDate, originalDeliveryIds) => {
+            await onSaveInvoice(supplier.cpf, originalDeliveryIds, invoiceNumber, invoiceUrl, updatedDeliveries, invoiceDate);
+            setIsEditInvoiceModalOpen(false);
+            setSelectedInvoiceToEdit(null);
+          }}
         />
       )}
 
