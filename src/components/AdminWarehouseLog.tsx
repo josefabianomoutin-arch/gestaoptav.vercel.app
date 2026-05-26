@@ -415,7 +415,19 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             return targetThursday.getMonth();
         };
 
-        const suppliersList = ensureArray<Supplier>(suppliers);
+        const ppaisCpfs = new Set(
+            ensureArray<any>(perCapitaConfig?.ppaisProducers)
+                .map(p => {
+                    const cpf = p.cpfCnpj || p.cpf || '';
+                    return cpf.replace(/\D/g, '');
+                })
+                .filter(Boolean)
+        );
+
+        const suppliersList = ensureArray<Supplier>(suppliers).filter(sup => {
+            const cpf = (sup.cpf || '').replace(/\D/g, '');
+            return ppaisCpfs.has(cpf);
+        });
 
         const lateSuppliersData = suppliersList.map(sup => {
             const deliveriesList = ensureArray<any>(sup.deliveries);
@@ -461,22 +473,12 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                 week: w,
                                 info: `Semana ${w}: Prazo para agendamento expirado (Mês corrente). Nenhuma entrega foi programada.`
                             });
-                        } else if (w === todayWeek) {
-                            schedulingDelays.push({
-                                week: w,
-                                info: `Semana ${w} (Semana Atual): ATENÇÃO SEMANA DE ENTREGA REALIZAR O AGENDAMENTO`
-                            });
-                        } else {
-                            schedulingDelays.push({
-                                week: w,
-                                info: `Semana ${w} (Semana Futura): ATENÇÃO SEMANA DE ENTREGA REALIZAR O AGENDAMENTO`
-                            });
                         }
                     }
                 }
             }
 
-            // 2. Verify Delivery Delay (Atraso de Entrega) & Invoice Delay (Atraso de Nota Fiscal):
+            // 2. Verify Delivery Delay (Atraso de Entrega):
             // Check scheduled deliveries inside the current month
             deliveriesList.forEach(d => {
                 const dDate = new Date(d.date + 'T00:00:00');
@@ -491,19 +493,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                 info: `Agendamento pendente em aberto para a data de entrega: ${formatDate(d.date)} (Excedeu o prazo de entrega).`
                             });
                         }
-                    } else {
-                        // It is a real delivery item (delivered/completed status)
-                        // Checking if invoice details are missing (and date is past/today)
-                        if (dDate <= SIMULATED_TODAY_LOCAL && (!d.invoiceNumber || !d.invoiceUrl)) {
-                            invoiceDelays.push({
-                                week: w,
-                                date: d.date,
-                                info: `Entrega de "${d.item}" em ${formatDate(d.date)} efetuada, porém a respectiva Nota Fiscal / Comprovante de recebimento não foi inserida.`,
-                                itemName: d.item || 'Item Desconhecido',
-                                quantity: Number(d.kg) || Number(d.quantity) || 0,
-                                value: Number(d.value) || 0
-                            });
-                        }
                     }
                 }
             });
@@ -511,15 +500,14 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             // Sort all descriptive outputs
             schedulingDelays.sort((a, b) => a.week - b.week);
             deliveryDelays.sort((a, b) => a.week - b.week);
-            invoiceDelays.sort((a, b) => a.week - b.week);
 
-            const hasAnyPendency = schedulingDelays.length > 0 || deliveryDelays.length > 0 || invoiceDelays.length > 0;
+            const hasAnyPendency = schedulingDelays.length > 0 || deliveryDelays.length > 0;
 
             return {
                 supplier: sup,
                 schedulingDelays,
                 deliveryDelays,
-                invoiceDelays,
+                invoiceDelays: [],
                 hasAnyPendency
             };
         }).filter(item => item.hasAnyPendency);
@@ -556,7 +544,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             const allowedWeeksCurrentMonth = allowedWeeksArray.filter(w => isWeekInCurrentMonth(w));
             const numWeeksInMonth = allowedWeeksCurrentMonth.length || 4;
 
-            // 1. Scheduling Delays (Count value for past and current weeks)
+            // 1. Scheduling Delays (Count value for past weeks)
             item.schedulingDelays.forEach(sd => {
                 contractItems.forEach(cItem => {
                     const monthlyQuota = (Number(cItem.totalKg) || 0) / divisor;
@@ -593,20 +581,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         value: weeklyValue,
                         inconformidade: 'Atraso na Entrega Física'
                     });
-                });
-            });
-
-            // 3. Invoice / Proof Delays
-            item.invoiceDelays.forEach(id => {
-                simplifiedEntries.push({
-                    supplierName: sup.name,
-                    supplierCpf: sup.cpf || 'N/A',
-                    itemName: (id.itemName || '').split(' ').slice(0, 2).join(' '),
-                    week: `Semana ${id.week}`,
-                    quantity: id.quantity || 0,
-                    unit: 'Kg',
-                    value: id.value || 0,
-                    inconformidade: 'Pendente Doc de Nota Fiscal'
                 });
             });
         });
@@ -660,8 +634,8 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             <body>
                 <div class="header">
                     <div>
-                        <h1 class="title">Relatório de Ativos em Atraso Simplificado</h1>
-                        <p style="margin: 3px 0 0 0; font-size: 10px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026</p>
+                        <h1 class="title">Relatório de Ativos em Atraso (PPAIS)</h1>
+                        <p style="margin: 3px 0 0 0; font-size: 10px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026 - Apenas Produtores PPAIS</p>
                     </div>
                     <div class="meta">
                         <div><b>Emissão:</b> ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}</div>
@@ -672,8 +646,8 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
 
                 <div class="summary-card">
                     <div class="summary-info">
-                        <h3>Valor Acumulado do Prejuízo (Cotas em Atraso)</h3>
-                        <p>Total financeiro não entregue ou sem agendamento regular verificado no mês vigente de ${currentMonthName.toUpperCase()} / 2026.</p>
+                        <h3>Valor Acumulado do Prejuízo (Cotas em Atraso - PPAIS)</h3>
+                        <p>Total financeiro não entregue ou sem agendamento regular verificado para produtores do PPAIS no mês vigente de ${currentMonthName.toUpperCase()} / 2026.</p>
                     </div>
                     <div class="summary-value">
                         R$ ${totalLossValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
