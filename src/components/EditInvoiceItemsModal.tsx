@@ -85,12 +85,16 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
               updated.itemName = matched.name;
               updated.item = matched.name; // For compatibility
               // Automatically calculate suggested value
-              updated.value = Number((updated.kg * matched.valuePerKg).toFixed(2));
+              const itemPrice = Number(matched.valuePerKg) || 0;
+              const itemKg = Number(updated.kg) || 0;
+              updated.value = Number((itemKg * itemPrice).toFixed(2));
             }
           } else if (field === 'kg') {
             const matched = contractItems.find((ci) => ci.id === d.itemId);
             if (matched) {
-              updated.value = Number((Number(val) * matched.valuePerKg).toFixed(2));
+              const itemPrice = Number(matched.valuePerKg) || 0;
+              const inputKg = Number(val) || 0;
+              updated.value = Number((inputKg * itemPrice).toFixed(2));
             }
           }
           return updated;
@@ -195,7 +199,7 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
                         <option value="">Selecione o item...</option>
                         {contractItems.map((item) => (
                           <option key={item.id} value={item.id}>
-                            {item.name} (R$ {item.valuePerKg.toFixed(2)}/Kg)
+                            {item.name} (R$ {(Number(item.valuePerKg) || 0).toFixed(2)}/Kg)
                           </option>
                         ))}
                       </select>

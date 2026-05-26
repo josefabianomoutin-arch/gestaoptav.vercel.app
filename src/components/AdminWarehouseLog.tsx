@@ -434,7 +434,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
 
             const schedulingDelays: { week: number; info: string }[] = [];
             const deliveryDelays: { week: number; info: string }[] = [];
-            const invoiceDelays: { week: number; date: string; info: string }[] = [];
+            const invoiceDelays: { week: number; date: string; info: string; itemName: string; quantity: number; value: number }[] = [];
 
             // Helper to format date in Brazilian style DD/MM/YYYY
             const formatDate = (dateStr: string) => {
@@ -498,7 +498,10 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                             invoiceDelays.push({
                                 week: w,
                                 date: d.date,
-                                info: `Entrega de "${d.item}" em ${formatDate(d.date)} efetuada, porém a respectiva Nota Fiscal / Comprovante de recebimento não foi inserida.`
+                                info: `Entrega de "${d.item}" em ${formatDate(d.date)} efetuada, porém a respectiva Nota Fiscal / Comprovante de recebimento não foi inserida.`,
+                                itemName: d.item || 'Item Desconhecido',
+                                quantity: Number(d.kg) || Number(d.quantity) || 0,
+                                value: Number(d.value) || 0
                             });
                         }
                     }
@@ -521,50 +524,144 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             };
         }).filter(item => item.hasAnyPendency);
 
+        // Build simplified flat list of delay entries for the table
+        const divisor = 8;
+        const simplifiedEntries: {
+            supplierName: string;
+            supplierCpf: string;
+            itemName: string;
+            week: string;
+            quantity: number;
+            unit: string;
+            value: number;
+            inconformidade: string;
+        }[] = [];
+
+        lateSuppliersData.forEach(item => {
+            const sup = item.supplier;
+            const contractItems = ensureArray<any>(sup.contractItems);
+            const allowedWeeksArray = sup.allowedWeeks || [];
+
+            const isWeekInCurrentMonth = (w: number): boolean => {
+                if (sup.monthlySchedule && Object.keys(sup.monthlySchedule).length > 0) {
+                    const weeksForMonth = sup.monthlySchedule?.[currentMonthName] || sup.monthlySchedule?.[currentMonthName.toUpperCase()] || [];
+                    return weeksForMonth.includes(w);
+                } else {
+                    const wMonthIdx = getWeekMonth(w);
+                    const wMonthName = monthsList[wMonthIdx];
+                    return wMonthName === currentMonthName;
+                }
+            };
+
+            const allowedWeeksCurrentMonth = allowedWeeksArray.filter(w => isWeekInCurrentMonth(w));
+            const numWeeksInMonth = allowedWeeksCurrentMonth.length || 4;
+
+            // 1. Scheduling Delays (Count value for past and current weeks)
+            item.schedulingDelays.forEach(sd => {
+                contractItems.forEach(cItem => {
+                    const monthlyQuota = (Number(cItem.totalKg) || 0) / divisor;
+                    const weeklyQty = monthlyQuota / numWeeksInMonth;
+                    const weeklyValue = weeklyQty * (Number(cItem.valuePerKg) || 0);
+
+                    simplifiedEntries.push({
+                        supplierName: sup.name,
+                        supplierCpf: sup.cpf || 'N/A',
+                        itemName: (cItem.name || '').split(' ').slice(0, 2).join(' '),
+                        week: `Semana ${sd.week}`,
+                        quantity: weeklyQty,
+                        unit: cItem.unit || 'Kg',
+                        value: weeklyValue,
+                        inconformidade: 'Sem Reservas de Agendamento'
+                    });
+                });
+            });
+
+            // 2. Delivery Delays
+            item.deliveryDelays.forEach(dd => {
+                contractItems.forEach(cItem => {
+                    const monthlyQuota = (Number(cItem.totalKg) || 0) / divisor;
+                    const weeklyQty = monthlyQuota / numWeeksInMonth;
+                    const weeklyValue = weeklyQty * (Number(cItem.valuePerKg) || 0);
+
+                    simplifiedEntries.push({
+                        supplierName: sup.name,
+                        supplierCpf: sup.cpf || 'N/A',
+                        itemName: (cItem.name || '').split(' ').slice(0, 2).join(' '),
+                        week: `Semana ${dd.week}`,
+                        quantity: weeklyQty,
+                        unit: cItem.unit || 'Kg',
+                        value: weeklyValue,
+                        inconformidade: 'Atraso na Entrega Física'
+                    });
+                });
+            });
+
+            // 3. Invoice / Proof Delays
+            item.invoiceDelays.forEach(id => {
+                simplifiedEntries.push({
+                    supplierName: sup.name,
+                    supplierCpf: sup.cpf || 'N/A',
+                    itemName: (id.itemName || '').split(' ').slice(0, 2).join(' '),
+                    week: `Semana ${id.week}`,
+                    quantity: id.quantity || 0,
+                    unit: 'Kg',
+                    value: id.value || 0,
+                    inconformidade: 'Pendente Doc de Nota Fiscal'
+                });
+            });
+        });
+
+        // Sum of all values representing the total monthly accumulated supply delay invoice loss
+        const totalLossValue = simplifiedEntries.reduce((sum, entry) => sum + entry.value, 0);
+
         const htmlContent = `
             <html>
             <head>
-                <title>Relatório Automatizado de Inconformidades e Pendências no Fluxo</title>
+                <title>Relatório de Ativos em Atraso (Simplificado)</title>
                 <style>
                     body { font-family: 'Inter', system-ui, sans-serif; padding: 30px; color: #1f2937; line-height: 1.5; }
-                    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; }
-                    .title { font-size: 18px; font-weight: 800; color: #111827; text-transform: uppercase; margin: 0; letter-spacing: -0.02em; }
-                    .meta { font-size: 11px; color: #4b5563; text-align: right; font-family: monospace; }
+                    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 12px; margin-bottom: 16px; }
+                    .title { font-size: 17px; font-weight: 800; color: #111827; text-transform: uppercase; margin: 0; letter-spacing: -0.02em; }
+                    .meta { font-size: 10px; color: #4b5563; text-align: right; font-family: monospace; }
                     .meta div { margin-bottom: 2px; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
-                    th, td { border: 1px solid #e5e7eb; padding: 12px 14px; text-align: left; vertical-align: top; }
-                    th { background-color: #f9fafb; font-weight: bold; color: #374151; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
                     
-                    /* Detailed layout elements */
-                    .supplier-title { font-size: 13px; font-weight: 800; color: #111827; }
-                    .supplier-cpf { font-size: 9px; color: #6b7280; font-family: monospace; margin-top: 3px; }
-                    .items-list { font-size: 10px; color: #4b5563; line-height: 1.4; }
+                    /* Summary Panel */
+                    .summary-card { 
+                        background-color: #fff5f5; 
+                        border: 1px dashed #feb2b2; 
+                        border-radius: 12px; 
+                        padding: 14px 18px; 
+                        margin-bottom: 20px; 
+                        display: flex; 
+                        justify-content: space-between; 
+                        align-items: center; 
+                    }
+                    .summary-info h3 { margin: 0; font-size: 13px; font-weight: 800; color: #9b2c2c; text-transform: uppercase; }
+                    .summary-info p { margin: 4px 0 0 0; font-size: 10.5px; color: #c53030; font-weight: 500; }
+                    .summary-value { font-size: 20px; font-weight: 900; color: #9b2c2c; font-family: monospace; }
 
-                    /* Custom alert style panels */
-                    .panel-section { margin-top: 10px; border-radius: 8px; padding: 10px; border: 1px solid #e5e7eb; background: #fafafa; }
-                    .panel-group { margin-bottom: 12px; }
-                    .panel-group:last-child { margin-bottom: 0; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 10.5px; }
+                    th, td { border: 1px solid #e5e7eb; padding: 10px 12px; text-align: left; vertical-align: middle; }
+                    th { background-color: #f9fafb; font-weight: bold; color: #374151; text-transform: uppercase; font-size: 9px; letter-spacing: 0.05em; }
                     
-                    /* Status Badges */
-                    .section-badge { display: inline-flex; align-items: center; font-size: 8px; font-weight: 900; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.02em; }
-                    .badge-schedule { background-color: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
-                    .badge-delivery { background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-                    .badge-invoice { background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
-
-                    /* Detail line entries */
-                    .detail-entry { margin: 4px 0 0 12px; font-size: 10px; color: #374151; list-style-type: circle; line-height: 1.4; }
+                    /* Truncated text and styled numbers */
+                    .item-badge { font-family: monospace; font-size: 10px; font-weight: bold; color: #111827; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; border: 1px solid #e5e7eb; display: inline-block; text-transform: uppercase; }
+                    .val-num { font-family: monospace; text-align: right; font-weight: bold; }
+                    .badge-delay-type { display: inline-block; font-size: 8px; font-weight: 900; padding: 1px 5px; border-radius: 3px; border: 1px solid #e5e7eb; text-transform: uppercase; }
+                    .badge-red { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
                     
                     .text-center { text-align: center; }
+                    .text-right { text-align: right; }
                     @media print {
-                        @page { size: A4 portrait; margin: 15mm; }
+                        @page { size: A4 portrait; margin: 12mm; }
                     }
                 </style>
             </head>
             <body>
                 <div class="header">
                     <div>
-                        <h1 class="title">Relatório de Ativos em Atraso (${currentMonthName.toUpperCase()} / 2026)</h1>
-                        <p style="margin: 5px 0 0 0; font-size: 11px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026</p>
+                        <h1 class="title">Relatório de Ativos em Atraso Simplificado</h1>
+                        <p style="margin: 3px 0 0 0; font-size: 10px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026</p>
                     </div>
                     <div class="meta">
                         <div><b>Emissão:</b> ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}</div>
@@ -572,84 +669,47 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         <div><b>Data de Controle:</b> 07/05/2026</div>
                     </div>
                 </div>
-                
-                <p style="font-size: 11px; color: #374151; margin-bottom: 20px; text-align: justify; line-height: 1.6;">
-                    Este relatório oficial compila o status operacional atual de entrega dos fornecedores designados <b>exclusivamente para o mês vigente de ${currentMonthName.toUpperCase()} / 2026</b>. Foram validadas três fases críticas de conformidade do fluxo do estoque: **(1) Atraso no Agendamento** (ausência de reserva para semanas obrigatórias do mês corrente), **(2) Atraso de Entrega** (agendamentos de entrega pendentes do mês corrente cujas datas estão vencidas) e **(3) Atraso no Envio da Nota Fiscal / Comprovante** (entregas declaradas no mês corrente onde a nota fiscal digital ou foto de recebimento físico não foi indexada ao sistema).
-                </p>
+
+                <div class="summary-card">
+                    <div class="summary-info">
+                        <h3>Valor Acumulado do Prejuízo (Cotas em Atraso)</h3>
+                        <p>Total financeiro não entregue ou sem agendamento regular verificado no mês vigente de ${currentMonthName.toUpperCase()} / 2026.</p>
+                    </div>
+                    <div class="summary-value">
+                        R$ ${totalLossValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                </div>
 
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 28%;">Fornecedor / Identificação</th>
-                            <th style="width: 25%;">Itens Contratados</th>
-                            <th style="width: 47%;">Descritivo Detalhado das Inconformidades</th>
+                            <th style="width: 25%;">Fornecedor</th>
+                            <th style="width: 20%;">Item Contr. (2p)</th>
+                            <th style="width: 12%; text-align: center;">Semana</th>
+                            <th style="width: 15%; text-align: right;">Quantidade</th>
+                            <th style="width: 15%; text-align: right;">Valor (R$)</th>
+                            <th style="width: 13%; text-align: center;">Inconformidade</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${lateSuppliersData.length === 0 ? `
+                        ${simplifiedEntries.length === 0 ? `
                             <tr>
-                                <td colspan="3" class="text-center" style="padding: 30px; font-style: italic; color: #6b7280; font-size: 12px;">
-                                    Excelente! Nenhum fornecedor apresenta atrasos ou inconformidades no sistema durante o período verificado.
+                                <td colspan="6" class="text-center" style="padding: 24px; font-style: italic; color: #6b7280; font-size: 11px;">
+                                    Excelente! Nenhum item com inconformidade ou atraso registrado no período.
                                 </td>
                             </tr>
-                        ` : lateSuppliersData.map(item => {
-                            const contractItemsNames = ensureArray<any>(item.supplier.contractItems)
-                                .map(it => it.name)
-                                .join(', ');
-
-                            let detailedPanelsHtml = '';
-
-                            // Build beautiful inline panels for each type if present
-                            if (item.schedulingDelays.length > 0) {
-                                detailedPanelsHtml += `
-                                    <div class="panel-group">
-                                        <span class="section-badge badge-schedule">⚠️ ATRASO NO AGENDAMENTO (SEMANA DE ENTREGA)</span>
-                                        ${item.schedulingDelays.map(sd => `
-                                            <div class="detail-entry"><b>Semana ${sd.week}:</b> ${sd.info}</div>
-                                        `).join('')}
-                                    </div>
-                                `;
-                            }
-
-                            if (item.deliveryDelays.length > 0) {
-                                detailedPanelsHtml += `
-                                    <div class="panel-group">
-                                        <span class="section-badge badge-delivery">❌ ATRASO DE ENTREGA (AGENDAMENTO VENCIDO)</span>
-                                        ${item.deliveryDelays.map(dd => `
-                                            <div class="detail-entry"><b>Semana ${dd.week}:</b> ${dd.info}</div>
-                                        `).join('')}
-                                    </div>
-                                `;
-                            }
-
-                            if (item.invoiceDelays.length > 0) {
-                                detailedPanelsHtml += `
-                                    <div class="panel-group">
-                                        <span class="section-badge badge-invoice">📄 ATRASO NO ENVIO DA NOTA FISCAL / COMPROVANTE</span>
-                                        ${item.invoiceDelays.map(id => `
-                                            <div class="detail-entry"><b>Semana ${id.week}:</b> ${id.info}</div>
-                                        `).join('')}
-                                    </div>
-                                `;
-                            }
-
-                            return `
-                                <tr>
-                                    <td>
-                                        <div class="supplier-title">${item.supplier.name}</div>
-                                        <div class="supplier-cpf">CPF/CNPJ: ${item.supplier.cpf || 'Não Informado'}</div>
-                                    </td>
-                                    <td>
-                                        <div class="items-list">${contractItemsNames || 'Sem itens no contrato ativo.'}</div>
-                                    </td>
-                                    <td>
-                                        <div class="panel-section">
-                                            ${detailedPanelsHtml}
-                                        </div>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('')}
+                        ` : simplifiedEntries.map(entry => `
+                            <tr>
+                                <td style="font-weight: 600; color: #374151;">${entry.supplierName}</td>
+                                <td><span class="item-badge">${entry.itemName}</span></td>
+                                <td class="text-center" style="font-weight: 700; color: #4b5563;">${entry.week}</td>
+                                <td class="val-num text-right">${entry.quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.unit}</td>
+                                <td class="val-num text-right" style="color: #991b1b;">R$ ${entry.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td class="text-center">
+                                    <span class="badge-delay-type badge-red">${entry.inconformidade}</span>
+                                </td>
+                            </tr>
+                        `).join('')}
                     </tbody>
                 </table>
 

@@ -2196,7 +2196,10 @@ const App: React.FC = () => {
         try {
             const currentOffline = JSON.parse(localStorage.getItem('offline_warehouse_entries') || '[]');
             currentOffline.push(offlineEntry);
-            localStorage.setItem('offline_warehouse_entries', JSON.stringify(currentOffline));
+            const saved = safeLocalStorageSetItem('offline_warehouse_entries', JSON.stringify(currentOffline));
+            if (!saved) {
+                return { success: false, message: 'Erro ao salvar offline: Limite de armazenamento local excedido.' };
+            }
             return { success: true, message: 'Registrado offline com sucesso! Use o Módulo de Sincronização via Pendrive.' };
         } catch (storageError) {
             return { success: false, message: 'Erro ao salvar offline: ' + (storageError instanceof Error ? storageError.message : String(storageError)) };
@@ -2343,7 +2346,10 @@ const App: React.FC = () => {
         try {
             const currentOffline = JSON.parse(localStorage.getItem('offline_warehouse_entries') || '[]');
             currentOffline.push(offlineWithdrawal);
-            localStorage.setItem('offline_warehouse_entries', JSON.stringify(currentOffline));
+            const saved = safeLocalStorageSetItem('offline_warehouse_entries', JSON.stringify(currentOffline));
+            if (!saved) {
+                return { success: false, message: 'Erro ao salvar offline: Limite de armazenamento local excedido.' };
+            }
             return { success: true, message: 'Registrado offline com sucesso! Use o Módulo de Sincronização via Pendrive.' };
         } catch (storageError) {
              return { success: false, message: 'Erro ao registrar offline: ' + (storageError instanceof Error ? storageError.message : String(storageError)) };
