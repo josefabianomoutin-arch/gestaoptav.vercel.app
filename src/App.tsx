@@ -3066,11 +3066,16 @@ const App: React.FC = () => {
       const pereciveisList = ensureArray<any>(perCapitaConfig?.pereciveisSuppliers);
       const estocaveisList = ensureArray<any>(perCapitaConfig?.estocaveisSuppliers);
       
+      // Try searching for the user in the per-capita lists
       const ppaisEntry = ppaisList.find((p: any) => p && p.cpfCnpj && String(p.cpfCnpj).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
       const pereciveisEntry = pereciveisList.find((p: any) => p && p.cpfCnpj && String(p.cpfCnpj).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
       const estocaveisEntry = estocaveisList.find((p: any) => p && p.cpfCnpj && String(p.cpfCnpj).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
+      
+      // Also check if they are in the main suppliers list
+      const currentSupplier = suppliers.find(s => s && s.cpf && String(s.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
+      
       const perCapitaEntry: any = ppaisEntry || pereciveisEntry || estocaveisEntry;
-      const isRegisteredForNextPeriod = !!perCapitaEntry;
+      const isRegisteredForNextPeriod = !!perCapitaEntry || !!currentSupplier;
 
       if (isMayOrLater && !isRegisteredForNextPeriod) {
         return (
@@ -3087,7 +3092,6 @@ const App: React.FC = () => {
         );
       }
 
-      const currentSupplier = suppliers.find(s => s && s.cpf && String(s.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
       if (currentSupplier) {
         // Calculate weeks from Per Capita if registered
         let finalWeeks = ensureArray<number>(currentSupplier.allowedWeeks).filter(w => w <= 18);
