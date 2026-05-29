@@ -65,11 +65,22 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   const isDouglas = currentUser?.cpf === '29099022859' || currentUser?.name?.toUpperCase().includes('DOUGLAS');
   const isAlfredo = currentUser?.cpf === '29462706821' || currentUser?.name?.toUpperCase().includes('ALFREDO');
 
+  const showChefeDep = isReadOnly || isDouglas || currentUser?.role === 'admin';
+  const showChefeSeg = isReadOnly || isAlfredo || currentUser?.role === 'admin';
+
   // Top level tabs: 'chefeDep' (Douglas Galdino) and 'chefeSeg' (Alfredo Lopes)
   const [activeSubTab, setActiveSubTab] = useState<'chefeDep' | 'chefeSeg'>(() => {
-    if (isAlfredo) return 'chefeSeg';
+    if (isAlfredo && !isDouglas && showChefeSeg) return 'chefeSeg';
     return 'chefeDep';
   });
+
+  useEffect(() => {
+    if (!showChefeDep && showChefeSeg && activeSubTab !== 'chefeSeg') {
+      setActiveSubTab('chefeSeg');
+    } else if (!showChefeSeg && showChefeDep && activeSubTab !== 'chefeDep') {
+      setActiveSubTab('chefeDep');
+    }
+  }, [showChefeDep, showChefeSeg, activeSubTab]);
 
   // Current view mode inside active tab: 'form' or 'history'
   const [viewMode, setViewMode] = useState<'form' | 'history'>('form');
@@ -796,6 +807,26 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
   const currentActiveOrderToPrint = currentActiveOrder || { items: localActiveItems, id: 'atual', signed: false };
 
+  if (!showChefeDep && !showChefeSeg) {
+    return (
+      <div id="director-per-capita-panel" className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 text-center animate-fade-in max-w-lg mx-auto">
+        <div className="flex flex-col items-center gap-4">
+          <span className="p-4 bg-amber-50 rounded-full text-amber-600">
+            <ShieldCheck className="h-8 w-8 text-amber-600" />
+          </span>
+          <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">
+            Acesso Restrito
+          </h2>
+          <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+            Este painel da Cota Per Capita é de acesso restrito aos diretores autorizados: 
+            <strong className="block mt-1 text-slate-700">Douglas Fernando Semenzin Galdino</strong>
+            ou <strong className="block text-slate-700">Alfredo Guilherme Lopes</strong>.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div id="director-per-capita-panel" className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-fade-in">
       
@@ -806,18 +837,22 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
         </h2>
         
         <div className="flex bg-slate-800 p-1.5 rounded-2xl max-w-lg mx-auto border border-slate-700">
-          <button
-            onClick={() => handleTabChange('chefeDep')}
-            className={`flex-1 py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeSubTab === 'chefeDep' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
-          >
-            📝 {isDouglas ? 'Seu Painel: Dep.' : 'Chefe Departamento'}
-          </button>
-          <button
-            onClick={() => handleTabChange('chefeSeg')}
-            className={`flex-1 py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeSubTab === 'chefeSeg' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
-          >
-            👮 {isAlfredo ? 'Seu Painel: Seg.' : 'Segurança Interna'}
-          </button>
+          {showChefeDep && (
+            <button
+              onClick={() => handleTabChange('chefeDep')}
+              className={`flex-1 py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeSubTab === 'chefeDep' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              📝 {isDouglas ? 'Seu Painel: Dep.' : 'Chefe Departamento'}
+            </button>
+          )}
+          {showChefeSeg && (
+            <button
+              onClick={() => handleTabChange('chefeSeg')}
+              className={`flex-1 py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeSubTab === 'chefeSeg' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              👮 {isAlfredo ? 'Seu Painel: Seg.' : 'Segurança Interna'}
+            </button>
+          )}
         </div>
       </div>
 
