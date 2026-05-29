@@ -386,6 +386,25 @@ const App: React.FC = () => {
     }
 
     const adminCpfs = ['15210361870', '29099022859', '29462706821', '36554895876'];
+
+    // ACESSO ESPECÍFICO: DOUGLAS FERNANDO SEMENZIN GALDINO
+    if (['DOUGLAS', 'GALDINO', 'SEMENZIN'].some(n => cleanName.includes(n))) {
+      const douglasDbPass = (systemPasswords['DOUGLAS FERNANDO SEMENZIN GALDINO'] || 'diretor123').trim().toLowerCase();
+      if (numericPass === '29099022859' || rawPass.toLowerCase() === douglasDbPass) {
+        setUser({ name: 'DOUGLAS FERNANDO SEMENZIN GALDINO', cpf: '29099022859', role: 'financeiro' });
+        return true;
+      }
+    }
+
+    // ACESSO ESPECÍFICO: ALFREDO GUILHERME LOPES
+    if (['ALFREDO', 'LOPES', 'GUILHERME'].some(n => cleanName.includes(n))) {
+      const alfredoDbPass = (systemPasswords['ALFREDO GUILHERME LOPES'] || 'diretor123').trim().toLowerCase();
+      if (numericPass === '29462706821' || rawPass.toLowerCase() === alfredoDbPass) {
+        setUser({ name: 'ALFREDO GUILHERME LOPES', cpf: '29462706821', role: 'financeiro' });
+        return true;
+      }
+    }
+
     if (['ADMINISTRADOR', 'ADM', 'GALDINO', 'DOUGLAS', 'ALFREDO'].some(n => cleanName.includes(n))) {
       if (adminCpfs.includes(numericPass)) {
         let displayName = cleanName;

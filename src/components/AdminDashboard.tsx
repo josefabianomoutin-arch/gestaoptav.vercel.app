@@ -187,6 +187,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       { key: 'SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA', name: 'Seção de Infraestrutura e Logística', default: '431385464' },
       { key: 'WALTER RODRIGUES JUNIOR', name: 'Chefe Walter Rodrigues Junior', default: 'chefe123' },
       { key: 'ALFREDO GUILHERME LOPES', name: 'Diretor Alfredo Guilherme Lopes', default: 'diretor123' },
+      { key: 'DOUGLAS FERNANDO SEMENZIN GALDINO', name: 'Diretor Douglas Fernando Semenzin Galdino', default: 'diretor123' },
   ];
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const backupInputRef = useRef<HTMLInputElement>(null);
