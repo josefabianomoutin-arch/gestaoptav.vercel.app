@@ -11,6 +11,7 @@ import AdminWarehouseLog from './AdminWarehouseLog';
 import ValidityAnalysisPanel from './ValidityAnalysisPanel';
 import SynchronizationModule from './SynchronizationModule';
 import AdminStandardMenu from './AdminStandardMenu';
+import { DirectorPerCapitaTable } from './DirectorPerCapitaTable';
 import { getWeekNumber } from '../lib/supplierUtils';
 import { ensureArray } from '../lib/utils';
 
@@ -43,6 +44,8 @@ interface AlmoxarifadoDashboardProps {
     dailyMenus: DailyMenus;
     onUpdateStandardMenu: (menu: StandardMenu) => Promise<void | { success: boolean; message: string }>;
     onUpdateDailyMenu: (menus: DailyMenus) => Promise<void | { success: boolean; message: string }>;
+    directorPerCapita?: any;
+    onUpdateDirectorPerCapita?: any;
     [key: string]: any;
 }
 
@@ -106,7 +109,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     acquisitionItems = [],
     standardMenu,
     dailyMenus,
-    onUpdateDailyMenu
+    onUpdateDailyMenu,
+    directorPerCapita,
+    onUpdateDirectorPerCapita
 }) => {
     const [activeTab, setActiveTab] = useState<string>('history');
     const [receiptSupplierCpf, setReceiptSupplierCpf] = useState('');
@@ -1278,12 +1283,12 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             Modo Offline
                         </div>
                     )}
-                    <div className="flex bg-slate-100 p-1 rounded-2xl">
-                        {['history', 'movement_history', 'image_history', 'validity', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'sync'].map(tab => (
+                    <div className="flex bg-slate-100 p-1 rounded-2xl overflow-x-auto max-w-[80vw]">
+                        {['history', 'movement_history', 'image_history', 'validity', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'directors_percapita', 'sync'].map(tab => (
                             <button 
                                 key={tab}
                                 onClick={() => setActiveTab(tab)} 
-                                className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                                 {tab === 'history' ? 'Consulta & Gestão' : 
                                  tab === 'movement_history' ? 'Log de Movimentação' : 
                                  tab === 'image_history' ? 'Notas Fiscais' : 
@@ -1292,7 +1297,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                  tab === 'cronograma' ? 'Cronograma' : 
                                  tab === 'menu' ? 'Cardápio' : 
                                  tab === 'receipt' ? 'Controle Doc.' : 
-                                 tab === 'manual_receipt' ? 'Termo Manual' : 'Sincronização'}
+                                 tab === 'manual_receipt' ? 'Termo Manual' : 
+                                 tab === 'directors_percapita' ? 'Per Capita Diretores' : 'Sincronização'}
                             </button>
                         ))}
                     </div>
@@ -1750,6 +1756,13 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             </div>
                         </div>
                     </div>
+                ) : activeTab === 'directors_percapita' ? (
+                    <DirectorPerCapitaTable 
+                      data={directorPerCapita} 
+                      onUpdate={onUpdateDirectorPerCapita} 
+                      currentUser={{ name: 'ALMOXARIFADO', cpf: 'almoxarifado', role: 'almoxarifado' }}
+                      isReadOnly={true}
+                    />
                 ) : activeTab === 'sync' ? (
                     <SynchronizationModule onSyncWithFirebase={async (data) => {
                         for (const entry of data) {

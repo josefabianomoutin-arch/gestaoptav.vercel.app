@@ -6,6 +6,7 @@ import type { FinancialRecord, StandardMenu, DailyMenus, Supplier, ThirdPartyEnt
 import MenuDashboard from './MenuDashboard';
 import AgendaChegadas from './AgendaChegadas';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
+import { DirectorPerCapitaTable } from './DirectorPerCapitaTable';
 
 interface FinanceDashboardProps {
   records: FinancialRecord[];
@@ -19,6 +20,8 @@ interface FinanceDashboardProps {
   vehicleAssets?: VehicleAsset[];
   driverAssets?: DriverAsset[];
   validationRoles?: any[];
+  directorPerCapita?: any;
+  onUpdateDirectorPerCapita?: any;
 }
 
 const PTRES_OPTIONS = ['380302', '380303', '380304', '380308', '380328'] as const;
@@ -35,7 +38,7 @@ const PTRES_DESCRIPTIONS: Record<string, string> = {
 const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
-type SubTab = 'recursos' | 'pagamentos' | 'saldos' | 'cardapio' | 'agenda' | 'vehicles';
+type SubTab = 'recursos' | 'pagamentos' | 'saldos' | 'cardapio' | 'agenda' | 'vehicles' | 'directors_percapita';
 
 const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ 
     records, 
@@ -49,6 +52,8 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
     vehicleAssets,
     driverAssets,
     validationRoles,
+    directorPerCapita,
+    onUpdateDirectorPerCapita,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('pagamentos');
@@ -257,6 +262,12 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
                     >
                         🚗 Saída de Veículos
                     </button>
+                    <button 
+                        onClick={() => setActiveSubTab('directors_percapita')}
+                        className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'directors_percapita' ? 'bg-indigo-600 text-white shadow-lg' : 'hover:bg-indigo-800 text-indigo-200'}`}
+                    >
+                        📝 {user?.name.toUpperCase().includes('ALFREDO') ? 'Per Capita Seg. Interna' : user?.name.toUpperCase().includes('DOUGLAS') ? 'Per Capita Chefe Dep.' : 'Per Capita Diretores'}
+                    </button>
                 </>
             )}
         </div>
@@ -308,7 +319,17 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
             </div>
         )}
 
-        {activeSubTab !== 'saldos' && activeSubTab !== 'cardapio' && activeSubTab !== 'agenda' && activeSubTab !== 'vehicles' && (
+        {activeSubTab === 'directors_percapita' && (
+            <div className="animate-fade-in-up">
+                <DirectorPerCapitaTable 
+                    data={directorPerCapita}
+                    onUpdate={onUpdateDirectorPerCapita}
+                    currentUser={user ? { name: user.name, cpf: user.cpf, role: user.role } : undefined}
+                />
+            </div>
+        )}
+
+        {activeSubTab !== 'saldos' && activeSubTab !== 'cardapio' && activeSubTab !== 'agenda' && activeSubTab !== 'vehicles' && activeSubTab !== 'directors_percapita' && (
             <div className="flex justify-center">
                 <div className="w-full max-w-2xl relative">
                     <span className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-400">

@@ -42,6 +42,7 @@ let validationRolesRef: any;
 let systemPasswordsRef: any;
 let maintenanceSchedulesRef: any;
 let publicInfoRef: any;
+let directorPerCapitaRef: any;
 
 try {
   database = getDatabase(app);
@@ -51,6 +52,7 @@ try {
   perCapitaConfigRef = ref(database, 'perCapitaConfig');
   cleaningLogsRef = ref(database, 'cleaningLogs');
   directorWithdrawalsRef = ref(database, 'directorWithdrawals');
+  directorPerCapitaRef = ref(database, 'directorPerCapita');
   standardMenuRef = ref(database, 'standardMenu');
   dailyMenusRef = ref(database, 'dailyMenus');
   financialRecordsRef = ref(database, 'financialRecords');
@@ -102,6 +104,7 @@ const App: React.FC = () => {
   const [_dailyAllowances, setDailyAllowances] = useState<any[]>([]);
   const [_staff, setStaff] = useState<any[]>([]);
   const [publicInfo, setPublicInfo] = useState<PublicInfo[]>([]);
+  const [directorPerCapita, setDirectorPerCapita] = useState<any>(null);
 
   console.log("App mounted, user:", user);
 
@@ -289,7 +292,36 @@ const App: React.FC = () => {
       setPublicInfo(list as PublicInfo[]);
       safeLocalStorageSetItem('cached_publicInfo', JSON.stringify(list));
     });
+    onValue(directorPerCapitaRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setDirectorPerCapita(data);
+      } else {
+        // Pre-initialize empty state
+        const emptyItems = Array.from({ length: 25 }, (_, i) => ({
+          index: i + 1,
+          itemName: '',
+          quantity: '',
+          observation: ''
+        }));
+        setDirectorPerCapita({
+          items: emptyItems,
+          chefeDepSigned: false,
+          chefeSegSigned: false
+        });
+      }
+    });
   }, []);
+
+  const handleUpdateDirectorPerCapita = async (updatedData: any) => {
+    try {
+      await set(directorPerCapitaRef, updatedData);
+      return { success: true };
+    } catch (e) {
+      console.error('Erro ao atualizar per capita dos diretores:', e);
+      return { success: false, message: 'Erro ao salvar os dados no banco de dados.' };
+    }
+  };
 
   const handleRegisterMaintenanceSchedule = async (schedule: Omit<MaintenanceSchedule, 'id'>) => {
     try {
@@ -356,8 +388,14 @@ const App: React.FC = () => {
     const adminCpfs = ['15210361870', '29099022859', '29462706821', '36554895876'];
     if (['ADMINISTRADOR', 'ADM', 'GALDINO', 'DOUGLAS', 'ALFREDO'].some(n => cleanName.includes(n))) {
       if (adminCpfs.includes(numericPass)) {
-        const isFinanceAdmin = cleanName.includes('DOUGLAS') || cleanName.includes('ALFREDO');
-        setUser({ name: cleanName, cpf: numericPass, role: isFinanceAdmin ? 'financeiro' : 'admin' });
+        let displayName = cleanName;
+        if (numericPass === '29099022859') {
+          displayName = 'DOUGLAS FERNANDO SEMENZIN GALDINO';
+        } else if (numericPass === '29462706821') {
+          displayName = 'ALFREDO GUILHERME LOPES';
+        }
+        const isFinanceAdmin = cleanName.includes('DOUGLAS') || cleanName.includes('ALFREDO') || numericPass === '29099022859' || numericPass === '29462706821';
+        setUser({ name: displayName, cpf: numericPass, role: isFinanceAdmin ? 'financeiro' : 'admin' });
         return true;
       }
     }
@@ -2750,6 +2788,8 @@ const App: React.FC = () => {
                vehicleAssets={vehicleAssets}
                driverAssets={driverAssets}
                validationRoles={validationRoles}
+               directorPerCapita={directorPerCapita}
+               onUpdateDirectorPerCapita={handleUpdateDirectorPerCapita}
              />;
     }
 
@@ -2832,6 +2872,8 @@ const App: React.FC = () => {
                dailyMenus={dailyMenus}
                onUpdateStandardMenu={handleUpdateStandardMenu}
                onUpdateDailyMenu={handleUpdateDailyMenu}
+               directorPerCapita={directorPerCapita}
+               onUpdateDirectorPerCapita={handleUpdateDirectorPerCapita}
              />;
     }
 
