@@ -71,16 +71,15 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   // Top level tabs: 'chefeDep' (Douglas Galdino) and 'chefeSeg' (Alfredo Lopes)
   const [activeSubTab, setActiveSubTab] = useState<'chefeDep' | 'chefeSeg'>(() => {
     if (isAlfredo && !isDouglas && showChefeSeg) return 'chefeSeg';
+    if (!showChefeDep && showChefeSeg) return 'chefeSeg';
     return 'chefeDep';
   });
 
-  useEffect(() => {
-    if (!showChefeDep && showChefeSeg && activeSubTab !== 'chefeSeg') {
-      setActiveSubTab('chefeSeg');
-    } else if (!showChefeSeg && showChefeDep && activeSubTab !== 'chefeDep') {
-      setActiveSubTab('chefeDep');
-    }
-  }, [showChefeDep, showChefeSeg, activeSubTab]);
+  // Category sub-tab of the active manager: 'alimentacao' or 'limpeza'
+  const [categoryTab, setCategoryTab] = useState<'alimentacao' | 'limpeza'>('alimentacao');
+
+  // Currently focused row input index for suggestions
+  const [focusedRowIndex, setFocusedRowIndex] = useState<number | null>(null);
 
   // Current view mode inside active tab: 'form' or 'history'
   const [viewMode, setViewMode] = useState<'form' | 'history'>('form');
@@ -97,6 +96,32 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   // Stock display states
   const [stockSearch, setStockSearch] = useState('');
   const [stockFilter, setStockFilter] = useState<'all' | 'general' | 'percapita'>('general');
+
+  // Keys representing active path in database for category
+  const orderKey = categoryTab === 'alimentacao' ? 'activeOrder' : 'limpezaActiveOrder';
+  const historyKey = categoryTab === 'alimentacao' ? 'history' : 'limpezaHistory';
+
+  // Get all unique items in perCapitaConfig (PPAIS, Estocáveis, and Perecíveis)
+  const percapitaAllItems = React.useMemo(() => {
+    const list: string[] = [];
+    if (perCapitaConfig) {
+      [
+        ...(perCapitaConfig.ppaisProducers || []),
+        ...(perCapitaConfig.pereciveisSuppliers || []),
+        ...(perCapitaConfig.estocaveisSuppliers || [])
+      ].forEach(supplier => {
+        (supplier.contractItems || []).forEach(item => {
+          if (item.name && item.name.trim()) {
+            const trimmed = item.name.trim();
+            if (!list.includes(trimmed)) {
+              list.push(trimmed);
+            }
+          }
+        });
+      });
+    }
+    return list.sort((a, b) => a.localeCompare(b));
+  }, [perCapitaConfig]);
 
   // get unique names from general standard menu (percapta geral)
   const generalMenuNames = React.useMemo(() => {
@@ -206,7 +231,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
   // Keep local items in sync with active subtab's activeOrder items
   useEffect(() => {
-    const activeOrderItems = data?.[activeSubTab]?.activeOrder?.items;
+    const activeOrderItems = data?.[activeSubTab]?.[orderKey]?.items;
     const timerId = setTimeout(() => {
       if (activeOrderItems && activeOrderItems.length > 0) {
         const dbStr = JSON.stringify(activeOrderItems);
@@ -234,7 +259,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       clearTimeout(timerId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data?.[activeSubTab]?.activeOrder?.items, activeSubTab]);
+  }, [data?.[activeSubTab]?.[orderKey]?.items, activeSubTab, orderKey]);
 
   const handleTabChange = (tab: 'chefeDep' | 'chefeSeg') => {
     setActiveSubTab(tab);
@@ -269,13 +294,13 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     if (!data) return;
     const subTab = activeSubTab;
     const currentSubTabData = data[subTab] || {};
-    const currentActiveOrder = currentSubTabData.activeOrder || {};
+    const currentActiveOrder = currentSubTabData[orderKey] || {};
 
     const updatedData = {
       ...data,
       [subTab]: {
         ...currentSubTabData,
-        activeOrder: {
+        [orderKey]: {
           ...currentActiveOrder,
           items: itemsList
         }
@@ -297,13 +322,13 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     if (!data) return;
     const subTab = activeSubTab;
     const currentSubTabData = data[subTab] || {};
-    const currentActiveOrder = currentSubTabData.activeOrder || {};
+    const currentActiveOrder = currentSubTabData[orderKey] || {};
 
     const updatedData = {
       ...data,
       [subTab]: {
         ...currentSubTabData,
-        activeOrder: {
+        [orderKey]: {
           ...currentActiveOrder,
           periodType: newPeriod
         }
@@ -312,8 +337,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     await onUpdate(updatedData);
   };
 
-  // State checks for the current active subtab
-  const currentActiveOrder = data?.[activeSubTab]?.activeOrder;
+  // State checks for the current active subtab and category
+  const currentActiveOrder = data?.[activeSubTab]?.[orderKey];
   const isCurrentOrderSigned = !!currentActiveOrder?.signed;
 
   const handleDigitalSign = async (e: React.FormEvent) => {
@@ -346,13 +371,13 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     const signerName = subTab === 'chefeDep' ? 'DOUGLAS FERNANDO SEMENZIN GALDINO' : 'ALFREDO GUILHERME LOPES';
 
     const currentSubTabData = data[subTab] || {};
-    const currentActiveOrderData = currentSubTabData.activeOrder || {};
+    const currentActiveOrderData = currentSubTabData[orderKey] || {};
 
     const updatedData = {
       ...data,
       [subTab]: {
         ...currentSubTabData,
-        activeOrder: {
+        [orderKey]: {
           ...currentActiveOrderData,
           signed: true,
           signedAt: timestamp,
@@ -384,13 +409,13 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     }
 
     const currentSubTabData = data[subTab] || {};
-    const currentActiveOrderData = currentSubTabData.activeOrder || {};
+    const currentActiveOrderData = currentSubTabData[orderKey] || {};
 
     const updatedData = {
       ...data,
       [subTab]: {
         ...currentSubTabData,
-        activeOrder: {
+        [orderKey]: {
           ...currentActiveOrderData,
           signed: false,
           signedAt: undefined,
@@ -427,7 +452,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       ...data,
       [subTab]: {
         ...currentSubTabData,
-        activeOrder: {
+        [orderKey]: {
           items: emptyItems,
           id: 'atual',
           signed: false,
@@ -450,7 +475,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     if (!data) return;
     const subTab = activeSubTab;
     const currentSubTabData = data[subTab] || {};
-    const currentActiveOrderData = currentSubTabData.activeOrder || {};
+    const currentActiveOrderData = currentSubTabData[orderKey] || {};
 
     if (!currentActiveOrderData.signed) {
       alert('Por favor, assine digitalmente o pedido antes de enviá-lo ao histórico para separação.');
@@ -470,7 +495,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     const timestampId = `pedido_${Date.now()}`;
     const formattedDate = new Date().toLocaleString('pt-BR');
 
-    const currentHistory = currentSubTabData.history || {};
+    const currentHistory = currentSubTabData[historyKey] || {};
     const newHistoricalOrder: OrderData = {
       ...currentActiveOrderData,
       id: timestampId,
@@ -488,14 +513,14 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       ...data,
       [subTab]: {
         ...currentSubTabData,
-        activeOrder: {
+        [orderKey]: {
           items: emptyItems,
           id: 'atual',
           signed: false,
           signedAt: undefined,
           signerName: undefined
         },
-        history: {
+        [historyKey]: {
           ...currentHistory,
           [timestampId]: newHistoricalOrder
         }
@@ -520,7 +545,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
     const subTab = activeSubTab;
     const currentSubTabData = data[subTab] || {};
-    const currentHistory = { ...(currentSubTabData.history || {}) };
+    const currentHistory = { ...(currentSubTabData[historyKey] || {}) };
     
     delete currentHistory[orderId];
 
@@ -528,7 +553,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       ...data,
       [subTab]: {
         ...currentSubTabData,
-        history: currentHistory
+        [historyKey]: currentHistory
       }
     };
 
@@ -880,13 +905,42 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
               onClick={() => { setViewMode('history'); setViewingPastOrder(null); }}
               className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${viewMode === 'history' || viewingPastOrder ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
             >
-              <History className="h-3.5 w-3.5" /> Histórico ({Object.keys(data?.[activeSubTab]?.history || {}).length})
+              <History className="h-3.5 w-3.5" /> Histórico ({Object.keys(data?.[activeSubTab]?.[historyKey] || {}).length})
             </button>
           </div>
         </div>
       </div>
 
       <div className="p-4 md:p-6">
+        {/* Category Tabs: Alimentação vs Limpeza */}
+        <div className="flex bg-slate-100 p-1.5 rounded-2xl max-w-md mb-6 border border-slate-200">
+          <button
+            onClick={() => {
+              setCategoryTab('alimentacao');
+              setViewingPastOrder(null);
+            }}
+            className={`flex-1 py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+              categoryTab === 'alimentacao'
+                ? 'bg-white text-indigo-700 shadow-md'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            🍎 Alimentação
+          </button>
+          <button
+            onClick={() => {
+              setCategoryTab('limpeza');
+              setViewingPastOrder(null);
+            }}
+            className={`flex-1 py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+              categoryTab === 'limpeza'
+                ? 'bg-white text-indigo-700 shadow-md'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            🧹 Limpeza
+          </button>
+        </div>
         
         {/* VIEW 1: HISTORY LIST */}
         {viewMode === 'history' && !viewingPastOrder && (
@@ -894,14 +948,14 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
             <div className="flex items-center gap-2">
               <History className="h-5 w-5 text-indigo-600" />
               <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest">
-                Pedidos Finalizados de {activeSubTab === 'chefeDep' ? 'Chefe de Departamento' : 'Segurança Interna'}
+                Pedidos Finalizados ({categoryTab === 'alimentacao' ? 'Alimentação' : 'Limpeza'}) de {activeSubTab === 'chefeDep' ? 'Chefe de Departamento' : 'Segurança Interna'}
               </h4>
             </div>
             
-            {(!data?.[activeSubTab]?.history || Object.keys(data?.[activeSubTab]?.history).length === 0) ? (
+            {(!data?.[activeSubTab]?.[historyKey] || Object.keys(data?.[activeSubTab]?.[historyKey]).length === 0) ? (
               <div className="p-12 text-center bg-slate-50 border border-dashed border-slate-200 rounded-3xl">
                 <FileText className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                <p className="text-xs text-slate-400 font-extrabold uppercase tracking-widest">Nenhum pedido finalizado no histórico permanente.</p>
+                <p className="text-xs text-slate-400 font-extrabold uppercase tracking-widest">Nenhum pedido de {categoryTab === 'alimentacao' ? 'alimentação' : 'limpeza'} no histórico permanente.</p>
                 <p className="text-[10px] text-slate-400 font-semibold mt-1">Preencha o formulário e valide-o digitalmente para poder arquivar pedidos.</p>
               </div>
             ) : (
@@ -917,7 +971,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                     </tr>
                   </thead>
                   <tbody className="text-xs font-semibold text-slate-700 divide-y divide-slate-100">
-                    {Object.values(data?.[activeSubTab]?.history || {})
+                    {Object.values(data?.[activeSubTab]?.[historyKey] || {})
                       .sort((a, b) => {
                         const timeA = a.id.replace('pedido_', '');
                         const timeB = b.id.replace('pedido_', '');
@@ -1209,15 +1263,54 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                         </div>
 
                         {/* Name Column */}
-                        <div>
+                        <div className="relative">
                           <input
                             type="text"
                             disabled={!isEditable}
-                            placeholder={isEditable ? "Nome do produto..." : "(Vazio)"}
+                            placeholder={isEditable ? (categoryTab === 'alimentacao' ? "Escreva para buscar..." : "Nome do produto...") : "(Vazio)"}
                             value={item.itemName}
+                            onFocus={() => {
+                              if (categoryTab === 'alimentacao') {
+                                setFocusedRowIndex(item.index);
+                              }
+                            }}
+                            onBlur={() => {
+                              // Brief delay to allow clicking on the dropdown candidates list
+                              setTimeout(() => {
+                                setFocusedRowIndex(prev => prev === item.index ? null : prev);
+                              }, 250);
+                            }}
                             onChange={(e) => handleFieldChange(item.index, 'itemName', e.target.value)}
                             className="w-full bg-transparent px-3 py-2 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
                           />
+                          {categoryTab === 'alimentacao' && focusedRowIndex === item.index && isEditable && (
+                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 max-h-48 overflow-y-auto font-sans" style={{ minWidth: '220px' }}>
+                              {(() => {
+                                const q = item.itemName.trim().toLowerCase();
+                                const suggestions = percapitaAllItems.filter(p => p.toLowerCase().includes(q));
+                                if (suggestions.length === 0) {
+                                  return (
+                                    <div className="p-2.5 text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-center col-span-1">
+                                      Nenhum item cadastrado
+                                    </div>
+                                  );
+                                }
+                                return suggestions.slice(0, 30).map((sugg, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onMouseDown={() => {
+                                      handleFieldChange(item.index, 'itemName', sugg);
+                                      setFocusedRowIndex(null);
+                                    }}
+                                    className="w-full text-left px-3.5 py-2 text-[10.5px] uppercase font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors border-b border-slate-100 last:border-b-0"
+                                  >
+                                    {sugg}
+                                  </button>
+                                ));
+                              })()}
+                            </div>
+                          )}
                         </div>
 
                         {/* Quantity Column */}
