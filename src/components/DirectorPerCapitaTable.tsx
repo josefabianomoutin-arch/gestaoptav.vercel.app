@@ -26,6 +26,7 @@ interface OrderData {
   signed: boolean;
   signedAt?: string;
   signerName?: string;
+  periodType?: 'mensal' | 'semanal';
 }
 
 interface SubTabData {
@@ -43,6 +44,9 @@ interface DirectorPerCapitaTableProps {
   onUpdate: (updatedData: DirectorPerCapitaData) => Promise<{ success: boolean; message?: string }>;
   currentUser?: { name: string; cpf: string; role: string };
   isReadOnly?: boolean; // For Stock Module (Almoxarifado) viewing
+  warehouseLog?: any[];
+  suppliers?: any[];
+  standardMenu?: any;
 }
 
 export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
@@ -50,6 +54,9 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   onUpdate,
   currentUser,
   isReadOnly = false,
+  warehouseLog = [],
+  suppliers = [],
+  standardMenu = {},
 }) => {
   // Identify who the current logged-in user is
   const isDouglas = currentUser?.cpf === '29099022859' || currentUser?.name?.toUpperCase().includes('DOUGLAS');
@@ -72,6 +79,88 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   const [passwordInput, setPasswordInput] = useState('');
   const [signatureError, setSignatureError] = useState('');
   const [signatureSuccess, setSignatureSuccess] = useState('');
+
+  // Stock display states
+  const [stockSearch, setStockSearch] = useState('');
+  const [onlyGeneralMenu, setOnlyGeneralMenu] = useState(true);
+
+  // 1. Get unique names from general standard menu (percapta geral)
+  const generalMenuNames = React.useMemo(() => {
+    const names = new Set<string>();
+    if (standardMenu) {
+      Object.keys(standardMenu).forEach((day) => {
+        const rows = standardMenu[day];
+        if (Array.isArray(rows)) {
+          rows.forEach((row: any) => {
+            const name = row.contractedItem || row.foodItem || row.item || '';
+            if (name && name.trim()) {
+              names.add(name.trim().toUpperCase());
+            }
+          });
+        }
+      });
+    }
+    return names;
+  }, [standardMenu]);
+
+  // 2. Compute current stock balances from warehouse log
+  const computedStockList = React.useMemo(() => {
+    const stockMap: Record<string, { itemName: string; balance: number; unit: string; isGeneral: boolean }> = {};
+
+    (warehouseLog || []).forEach((log: any) => {
+      if (!log) return;
+      const name = log.itemName || log.item || '';
+      if (!name) return;
+      
+      const key = name.trim().toUpperCase();
+      if (!key) return;
+
+      if (!stockMap[key]) {
+        // Resolve unit
+        let unit = 'Kg';
+        if (suppliers) {
+          for (const s of suppliers) {
+            if (s.contractItems) {
+              const matched = Object.values(s.contractItems).find((ci: any) => ci.name?.trim().toUpperCase() === key);
+              if (matched && matched.unit) {
+                unit = matched.unit;
+                break;
+              }
+            }
+          }
+        }
+        
+        stockMap[key] = {
+          itemName: name,
+          balance: 0,
+          unit,
+          isGeneral: generalMenuNames.has(key)
+        };
+      }
+
+      const qty = Number(log.quantity || log.kg || 0);
+      const isEntrada = log.type === 'entrada';
+      
+      if (isEntrada) {
+        stockMap[key].balance += qty;
+      } else {
+        stockMap[key].balance -= qty;
+      }
+    });
+
+    return Object.values(stockMap)
+      .filter((item) => item.balance > 0.001) // showing positive balances
+      .sort((a, b) => a.itemName.localeCompare(b.itemName));
+  }, [warehouseLog, suppliers, generalMenuNames]);
+
+  // 3. Filter list based on search and general menu filter
+  const filteredStockList = React.useMemo(() => {
+    return computedStockList.filter((item) => {
+      const matchSearch = item.itemName.toLowerCase().includes(stockSearch.toLowerCase());
+      const matchGeneral = !onlyGeneralMenu || item.isGeneral;
+      return matchSearch && matchGeneral;
+    });
+  }, [computedStockList, stockSearch, onlyGeneralMenu]);
 
   // Keep local items in sync with active subtab's activeOrder items
   useEffect(() => {
@@ -147,6 +236,34 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
         activeOrder: {
           ...currentActiveOrder,
           items: itemsList
+        }
+      }
+    };
+    await onUpdate(updatedData);
+  };
+
+  const handlePeriodTypeChange = async (newPeriod: 'mensal' | 'semanal') => {
+    if (isReadOnly || isCurrentOrderSigned) return;
+
+    const hasEditPermission = (activeSubTab === 'chefeDep' && isDouglas) || 
+                              (activeSubTab === 'chefeSeg' && isAlfredo) ||
+                              currentUser?.role === 'admin' ||
+                              (currentUser?.role === 'financeiro' && !isReadOnly);
+
+    if (!hasEditPermission) return;
+
+    if (!data) return;
+    const subTab = activeSubTab;
+    const currentSubTabData = data[subTab] || {};
+    const currentActiveOrder = currentSubTabData.activeOrder || {};
+
+    const updatedData = {
+      ...data,
+      [subTab]: {
+        ...currentSubTabData,
+        activeOrder: {
+          ...currentActiveOrder,
+          periodType: newPeriod
         }
       }
     };
@@ -592,6 +709,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
             <p class="meta-item"><strong>Nº Pedido:</strong> ${order.id === 'atual' ? 'RASCUNHO CORRENTE' : order.id.toUpperCase()}</p>
             <p class="meta-item"><strong>Solicitante Oficial:</strong> ${signerSection}</p>
             <p class="meta-item"><strong>Preenchimento:</strong> ${order.createdAt || 'Documento em Elaboração'}</p>
+            <p class="meta-item"><strong>Tipo de Per Capita:</strong> <span style="font-weight: bold; color: #1e3a8a;">${(order.periodType || 'semanal').toUpperCase()}</span></p>
           </div>
           <div style="text-align: right;">
             <p class="meta-item"><strong>Status:</strong> ${order.signed ? '<span style="color: #10b981; font-weight: bold;">AUTENTICADO DIGITALMENTE</span>' : '<span style="color: #f59e0b; font-weight: bold;">PENDENTE DE ASSINATURA</span>'}</p>
@@ -727,6 +845,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                     <tr className="bg-slate-50 text-[9px] uppercase font-black tracking-widest text-slate-400 border-b border-slate-100">
                       <th className="p-3">Data Envio / Arquivo</th>
                       <th className="p-3">Responsável</th>
+                      <th className="p-3 text-center">Tipo</th>
                       <th className="p-3 text-center">Produtos do Pedido</th>
                       <th className="p-3 text-center">Ações</th>
                     </tr>
@@ -748,6 +867,11 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                                 <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
                                 {pastOrder.signerName || 'Chefia Validada'}
                               </div>
+                            </td>
+                            <td className="p-3 text-center">
+                              <span className={`inline-block text-[9px] font-extrabold tracking-wider px-2.5 py-1 rounded-full uppercase ${pastOrder.periodType === 'mensal' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-700 border border-slate-200'}`}>
+                                {pastOrder.periodType === 'mensal' ? '📅 Mensal' : '⏳ Semanal'}
+                              </span>
                             </td>
                             <td className="p-3 text-center font-black text-indigo-600 text-[11px]">{filledCount} / 25 Itens</td>
                             <td className="p-3 text-center">
@@ -799,7 +923,12 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                 </button>
                 <div>
                   <h4 className="text-[10px] uppercase font-black text-indigo-400 tracking-wider">Visualizando Pedido Arquivado</h4>
-                  <p className="text-[12px] font-black">{viewingPastOrder.createdAt}</p>
+                  <p className="text-[12px] font-black flex items-center gap-2">
+                    {viewingPastOrder.createdAt}
+                    <span className="bg-indigo-700/55 text-indigo-150 text-[8px] font-extrabold uppercase px-2.5 py-0.5 rounded-full tracking-wider select-none border border-indigo-500/20">
+                      {viewingPastOrder.periodType === 'mensal' ? '📅 Mensal' : '⏳ Semanal'}
+                    </span>
+                  </p>
                 </div>
               </div>
               <button
@@ -876,6 +1005,41 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
         {viewMode === 'form' && !viewingPastOrder && (
           <div className="space-y-4 animate-fade-in">
             
+            {/* Period selector: Mensal or Semanal */}
+            <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+              <div>
+                <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block">Período de Referência da Per Capita</span>
+                <span className="text-[10px] text-slate-500 font-semibold mt-0.5 block sm:inline">Selecione se o consumo será semanal ou mensal para este rascunho de pedido de diretor.</span>
+              </div>
+              
+              <div className="flex bg-slate-200/50 p-1 rounded-2xl w-full sm:w-auto">
+                <button
+                  type="button"
+                  disabled={isReadOnly || isCurrentOrderSigned}
+                  onClick={() => handlePeriodTypeChange('semanal')}
+                  className={`flex-1 sm:flex-none px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                    (currentActiveOrder?.periodType || 'semanal') === 'semanal' 
+                      ? 'bg-indigo-600 text-white shadow-sm' 
+                      : 'text-slate-500 hover:text-slate-700 disabled:opacity-50'
+                  }`}
+                >
+                  ⏳ Semanal
+                </button>
+                <button
+                  type="button"
+                  disabled={isReadOnly || isCurrentOrderSigned}
+                  onClick={() => handlePeriodTypeChange('mensal')}
+                  className={`flex-1 sm:flex-none px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                    (currentActiveOrder?.periodType || 'semanal') === 'mensal' 
+                      ? 'bg-indigo-600 text-white shadow-sm' 
+                      : 'text-slate-500 hover:text-slate-700 disabled:opacity-50'
+                  }`}
+                >
+                  📅 Mensal
+                </button>
+              </div>
+            </div>
+
             <div className="p-4 bg-slate-900 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -1072,6 +1236,114 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
             )}
           </div>
         )}
+      </div>
+
+      {/* 4. Bottom Section: Items in Stock Table */}
+      <div className="mx-4 md:mx-6 mb-6 mt-4 pt-6 border-t border-slate-100">
+        <div className="bg-slate-50/50 rounded-3xl p-4 md:p-6 border border-slate-100">
+          {/* Section Header */}
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 shadow-sm animate-pulse"></span>
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1">
+                  📦 Saldo de Itens em Estoque
+                </h3>
+              </div>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                Visualização do inventário atualizado em tempo real para controle dos diretores
+              </p>
+            </div>
+
+            {/* Filter buttons and Search */}
+            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto font-sans">
+              {/* Toggle to filter by general percapita */}
+              <div className="flex bg-slate-200/60 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setOnlyGeneralMenu(true)}
+                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                    onlyGeneralMenu 
+                      ? 'bg-white text-indigo-700 shadow-sm' 
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  🥗 Cardápio / Per Capita Geral
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOnlyGeneralMenu(false)}
+                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                    !onlyGeneralMenu 
+                      ? 'bg-white text-indigo-700 shadow-sm' 
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  🌐 Todos em Estoque
+                </button>
+              </div>
+
+              {/* Simple Search Input */}
+              <input
+                type="text"
+                placeholder="Buscar item..."
+                value={stockSearch}
+                onChange={(e) => setStockSearch(e.target.value)}
+                className="text-[10px] font-bold text-slate-600 uppercase bg-white border border-slate-200 rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-600 placeholder:text-slate-300 w-full sm:w-44"
+              />
+            </div>
+          </div>
+
+          {/* List/Table */}
+          {filteredStockList.length === 0 ? (
+            <div className="p-8 text-center bg-white rounded-2xl border border-slate-100">
+              <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">
+                Nenhum item encontrado no estoque ativo para os filtros aplicados.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+              <div className="max-h-[300px] overflow-y-auto pr-1">
+                <table className="w-full text-left border-collapse font-sans">
+                  <thead>
+                    <tr className="bg-slate-50 text-[8px] uppercase font-black tracking-widest text-slate-400 border-b border-slate-100 sticky top-0 bg-opacity-95 backdrop-blur z-10">
+                      <th className="p-3 pl-4">Nome do Item</th>
+                      <th className="p-3 text-center">Unidade</th>
+                      <th className="p-3 text-right">Saldo em Estoque</th>
+                      <th className="p-3 text-center pr-4">Relação ao Cardápio Geral</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-xs font-semibold text-slate-700 divide-y divide-slate-100">
+                    {filteredStockList.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-2.5 pl-4 uppercase font-bold text-slate-800 text-[10.5px]">
+                          {item.itemName}
+                        </td>
+                        <td className="p-2.5 text-center text-slate-500 text-[10px] uppercase font-bold">
+                          {item.unit}
+                        </td>
+                        <td className="p-2.5 text-right text-indigo-700 font-extrabold text-[11px]">
+                          {new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.balance)} {item.unit}
+                        </td>
+                        <td className="p-2.5 text-center pr-4">
+                          {item.isGeneral ? (
+                            <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                              ● Pertence ao Cardápio Geral
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-400 text-[8px] font-bold px-2 py-0.5 rounded-full uppercase">
+                              Livre / Fora do Menu
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -22,6 +22,7 @@ interface FinanceDashboardProps {
   validationRoles?: any[];
   directorPerCapita?: any;
   onUpdateDirectorPerCapita?: any;
+  warehouseLog?: WarehouseMovement[];
 }
 
 const PTRES_OPTIONS = ['380302', '380303', '380304', '380308', '380328'] as const;
@@ -54,6 +55,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
     validationRoles,
     directorPerCapita,
     onUpdateDirectorPerCapita,
+    warehouseLog,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('pagamentos');
@@ -325,6 +327,9 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
                     data={directorPerCapita}
                     onUpdate={onUpdateDirectorPerCapita}
                     currentUser={user ? { name: user.name, cpf: user.cpf, role: user.role } : undefined}
+                    warehouseLog={warehouseLog}
+                    suppliers={suppliers}
+                    standardMenu={standardMenu}
                 />
             </div>
         )}

@@ -2850,6 +2850,7 @@ const App: React.FC = () => {
                validationRoles={validationRoles}
                directorPerCapita={directorPerCapita}
                onUpdateDirectorPerCapita={handleUpdateDirectorPerCapita}
+               warehouseLog={warehouseLog}
              />;
     }
 

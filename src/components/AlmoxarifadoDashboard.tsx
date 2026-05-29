@@ -1762,6 +1762,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                       onUpdate={onUpdateDirectorPerCapita} 
                       currentUser={{ name: 'ALMOXARIFADO', cpf: 'almoxarifado', role: 'almoxarifado' }}
                       isReadOnly={true}
+                      warehouseLog={warehouseLog}
+                      suppliers={suppliers}
+                      standardMenu={standardMenu}
                     />
                 ) : activeTab === 'sync' ? (
                     <SynchronizationModule onSyncWithFirebase={async (data) => {
