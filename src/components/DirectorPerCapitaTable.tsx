@@ -101,9 +101,11 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   const orderKey = categoryTab === 'alimentacao' ? 'activeOrder' : 'limpezaActiveOrder';
   const historyKey = categoryTab === 'alimentacao' ? 'history' : 'limpezaHistory';
 
-  // Get all unique items in perCapitaConfig (PPAIS, Estocáveis, and Perecíveis)
+  // Get all unique items in perCapitaConfig (PPAIS, Estocáveis, and Perecíveis) + Standard Menu + Fallback traditional suppliers
   const percapitaAllItems = React.useMemo(() => {
     const list: string[] = [];
+    
+    // 1. From perCapitaConfig (ppaisProducers, pereciveisSuppliers, estocaveisSuppliers)
     if (perCapitaConfig) {
       [
         ...(perCapitaConfig.ppaisProducers || []),
@@ -112,7 +114,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       ].forEach(supplier => {
         (supplier.contractItems || []).forEach(item => {
           if (item.name && item.name.trim()) {
-            const trimmed = item.name.trim();
+            const trimmed = item.name.trim().toUpperCase();
             if (!list.includes(trimmed)) {
               list.push(trimmed);
             }
@@ -120,8 +122,41 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
         });
       });
     }
+
+    // 2. From standardMenu (per-capita general food items)
+    if (standardMenu) {
+      Object.keys(standardMenu).forEach((day) => {
+        const rows = (standardMenu as any)[day];
+        if (Array.isArray(rows)) {
+          rows.forEach((row: any) => {
+            const name = row.contractedItem || row.foodItem || row.item || '';
+            if (name && name.trim()) {
+              const trimmed = name.trim().toUpperCase();
+              if (!list.includes(trimmed)) {
+                list.push(trimmed);
+              }
+            }
+          });
+        }
+      });
+    }
+
+    // 3. Fallback from traditional suppliers
+    if (suppliers) {
+      suppliers.forEach(supplier => {
+        (supplier.contractItems || []).forEach(item => {
+          if (item.name && item.name.trim()) {
+            const trimmed = item.name.trim().toUpperCase();
+            if (!list.includes(trimmed)) {
+              list.push(trimmed);
+            }
+          }
+        });
+      });
+    }
+
     return list.sort((a, b) => a.localeCompare(b));
-  }, [perCapitaConfig]);
+  }, [perCapitaConfig, standardMenu, suppliers]);
 
   // get unique names from general standard menu (percapta geral)
   const generalMenuNames = React.useMemo(() => {
