@@ -106,7 +106,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     return names;
   }, [standardMenu]);
 
-  // get unique active names from perCapitaConfig
+  // get unique active names (first 2 words) from perCapitaConfig
   const activePercapitaItems = React.useMemo(() => {
     const names = new Set<string>();
     if (perCapitaConfig) {
@@ -116,7 +116,10 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
             ...(perCapitaConfig.estocaveisSuppliers || [])
         ].forEach(supplier => {
             (supplier.contractItems || []).forEach(item => {
-                if (item.name) names.add(item.name.trim().toUpperCase());
+                if (item.name) {
+                    const twoWords = item.name.trim().split(' ').slice(0, 2).join(' ').toUpperCase();
+                    if (twoWords) names.add(twoWords);
+                }
             });
         });
     }
@@ -132,15 +135,22 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       const name = log.itemName || log.item || '';
       if (!name) return;
       
-      const key = name.trim().toUpperCase();
-      if (!key) return;
+      const twoWordsKey = name.trim().split(' ').slice(0, 2).join(' ').toUpperCase();
+      if (!twoWordsKey) return;
+      
+      const isGeneral = generalMenuNames.has(twoWordsKey);
+      const isPercapitaActive = activePercapitaItems.has(twoWordsKey);
+      
+      if (!isGeneral && !isPercapitaActive) return;
+
+      const key = twoWordsKey;
 
       if (!stockMap[key]) {
         let unit = 'Kg';
         if (suppliers) {
           for (const s of suppliers) {
             if (s.contractItems) {
-              const matched = Object.values(s.contractItems).find((ci: any) => ci.name?.trim().toUpperCase() === key);
+              const matched = Object.values(s.contractItems).find((ci: any) => ci.name?.trim().split(' ').slice(0, 2).join(' ').toUpperCase() === key);
               if (matched && matched.unit) {
                 unit = matched.unit;
                 break;
@@ -150,11 +160,11 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
         }
         
         stockMap[key] = {
-          itemName: name,
+          itemName: twoWordsKey,
           balance: 0,
           unit,
-          isGeneral: generalMenuNames.has(key),
-          isPercapitaActive: activePercapitaItems.has(key)
+          isGeneral,
+          isPercapitaActive
         };
       }
 
@@ -1260,25 +1270,24 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       </div>
 
       {/* 4. Bottom Section: Items in Stock Table */}
-      <div className="mx-4 md:mx-6 mb-6 mt-4 pt-6 border-t border-slate-100">
+      <div className="mx-4 md:mx-6 mb-6 mt-4 pt-6 border-t border-slate-100 space-y-8">
+        
+        {/* Table 1: Itens de Alimentação */}
         <div className="bg-slate-50/50 rounded-3xl p-4 md:p-6 border border-slate-100">
-          {/* Section Header */}
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
             <div>
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 shadow-sm animate-pulse"></span>
                 <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1">
-                  📦 Saldo de Itens em Estoque
+                  🥗 Saldo de Itens de Alimentação
                 </h3>
               </div>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                Visualização do inventário atualizado em tempo real para controle dos diretores
+                Visualização do inventário de alimentação atualizado em tempo real
               </p>
             </div>
-
-            {/* Filter buttons and Search */}
+            
             <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto font-sans">
-              {/* Toggle to filter by general percapita */}
               <div className="flex bg-slate-200/60 p-1 rounded-xl">
                 <button
                     type="button"
@@ -1315,7 +1324,6 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                 </button>
               </div>
 
-              {/* Simple Search Input */}
               <input
                 type="text"
                 placeholder="Buscar item..."
@@ -1326,7 +1334,6 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
             </div>
           </div>
 
-          {/* List/Table */}
           {filteredStockList.length === 0 ? (
             <div className="p-8 text-center bg-white rounded-2xl border border-slate-100">
               <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">
@@ -1379,6 +1386,26 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Table 2: Itens de Limpeza */}
+        <div className="bg-slate-50/50 rounded-3xl p-4 md:p-6 border border-slate-100">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-sky-600 shadow-sm animate-pulse"></span>
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1">
+                  🧹 Saldo de Itens de Limpeza
+                </h3>
+              </div>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                 Visualização do inventário de limpeza atualizado em tempo real
+              </p>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm p-4">
+             <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest text-center">Tabela de Limpeza em Manutenção.</p>
+          </div>
         </div>
       </div>
     </div>
