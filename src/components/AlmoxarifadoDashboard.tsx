@@ -1765,6 +1765,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                       warehouseLog={warehouseLog}
                       suppliers={suppliers}
                       standardMenu={standardMenu}
+                      perCapitaConfig={perCapitaConfig}
                     />
                 ) : activeTab === 'sync' ? (
                     <SynchronizationModule onSyncWithFirebase={async (data) => {

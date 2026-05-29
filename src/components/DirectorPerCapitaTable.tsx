@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import type { PerCapitaConfig } from '../types';
 import { 
   CheckCircle2, 
   ShieldCheck, 
@@ -47,6 +48,7 @@ interface DirectorPerCapitaTableProps {
   warehouseLog?: any[];
   suppliers?: any[];
   standardMenu?: any;
+  perCapitaConfig?: PerCapitaConfig;
 }
 
 export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
@@ -57,6 +59,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   warehouseLog = [],
   suppliers = [],
   standardMenu = {},
+  perCapitaConfig,
 }) => {
   // Identify who the current logged-in user is
   const isDouglas = currentUser?.cpf === '29099022859' || currentUser?.name?.toUpperCase().includes('DOUGLAS');
@@ -82,9 +85,9 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
   // Stock display states
   const [stockSearch, setStockSearch] = useState('');
-  const [onlyGeneralMenu, setOnlyGeneralMenu] = useState(true);
+  const [stockFilter, setStockFilter] = useState<'all' | 'general' | 'percapita'>('general');
 
-  // 1. Get unique names from general standard menu (percapta geral)
+  // get unique names from general standard menu (percapta geral)
   const generalMenuNames = React.useMemo(() => {
     const names = new Set<string>();
     if (standardMenu) {
@@ -103,9 +106,26 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     return names;
   }, [standardMenu]);
 
-  // 2. Compute current stock balances from warehouse log
+  // get unique active names from perCapitaConfig
+  const activePercapitaItems = React.useMemo(() => {
+    const names = new Set<string>();
+    if (perCapitaConfig) {
+        [
+            ...(perCapitaConfig.ppaisProducers || []),
+            ...(perCapitaConfig.pereciveisSuppliers || []),
+            ...(perCapitaConfig.estocaveisSuppliers || [])
+        ].forEach(supplier => {
+            (supplier.contractItems || []).forEach(item => {
+                if (item.name) names.add(item.name.trim().toUpperCase());
+            });
+        });
+    }
+    return names;
+  }, [perCapitaConfig]);
+
+  // computed stock balances
   const computedStockList = React.useMemo(() => {
-    const stockMap: Record<string, { itemName: string; balance: number; unit: string; isGeneral: boolean }> = {};
+    const stockMap: Record<string, { itemName: string; balance: number; unit: string; isGeneral: boolean; isPercapitaActive: boolean }> = {};
 
     (warehouseLog || []).forEach((log: any) => {
       if (!log) return;
@@ -116,7 +136,6 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       if (!key) return;
 
       if (!stockMap[key]) {
-        // Resolve unit
         let unit = 'Kg';
         if (suppliers) {
           for (const s of suppliers) {
@@ -134,7 +153,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
           itemName: name,
           balance: 0,
           unit,
-          isGeneral: generalMenuNames.has(key)
+          isGeneral: generalMenuNames.has(key),
+          isPercapitaActive: activePercapitaItems.has(key)
         };
       }
 
@@ -149,18 +169,19 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     });
 
     return Object.values(stockMap)
-      .filter((item) => item.balance > 0.001) // showing positive balances
+      .filter((item) => item.balance > 0.001)
       .sort((a, b) => a.itemName.localeCompare(b.itemName));
-  }, [warehouseLog, suppliers, generalMenuNames]);
+  }, [warehouseLog, suppliers, generalMenuNames, activePercapitaItems]);
 
-  // 3. Filter list based on search and general menu filter
+  // filter list
   const filteredStockList = React.useMemo(() => {
     return computedStockList.filter((item) => {
       const matchSearch = item.itemName.toLowerCase().includes(stockSearch.toLowerCase());
-      const matchGeneral = !onlyGeneralMenu || item.isGeneral;
-      return matchSearch && matchGeneral;
+      const matchGeneral = stockFilter !== 'general' || item.isGeneral;
+      const matchPercapita = stockFilter !== 'percapita' || item.isPercapitaActive;
+      return matchSearch && matchGeneral && matchPercapita;
     });
-  }, [computedStockList, stockSearch, onlyGeneralMenu]);
+  }, [computedStockList, stockSearch, stockFilter]);
 
   // Keep local items in sync with active subtab's activeOrder items
   useEffect(() => {
@@ -1260,26 +1281,37 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
               {/* Toggle to filter by general percapita */}
               <div className="flex bg-slate-200/60 p-1 rounded-xl">
                 <button
-                  type="button"
-                  onClick={() => setOnlyGeneralMenu(true)}
-                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-                    onlyGeneralMenu 
-                      ? 'bg-white text-indigo-700 shadow-sm' 
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
+                    type="button"
+                    onClick={() => setStockFilter('general')}
+                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                    stockFilter === 'general'
+                        ? 'bg-white text-indigo-700 shadow-sm' 
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
                 >
-                  🥗 Cardápio / Per Capita Geral
+                    🥗 Cardápio / Geral
                 </button>
                 <button
-                  type="button"
-                  onClick={() => setOnlyGeneralMenu(false)}
-                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-                    !onlyGeneralMenu 
-                      ? 'bg-white text-indigo-700 shadow-sm' 
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
+                    type="button"
+                    onClick={() => setStockFilter('percapita')}
+                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                    stockFilter === 'percapita'
+                        ? 'bg-white text-indigo-700 shadow-sm' 
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
                 >
-                  🌐 Todos em Estoque
+                    🥕 Ativos na PerCapita
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setStockFilter('all')}
+                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                    stockFilter === 'all'
+                        ? 'bg-white text-indigo-700 shadow-sm' 
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    🌐 Todos em Estoque
                 </button>
               </div>
 
@@ -1328,11 +1360,15 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                         <td className="p-2.5 text-center pr-4">
                           {item.isGeneral ? (
                             <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                              ● Pertence ao Cardápio Geral
+                              ● Geral
+                            </span>
+                          ) : item.isPercapitaActive ? (
+                            <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                              ● Ativo PerCapita
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-400 text-[8px] font-bold px-2 py-0.5 rounded-full uppercase">
-                              Livre / Fora do Menu
+                              Livre / Fora
                             </span>
                           )}
                         </td>

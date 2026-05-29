@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { FinancialRecord, StandardMenu, DailyMenus, Supplier, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset } from '../types';
+import type { FinancialRecord, StandardMenu, DailyMenus, Supplier, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, WarehouseMovement, PerCapitaConfig } from '../types';
 import MenuDashboard from './MenuDashboard';
 import AgendaChegadas from './AgendaChegadas';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
@@ -23,6 +23,7 @@ interface FinanceDashboardProps {
   directorPerCapita?: any;
   onUpdateDirectorPerCapita?: any;
   warehouseLog?: WarehouseMovement[];
+  perCapitaConfig?: PerCapitaConfig;
 }
 
 const PTRES_OPTIONS = ['380302', '380303', '380304', '380308', '380328'] as const;
@@ -56,6 +57,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
     directorPerCapita,
     onUpdateDirectorPerCapita,
     warehouseLog,
+    perCapitaConfig,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('pagamentos');
@@ -330,6 +332,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
                     warehouseLog={warehouseLog}
                     suppliers={suppliers}
                     standardMenu={standardMenu}
+                    perCapitaConfig={perCapitaConfig}
                 />
             </div>
         )}
