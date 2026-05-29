@@ -293,23 +293,64 @@ const App: React.FC = () => {
       safeLocalStorageSetItem('cached_publicInfo', JSON.stringify(list));
     });
     onValue(directorPerCapitaRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        setDirectorPerCapita(data);
-      } else {
-        // Pre-initialize empty state
-        const emptyItems = Array.from({ length: 25 }, (_, i) => ({
-          index: i + 1,
-          itemName: '',
-          quantity: '',
-          observation: ''
-        }));
-        setDirectorPerCapita({
-          items: emptyItems,
-          chefeDepSigned: false,
-          chefeSegSigned: false
-        });
+      const data = snapshot.val() || {};
+      
+      const createEmptyItems = () => Array.from({ length: 25 }, (_, i) => ({
+        index: i + 1,
+        itemName: '',
+        quantity: '',
+        observation: ''
+      }));
+
+      const chefeDep = data.chefeDep || {
+        activeOrder: {
+          items: createEmptyItems(),
+          id: 'atual',
+          signed: false,
+          signedAt: '',
+          signerName: ''
+        },
+        history: {}
+      };
+
+      const chefeSeg = data.chefeSeg || {
+        activeOrder: {
+          items: createEmptyItems(),
+          id: 'atual',
+          signed: false,
+          signedAt: '',
+          signerName: ''
+        },
+        history: {}
+      };
+
+      if (!chefeDep.activeOrder) {
+        chefeDep.activeOrder = {
+          items: createEmptyItems(),
+          id: 'atual',
+          signed: false,
+          signedAt: '',
+          signerName: ''
+        };
       }
+      if (!chefeDep.history) {
+        chefeDep.history = {};
+      }
+
+      if (!chefeSeg.activeOrder) {
+        chefeSeg.activeOrder = {
+          items: createEmptyItems(),
+          id: 'atual',
+          signed: false,
+          signedAt: '',
+          signerName: ''
+        };
+      }
+      if (!chefeSeg.history) {
+        chefeSeg.history = {};
+      }
+
+      setDirectorPerCapita({ chefeDep, chefeSeg });
     });
   }, []);
 

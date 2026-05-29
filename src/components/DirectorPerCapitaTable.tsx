@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, ShieldCheck, Printer, Trash2, CheckCircle } from 'lucide-react';
+import { 
+  CheckCircle2, 
+  ShieldCheck, 
+  Printer, 
+  Trash2, 
+  CheckCircle, 
+  FileText, 
+  History, 
+  FileCheck, 
+  ArrowLeft, 
+  Trash 
+} from 'lucide-react';
 
 interface RowItem {
   index: number;
@@ -8,21 +19,30 @@ interface RowItem {
   observation: string;
 }
 
-interface DirectorPerCapitaData {
+interface OrderData {
   items: RowItem[];
-  chefeDepSigned: boolean;
-  chefeDepSignedAt?: string;
-  chefeDepName?: string;
-  chefeSegSigned: boolean;
-  chefeSegSignedAt?: string;
-  chefeSegName?: string;
+  id: string;
+  createdAt?: string;
+  signed: boolean;
+  signedAt?: string;
+  signerName?: string;
+}
+
+interface SubTabData {
+  activeOrder: OrderData;
+  history?: Record<string, OrderData>;
+}
+
+interface DirectorPerCapitaData {
+  chefeDep: SubTabData;
+  chefeSeg: SubTabData;
 }
 
 interface DirectorPerCapitaTableProps {
   data: DirectorPerCapitaData | null;
   onUpdate: (updatedData: DirectorPerCapitaData) => Promise<{ success: boolean; message?: string }>;
   currentUser?: { name: string; cpf: string; role: string };
-  isReadOnly?: boolean; // For Stock Module viewing
+  isReadOnly?: boolean; // For Stock Module (Almoxarifado) viewing
 }
 
 export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
@@ -31,71 +51,111 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   currentUser,
   isReadOnly = false,
 }) => {
-  // Local state for items
-  const [localItems, setLocalItems] = useState<RowItem[]>(() => {
-    if (data && data.items && data.items.length > 0) {
-      return data.items;
-    }
-    return Array.from({ length: 25 }, (_, i) => ({
-      index: i + 1,
-      itemName: '',
-      quantity: '',
-      observation: '',
-    }));
+  // Identify who the current logged-in user is
+  const isDouglas = currentUser?.cpf === '29099022859' || currentUser?.name?.toUpperCase().includes('DOUGLAS');
+  const isAlfredo = currentUser?.cpf === '29462706821' || currentUser?.name?.toUpperCase().includes('ALFREDO');
+
+  // Top level tabs: 'chefeDep' (Douglas Galdino) and 'chefeSeg' (Alfredo Lopes)
+  const [activeSubTab, setActiveSubTab] = useState<'chefeDep' | 'chefeSeg'>(() => {
+    if (isAlfredo) return 'chefeSeg';
+    return 'chefeDep';
   });
+
+  // Current view mode inside active tab: 'form' or 'history'
+  const [viewMode, setViewMode] = useState<'form' | 'history'>('form');
+  const [viewingPastOrder, setViewingPastOrder] = useState<OrderData | null>(null);
+
+  // Local state for active items to support seamless typing
+  const [localActiveItems, setLocalActiveItems] = useState<RowItem[]>([]);
+
+  // Validation States
   const [passwordInput, setPasswordInput] = useState('');
   const [signatureError, setSignatureError] = useState('');
   const [signatureSuccess, setSignatureSuccess] = useState('');
 
-  // Keep local items stable and in sync asynchronously when data is loaded from Firebase
+  // Keep local items in sync with active subtab's activeOrder items
   useEffect(() => {
-    if (data && data.items && data.items.length > 0) {
-      const dbStr = JSON.stringify(data.items);
-      const locStr = JSON.stringify(localItems);
-      if (dbStr !== locStr) {
-        const timer = setTimeout(() => {
-          setLocalItems(data.items);
-        }, 0);
-        return () => clearTimeout(timer);
+    const activeOrderItems = data?.[activeSubTab]?.activeOrder?.items;
+    const timerId = setTimeout(() => {
+      if (activeOrderItems && activeOrderItems.length > 0) {
+        const dbStr = JSON.stringify(activeOrderItems);
+        const locStr = JSON.stringify(localActiveItems);
+        if (dbStr !== locStr) {
+          setLocalActiveItems(activeOrderItems);
+        }
+      } else {
+        // Create empty 25 rows
+        const emptyItems = Array.from({ length: 25 }, (_, i) => ({
+          index: i + 1,
+          itemName: '',
+          quantity: '',
+          observation: '',
+        }));
+        setLocalActiveItems(emptyItems);
       }
-    }
+      // Clear validations when tab updates
+      setPasswordInput('');
+      setSignatureError('');
+      setSignatureSuccess('');
+    }, 0);
+
+    return () => {
+      clearTimeout(timerId);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data?.items]);
+  }, [data?.[activeSubTab]?.activeOrder?.items, activeSubTab]);
+
+  const handleTabChange = (tab: 'chefeDep' | 'chefeSeg') => {
+    setActiveSubTab(tab);
+    setViewMode('form');
+    setViewingPastOrder(null);
+  };
 
   const handleFieldChange = (index: number, field: keyof RowItem, value: string) => {
-    if (isReadOnly || isSigned) return;
+    if (isReadOnly || isCurrentOrderSigned) return;
 
-    const updated = localItems.map((itm) => {
+    // Check if user is the designated chef of this subtab or admin or financeiro editing
+    const hasEditPermission = (activeSubTab === 'chefeDep' && isDouglas) || 
+                              (activeSubTab === 'chefeSeg' && isAlfredo) ||
+                              currentUser?.role === 'admin' ||
+                              (currentUser?.role === 'financeiro' && !isReadOnly);
+
+    if (!hasEditPermission) return;
+
+    const updated = localActiveItems.map((itm) => {
       if (itm.index === index) {
         return { ...itm, [field]: value };
       }
       return itm;
     });
-    setLocalItems(updated);
+    setLocalActiveItems(updated);
 
-    // Debounce or save immediately to Firebase
-    saveToFirebase(updated);
+    // Auto save to database
+    saveActiveOrderToFirebase(updated);
   };
 
-  const saveToFirebase = async (itemsList: RowItem[]) => {
+  const saveActiveOrderToFirebase = async (itemsList: RowItem[]) => {
     if (!data) return;
-    await onUpdate({
+    const subTab = activeSubTab;
+    const currentSubTabData = data[subTab] || {};
+    const currentActiveOrder = currentSubTabData.activeOrder || {};
+
+    const updatedData = {
       ...data,
-      items: itemsList,
-    });
+      [subTab]: {
+        ...currentSubTabData,
+        activeOrder: {
+          ...currentActiveOrder,
+          items: itemsList
+        }
+      }
+    };
+    await onUpdate(updatedData);
   };
 
-  // Determine signature states
-  const hasChefeDepSignature = !!data?.chefeDepSigned;
-  const hasChefeSegSignature = !!data?.chefeSegSigned;
-  const isSigned = hasChefeDepSignature && hasChefeSegSignature;
-
-  // Identify who the current logged-in user is
-  const isDouglas = currentUser?.cpf === '29099022859' || currentUser?.name?.toUpperCase().includes('DOUGLAS');
-  const isAlfredo = currentUser?.cpf === '29462706821' || currentUser?.name?.toUpperCase().includes('ALFREDO');
-
-  const canSignAsChefeDep = isDouglas;
-  const canSignAsChefeSeg = isAlfredo;
+  // State checks for the current active subtab
+  const currentActiveOrder = data?.[activeSubTab]?.activeOrder;
+  const isCurrentOrderSigned = !!currentActiveOrder?.signed;
 
   const handleDigitalSign = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,74 +170,79 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     const cleanedPassword = passwordInput.trim().replace(/\D/g, '');
     const userCpf = currentUser.cpf.trim().replace(/\D/g, '');
 
-    // The digital signature must match their entrance password (their CPF)
+    // Signature must match their entrance password (their CPF)
     if (cleanedPassword !== userCpf) {
-      setSignatureError('Senha inválida (A senha digital deve ser igual ao seu CPF de acesso).');
+      setSignatureError('Senha inválida (A senha digital de validação deve ser igual ao seu CPF de acesso).');
       return;
     }
 
-    let updatedData = { ...data };
+    const subTab = activeSubTab;
+    const isOwner = (subTab === 'chefeDep' && isDouglas) || (subTab === 'chefeSeg' && isAlfredo);
+    if (!isOwner && currentUser.role !== 'admin') {
+      setSignatureError('Seu usuário não possui permissão para validar essa planilha.');
+      return;
+    }
+
     const timestamp = new Date().toLocaleString('pt-BR');
+    const signerName = subTab === 'chefeDep' ? 'DOUGLAS FERNANDO SEMENZIN GALDINO' : 'ALFREDO GUILHERME LOPES';
 
-    if (canSignAsChefeDep) {
-      updatedData = {
-        ...updatedData,
-        chefeDepSigned: true,
-        chefeDepSignedAt: timestamp,
-        chefeDepName: 'DOUGLAS FERNANDO SEMENZIN GALDINO',
-      };
-    } else if (canSignAsChefeSeg) {
-      updatedData = {
-        ...updatedData,
-        chefeSegSigned: true,
-        chefeSegSignedAt: timestamp,
-        chefeSegName: 'ALFREDO GUILHERME LOPES',
-      };
-    } else {
-      setSignatureError('Seu usuário não possui permissão para validar este documento.');
-      return;
-    }
+    const currentSubTabData = data[subTab] || {};
+    const currentActiveOrderData = currentSubTabData.activeOrder || {};
+
+    const updatedData = {
+      ...data,
+      [subTab]: {
+        ...currentSubTabData,
+        activeOrder: {
+          ...currentActiveOrderData,
+          signed: true,
+          signedAt: timestamp,
+          signerName: signerName
+        }
+      }
+    };
 
     const res = await onUpdate(updatedData);
     if (res.success) {
-      setSignatureSuccess('Assinatura digital inserida com sucesso!');
+      setSignatureSuccess('Assinatura digital autenticada com sucesso!');
       setPasswordInput('');
     } else {
-      setSignatureError(res.message || 'Erro ao gravar assinatura digital.');
+      setSignatureError(res.message || 'Erro ao registrar assinatura.');
     }
   };
 
-  const handleRevokeSignature = async (role: 'chefeDep' | 'chefeSeg') => {
+  const handleRevokeSignature = async () => {
     if (!data) return;
-    if (role === 'chefeDep' && !isDouglas && currentUser?.role !== 'admin') {
-      alert('Apenas o Chefe de Departamento pode remover sua assinatura.');
-      return;
-    }
-    if (role === 'chefeSeg' && !isAlfredo && currentUser?.role !== 'admin') {
-      alert('Apenas o Chefe de Segurança Interna pode remover sua assinatura.');
+    const subTab = activeSubTab;
+    const isOwner = (subTab === 'chefeDep' && isDouglas) || (subTab === 'chefeSeg' && isAlfredo);
+    if (!isOwner && currentUser?.role !== 'admin') {
+      alert('Apenas o responsável correspondente ou o Administrador pode remover a assinatura.');
       return;
     }
 
-    let updatedData = { ...data };
-    if (role === 'chefeDep') {
-      updatedData = {
-        ...updatedData,
-        chefeDepSigned: false,
-        chefeDepSignedAt: undefined,
-        chefeDepName: undefined,
-      };
-    } else {
-      updatedData = {
-        ...updatedData,
-        chefeSegSigned: false,
-        chefeSegSignedAt: undefined,
-        chefeSegName: undefined,
-      };
+    if (!window.confirm('Deseja realmente revogar a assinatura deste pedido? Ele voltará ao estado de rascunho.')) {
+      return;
     }
+
+    const currentSubTabData = data[subTab] || {};
+    const currentActiveOrderData = currentSubTabData.activeOrder || {};
+
+    const updatedData = {
+      ...data,
+      [subTab]: {
+        ...currentSubTabData,
+        activeOrder: {
+          ...currentActiveOrderData,
+          signed: false,
+          signedAt: undefined,
+          signerName: undefined
+        }
+      }
+    };
 
     const res = await onUpdate(updatedData);
     if (res.success) {
-      setSignatureSuccess('Assinatura revogada.');
+      setSignatureSuccess('Assinatura digital revogada de volta a rascunho.');
     } else {
       setSignatureError('Erro ao revogar assinatura.');
     }
@@ -185,7 +250,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
   const handleClearTable = async () => {
     if (!data) return;
-    if (!window.confirm('Tem certeza de que deseja limpar toda a tabela de itens e as assinaturas digitais?')) {
+    if (!window.confirm('Tem certeza de que deseja limpar totalmente a tabela de itens e a assinatura digital?')) {
       return;
     }
 
@@ -196,34 +261,139 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       observation: '',
     }));
 
-    const clearedData = {
-      items: emptyItems,
-      chefeDepSigned: false,
-      chefeDepSignedAt: undefined,
-      chefeDepName: undefined,
-      chefeSegSigned: false,
-      chefeSegSignedAt: undefined,
-      chefeSegName: undefined,
+    const subTab = activeSubTab;
+    const currentSubTabData = data[subTab] || {};
+
+    const updatedData = {
+      ...data,
+      [subTab]: {
+        ...currentSubTabData,
+        activeOrder: {
+          items: emptyItems,
+          id: 'atual',
+          signed: false,
+          signedAt: undefined,
+          signerName: undefined
+        }
+      }
     };
 
-    const res = await onUpdate(clearedData);
+    const res = await onUpdate(updatedData);
     if (res.success) {
-      setLocalItems(emptyItems);
+      setLocalActiveItems(emptyItems);
       setSignatureSuccess('Tabela limpa com sucesso!');
     } else {
       setSignatureError('Erro ao limpar a tabela.');
     }
   };
 
-  const handlePrint = () => {
+  const handleArchiveOrder = async () => {
+    if (!data) return;
+    const subTab = activeSubTab;
+    const currentSubTabData = data[subTab] || {};
+    const currentActiveOrderData = currentSubTabData.activeOrder || {};
+
+    if (!currentActiveOrderData.signed) {
+      alert('Por favor, assine digitalmente o pedido antes de enviá-lo ao histórico para separação.');
+      return;
+    }
+
+    const filledItems = (currentActiveOrderData.items || []).filter(item => item.itemName.trim() !== '');
+    if (filledItems.length === 0) {
+      alert('Não é possível arquivar um pedido que não possui itens preenchidos.');
+      return;
+    }
+
+    if (!window.confirm('Deseja finalizar esta solicitação e registrá-la no Histórico Permanente? O rascunho atual será reposto para novos preenchimentos.')) {
+      return;
+    }
+
+    const timestampId = `pedido_${Date.now()}`;
+    const formattedDate = new Date().toLocaleString('pt-BR');
+
+    const currentHistory = currentSubTabData.history || {};
+    const newHistoricalOrder: OrderData = {
+      ...currentActiveOrderData,
+      id: timestampId,
+      createdAt: formattedDate,
+    };
+
+    const emptyItems = Array.from({ length: 25 }, (_, i) => ({
+      index: i + 1,
+      itemName: '',
+      quantity: '',
+      observation: '',
+    }));
+
+    const updatedData = {
+      ...data,
+      [subTab]: {
+        ...currentSubTabData,
+        activeOrder: {
+          items: emptyItems,
+          id: 'atual',
+          signed: false,
+          signedAt: undefined,
+          signerName: undefined
+        },
+        history: {
+          ...currentHistory,
+          [timestampId]: newHistoricalOrder
+        }
+      }
+    };
+
+    const res = await onUpdate(updatedData);
+    if (res.success) {
+      setLocalActiveItems(emptyItems);
+      setSignatureSuccess('Solicitação enviada e adicionada ao histórico de pedidos!');
+      setViewMode('history');
+    } else {
+      alert('Erro ao registrar histórico.');
+    }
+  };
+
+  const handleDeletePastOrder = async (orderId: string) => {
+    if (!data) return;
+    if (!window.confirm('Deseja excluir permanentemente esse pedido do histórico? Essa exclusão é irreversível.')) {
+      return;
+    }
+
+    const subTab = activeSubTab;
+    const currentSubTabData = data[subTab] || {};
+    const currentHistory = { ...(currentSubTabData.history || {}) };
+    
+    delete currentHistory[orderId];
+
+    const updatedData = {
+      ...data,
+      [subTab]: {
+        ...currentSubTabData,
+        history: currentHistory
+      }
+    };
+
+    const res = await onUpdate(updatedData);
+    if (res.success) {
+      if (viewingPastOrder?.id === orderId) {
+        setViewingPastOrder(null);
+        setViewMode('history');
+      }
+      alert('Pedido excluído com sucesso.');
+    } else {
+      alert('Erro ao excluir pedido.');
+    }
+  };
+
+  const handlePrintOrder = (order: OrderData) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       alert('Por favor, permita pop-ups para imprimir o relatório.');
       return;
     }
 
-    // Create 25 table rows to output structured format in print preview
-    const allItemsHtml = localItems.map(item => `
+    const itemsToPrint = order.items || [];
+    const allItemsHtml = itemsToPrint.map(item => `
         <tr style="${item.itemName.trim() !== '' ? 'background-color: #f8fafc;' : ''}">
           <td style="text-align: center; height: 32px;">${item.index}</td>
           <td style="text-align: left; font-weight: ${item.itemName.trim() !== '' ? 'bold' : 'normal'};">${item.itemName.toUpperCase() || ''}</td>
@@ -232,11 +402,25 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
         </tr>
     `).join('');
 
+    const titleText = activeSubTab === 'chefeDep' 
+      ? 'PEDIDO DE PER CAPITA - CHEFE DO DEPARTAMENTO' 
+      : 'PEDIDO DE PER CAPITA - CHEFE DE SEGURANÇA INTERNA';
+      
+    const signerSection = activeSubTab === 'chefeDep' 
+      ? 'Divisão de Chefia de Departamento (Administração)' 
+      : 'Divisão de Chefia de Segurança Interna';
+
+    const defaultSignerName = activeSubTab === 'chefeDep'
+      ? 'DOUGLAS FERNANDO SEMENZIN GALDINO'
+      : 'ALFREDO GUILHERME LOPES';
+
+    const timestampText = order.signedAt || 'Não assinada';
+
     const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Pedido de Per Capita dos Diretores - Validação Digital</title>
+        <title>Pedido Per Capita - Validação Digital</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
           body {
@@ -244,19 +428,19 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
             margin: 40px;
             color: #1e293b;
             background-color: #ffffff;
-            font-size: 12px;
-            line-height: 1.5;
+            font-size: 11px;
+            line-height: 1.4;
           }
           .header-container {
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 3px solid #1e3a8a;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
           }
           .logo {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: -0.5px;
@@ -270,31 +454,31 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
           }
           .document-title h1 {
             margin: 0;
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 800;
             color: #0f172a;
             text-transform: uppercase;
           }
           .document-title p {
-            margin: 5px 0 0 0;
-            font-size: 10px;
+            margin: 3px 0 0 0;
+            font-size: 8px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             color: #64748b;
           }
           .meta-info {
             background-color: #f1f5f9;
             border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 30px;
+            padding: 12px;
+            margin-bottom: 25px;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 12px;
           }
           .meta-item {
             margin: 0;
-            font-size: 11px;
+            font-size: 10px;
           }
           .meta-item strong {
             color: #0f172a;
@@ -302,27 +486,26 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
           table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
           }
           th {
             background-color: #1e3a8a;
             color: #ffffff;
             font-weight: 700;
             text-transform: uppercase;
-            font-size: 10px;
-            padding: 10px;
+            font-size: 9px;
+            padding: 8px;
             border: 1px solid #1e3a8a;
             letter-spacing: 0.5px;
           }
           td {
-            padding: 8px 10px;
+            padding: 6px 8px;
             border: 1px solid #cbd5e1;
           }
           .signatures-container {
-            margin-top: 50px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
+            margin-top: 40px;
+            display: flex;
+            justify-content: center;
           }
           .signature-box {
             border: 2px dashed #94a3b8;
@@ -330,14 +513,15 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
             padding: 20px;
             text-align: center;
             background-color: #f8fafc;
+            width: 330px;
           }
           .signature-box.signed {
             border: 2px solid #10b981;
             background-color: #ecfdf5;
           }
           .signature-box h3 {
-            margin: 0 0 10px 0;
-            font-size: 11px;
+            margin: 0 0 8px 0;
+            font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 1px;
             color: #475569;
@@ -349,37 +533,37 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
             background-color: #10b981;
             color: white;
             display: inline-block;
-            padding: 4px 12px;
+            padding: 3px 10px;
             border-radius: 9999px;
             font-weight: 700;
-            font-size: 9px;
+            font-size: 8px;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
           }
           .signature-box .signer-name {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
             color: #0f172a;
             margin-bottom: 4px;
           }
           .signature-box .signer-meta {
-            font-size: 10px;
+            font-size: 9px;
             color: #64748b;
           }
           .signature-box .empty-seal {
             color: #94a3b8;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 500;
-            padding: 15px 0;
+            padding: 10px 0;
           }
           .footer-note {
-            margin-top: 60px;
+            margin-top: 45px;
             text-align: center;
-            font-size: 9px;
+            font-size: 8px;
             color: #94a3b8;
             border-top: 1px solid #e2e8f0;
-            padding-top: 20px;
+            padding-top: 15px;
           }
           @media print {
             body {
@@ -398,26 +582,27 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
         <div class="header-container">
           <div class="logo">P. TAIÚVA<span>•</span>ESTOQUE</div>
           <div class="document-title">
-            <h1>Pedido Per Capita dos Diretores</h1>
+            <h1>${titleText}</h1>
             <p>Módulo de Estoque - Gestão de Dados P Taiúva</p>
           </div>
         </div>
 
         <div class="meta-info">
           <div>
-            <p class="meta-item"><strong>Documento:</strong> Solicitação Eletrônica para Separação de Cota</p>
-            <p class="meta-item"><strong>Exercício:</strong> Ano Civil 2026</p>
+            <p class="meta-item"><strong>Nº Pedido:</strong> ${order.id === 'atual' ? 'RASCUNHO CORRENTE' : order.id.toUpperCase()}</p>
+            <p class="meta-item"><strong>Solicitante Oficial:</strong> ${signerSection}</p>
+            <p class="meta-item"><strong>Preenchimento:</strong> ${order.createdAt || 'Documento em Elaboração'}</p>
           </div>
           <div style="text-align: right;">
+            <p class="meta-item"><strong>Status:</strong> ${order.signed ? '<span style="color: #10b981; font-weight: bold;">AUTENTICADO DIGITALMENTE</span>' : '<span style="color: #f59e0b; font-weight: bold;">PENDENTE DE ASSINATURA</span>'}</p>
             <p class="meta-item"><strong>Data de Impressão:</strong> ${new Date().toLocaleString('pt-BR')}</p>
-            <p class="meta-item"><strong>Status:</strong> ${isSigned ? '<span style="color: #10b981; font-weight: bold;">TOTALMENTE AUTENTICADO</span>' : '<span style="color: #f59e0b; font-weight: bold;">AGUARDANDO VALIDAÇÕES</span>'}</p>
           </div>
         </div>
 
         <table>
           <thead>
             <tr>
-              <th style="width: 50px; text-align: center;">Item</th>
+              <th style="width: 45px; text-align: center;">Item</th>
               <th style="text-align: left;">Descrição do Item Solicitado</th>
               <th style="width: 100px; text-align: center;">Quantidade</th>
               <th style="text-align: left;">Observações / Destinação</th>
@@ -429,34 +614,22 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
         </table>
 
         <div class="signatures-container">
-          <div class="signature-box ${hasChefeDepSignature ? 'signed' : ''}">
-            <h3>Divisão Chefe do Departamento</h3>
-            ${hasChefeDepSignature ? `
+          <div class="signature-box ${order.signed ? 'signed' : ''}">
+            <h3>Validação Eletrônica Autorizada</h3>
+            ${order.signed ? `
               <div class="seal">Chave Digital Validada</div>
-              <div class="signer-name">${data?.chefeDepName}</div>
-              <div class="signer-meta">Chefe de Departamento</div>
-              <div class="signer-meta">Validado em: ${data?.chefeDepSignedAt}</div>
+              <div class="signer-name">${order.signerName || defaultSignerName}</div>
+              <div class="signer-meta">${activeSubTab === 'chefeDep' ? 'Chefe de Departamento' : 'Chefe de Segurança Interna'}</div>
+              <div class="signer-meta">Validado em: ${timestampText}</div>
             ` : `
-              <div class="empty-seal">Pendente de assinatura eletrônica do Chefe de Departamento</div>
-            `}
-          </div>
-
-          <div class="signature-box ${hasChefeSegSignature ? 'signed' : ''}">
-            <h3>Divisão Chefe da Segurança Interna</h3>
-            ${hasChefeSegSignature ? `
-              <div class="seal">Chave Digital Validada</div>
-              <div class="signer-name">${data?.chefeSegName}</div>
-              <div class="signer-meta">Chefe da Segurança Interna</div>
-              <div class="signer-meta">Validado em: ${data?.chefeSegSignedAt}</div>
-            ` : `
-              <div class="empty-seal">Pendente de assinatura eletrônica do Chefe da Segurança Interna</div>
+              <div class="empty-seal">Pendente de assinatura eletrônica do responsável</div>
             `}
           </div>
         </div>
 
         <div class="footer-note">
-          Este documento foi emitido e validado eletronicamente no sistema integrado de gestão da Penitenciária de Taiúva.<br/>
-          A assinatura eletrônica possui amparo legal e confere autenticidade ao pedido, autorizando o setor de Estoques a proceder com a separação.
+          Este documento foi processado digitalmente no sistema integrado da Penitenciária de Taiúva.<br/>
+          A assinatura digital vinculada valida o pedido de separação de cota e instrui a equipe de Almoxarifado.
         </div>
 
         <script>
@@ -472,250 +645,432 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     printWindow.document.close();
   };
 
-  // Check if current user is allowed to view signature panel
-  const canSeeSignaturePanel = isDouglas || isAlfredo;
+  const currentActiveOrderToPrint = currentActiveOrder || { items: localActiveItems, id: 'atual', signed: false };
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-fade-in">
-      <div className="p-4 md:p-6 bg-slate-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="bg-red-500 w-2.5 h-2.5 rounded-full animate-pulse"></span>
-            <h2 className="text-lg font-black text-white uppercase tracking-tighter">
-              Per Capita Diretores - {currentUser?.cpf === '29099022859' || currentUser?.name?.toUpperCase().includes('DOUGLAS') ? 'Divisão Chefe do Departamento' : currentUser?.cpf === '29462706821' || currentUser?.name?.toUpperCase().includes('ALFREDO') ? 'Divisão Chefe da Segurança Interna' : 'Módulo Geral de Almoxarifado'}
-            </h2>
-          </div>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-            Preenchimento simplificado e assinatura digital via celular
-          </p>
-        </div>
-        <div className="flex items-center gap-2 w-full md:w-auto">
+    <div id="director-per-capita-panel" className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-fade-in">
+      
+      {/* 1. Header with Dual Tab Switch of Chefs */}
+      <div className="p-4 md:p-6 bg-slate-900 border-b border-slate-800">
+        <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest text-center mb-4">
+          Cota Per Capita dos Diretores
+        </h2>
+        
+        <div className="flex bg-slate-800 p-1.5 rounded-2xl max-w-lg mx-auto border border-slate-700">
           <button
-            onClick={handlePrint}
-            className="flex-1 md:flex-none justify-center bg-indigo-600 hover:bg-slate-800 text-white font-black py-2.5 px-5 rounded-xl text-[10px] uppercase tracking-wider flex items-center gap-2 shadow-lg hover:shadow-indigo-500/20 active:scale-95 transition-all"
+            onClick={() => handleTabChange('chefeDep')}
+            className={`flex-1 py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeSubTab === 'chefeDep' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
           >
-            <Printer className="h-4 w-4" />
-            Imprimir Pedido
+            📝 {isDouglas ? 'Seu Painel: Dep.' : 'Chefe Departamento'}
           </button>
-          {!isReadOnly && !isSigned && (
+          <button
+            onClick={() => handleTabChange('chefeSeg')}
+            className={`flex-1 py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeSubTab === 'chefeSeg' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+          >
+            👮 {isAlfredo ? 'Seu Painel: Seg.' : 'Segurança Interna'}
+          </button>
+        </div>
+      </div>
+
+      {/* 2. Responsable Officer Metadata Info Block & Subtabs toggle */}
+      <div className="p-4 md:p-6 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block">Chefia Ativa Selecionada</span>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse"></span>
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                {activeSubTab === 'chefeDep' ? 'Douglas Fernando Semenzin Galdino' : 'Alfredo Guilherme Lopes'}
+              </h3>
+            </div>
+          </div>
+          
+          <div className="flex bg-white rounded-xl p-1 border border-slate-200 shadow-sm w-full md:w-auto">
             <button
-              onClick={handleClearTable}
-              className="md:flex-none bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-black p-2.5 rounded-xl active:scale-95 transition-all"
-              title="Limpar Tabela"
+              onClick={() => { setViewMode('form'); setViewingPastOrder(null); }}
+              className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${viewMode === 'form' && !viewingPastOrder ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
             >
-              <Trash2 className="h-4 w-4" />
+              <FileText className="h-3.5 w-3.5" /> Pedido Ativo
             </button>
-          )}
-        </div>
-      </div>
-
-      {isSigned && (
-        <div className="bg-emerald-50 border-y border-emerald-200 px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-emerald-600 text-white p-2 rounded-2xl shadow-lg shadow-emerald-600/20">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-emerald-900 font-black text-xs uppercase tracking-tight">PEDIDO TOTALMENTE VALIDADO DIGITALMENTE</p>
-              <p className="text-[10px] text-emerald-600 font-semibold uppercase mt-0.5">Pronto para separação e entrega física no Estoque</p>
-            </div>
-          </div>
-          <div className="w-full md:w-auto flex flex-col md:flex-row gap-2">
-            <div className="bg-emerald-100/50 text-emerald-800 rounded-xl px-4 py-2 border border-emerald-200 text-[10px] font-black uppercase">
-              DEP: {data?.chefeDepSignedAt}
-            </div>
-            <div className="bg-emerald-100/50 text-emerald-800 rounded-xl px-4 py-2 border border-emerald-200 text-[10px] font-black uppercase">
-              SEG: {data?.chefeSegSignedAt}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Grid Table (Optimized for Mobile) */}
-      <div className="p-4 md:p-6 overflow-x-auto">
-        <div className="min-w-[650px]">
-          <div className="grid grid-cols-[60px_1fr_120px_2fr] gap-2 md:gap-3 mb-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
-            <div>Item</div>
-            <div className="text-left">Nome do Item</div>
-            <div>Quantidade</div>
-            <div className="text-left">Observações / Destino</div>
-          </div>
-
-          <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
-            {localItems.map((item) => (
-              <div
-                key={item.index}
-                className={`grid grid-cols-[60px_1fr_120px_2fr] gap-2 md:gap-3 items-center p-2 rounded-2xl border transition-all ${
-                  item.itemName.trim() !== '' ? 'bg-slate-50/70 border-zinc-200' : 'bg-white border-slate-100'
-                } hover:border-slate-300`}
-              >
-                {/* ID Column */}
-                <div className="flex justify-center">
-                  <span className="h-7 w-7 rounded-lg bg-slate-100 text-slate-500 font-black text-xs flex items-center justify-center border border-slate-200 shadow-sm">
-                    {item.index}
-                  </span>
-                </div>
-
-                {/* Name Column */}
-                <div>
-                  <input
-                    type="text"
-                    disabled={isReadOnly || isSigned}
-                    placeholder="Descrição do item..."
-                    value={item.itemName}
-                    onChange={(e) => handleFieldChange(item.index, 'itemName', e.target.value)}
-                    className="w-full bg-transparent px-3 py-2 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
-                  />
-                </div>
-
-                {/* Quantity Column */}
-                <div>
-                  <input
-                    type="text"
-                    disabled={isReadOnly || isSigned}
-                    placeholder="Ex: 5 Kg"
-                    value={item.quantity}
-                    onChange={(e) => handleFieldChange(item.index, 'quantity', e.target.value)}
-                    className="w-full bg-transparent px-3 py-2 text-center rounded-xl text-xs font-extrabold text-indigo-700 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
-                  />
-                </div>
-
-                {/* Observation Column */}
-                <div>
-                  <input
-                    type="text"
-                    disabled={isReadOnly || isSigned}
-                    placeholder="Ref, marca, observação..."
-                    value={item.observation}
-                    onChange={(e) => handleFieldChange(item.index, 'observation', e.target.value)}
-                    className="w-full bg-transparent px-3 py-2 rounded-xl text-xs text-slate-600 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
-                  />
-                </div>
-              </div>
-            ))}
+            <button
+              onClick={() => { setViewMode('history'); setViewingPastOrder(null); }}
+              className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${viewMode === 'history' || viewingPastOrder ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              <History className="h-3.5 w-3.5" /> Histórico ({Object.keys(data?.[activeSubTab]?.history || {}).length})
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Signature Module */}
-      <div className="p-4 md:p-6 bg-slate-50 border-t border-slate-100">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          {/* Dept Chief Status */}
-          <div className={`p-4 rounded-3xl border transition-all ${hasChefeDepSignature ? 'bg-emerald-50/50 border-emerald-200' : 'bg-white border-slate-200/80 shadow-md'}`}>
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Divisão 01</span>
-                <span className="text-xs font-black text-slate-800 uppercase tracking-tight">CHEFE DE DEPARTAMENTO</span>
-              </div>
-              {hasChefeDepSignature ? (
-                <div className="flex items-center gap-1.5 bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">
-                  <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-                  Assinado
-                </div>
-              ) : (
-                <div className="bg-amber-100 text-amber-800 border border-amber-200 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">
-                  Pendente
-                </div>
-              )}
+      <div className="p-4 md:p-6">
+        
+        {/* VIEW 1: HISTORY LIST */}
+        {viewMode === 'history' && !viewingPastOrder && (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex items-center gap-2">
+              <History className="h-5 w-5 text-indigo-600" />
+              <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest">
+                Pedidos Finalizados de {activeSubTab === 'chefeDep' ? 'Chefe de Departamento' : 'Segurança Interna'}
+              </h4>
             </div>
-
-            {hasChefeDepSignature ? (
-              <div className="text-xs space-y-1.5 font-bold">
-                <p className="text-slate-950 font-black uppercase">{data?.chefeDepName}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-tight">{data?.chefeDepSignedAt}</p>
-                {canSignAsChefeDep && (
-                  <button
-                    onClick={() => handleRevokeSignature('chefeDep')}
-                    className="mt-2 text-[9px] font-black text-rose-600 hover:text-rose-700 uppercase tracking-wider block hover:underline"
-                  >
-                    Remover Assinatura
-                  </button>
-                )}
+            
+            {(!data?.[activeSubTab]?.history || Object.keys(data?.[activeSubTab]?.history).length === 0) ? (
+              <div className="p-12 text-center bg-slate-50 border border-dashed border-slate-200 rounded-3xl">
+                <FileText className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-xs text-slate-400 font-extrabold uppercase tracking-widest">Nenhum pedido finalizado no histórico permanente.</p>
+                <p className="text-[10px] text-slate-400 font-semibold mt-1">Preencha o formulário e valide-o digitalmente para poder arquivar pedidos.</p>
               </div>
             ) : (
-              <p className="text-xs text-slate-400 font-medium">Aguardando inserção de chave digital por Douglas Fernando Semenzin Galdino.</p>
+              <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-[9px] uppercase font-black tracking-widest text-slate-400 border-b border-slate-100">
+                      <th className="p-3">Data Envio / Arquivo</th>
+                      <th className="p-3">Responsável</th>
+                      <th className="p-3 text-center">Produtos do Pedido</th>
+                      <th className="p-3 text-center">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-xs font-semibold text-slate-700 divide-y divide-slate-100">
+                    {Object.values(data?.[activeSubTab]?.history || {})
+                      .sort((a, b) => {
+                        const timeA = a.id.replace('pedido_', '');
+                        const timeB = b.id.replace('pedido_', '');
+                        return Number(timeB) - Number(timeA);
+                      })
+                      .map((pastOrder) => {
+                        const filledCount = (pastOrder.items || []).filter(i => i.itemName.trim() !== '').length;
+                        return (
+                          <tr key={pastOrder.id} className="hover:bg-slate-50/50 transition-all">
+                            <td className="p-3 text-[11px] font-bold text-slate-900">{pastOrder.createdAt || pastOrder.signedAt || 'N/A'}</td>
+                            <td className="p-3">
+                              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
+                                <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                                {pastOrder.signerName || 'Chefia Validada'}
+                              </div>
+                            </td>
+                            <td className="p-3 text-center font-black text-indigo-600 text-[11px]">{filledCount} / 25 Itens</td>
+                            <td className="p-3 text-center">
+                              <div className="flex gap-2 justify-center">
+                                <button
+                                  onClick={() => setViewingPastOrder(pastOrder)}
+                                  className="bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-700 font-black px-3 py-1.5 rounded-xl text-[9px] uppercase transition-all"
+                                >
+                                  👁️ Detalhes
+                                </button>
+                                <button
+                                  onClick={() => handlePrintOrder(pastOrder)}
+                                  className="bg-indigo-50 hover:bg-slate-900 hover:text-white text-indigo-700 font-black px-3 py-1.5 rounded-xl text-[9px] uppercase transition-all flex items-center gap-1"
+                                >
+                                  <Printer className="h-3 w-3" /> Imprimir
+                                </button>
+                                {(!isReadOnly && (isDouglas && activeSubTab === 'chefeDep' || isAlfredo && activeSubTab === 'chefeSeg' || currentUser?.role === 'admin')) && (
+                                  <button
+                                    onClick={() => handleDeletePastOrder(pastOrder.id)}
+                                    className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-black p-1.5 rounded-xl transition-all"
+                                    title="Excluir Permanentemente"
+                                  >
+                                    <Trash className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
+        )}
 
-          {/* Security Chief Status */}
-          <div className={`p-4 rounded-3xl border transition-all ${hasChefeSegSignature ? 'bg-emerald-50/50 border-emerald-200' : 'bg-white border-slate-200/80 shadow-md'}`}>
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Divisão 02</span>
-                <span className="text-xs font-black text-slate-800 uppercase tracking-tight">CHEFE DA SEGURANÇA INTERNA</span>
-              </div>
-              {hasChefeSegSignature ? (
-                <div className="flex items-center gap-1.5 bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">
-                  <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-                  Assinado
+        {/* VIEW 2: DETAILS OF HISTORICAL ORDER */}
+        {viewingPastOrder && (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex justify-between items-center bg-slate-900 text-white rounded-3xl p-4 gap-4">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setViewingPastOrder(null)}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white p-2 rounded-xl transition-all"
+                  title="Voltar ao Histórico"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                <div>
+                  <h4 className="text-[10px] uppercase font-black text-indigo-400 tracking-wider">Visualizando Pedido Arquivado</h4>
+                  <p className="text-[12px] font-black">{viewingPastOrder.createdAt}</p>
                 </div>
-              ) : (
-                <div className="bg-amber-100 text-amber-800 border border-amber-200 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">
-                  Pendente
-                </div>
-              )}
-            </div>
-
-            {hasChefeSegSignature ? (
-              <div className="text-xs space-y-1.5 font-bold">
-                <p className="text-slate-950 font-black uppercase">{data?.chefeSegName}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-tight">{data?.chefeSegSignedAt}</p>
-                {canSignAsChefeSeg && (
-                  <button
-                    onClick={() => handleRevokeSignature('chefeSeg')}
-                    className="mt-2 text-[9px] font-black text-rose-600 hover:text-rose-700 uppercase tracking-wider block hover:underline"
-                  >
-                    Remover Assinatura
-                  </button>
-                )}
               </div>
-            ) : (
-              <p className="text-xs text-slate-400 font-medium">Aguardando inserção de chave digital por Alfredo Guilherme Lopes.</p>
-            )}
-          </div>
-        </div>
-
-        {/* Password input sign form (only visible to those who need to sign and hasn't signed yet) */}
-        {!isReadOnly && canSeeSignaturePanel && ((canSignAsChefeDep && !hasChefeDepSignature) || (canSignAsChefeSeg && !hasChefeSegSignature)) && (
-          <form onSubmit={handleDigitalSign} className="mt-6 p-4 md:p-6 bg-white rounded-3xl border border-zinc-200 max-w-lg mx-auto shadow-md">
-            <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1 bg-slate-100 px-3 py-1 rounded-full w-max">
-              <ShieldCheck className="h-3 w-3 text-indigo-600" /> Painel de Assinatura Eletrônica
-            </span>
-            <h3 className="text-xs font-black text-slate-800 uppercase tracking-tight mb-2">
-              Validar com senha de login (CPF)
-            </h3>
-            <p className="text-[11px] text-slate-500 font-medium mb-4">
-              Ao digitar seu CPF de acesso e validar, você estará assinando digitalmente a solicitação de Per Capita e responsabilizando-se pelo pedido.
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <input
-                  type="password"
-                  placeholder="Digite seu CPF..."
-                  value={passwordInput}
-                  onChange={(e) => setPasswordInput(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-sm font-bold text-center focus:bg-white focus:border-indigo-600 focus:outline-none transition-all"
-                  required
-                />
-              </div>
-
-              {signatureError && (
-                <p className="text-rose-600 text-[11px] font-black text-center">{signatureError}</p>
-              )}
-              {signatureSuccess && (
-                <p className="text-emerald-600 text-[11px] font-black text-center">{signatureSuccess}</p>
-              )}
-
               <button
-                type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-2xl text-[11px] uppercase tracking-wider flex justify-center items-center gap-2 shadow-lg shadow-indigo-600/10 active:scale-95 transition-all"
+                onClick={() => handlePrintOrder(viewingPastOrder)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-2.5 px-4 rounded-xl text-[10px] uppercase tracking-wider flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
               >
-                <CheckCircle2 className="h-4 w-4" />
-                Gravar Minha Assinatura Digital
+                <Printer className="h-3.5 w-3.5" /> Imprimir
               </button>
             </div>
-          </form>
+
+            <div className="bg-emerald-50 border border-emerald-200 px-5 py-3 rounded-2xl flex items-center gap-3.5">
+              <div className="bg-emerald-500 text-white p-1 rounded-full">
+                <CheckCircle className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-[10px] text-emerald-800 font-black uppercase">
+                  PEDIDO AUTENTICADO DE FORMA ELETRÔNICA
+                </p>
+                <p className="text-[10px] font-bold text-slate-600 mt-0.5">
+                  Assinado por: {viewingPastOrder.signerName} • Data: {viewingPastOrder.signedAt}
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <div className="min-w-[650px]">
+                <div className="grid grid-cols-[60px_1fr_120px_2fr] gap-2 md:gap-3 mb-2 bg-slate-100 p-3 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                  <div>Item</div>
+                  <div className="text-left">Nome do Item</div>
+                  <div>Quantidade</div>
+                  <div className="text-left">Observações / Destinar</div>
+                </div>
+
+                <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
+                  {(viewingPastOrder.items || []).map((item) => (
+                    <div
+                      key={item.index}
+                      className={`grid grid-cols-[60px_1fr_120px_2fr] gap-2 md:gap-3 items-center p-2 rounded-2xl border ${
+                        item.itemName.trim() !== '' ? 'bg-slate-50 border-slate-200 shadow-sm' : 'bg-white border-slate-100'
+                      }`}
+                    >
+                      <div className="flex justify-center">
+                        <span className="h-7 w-7 rounded-lg bg-slate-100 text-slate-400 font-black text-xs flex items-center justify-center border border-slate-200">
+                          {item.index}
+                        </span>
+                      </div>
+                      <div className="px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100/40 rounded-xl">
+                        {item.itemName || <span className="text-slate-300">-</span>}
+                      </div>
+                      <div className="px-3 py-2 text-center text-xs font-black text-indigo-600 bg-slate-100/40 rounded-xl">
+                        {item.quantity || <span className="text-slate-300">-</span>}
+                      </div>
+                      <div className="px-3 py-2 text-xs text-slate-500 bg-slate-100/40 rounded-xl">
+                        {item.observation || <span className="text-slate-300">-</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-start pt-2">
+              <button
+                onClick={() => setViewingPastOrder(null)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-[10px] uppercase py-2.5 px-5 rounded-xl transition-all"
+              >
+                Voltar ao Histórico
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 3: ACTIVE DRAFT FORM SUMMARY */}
+        {viewMode === 'form' && !viewingPastOrder && (
+          <div className="space-y-4 animate-fade-in">
+            
+            <div className="p-4 bg-slate-900 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${isCurrentOrderSigned ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50' : 'bg-amber-500 animate-pulse bg-logo'}`}></span>
+                  <h2 className="text-sm font-black text-white uppercase tracking-tighter flex items-center gap-1.5">
+                    {activeSubTab === 'chefeDep' ? 'Rascunho Corrente: Dep.' : 'Rascunho Corrente: Seg.'}
+                  </h2>
+                </div>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                  Digite as cotações nas 25 linhas abaixo
+                </p>
+              </div>
+              
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <button
+                  onClick={() => handlePrintOrder(currentActiveOrderToPrint)}
+                  className="flex-1 md:flex-none justify-center bg-indigo-600 hover:bg-slate-800 text-white font-black py-2.5 px-5 rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all"
+                >
+                  <Printer className="h-4 w-4" />
+                  Imprimir Pedido
+                </button>
+                {!isReadOnly && !isCurrentOrderSigned && (
+                  <button
+                    onClick={handleClearTable}
+                    className="md:flex-none bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-black p-2.5 rounded-xl transition-all"
+                    title="Limpar Tabela Inteira"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Validation warning or success header */}
+            {isCurrentOrderSigned && (
+              <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-emerald-600 text-white p-2 rounded-2xl shadow-lg shadow-emerald-600/20">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-emerald-900 font-black text-xs uppercase">SOLICITAÇÃO DE PER CAPITA TOTALMENTE ASSINADA</p>
+                    <p className="text-[10px] text-emerald-600 font-bold uppercase mt-0.5">
+                      Validado por: {currentActiveOrder?.signerName} • {currentActiveOrder?.signedAt}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 w-full md:w-auto">
+                  {((activeSubTab === 'chefeDep' && isDouglas) || (activeSubTab === 'chefeSeg' && isAlfredo) || currentUser?.role === 'admin') && (
+                    <button
+                      onClick={handleRevokeSignature}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 font-extrabold py-2 px-4 rounded-xl text-[10px] uppercase transition-all"
+                    >
+                      Editar Rascunho / Remover Assinatura
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={handleArchiveOrder}
+                    className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-5 rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/10 active:scale-95 transition-all"
+                  >
+                    <FileCheck className="h-4.5 w-4.5" /> Enviar & Finalizar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Main Interactive Table Grid */}
+            <div className="overflow-x-auto">
+              <div className="min-w-[650px]">
+                <div className="grid grid-cols-[60px_1fr_120px_2fr] gap-2 md:gap-3 mb-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                  <div>Ref</div>
+                  <div className="text-left">Nome do Item</div>
+                  <div>Quantidade</div>
+                  <div className="text-left">Observações / Destinação</div>
+                </div>
+
+                <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
+                  {localActiveItems.map((item) => {
+                    // Check if edit is permitted
+                    const isEditable = !isReadOnly && !isCurrentOrderSigned && (
+                      (activeSubTab === 'chefeDep' && isDouglas) ||
+                      (activeSubTab === 'chefeSeg' && isAlfredo) ||
+                      currentUser?.role === 'admin' ||
+                      (currentUser?.role === 'financeiro' && !isReadOnly)
+                    );
+
+                    return (
+                      <div
+                        key={item.index}
+                        className={`grid grid-cols-[60px_1fr_120px_2fr] gap-2 md:gap-3 items-center p-2 rounded-2xl border transition-all ${
+                          item.itemName.trim() !== '' ? 'bg-slate-50 border-zinc-200' : 'bg-white border-slate-100'
+                        } hover:border-slate-300`}
+                      >
+                        {/* Index Column */}
+                        <div className="flex justify-center">
+                          <span className="h-7 w-7 rounded-lg bg-slate-100 text-slate-500 font-black text-xs flex items-center justify-center border border-slate-200 shadow-sm">
+                            {item.index}
+                          </span>
+                        </div>
+
+                        {/* Name Column */}
+                        <div>
+                          <input
+                            type="text"
+                            disabled={!isEditable}
+                            placeholder={isEditable ? "Nome do produto..." : "(Vazio)"}
+                            value={item.itemName}
+                            onChange={(e) => handleFieldChange(item.index, 'itemName', e.target.value)}
+                            className="w-full bg-transparent px-3 py-2 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
+                          />
+                        </div>
+
+                        {/* Quantity Column */}
+                        <div>
+                          <input
+                            type="text"
+                            disabled={!isEditable}
+                            placeholder={isEditable ? "Ex: 10 Sacos" : "-"}
+                            value={item.quantity}
+                            onChange={(e) => handleFieldChange(item.index, 'quantity', e.target.value)}
+                            className="w-full bg-transparent px-3 py-2 text-center rounded-xl text-xs font-extrabold text-indigo-700 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
+                          />
+                        </div>
+
+                        {/* Observation Column */}
+                        <div>
+                          <input
+                            type="text"
+                            disabled={!isEditable}
+                            placeholder={isEditable ? "Observação do destino..." : "-"}
+                            value={item.observation}
+                            onChange={(e) => handleFieldChange(item.index, 'observation', e.target.value)}
+                            className="w-full bg-transparent px-3 py-2 rounded-xl text-xs text-slate-600 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Signature validation boxes */}
+            {!isReadOnly && !isCurrentOrderSigned && (
+              <div className="p-4 md:p-6 bg-slate-50 border-t border-slate-100 rounded-3xl">
+                {((activeSubTab === 'chefeDep' && isDouglas) || (activeSubTab === 'chefeSeg' && isAlfredo)) ? (
+                  <form onSubmit={handleDigitalSign} className="mt-2 p-4 md:p-6 bg-white rounded-3xl border border-zinc-200 max-w-lg mx-auto shadow-md">
+                    <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1 bg-slate-100 px-3 py-1 rounded-full w-max">
+                      <ShieldCheck className="h-3 w-3 text-indigo-600" /> Assinador Digital Oficial
+                    </span>
+                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-tight mb-2">
+                      Validar Registro com Seu CPF
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-medium mb-4">
+                      Digite seu CPF de acesso abaixo. Sua senha eletrônica atesta a veracidade do preenchimento e autoriza a separação da cota per capita.
+                    </p>
+
+                    <div className="space-y-4">
+                      <div>
+                        <input
+                          type="password"
+                          placeholder="Digite seu CPF..."
+                          value={passwordInput}
+                          onChange={(e) => setPasswordInput(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-sm font-bold text-center focus:bg-white focus:border-indigo-600 focus:outline-none transition-all"
+                          required
+                        />
+                      </div>
+
+                      {signatureError && (
+                        <p className="text-rose-600 text-[11px] font-black text-center">{signatureError}</p>
+                      )}
+                      {signatureSuccess && (
+                        <p className="text-emerald-600 text-[11px] font-black text-center">{signatureSuccess}</p>
+                      )}
+
+                      <button
+                        type="submit"
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-2xl text-[11px] uppercase tracking-wider flex justify-center items-center gap-2 shadow-lg shadow-indigo-600/10 active:scale-95 transition-all"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        Gravar Minha Assinatura Digital
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <p className="text-center text-xs font-bold uppercase tracking-wide text-amber-600 py-3 bg-amber-50 rounded-2xl border border-amber-100 max-w-xl mx-auto">
+                    ⚠️ Painel de Assinatura Eletrônica disponível apenas sob o login próprio de {activeSubTab === 'chefeDep' ? 'Douglas' : 'Alfredo'}.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
