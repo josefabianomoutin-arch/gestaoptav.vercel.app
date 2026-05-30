@@ -61,6 +61,17 @@ const getFirstThreeWords = (name: string): string => {
   return words.slice(0, 3).join(' ').toUpperCase();
 };
 
+const APP_VERSION = '2.7';
+
+// Clean old cached localStorage arrays from previous code versions
+if (typeof window !== 'undefined') {
+  const cachedVersion = localStorage.getItem('app_version');
+  if (cachedVersion !== APP_VERSION) {
+    localStorage.clear();
+    localStorage.setItem('app_version', APP_VERSION);
+  }
+}
+
 export default function DirectorPerCapitaTable() {
   // Navigation Tabs state
   const [activeTab, setActiveTab] = useState<'recursos' | 'adiantamentos' | 'ptres' | 'cardapio' | 'chegadas' | 'saida' | 'percapita'>('percapita');
@@ -212,6 +223,7 @@ export default function DirectorPerCapitaTable() {
 
   // Modal dialog triggers to bypass iframe blocks
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showNewAdvanceModal, setShowNewAdvanceModal] = useState(false);
   const [newAdvanceDesc, setNewAdvanceDesc] = useState('');
   const [newAdvanceAmt, setNewAdvanceAmt] = useState('');
@@ -241,7 +253,14 @@ export default function DirectorPerCapitaTable() {
   }, []);
 
 const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
-  const setActiveRows = activeDirector.id === 'chefeDep' ? setDepRows : setSegRows;
+  
+  const updateActiveRows = (updated: DirectorPerCapitaRow[]) => {
+    if (activeDirector.id === 'chefeDep') {
+      setDepRows(updated);
+    } else {
+      setSegRows(updated);
+    }
+  };
 
   // Render rows correctly based on state
   useEffect(() => {
@@ -260,7 +279,7 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
     } else {
       (updated[index] as any)[field] = val;
     }
-    setActiveRows(updated);
+    updateActiveRows(updated);
   };
 
   // Click an autocomplete suggestion
@@ -272,7 +291,7 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
     if (!updated[rowIndex].quantity) {
       updated[rowIndex].quantity = `Ex: 10 ${item.unit}`;
     }
-    setActiveRows(updated);
+    updateActiveRows(updated);
     setShowSuggestions(null);
   };
 
@@ -294,7 +313,7 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
       itemFullName: item.name,
       quantity: updated[indexToUse].quantity || `10 ${item.unit}`
     };
-    setActiveRows(updated);
+    updateActiveRows(updated);
     
     window.scrollTo({ top: 400, behavior: 'smooth' });
     setActiveRowIndex(null);
@@ -312,8 +331,20 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
       quantity: '',
       observations: ''
     }));
-    setActiveRows(reseted);
+    if (activeDirector.id === 'chefeDep') {
+      setDepRows(reseted);
+    } else {
+      setSegRows(reseted);
+    }
     setShowClearConfirm(false);
+  };
+
+  const executeFullReset = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.clear();
+      localStorage.setItem('app_version', APP_VERSION);
+      window.location.reload();
+    }
   };
 
   const handlePrint = () => {
@@ -327,7 +358,20 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
     if (!matchesSearch) return false;
 
     if (foodFilter === 'all') return true;
-    if (foodFilter === 'active') return item.isActivePerCapita;
+    if (foodFilter === 'active') {
+      const filledInDep = depRows.map(r => r.itemName.trim().toLowerCase()).filter(Boolean);
+      const filledInDepFull = depRows.map(r => r.itemFullName?.trim().toLowerCase()).filter(Boolean);
+      const filledInSeg = segRows.map(r => r.itemName.trim().toLowerCase()).filter(Boolean);
+      const filledInSegFull = segRows.map(r => r.itemFullName?.trim().toLowerCase()).filter(Boolean);
+
+      const allFilled = [...filledInDep, ...filledInSeg];
+      const allFilledFull = [...filledInDepFull, ...filledInSegFull];
+
+      const isFilled = allFilled.some(name => name.length >= 3 && (item.name.toLowerCase().includes(name) || name.includes(getFirstThreeWords(item.name).toLowerCase())));
+      const isFilledFull = allFilledFull.some(fullName => fullName.length >= 3 && (item.name.toLowerCase().includes(fullName) || fullName.includes(item.name.toLowerCase())));
+
+      return item.isActivePerCapita || isFilled || isFilledFull;
+    }
     if (foodFilter === 'inStock') return item.stockQty > 0;
     return true;
   });
@@ -922,6 +966,16 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
                     LIMPAR CAMPO
                   </button>
 
+                  {/* Reset system / cache cleanup button */}
+                  <button
+                    onClick={() => setShowResetConfirm(true)}
+                    className="bg-slate-800 hover:bg-amber-950 border border-slate-700/80 text-amber-350 hover:text-white px-3 py-1.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-all"
+                    title="Se o sistema estiver travado ou com dados desatualizados, clique aqui para restaurar padrões originais"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-amber-450" />
+                    RESETAR CACHE / RESTAURAR
+                  </button>
+
                   {/* Print command */}
                   <button
                     onClick={handlePrint}
@@ -1371,6 +1425,46 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-5 py-2 rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-emerald-950/30 transition-all font-sans"
               >
                 Prestar Contas
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: FULL SYSTEM FACTORY RESET */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] print:hidden">
+          <div className="bg-[#111c2e] border border-amber-500/30 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scaleUp">
+            <div className="flex items-start gap-4">
+              <div className="bg-amber-500/10 p-3 rounded-full text-amber-500 shrink-0">
+                <RefreshCw className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white uppercase tracking-wider">
+                  ⚠ Restaurar Configurações de Fábrica?
+                </h3>
+                <p className="text-xs text-slate-300 mt-2 leading-relaxed font-semibold">
+                  Isso irá <span className="text-amber-400 font-extrabold">limpar de forma absoluta toda a memória temporária (cache) do navegador</span>, restaurando o estoque original, limpando os rascunhos de ambos os diretores e aplicando as <span className="text-white font-black">últimas atualizações e melhorias</span> do sistema imediatamente.
+                </p>
+                <p className="text-[10px] text-slate-400 mt-2 italic font-medium">
+                  Recomendado caso você não esteja vendo as últimas modificações online.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2.5 mt-6">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={executeFullReset}
+                className="bg-amber-600 hover:bg-amber-500 text-white font-black px-5 py-2 rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-amber-950/30 transition-all font-sans"
+              >
+                Limpar Cache e Forçar Atualizações
               </button>
             </div>
           </div>
