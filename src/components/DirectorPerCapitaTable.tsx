@@ -24,27 +24,27 @@ import { DirectorPerCapitaRow, InventoryItem, DirectorConfig } from '../types';
 
 // Standard items database
 const initialInventory: InventoryItem[] = [
-  { id: '1', name: 'ALMÔNDEGAS, TIPO: BOVINO, SABOR: TEMPERADO, ESTADO DE CONSERVAÇÃO CONGELADA', category: 'alimentacao', stockQty: 450, unit: 'Kg', expirationDate: '12/08/2026', isActivePerCapita: true },
-  { id: '2', name: 'ABÓBORA JAPONESA, COM PESO UNITÁRIO VARIANDO DE 1 A 2 KG', category: 'alimentacao', stockQty: 180, unit: 'Sacos', expirationDate: '24/06/2026', isActivePerCapita: true },
-  { id: '3', name: 'ARROZ AGULHINHA, TIPO 1, POLIDO, PACOTE DE 5KG', category: 'alimentacao', stockQty: 1200, unit: 'Pacotes', expirationDate: '15/12/2026', isActivePerCapita: true },
-  { id: '4', name: 'FEIJÃO CARIOCA, TIPO 1, NOVO, GRÃOS INTEIROS, PACOTE DE 1KG', category: 'alimentacao', stockQty: 850, unit: 'Pacotes', expirationDate: '22/09/2026', isActivePerCapita: true },
-  { id: '5', name: 'CARNE BOVINA MOÍDA, ISENTA DE SEBO E APONEUROSE, PACOTE DE 1KG', category: 'alimentacao', stockQty: 320, unit: 'Kg', expirationDate: '10/06/2026', isActivePerCapita: true },
-  { id: '6', name: 'LEITE INTEGRAL UHT, EMBALAGEM TETRAPAK DE 1L', category: 'alimentacao', stockQty: 140, unit: 'Litros', expirationDate: '02/07/2026', isActivePerCapita: false },
-  { id: '7', name: 'ÓLEO DE SOJA REFINADO, FRASCO DE 900ML', category: 'alimentacao', stockQty: 600, unit: 'Frascos', expirationDate: '30/11/2026', isActivePerCapita: true },
-  { id: '8', name: 'SALSICHA TIPO HOT DOG, RESFRIADA, DE CARNE DE AVES E BOVINO', category: 'alimentacao', stockQty: 0, unit: 'Kg', expirationDate: '15/06/2026', isActivePerCapita: true },
-  { id: '9', name: 'MACARRÃO ESPAGUETE COM OVOS, PACOTE DE 500G', category: 'alimentacao', stockQty: 480, unit: 'Pacotes', expirationDate: '28/02/2027', isActivePerCapita: true },
-  { id: '10', name: 'BATATA INGLESA LAVADA, DE FORMATO UNIFORME, SACO DE 25KG', category: 'alimentacao', stockQty: 400, unit: 'Sacos', expirationDate: '18/06/2026', isActivePerCapita: true },
-  { id: '11', name: 'CAFÉ TORRADO E MOÍDO, EMBALAGEM DE 500G', category: 'alimentacao', stockQty: 210, unit: 'Pacotes', expirationDate: '04/10/2026', isActivePerCapita: true },
-  { id: '12', name: 'AÇÚCAR REFINADO EXTRA FINO, PACOTE DE 1KG', category: 'alimentacao', stockQty: 740, unit: 'Pacotes', expirationDate: '11/11/2026', isActivePerCapita: true },
-  { id: '13', name: 'BACON EM CUBOS, DEFUMADO NATURALMENTE, EMBALAGEM DE 1KG', category: 'alimentacao', stockQty: 95, unit: 'Kg', expirationDate: '05/08/2026', isActivePerCapita: true },
-  { id: '14', name: 'POLPA DE UVA CONGELADA, SEM ADIÇÃO DE CONSERVANTES, PACOTE DE 1KG', category: 'alimentacao', stockQty: 300, unit: 'Pacotes', expirationDate: '30/08/2026', isActivePerCapita: false },
+  { id: '1', name: 'ALMÔNDEGAS, TIPO: BOVINO, SABOR: TEMPERADO, ESTADO DE CONSERVAÇÃO CONGELADA', category: 'alimentacao', stockQty: 450, unit: 'Kg', expirationDate: '12/08/2026', lote: 'L-2026-001', isActivePerCapita: true },
+  { id: '2', name: 'ABÓBORA JAPONESA, COM PESO UNITÁRIO VARIANDO DE 1 A 2 KG', category: 'alimentacao', stockQty: 180, unit: 'Sacos', expirationDate: '24/06/2026', lote: 'L-2026-002', isActivePerCapita: true },
+  { id: '3', name: 'ARROZ AGULHINHA, TIPO 1, POLIDO, PACOTE DE 5KG', category: 'alimentacao', stockQty: 1200, unit: 'Pacotes', expirationDate: '15/12/2026', lote: 'L-2026-003', isActivePerCapita: true },
+  { id: '4', name: 'FEIJÃO CARIOCA, TIPO 1, NOVO, GRÃOS INTEIROS, PACOTE DE 1KG', category: 'alimentacao', stockQty: 850, unit: 'Pacotes', expirationDate: '22/09/2026', lote: 'L-2026-004', isActivePerCapita: true },
+  { id: '5', name: 'CARNE BOVINA MOÍDA, ISENTA DE SEBO E APONEUROSE, PACOTE DE 1KG', category: 'alimentacao', stockQty: 320, unit: 'Kg', expirationDate: '10/06/2026', lote: 'L-2026-005', isActivePerCapita: true },
+  { id: '6', name: 'LEITE INTEGRAL UHT, EMBALAGEM TETRAPAK DE 1L', category: 'alimentacao', stockQty: 140, unit: 'Litros', expirationDate: '02/07/2026', lote: 'L-2026-006', isActivePerCapita: false },
+  { id: '7', name: 'ÓLEO DE SOJA REFINADO, FRASCO DE 900ML', category: 'alimentacao', stockQty: 600, unit: 'Frascos', expirationDate: '30/11/2026', lote: 'L-2026-007', isActivePerCapita: true },
+  { id: '8', name: 'SALSICHA TIPO HOT DOG, RESFRIADA, DE CARNE DE AVES E BOVINO', category: 'alimentacao', stockQty: 0, unit: 'Kg', expirationDate: '15/06/2026', lote: 'L-2026-008', isActivePerCapita: true },
+  { id: '9', name: 'MACARRÃO ESPAGUETE COM OVOS, PACOTE DE 500G', category: 'alimentacao', stockQty: 480, unit: 'Pacotes', expirationDate: '28/02/2027', lote: 'L-2027-009', isActivePerCapita: true },
+  { id: '10', name: 'BATATA INGLESA LAVADA, DE FORMATO UNIFORME, SACO DE 25KG', category: 'alimentacao', stockQty: 400, unit: 'Sacos', expirationDate: '18/06/2026', lote: 'L-2026-010', isActivePerCapita: true },
+  { id: '11', name: 'CAFÉ TORRADO E MOÍDO, EMBALAGEM DE 500G', category: 'alimentacao', stockQty: 210, unit: 'Pacotes', expirationDate: '04/10/2026', lote: 'L-2026-011', isActivePerCapita: true },
+  { id: '12', name: 'AÇÚCAR REFINADO EXTRA FINO, PACOTE DE 1KG', category: 'alimentacao', stockQty: 740, unit: 'Pacotes', expirationDate: '11/11/2026', lote: 'L-2026-012', isActivePerCapita: true },
+  { id: '13', name: 'BACON EM CUBOS, DEFUMADO NATURALMENTE, EMBALAGEM DE 1KG', category: 'alimentacao', stockQty: 95, unit: 'Kg', expirationDate: '05/08/2026', lote: 'L-2026-013', isActivePerCapita: true },
+  { id: '14', name: 'POLPA DE UVA CONGELADA, SEM ADIÇÃO DE CONSERVANTES, PACOTE DE 1KG', category: 'alimentacao', stockQty: 300, unit: 'Pacotes', expirationDate: '30/08/2026', lote: 'L-2026-014', isActivePerCapita: false },
   
   // Cleaning items
-  { id: 'c1', name: 'SABÃO EM PÓ, MULTIAÇÃO, CAIXA COM 1KG', category: 'limpeza', stockQty: 250, unit: 'Caixas', expirationDate: '01/05/2028', isActivePerCapita: false },
-  { id: 'c2', name: 'DETERGENTE LÍQUIDO NEUTRO, FRASCO DE 500ML', category: 'limpeza', stockQty: 420, unit: 'Frascos', expirationDate: '10/03/2027', isActivePerCapita: true },
-  { id: 'c3', name: 'DESINFETANTE SANITÁRIO AUXILIAR DE LIMPEZA, FRASCO DE 2L', category: 'limpeza', stockQty: 180, unit: 'Frascos', expirationDate: '14/12/2027', isActivePerCapita: true },
-  { id: 'c4', name: 'ÁGUA SANITÁRIA, SOLUÇÃO DE HIPOCLORITO DE SÓDIO 2.5%, GALÃO DE 5L', category: 'limpeza', stockQty: 90, unit: 'Galões', expirationDate: '21/04/2027', isActivePerCapita: true },
-  { id: 'c5', name: 'SABONETE EM BARRA SUAVE, DERMATOLOGICAMENTE TESTADO, EMBALAGEM DE 90G', category: 'limpeza', stockQty: 600, unit: 'Unidades', expirationDate: '09/01/2028', isActivePerCapita: true }
+  { id: 'c1', name: 'SABÃO EM PÓ, MULTIAÇÃO, CAIXA COM 1KG', category: 'limpeza', stockQty: 250, unit: 'Caixas', expirationDate: '01/05/2028', lote: 'L-2028-C01', isActivePerCapita: false },
+  { id: 'c2', name: 'DETERGENTE LÍQUIDO NEUTRO, FRASCO DE 500ML', category: 'limpeza', stockQty: 420, unit: 'Frascos', expirationDate: '10/03/2027', lote: 'L-2027-C02', isActivePerCapita: true },
+  { id: 'c3', name: 'DESINFETANTE SANITÁRIO AUXILIAR DE LIMPEZA, FRASCO DE 2L', category: 'limpeza', stockQty: 180, unit: 'Frascos', expirationDate: '14/12/2027', lote: 'L-2027-C03', isActivePerCapita: true },
+  { id: 'c4', name: 'ÁGUA SANITÁRIA, SOLUÇÃO DE HIPOCLORITO DE SÓDIO 2.5%, GALÃO DE 5L', category: 'limpeza', stockQty: 90, unit: 'Galões', expirationDate: '21/04/2027', lote: 'L-2027-C04', isActivePerCapita: true },
+  { id: 'c5', name: 'SABONETE EM BARRA SUAVE, DERMATOLOGICAMENTE TESTADO, EMBALAGEM DE 90G', category: 'limpeza', stockQty: 600, unit: 'Unidades', expirationDate: '09/01/2028', lote: 'L-2028-C05', isActivePerCapita: true }
 ];
 
 const DIRECTORS: DirectorConfig[] = [
@@ -1072,6 +1072,7 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
                             <th className="pb-3 pl-2">ITEM DESCRIÇÃO / ESPECIFICAÇÃO</th>
                             <th className="pb-3 text-center">CATEGORIA</th>
                             <th className="pb-3 text-center">QUANTIDADE EM SUCURSAL</th>
+                            <th className="pb-3 text-center">LOTE</th>
                             <th className="pb-3 text-center">PRAZO DE VALIDADE</th>
                             <th className="pb-3 text-center pr-2">AÇÃO</th>
                           </tr>
@@ -1107,6 +1108,11 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
                                       {item.stockQty} {item.unit}
                                     </span>
                                   )}
+                                </td>
+                                <td className="py-2.5 text-center">
+                                  <span className={`font-bold ${isCloseToExpr ? 'text-rose-400 animate-pulse' : 'text-slate-350'}`}>
+                                    {item.lote}
+                                  </span>
                                 </td>
                                 <td className="py-2.5 text-center">
                                   <span className={`font-bold ${isCloseToExpr ? 'text-rose-400 animate-pulse' : 'text-slate-350'}`}>

@@ -13,6 +13,7 @@ export interface InventoryItem {
   stockQty: number;
   unit: string;
   expirationDate: string; // ISO date string or DD/MM/YYYY
+  lote: string; // Added batch field
   isActivePerCapita: boolean;
 }
 
