@@ -87,11 +87,17 @@ export default function DirectorPerCapitaTable() {
   };
 
   // Adiantamentos Tab states
-  const [advances, setAdvances] = useState([
-    { id: 1, name: 'Alfredo Lopes', role: 'Diretor de Segurança (SEG.)', amount: 30000, description: 'Abastecimento emergencial de gêneros e kits de higiene para a ala norte', date: '30/05/2026', status: 'Liberado' },
-    { id: 2, name: 'Julio Santana', role: 'Coordenador Subportaria', amount: 15000, description: 'Manutenção imediata do portão eletrônico e iluminação perimetral', date: '29/05/2026', status: 'Liberado' },
-    { id: 3, name: 'Daniele Garcia Possidonio', role: 'Depto. Financeiro', amount: 25000, description: 'Custeio extraordinário para lavanderia de uniformes', date: '28/05/2026', status: 'Aprovado' }
-  ]);
+  const [advances, setAdvances] = useState<any[]>(() => {
+    const saved = localStorage.getItem('advances');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+    }
+    return [
+      { id: 1, name: 'Alfredo Lopes', role: 'Diretor de Segurança (SEG.)', amount: 30000, description: 'Abastecimento emergencial de gêneros e kits de higiene para a ala norte', date: '30/05/2026', status: 'Liberado' },
+      { id: 2, name: 'Julio Santana', role: 'Coordenador Subportaria', amount: 15000, description: 'Manutenção imediata do portão eletrônico e iluminação perimetral', date: '29/05/2026', status: 'Liberado' },
+      { id: 3, name: 'Daniele Garcia Possidonio', role: 'Depto. Financeiro', amount: 25000, description: 'Custeio extraordinário para lavanderia de uniformes', date: '28/05/2026', status: 'Aprovado' }
+    ];
+  });
 
   // PTRES/Natures States
   const ptresList = [
@@ -102,21 +108,37 @@ export default function DirectorPerCapitaTable() {
   ];
 
   // Logistic arrivals state
-  const [arrivals, setArrivals] = useState([
-    { id: 'SH30', carrier: 'Coan Nutrição S.A.', plate: 'FLZ-8C41', cargo: 'Gêneros Alimentícios (Proteína Congelada)', scheduled: '14:30', real: '14:22', status: 'Pátio Interno' },
-    { id: 'SH31', carrier: 'Nutri-Vida Comercial', plate: 'BRA-3Z92', cargo: 'Hortifruti Fresco e Legumes', scheduled: '15:15', real: 'A caminho', status: 'Em Trânsito' },
-    { id: 'SH32', carrier: 'D&D Distribuidora', plate: 'KLP-1M45', cargo: 'Produtos Químicos de Higiene Sanitária', scheduled: '16:00', real: 'Check na balsa', status: 'Aguardando' }
-  ]);
+  const [arrivals, setArrivals] = useState<any[]>(() => {
+    const saved = localStorage.getItem('arrivals');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+    }
+    return [
+      { id: 'SH30', carrier: 'Coan Nutrição S.A.', plate: 'FLZ-8C41', cargo: 'Gêneros Alimentícios (Proteína Congelada)', scheduled: '14:30', real: '14:22', status: 'Pátio Interno' },
+      { id: 'SH31', carrier: 'Nutri-Vida Comercial', plate: 'BRA-3Z92', cargo: 'Hortifruti Fresco e Legumes', scheduled: '15:15', real: 'A caminho', status: 'Em Trânsito' },
+      { id: 'SH32', carrier: 'D&D Distribuidora', plate: 'KLP-1M45', cargo: 'Produtos Químicos de Higiene Sanitária', scheduled: '16:00', real: 'Check na balsa', status: 'Aguardando' }
+    ];
+  });
 
   // Vehicle logs
-  const [vehicleExits, setVehicleExits] = useState([
-    { id: 101, plate: 'BRA-9E28', driver: 'Sgt. Marcos Mendes', destination: 'Almoxarifado Geral Penitenciário', departure: '08:15', returnTime: '13:40', purpose: 'Retirada de insumos industriais', status: 'Concluído' },
-    { id: 102, plate: 'EGO-0942', driver: 'Cabo Fonseca', destination: 'Distribuidora Logística Central', departure: '14:00', returnTime: '--:--', purpose: 'Recolhimento de cestas padrão', status: 'Em Trânsito' }
-  ]);
+  const [vehicleExits, setVehicleExits] = useState<any[]>(() => {
+    const saved = localStorage.getItem('vehicleExits');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+    }
+    return [
+      { id: 101, plate: 'BRA-9E28', driver: 'Sgt. Marcos Mendes', destination: 'Almoxarifado Geral Penitenciário', departure: '08:15', returnTime: '13:40', purpose: 'Retirada de insumos industriais', status: 'Concluído' },
+      { id: 102, plate: 'EGO-0942', driver: 'Cabo Fonseca', destination: 'Distribuidora Logística Central', departure: '14:00', returnTime: '--:--', purpose: 'Recolhimento de cestas padrão', status: 'Em Trânsito' }
+    ];
+  });
 
   // Rows state for the selected director - pre-loaded for demonstration to look high-fidelity
-  const [depRows, setDepRows] = useState<DirectorPerCapitaRow[]>(() => 
-    Array.from({ length: 25 }, (_, i) => {
+  const [depRows, setDepRows] = useState<DirectorPerCapitaRow[]>(() => {
+    const saved = localStorage.getItem('depRows');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+    }
+    return Array.from({ length: 25 }, (_, i) => {
       if (i === 0) {
         return {
           ref: 1,
@@ -136,11 +158,15 @@ export default function DirectorPerCapitaTable() {
         };
       }
       return { ref: i + 1, itemName: '', itemFullName: '', quantity: '', observations: '' };
-    })
-  );
+    });
+  });
 
-  const [segRows, setSegRows] = useState<DirectorPerCapitaRow[]>(() => 
-    Array.from({ length: 25 }, (_, i) => {
+  const [segRows, setSegRows] = useState<DirectorPerCapitaRow[]>(() => {
+    const saved = localStorage.getItem('segRows');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+    }
+    return Array.from({ length: 25 }, (_, i) => {
       if (i === 2) {
         return {
           ref: 3,
@@ -160,8 +186,38 @@ export default function DirectorPerCapitaTable() {
         };
       }
       return { ref: i + 1, itemName: '', itemFullName: '', quantity: '', observations: '' };
-    })
-  );
+    });
+  });
+
+  // Sync state variables write triggers
+  useEffect(() => {
+    localStorage.setItem('depRows', JSON.stringify(depRows));
+  }, [depRows]);
+
+  useEffect(() => {
+    localStorage.setItem('segRows', JSON.stringify(segRows));
+  }, [segRows]);
+
+  useEffect(() => {
+    localStorage.setItem('advances', JSON.stringify(advances));
+  }, [advances]);
+
+  useEffect(() => {
+    localStorage.setItem('arrivals', JSON.stringify(arrivals));
+  }, [arrivals]);
+
+  useEffect(() => {
+    localStorage.setItem('vehicleExits', JSON.stringify(vehicleExits));
+  }, [vehicleExits]);
+
+  // Modal dialog triggers to bypass iframe blocks
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showNewAdvanceModal, setShowNewAdvanceModal] = useState(false);
+  const [newAdvanceDesc, setNewAdvanceDesc] = useState('');
+  const [newAdvanceAmt, setNewAdvanceAmt] = useState('');
+  const [newAdvanceName, setNewAdvanceName] = useState('Daniele Garcia Possidonio');
+  const [newAdvanceRole, setNewAdvanceRole] = useState('Depto. Financeiro');
+  const [advanceToSettle, setAdvanceToSettle] = useState<any | null>(null);
 
   // Bottom table inventory search & filters
   const [foodFilter, setFoodFilter] = useState<'all' | 'active' | 'inStock'>('all');
@@ -245,17 +301,19 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
   };
 
   const handleClearTable = () => {
-    const confirmClear = window.confirm("Tem certeza que deseja zerar todas as 25 linhas deste cronograma de cotação?");
-    if (confirmClear) {
-      const reseted = Array.from({ length: 25 }, (_, i) => ({
-        ref: i + 1,
-        itemName: '',
-        itemFullName: '',
-        quantity: '',
-        observations: ''
-      }));
-      setActiveRows(reseted);
-    }
+    setShowClearConfirm(true);
+  };
+
+  const executeClearTable = () => {
+    const reseted = Array.from({ length: 25 }, (_, i) => ({
+      ref: i + 1,
+      itemName: '',
+      itemFullName: '',
+      quantity: '',
+      observations: ''
+    }));
+    setActiveRows(reseted);
+    setShowClearConfirm(false);
   };
 
   const handlePrint = () => {
@@ -457,19 +515,11 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
               </div>
               <button 
                 onClick={() => {
-                  const desc = prompt("Escreva o motivo/descrição do adiantamento:");
-                  const amt = Number(prompt("Insira o valor em R$:"));
-                  if (desc && amt) {
-                    setAdvances([...advances, {
-                      id: advances.length + 1,
-                      name: 'Daniele Garcia Possidonio',
-                      role: 'Depto. Financeiro',
-                      amount: amt,
-                      description: desc,
-                      date: '30/05/2026',
-                      status: 'Aprovado'
-                    }]);
-                  }
+                  setNewAdvanceName('Daniele Garcia Possidonio');
+                  setNewAdvanceRole('Depto. Financeiro');
+                  setNewAdvanceAmt('');
+                  setNewAdvanceDesc('');
+                  setShowNewAdvanceModal(true);
                 }}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3 py-2 rounded-lg flex items-center gap-1 transition-all"
               >
@@ -508,11 +558,7 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
                       </td>
                       <td className="py-3 px-4 text-center">
                         <button 
-                          onClick={() => {
-                            if (confirm(`Prestar contas do adiantamento de R$ ${adv.amount.toLocaleString()}?`)) {
-                              setAdvances(advances.filter(a => a.id !== adv.id));
-                            }
-                          }}
+                          onClick={() => setAdvanceToSettle(adv)}
                           className="bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 text-slate-600 text-[10px] px-2.5 py-1 rounded"
                         >
                           ✓ Prestar Contas
@@ -1153,6 +1199,184 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
         )}
 
       </div>
+
+      {/* MODAL 1: CLEAR ALL LINES CONFIRMATION */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] print:hidden">
+          <div className="bg-[#111c2e] border border-red-500/30 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scaleUp">
+            <div className="flex items-start gap-4">
+              <div className="bg-red-500/10 p-3 rounded-full text-red-500 shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white uppercase tracking-wider">
+                  ⚠️ Limpar Todas as Linhas?
+                </h3>
+                <p className="text-xs text-slate-300 mt-2 leading-relaxed font-semibold">
+                  Tem certeza que deseja zerar todas as 25 linhas deste rascunho de cotação atual? Essa ação limpará todos os itens inseridos.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                type="button"
+                onClick={() => setShowClearConfirm(false)}
+                className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={executeClearTable}
+                className="bg-red-600 hover:bg-red-500 text-white font-black px-5 py-2 rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-red-900/30 transition-all"
+              >
+                Limpar Cotação
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: NEW FINANCE ADVANCE REGISTRATION */}
+      {showNewAdvanceModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] print:hidden">
+          <div className="bg-[#111c2e] border border-white/10 rounded-2xl p-6 max-w-lg w-full shadow-2xl animate-scaleUp">
+            <h3 className="text-base font-black text-white uppercase tracking-wider border-b border-white/5 pb-3 flex items-center gap-2">
+              <span>💵 Novo Adiantamento Financeiro</span>
+            </h3>
+            <div className="space-y-4 mt-4 text-xs font-semibold text-slate-350">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] text-slate-400 font-black uppercase tracking-wider mb-1">
+                    Gestor Responsável
+                  </label>
+                  <input
+                    type="text"
+                    value={newAdvanceName}
+                    onChange={(e) => setNewAdvanceName(e.target.value)}
+                    className="w-full bg-[#0a0f1d] border border-slate-700/60 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-indigo-500"
+                    placeholder="Ex: Daniele Garcia Possidonio"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-400 font-black uppercase tracking-wider mb-1">
+                    Cargo / Função
+                  </label>
+                  <input
+                    type="text"
+                    value={newAdvanceRole}
+                    onChange={(e) => setNewAdvanceRole(e.target.value)}
+                    className="w-full bg-[#0a0f1d] border border-slate-700/60 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-indigo-500"
+                    placeholder="Ex: Depto. Financeiro"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <label className="block text-[10px] text-slate-400 font-black uppercase tracking-wider mb-1">
+                    Valor Adiantado (R$)
+                  </label>
+                  <input
+                    type="number"
+                    value={newAdvanceAmt}
+                    onChange={(e) => setNewAdvanceAmt(e.target.value)}
+                    className="w-full bg-[#0a0f1d] border border-slate-700/60 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-indigo-500 font-mono font-bold"
+                    placeholder="Ex: 25000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-400 font-black uppercase tracking-wider mb-1">
+                    Finalidade / Motivo Real da Despesa
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={newAdvanceDesc}
+                    onChange={(e) => setNewAdvanceDesc(e.target.value)}
+                    className="w-full bg-[#0a0f1d] border border-slate-700/60 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-indigo-500"
+                    placeholder="Ex: Custeio extraordinário para fardas..."
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2.5 mt-6 border-t border-white/5 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowNewAdvanceModal(false)}
+                className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const amt = Number(newAdvanceAmt);
+                  if (newAdvanceDesc && amt) {
+                    setAdvances([
+                      ...advances,
+                      {
+                        id: advances.length + 1,
+                        name: newAdvanceName,
+                        role: newAdvanceRole,
+                        amount: amt,
+                        description: newAdvanceDesc,
+                        date: '30/05/2026',
+                        status: 'Aprovado'
+                      }
+                    ]);
+                    setNewAdvanceDesc('');
+                    setNewAdvanceAmt('');
+                    setShowNewAdvanceModal(false);
+                  }
+                }}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-5 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg shadow-indigo-900/30"
+              >
+                Cadastrar Adiantamento
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: PRESTAR CONTAS CONFIRMATION */}
+      {advanceToSettle && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] print:hidden">
+          <div className="bg-[#111c2e] border border-emerald-500/30 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scaleUp">
+            <div className="flex items-start gap-4">
+              <div className="bg-emerald-500/10 p-3 rounded-full text-emerald-500 shrink-0">
+                <Check className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white uppercase tracking-wider">
+                  ✓ Prestar Contas de Adiantamento?
+                </h3>
+                <p className="text-xs text-slate-300 mt-2 leading-relaxed font-semibold">
+                  Confirma a prestação de contas integral e a devida conclusão do adiantamento de <span className="text-white font-black">{advanceToSettle.name}</span> no valor de <span className="text-emerald-400 font-black">R$ {advanceToSettle.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>?
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2.5 mt-6">
+              <button
+                type="button"
+                onClick={() => setAdvanceToSettle(null)}
+                className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition-all"
+              >
+                Não, Manter Ativo
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAdvances(advances.filter((a: any) => a.id !== advanceToSettle.id));
+                  setAdvanceToSettle(null);
+                }}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-5 py-2 rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-emerald-950/30 transition-all font-sans"
+              >
+                Prestar Contas
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
