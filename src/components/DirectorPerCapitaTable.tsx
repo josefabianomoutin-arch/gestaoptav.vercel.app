@@ -957,6 +957,9 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
                                       {getFirstThreeWords(item.name)}
                                     </span>
                                     <span className="text-[9px] text-slate-400 mt-0.5 line-clamp-1">{item.name}</span>
+                                    <span className="text-[9px] text-emerald-500 mt-1 font-bold">
+                                      Qtd: {item.stockQty} {item.unit} | Lote: {item.lote} | Val: {item.expirationDate}
+                                    </span>
                                   </div>
                                   <span className={`text-[9px] px-1.5 self-center rounded-full capitalize ${
                                     item.category === 'alimentacao' ? 'bg-orange-950 text-orange-400' : 'bg-blue-950 text-blue-400'
