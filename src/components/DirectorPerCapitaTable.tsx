@@ -387,15 +387,7 @@ export default function DirectorPerCapitaTable() {
                 AUTENTICAR DIRETOR
               </button>
 
-              <div className="pt-2 border-t border-slate-800 text-center">
-                <button
-                  type="button"
-                  onClick={() => setPassword(activeDirector.id === 'chefeDep' ? 'douglas123' : 'alfredo123')}
-                  className="text-[10px] text-slate-500 hover:text-yellow-400 hover:underline transition-colors"
-                >
-                  💡 Usar senha de demonstração ({activeDirector.id === 'chefeDep' ? 'douglas123' : 'alfredo123'})
-                </button>
-              </div>
+
             </form>
           </div>
         </main>
