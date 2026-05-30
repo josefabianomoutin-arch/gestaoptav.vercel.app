@@ -48,8 +48,8 @@ const initialInventory: InventoryItem[] = [
 ];
 
 const DIRECTORS: DirectorConfig[] = [
-  { id: 'chefeDep', name: 'Douglas Galdino', role: 'Diretor de Departamento (DEP.)', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop&q=80' },
-  { id: 'chefeSeg', name: 'Alfredo Lopes', role: 'Diretor de Segurança (SEG.)', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=120&auto=format&fit=crop&q=80' }
+  { id: 'chefeDep', name: 'José Fabiano Moutin', role: 'Diretor de Serviço - Infraestrutura (DEP.)', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80' },
+  { id: 'chefeSeg', name: 'Marcos Antônio de Almeida', role: 'Diretor de Centro de Segurança (SEG.)', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&auto=format&fit=crop&q=80' }
 ];
 
 // Helper to keep only the first three words from the full item name
@@ -61,7 +61,7 @@ const getFirstThreeWords = (name: string): string => {
   return words.slice(0, 3).join(' ').toUpperCase();
 };
 
-const APP_VERSION = '2.7';
+const APP_VERSION = '3.0';
 
 // Clean old cached localStorage arrays from previous code versions
 if (typeof window !== 'undefined') {
@@ -77,7 +77,7 @@ export default function DirectorPerCapitaTable() {
   const [activeTab, setActiveTab] = useState<'recursos' | 'adiantamentos' | 'ptres' | 'cardapio' | 'chegadas' | 'saida' | 'percapita'>('percapita');
   
   // Per Capita specific state
-  const [activeDirector, setActiveDirector] = useState<DirectorConfig>(DIRECTORS[0]); // default logged in
+  const [activeDirector, setActiveDirector] = useState<DirectorConfig>(DIRECTORS[0]);
   const [categoryFilter, setCategoryFilter] = useState<'alimentacao' | 'limpeza'>('alimentacao');
   const [periodFilter, setPeriodFilter] = useState<'semanal' | 'mensal'>('semanal');
 
@@ -91,9 +91,6 @@ export default function DirectorPerCapitaTable() {
 
   // Dynamic full name of the logged-in director
   const getActiveDirectorFullName = () => {
-    if (activeDirector.id === 'chefeDep' || activeDirector.name === 'Douglas Galdino') {
-      return 'DOUGLAS FERNANDO SEMENZIN GALDINO';
-    }
     return activeDirector.name.toUpperCase();
   };
 
@@ -104,7 +101,7 @@ export default function DirectorPerCapitaTable() {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
     return [
-      { id: 1, name: 'Alfredo Lopes', role: 'Diretor de Segurança (SEG.)', amount: 30000, description: 'Abastecimento emergencial de gêneros e kits de higiene para a ala norte', date: '30/05/2026', status: 'Liberado' },
+      { id: 1, name: 'Marcos Antônio de Almeida', role: 'Diretor de Centro de Segurança (SEG.)', amount: 30000, description: 'Abastecimento emergencial de gêneros e kits de higiene para a ala norte', date: '30/05/2026', status: 'Liberado' },
       { id: 2, name: 'Julio Santana', role: 'Coordenador Subportaria', amount: 15000, description: 'Manutenção imediata do portão eletrônico e iluminação perimetral', date: '29/05/2026', status: 'Liberado' },
       { id: 3, name: 'Daniele Garcia Possidonio', role: 'Depto. Financeiro', amount: 25000, description: 'Custeio extraordinário para lavanderia de uniformes', date: '28/05/2026', status: 'Aprovado' }
     ];
@@ -138,8 +135,8 @@ export default function DirectorPerCapitaTable() {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
     return [
-      { id: 101, plate: 'BRA-9E28', driver: 'Sgt. Marcos Mendes', destination: 'Almoxarifado Geral Penitenciário', departure: '08:15', returnTime: '13:40', purpose: 'Retirada de insumos industriais', status: 'Concluído' },
-      { id: 102, plate: 'EGO-0942', driver: 'Cabo Fonseca', destination: 'Distribuidora Logística Central', departure: '14:00', returnTime: '--:--', purpose: 'Recolhimento de cestas padrão', status: 'Em Trânsito' }
+      { id: 101, plate: 'BRA-9E28', driver: 'Motorista Marcos Mendes', destination: 'Almoxarifado Geral Penitenciário', departure: '08:15', returnTime: '13:40', purpose: 'Retirada de insumos industriais', status: 'Concluído' },
+      { id: 102, plate: 'EGO-0942', driver: 'Motorista Carlos Fonseca', destination: 'Distribuidora Logística Central', departure: '14:00', returnTime: '--:--', purpose: 'Recolhimento de cestas padrão', status: 'Em Trânsito' }
     ];
   });
 
@@ -252,7 +249,26 @@ export default function DirectorPerCapitaTable() {
     };
   }, []);
 
-const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
+  // Find database item information matching the typed/entered row item
+  const getInventoryItemDetails = (row: DirectorPerCapitaRow) => {
+    if (!row.itemName) return null;
+    return initialInventory.find(item => {
+      // Direct full name match
+      if (row.itemFullName && item.name.toLowerCase() === row.itemFullName.toLowerCase()) {
+        return true;
+      }
+      // Match by exact short name prefix
+      const itemShort = getFirstThreeWords(item.name).toLowerCase();
+      const rowShort = row.itemName.toLowerCase();
+      return (
+        item.name.toLowerCase().includes(rowShort) || 
+        itemShort.includes(rowShort) || 
+        rowShort.includes(itemShort)
+      );
+    });
+  };
+
+  const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
   
   const updateActiveRows = (updated: DirectorPerCapitaRow[]) => {
     if (activeDirector.id === 'chefeDep') {
@@ -266,10 +282,6 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
   useEffect(() => {
     // This effect ensures table displays the correct state when switching directors
   }, [activeDirector]);
-
-  const handleSelectDirector = (director: DirectorConfig) => {
-    setActiveDirector(director);
-  };
 
   const handleRowChange = (index: number, field: keyof DirectorPerCapitaRow, val: string) => {
     const updated = [...activeRows];
@@ -289,7 +301,7 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
     updated[rowIndex].itemName = shortName;
     updated[rowIndex].itemFullName = item.name;
     if (!updated[rowIndex].quantity) {
-      updated[rowIndex].quantity = `Ex: 10 ${item.unit}`;
+      updated[rowIndex].quantity = `10 ${item.unit}`;
     }
     updateActiveRows(updated);
     setShowSuggestions(null);
@@ -385,7 +397,7 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
         </span>
         <div className="relative w-full overflow-hidden whitespace-nowrap">
           <div className="inline-block animate-marquee pl-10 font-medium">
-            O Movimento Maio Amarelo nasceu em 2014, criado pelo Observatório Nacional de Segurança Viária (ONSV) no Brasil, com o objetivo internacional de reduzir acidentes e mortes no trânsito. A cor amarela simboliza atenção e a sinalização de advertência. • Abastecimento Militar geral e Penitenciário • Adiantabilidade atualizada em 30/05/2026.
+            O Movimento Maio Amarelo nasceu em 2014, criado pelo Observatório Nacional de Segurança Viária (ONSV) no Brasil, com o objetivo internacional de reduzir acidentes e mortes no trânsito. A cor amarela simboliza atenção e a sinalização de advertência. • Abastecimento Geral Penitenciário SAP SP • Adiantabilidade updated em 30/05/2026.
           </div>
         </div>
       </div>
@@ -406,7 +418,7 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
 
           {/* Central rounded greeting badge */}
           <div className="bg-[#e0f2fe] border border-blue-200 text-[#0369a1] text-xs md:text-sm font-black px-6 py-2.5 rounded-full shadow-inner text-center max-w-2xl">
-            {getGreeting()}, {getActiveDirectorFullName()}, HOJE TEMOS LIBERADOS OS ADIANTADOS: {activeDirector.id === 'chefeDep' ? 'ALFREDO - JULIO' : 'DOUGLAS - JULIO'}
+            {getGreeting()}, {getActiveDirectorFullName()}, HOJE TEMOS LIBERADOS OS ADIANTADOS: {activeDirector.id === 'chefeDep' ? 'MARCOS - JULIO' : 'FABIANO - JULIO'}
           </div>
 
           {/* Action buttons (Reports and Logout) */}
@@ -782,7 +794,7 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
                   setVehicleExits([...vehicleExits, {
                     id: vehicleExits.length + 101,
                     plate: 'FGT-2910',
-                    driver: 'Cabo Lima',
+                    driver: 'Motorista Lima',
                     destination: 'Supermercado Atacadão Varejo',
                     departure: '15:10',
                     returnTime: '--:--',
@@ -802,7 +814,7 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider">
                     <th className="py-3 px-4">ORDEM N°</th>
                     <th className="py-3 px-4">PLACA VTR</th>
-                    <th className="py-3 px-4">MILITAR CONDUTOR</th>
+                    <th className="py-3 px-4">MOTORISTA CONDUTOR</th>
                     <th className="py-3 px-4">DESTINAÇÃO DETALHADA</th>
                     <th className="py-3 px-4">FORA DA UNIDADE</th>
                     <th className="py-3 px-4">RETORNO CONFIRMADO</th>
@@ -868,11 +880,11 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
                   <div className="flex items-center gap-2.5 mt-1">
                     <span className="w-2.5 h-2.5 bg-indigo-400 rounded-full animate-ping shrink-0"></span>
                     <button 
-                      onClick={() => handleSelectDirector(activeDirector.id === 'chefeDep' ? DIRECTORS[1] : DIRECTORS[0])}
+                      onClick={() => setActiveDirector(activeDirector.id === 'chefeDep' ? DIRECTORS[1] : DIRECTORS[0])}
                       className="text-sm md:text-base font-black text-white hover:text-yellow-400 cursor-pointer transition-colors uppercase text-left flex items-center gap-1 border-b border-dashed border-white/20"
                       title="Clique para alternar gestor responsável"
                     >
-                      {activeDirector.name === 'Douglas Galdino' ? 'DOUGLAS FERNANDO SEMENZIN GALDINO' : 'ALFREDO LOPES'} (Alternar)
+                      {activeDirector.name.toUpperCase()} (Alternar)
                     </button>
                   </div>
                 </div>
@@ -1070,6 +1082,24 @@ const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
                               ))}
                           </div>
                         )}
+
+                        {/* Instant visual confirmation of Stock Balance and Expiration when item matches */}
+                        {(() => {
+                          const matchedItem = getInventoryItemDetails(row);
+                          if (matchedItem) {
+                            return (
+                              <div className="mt-1.5 flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-slate-400 capitalize tracking-wide font-sans animate-fadeIn">
+                                <span className="text-[#38bdf8] bg-[#0284c7]/20 border border-[#0369a1]/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  📦 Estoque: <strong className="text-white font-black">{matchedItem.stockQty} {matchedItem.unit}</strong>
+                                </span>
+                                <span className="text-amber-400 bg-amber-950/30 border border-amber-900/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  📅 Validade: <strong className="text-white font-black">{matchedItem.expirationDate}</strong>
+                                </span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
 
                       {/* QUANTITY selector */}

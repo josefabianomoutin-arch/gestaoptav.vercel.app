@@ -10,7 +10,7 @@ export default function App() {
           Conexão Segura Ativa &bull; Criptografia Local
         </span>
         <span className="uppercase text-slate-400">
-          ADMINISTRAÇÃO DE ABASTECIMENTO MILITAR / PENITENCIÁRIO V2.5
+          SISTEMA DE CONTROLE DE PER CAPITA E ABASTECIMENTO - SAP SP V2.5
         </span>
       </div>
 
