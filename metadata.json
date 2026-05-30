@@ -1,5 +1,6 @@
 {
-  "name": "Gestão de Dados P Taiuva",
-  "description": "Sistema Profissional de Gestão de Dados, Estoque, Almoxarifado e Infraestrutura P Taiuva.",
-  "requestFramePermissions": []
+  "name": "Controle de Per Capta - Diretores",
+  "description": "Painel de controle administrativo para lançamentos de per capta e visualização de saldos de estoque e vencimentos",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
