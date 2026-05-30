@@ -49,13 +49,13 @@ const DIRECTORS: DirectorConfig[] = [
   { id: 'chefeSeg', name: 'Alfredo Lopes', role: 'Diretor de Segurança (SEG.)', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=120&auto=format&fit=crop&q=80' }
 ];
 
-// Helper to keep only the first two words from the full item name
-const getFirstTwoWords = (name: string): string => {
+// Helper to keep only the first three words from the full item name
+const getFirstThreeWords = (name: string): string => {
   if (!name) return '';
   const clean = name.replace(/[;:,.]/g, ' ').replace(/\s+/g, ' ').trim();
   const words = clean.split(' ').filter(Boolean);
-  if (words.length <= 2) return name;
-  return words.slice(0, 2).join(' ').toUpperCase();
+  if (words.length <= 3) return name;
+  return words.slice(0, 3).join(' ').toUpperCase();
 };
 
 export default function DirectorPerCapitaTable() {
@@ -176,7 +176,7 @@ export default function DirectorPerCapitaTable() {
 
   // Click an autocomplete suggestion
   const handleSelectSuggestion = (rowIndex: number, item: InventoryItem) => {
-    const shortName = getFirstTwoWords(item.name);
+    const shortName = getFirstThreeWords(item.name);
     const updated = [...activeRows];
     updated[rowIndex].itemName = shortName;
     updated[rowIndex].itemFullName = item.name;
@@ -201,7 +201,7 @@ export default function DirectorPerCapitaTable() {
       indexToUse = 0; // fallback to row 1
     }
 
-    const shortName = getFirstTwoWords(item.name);
+    const shortName = getFirstThreeWords(item.name);
     const updated = [...activeRows];
     updated[indexToUse].itemName = shortName;
     updated[indexToUse].itemFullName = item.name;
@@ -443,7 +443,7 @@ export default function DirectorPerCapitaTable() {
             {/* Header Columns inside table */}
             <div className="grid grid-cols-[50px_2.2fr_1.1fr_2.2fr] gap-3 text-slate-400 text-[10px] font-black uppercase tracking-widest px-4 py-3.5 border-b border-slate-800 bg-slate-900/60 print:grid-cols-[40px_2.5fr_1.2fr_2fr] print:text-black print:bg-gray-100 print:border-b-2 print:border-black">
               <div>REF</div>
-              <div>NOME DO ITEM (Apenas as 2 primeiras palavras para otimização)</div>
+              <div>NOME DO ITEM (Apenas as 3 primeiras palavras para otimização)</div>
               <div>QUANTIDADE</div>
               <div>OBSERVAÇÕES / DESTINAÇÃO</div>
             </div>
@@ -507,7 +507,7 @@ export default function DirectorPerCapitaTable() {
                             >
                               <div className="flex flex-col">
                                 <span className="font-bold underline text-indigo-400">
-                                  {getFirstTwoWords(item.name)}
+                                  {getFirstThreeWords(item.name)}
                                 </span>
                                 <span className="text-[9px] text-slate-400 mt-0.5 line-clamp-1">{item.name}</span>
                               </div>
@@ -645,7 +645,7 @@ export default function DirectorPerCapitaTable() {
                         return (
                           <tr key={item.id} className="hover:bg-slate-900/30 transition-colors">
                             <td className="py-3 pl-2 max-w-md md:max-w-xl">
-                              <div className="font-extrabold text-slate-200">{getFirstTwoWords(item.name)}</div>
+                              <div className="font-extrabold text-slate-200">{getFirstThreeWords(item.name)}</div>
                               <div className="text-[10px] text-slate-400 font-medium leading-relaxed mt-0.5 line-clamp-2">{item.name}</div>
                             </td>
                             <td className="py-3">

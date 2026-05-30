@@ -3,6 +3,9 @@ import typescript from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 
 export default [
+  {
+    ignores: ['dist/**', 'node_modules/**', 'vite.config.ts', 'tsconfig.json'],
+  },
   js.configs.recommended,
   {
     files: ['**/*.{ts,tsx}'],
