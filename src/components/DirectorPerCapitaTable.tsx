@@ -70,6 +70,22 @@ export default function DirectorPerCapitaTable() {
   const [categoryFilter, setCategoryFilter] = useState<'alimentacao' | 'limpeza'>('alimentacao');
   const [periodFilter, setPeriodFilter] = useState<'semanal' | 'mensal'>('semanal');
 
+  // Dynamic greeting based on current time
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'BOM DIA';
+    if (hour < 18) return 'BOA TARDE';
+    return 'BOA NOITE';
+  };
+
+  // Dynamic full name of the logged-in director
+  const getActiveDirectorFullName = () => {
+    if (activeDirector.id === 'chefeDep' || activeDirector.name === 'Douglas Galdino') {
+      return 'DOUGLAS FERNANDO SEMENZIN GALDINO';
+    }
+    return activeDirector.name.toUpperCase();
+  };
+
   // Adiantamentos Tab states
   const [advances, setAdvances] = useState([
     { id: 1, name: 'Alfredo Lopes', role: 'Diretor de Segurança (SEG.)', amount: 30000, description: 'Abastecimento emergencial de gêneros e kits de higiene para a ala norte', date: '30/05/2026', status: 'Liberado' },
@@ -280,7 +296,7 @@ export default function DirectorPerCapitaTable() {
 
           {/* Central rounded greeting badge */}
           <div className="bg-[#e0f2fe] border border-blue-200 text-[#0369a1] text-xs md:text-sm font-black px-6 py-2.5 rounded-full shadow-inner text-center max-w-2xl">
-            BOM DIA, DANIELE GARCIA POSSIDONIO, HOJE TEMOS LIBERADOS OS ADIANTADOS: ALFREDO - JULIO
+            {getGreeting()}, {getActiveDirectorFullName()}, HOJE TEMOS LIBERADOS OS ADIANTADOS: {activeDirector.id === 'chefeDep' ? 'ALFREDO - JULIO' : 'DOUGLAS - JULIO'}
           </div>
 
           {/* Action buttons (Reports and Logout) */}
