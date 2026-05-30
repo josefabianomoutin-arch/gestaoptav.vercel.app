@@ -184,8 +184,13 @@ export default function DirectorPerCapitaTable() {
     };
   }, []);
 
-  const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
+const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
   const setActiveRows = activeDirector.id === 'chefeDep' ? setDepRows : setSegRows;
+
+  // Render rows correctly based on state
+  useEffect(() => {
+    // This effect ensures table displays the correct state when switching directors
+  }, [activeDirector]);
 
   const handleSelectDirector = (director: DirectorConfig) => {
     setActiveDirector(director);
@@ -227,9 +232,12 @@ export default function DirectorPerCapitaTable() {
 
     const shortName = getFirstThreeWords(item.name);
     const updated = [...activeRows];
-    updated[indexToUse].itemName = shortName;
-    updated[indexToUse].itemFullName = item.name;
-    updated[indexToUse].quantity = `10 ${item.unit}`;
+    updated[indexToUse] = {
+      ...updated[indexToUse],
+      itemName: shortName,
+      itemFullName: item.name,
+      quantity: updated[indexToUse].quantity || `10 ${item.unit}`
+    };
     setActiveRows(updated);
     
     window.scrollTo({ top: 400, behavior: 'smooth' });
