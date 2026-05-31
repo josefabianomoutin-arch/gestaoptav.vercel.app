@@ -1312,30 +1312,19 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                                     </div>
                                   );
                                 }
-                                return suggestions.slice(0, 30).map((sugg, idx) => {
-                                  const getShortItemName = (fullName: string) => {
-                                    if (fullName.includes(';')) {
-                                      const parts = fullName.split(';').map(p => p.trim()).filter(Boolean);
-                                      const combined = parts.slice(0, 2).join(' ');
-                                      return combined.split(/\s+/).slice(0, 4).join(' ');
-                                    }
-                                    const words = fullName.split(/\s+/);
-                                    return words.slice(0, 4).join(' ');
-                                  };
-
-                                  return (
+                                return suggestions.slice(0, 30).map((sugg, idx) => (
                                   <button
                                     key={idx}
                                     type="button"
                                     onMouseDown={() => {
-                                      handleFieldChange(item.index, 'itemName', getShortItemName(sugg));
+                                      handleFieldChange(item.index, 'itemName', sugg);
                                       setFocusedRowIndex(null);
                                     }}
                                     className="w-full text-left px-3.5 py-2 text-[10.5px] uppercase font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors border-b border-slate-100 last:border-b-0"
                                   >
                                     {sugg}
                                   </button>
-                                )});
+                                ));
                               })()}
                             </div>
                           )}

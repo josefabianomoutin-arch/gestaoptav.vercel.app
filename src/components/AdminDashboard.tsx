@@ -20,6 +20,7 @@ import AdminPublicInfo from './AdminPublicInfo';
 import ConfirmModal from './ConfirmModal';
 import WeekSelector from './WeekSelector';
 import WarehouseMovementForm from './WarehouseMovementForm';
+import AdminDirectorPerCapita from './AdminDirectorPerCapita';
 
 type AdminTab = 'info' | 'register' | 'contracts' | 'finance' | 'analytics' | 'graphs' | 'schedule' | 'invoices' | 'perCapita' | 'cleaning' | 'vehicleExitOrder' | 'thirdPartyEntry' | 'directorPerCapita' | 'menu' | 'almoxarifado' | 'serviceOrder' | 'publicInfo';
 
@@ -208,6 +209,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   const visibleTabs = useMemo(() => {
     const tabs: { id: AdminTab; name: string; icon: React.ReactElement }[] = [
       { id: 'register', name: 'Fornecedores', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 11a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1v-1z" /></svg> },
+      { id: 'directorPerCapita', name: 'Retirada Diretores', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg> },
       { id: 'perCapita', name: 'Per Capita', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg> },
       { id: 'contracts', name: 'Gestão/Item', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 000-2H9z" /><path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" /></svg> },
       { id: 'finance', name: 'Financeiro', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" /><path d="M11 3.5v3a1 1 0 001 1h3m-6 4H7v2h3v-2zm0 3H7v2h3v-2z" /></svg> },
@@ -391,6 +393,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           </div>
         );
       case 'schedule': return <AdminScheduleView suppliers={suppliers} thirdPartyEntries={thirdPartyEntries} onCancelDeliveries={onCancelDeliveries} onDeleteThirdPartyEntry={onDeleteThirdPartyEntry} />;
+      case 'directorPerCapita': return <AdminDirectorPerCapita suppliers={suppliers} logs={props.directorWithdrawals} onRegister={props.onRegisterDirectorWithdrawal} onDelete={props.onDeleteDirectorWithdrawal} />;
       case 'perCapita': return <AdminPerCapita suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onUpdatePerCapitaConfig={onUpdatePerCapitaConfig} onUpdateContractForItem={onUpdateContractForItem} onUpdateAcquisitionItem={props.onUpdateAcquisitionItem} onDeleteAcquisitionItem={props.onDeleteAcquisitionItem} acquisitionItems={acquisitionItems} onUpdateSupplierObservations={props.onUpdateSupplierObservations} onSyncPPAISToAgenda={props.onSyncPPAISToAgenda} onSaveInvoice={onSaveInvoice} onDeleteDelivery={props.onDeleteDelivery} />;
       case 'cleaning': return <AdminCleaningLog logs={cleaningLogs} financialRecords={financialRecords} onRegister={props.onRegisterCleaningLog} onDelete={props.onDeleteCleaningLog} />;
       case 'thirdPartyEntry': return <AdminThirdPartyEntry logs={thirdPartyEntries} onRegister={onRegisterThirdPartyEntry} onUpdate={onUpdateThirdPartyEntry} onDelete={onDeleteThirdPartyEntry} />;
