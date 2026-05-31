@@ -611,10 +611,10 @@ const Dashboard: React.FC<DashboardProps> = ({
               )}
               <span className={`relative inline-flex rounded-full h-3 w-3 ${deliveryStatus.isLate ? 'bg-yellow-500' : 'bg-green-500'}`}></span>
             </span>
-            <div className="flex-1 overflow-hidden select-none">
-              <marquee className="font-extrabold text-[11px] uppercase tracking-wider block" scrollamount="4">
+            <div className="flex-1 overflow-hidden select-none whitespace-nowrap">
+              <div className="inline-block animate-[marquee_20s_linear_infinite] font-extrabold text-[11px] uppercase tracking-wider">
                 {deliveryStatus.message}
-              </marquee>
+              </div>
             </div>
           </div>
         </div>

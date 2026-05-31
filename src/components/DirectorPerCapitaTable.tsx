@@ -76,6 +76,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     return 'chefeDep';
   });
 
+  const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
   // Category sub-tab of the active manager: 'alimentacao' or 'limpeza'
   const [categoryTab, setCategoryTab] = useState<'alimentacao' | 'limpeza'>('alimentacao');
 
@@ -112,62 +114,26 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       ].forEach(supplier => {
         (supplier.contractItems || []).forEach(item => {
           if (item.name && item.name.trim()) {
-            const trimmed = item.name.trim().toUpperCase();
-            if (!list.includes(trimmed)) {
-              list.push(trimmed);
+            const fullName = item.name.trim().toUpperCase();
+            let shortName: string;
+            if (fullName.includes(';')) {
+              const parts = fullName.split(';').map(p => p.trim()).filter(Boolean);
+              const combined = parts.slice(0, 2).join(' ');
+              shortName = combined.split(/\s+/).slice(0, 4).join(' ');
+            } else {
+              const words = fullName.split(/\s+/);
+              shortName = words.slice(0, 4).join(' ');
+            }
+            if (!list.includes(shortName)) {
+              list.push(shortName);
             }
           }
         });
-      });
-    }
-
-    // 2. From standardMenu (per-capita general food items)
-    if (standardMenu) {
-      Object.keys(standardMenu).forEach((day) => {
-        const rows = (standardMenu as any)[day];
-        if (Array.isArray(rows)) {
-          rows.forEach((row: any) => {
-            const name = row.contractedItem || row.foodItem || row.item || '';
-            if (name && name.trim()) {
-              const trimmed = name.trim().toUpperCase();
-              if (!list.includes(trimmed)) {
-                list.push(trimmed);
-              }
-            }
-          });
-        }
-      });
-    }
-
-    // 3. Fallback from traditional suppliers
-    if (suppliers) {
-      suppliers.forEach(supplier => {
-        (supplier.contractItems || []).forEach(item => {
-          if (item.name && item.name.trim()) {
-            const trimmed = item.name.trim().toUpperCase();
-            if (!list.includes(trimmed)) {
-              list.push(trimmed);
-            }
-          }
-        });
-      });
-    }
-
-    // 4. From WarehouseLog (stock)
-    if (warehouseLog) {
-      warehouseLog.forEach(log => {
-        const name = log.itemName || log.item || '';
-        if (name && name.trim()) {
-          const trimmed = name.trim().toUpperCase();
-          if (!list.includes(trimmed)) {
-            list.push(trimmed);
-          }
-        }
       });
     }
 
     return list.sort((a, b) => a.localeCompare(b));
-  }, [perCapitaConfig, standardMenu, suppliers, warehouseLog]);
+  }, [perCapitaConfig]);
 
 
 
@@ -205,8 +171,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
           for (const s of suppliers) {
             if (s.contractItems) {
               const matched = Object.values(s.contractItems).find((ci: any) => ci.name?.trim().split(' ').slice(0, 2).join(' ').toUpperCase() === twoWordsKey);
-              if (matched && matched.unit) {
-                unit = matched.unit;
+              if (matched && (matched as any).unit) {
+                unit = (matched as any).unit;
                 break;
               }
             }
@@ -296,7 +262,10 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     setLocalActiveItems(updated);
 
     // Auto save to database
-    saveActiveOrderToFirebase(updated);
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      saveActiveOrderToFirebase(updated);
+    }, 800);
   };
 
   const handleClearRow = (index: number) => {
@@ -320,13 +289,13 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   };
 
   const saveActiveOrderToFirebase = async (itemsList: RowItem[]) => {
-    if (!data) return;
+    const safeData = data || { chefeDep: {}, chefeSeg: {} } as any;
     const subTab = activeSubTab;
-    const currentSubTabData = data[subTab] || {};
+    const currentSubTabData = safeData[subTab] || {};
     const currentActiveOrder = currentSubTabData[orderKey] || {};
 
     const updatedData = {
-      ...data,
+      ...safeData,
       [subTab]: {
         ...currentSubTabData,
         [orderKey]: {
@@ -348,13 +317,13 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
     if (!hasEditPermission) return;
 
-    if (!data) return;
+    const safeData = data || { chefeDep: {}, chefeSeg: {} } as any;
     const subTab = activeSubTab;
-    const currentSubTabData = data[subTab] || {};
+    const currentSubTabData = safeData[subTab] || {};
     const currentActiveOrder = currentSubTabData[orderKey] || {};
 
     const updatedData = {
-      ...data,
+      ...safeData,
       [subTab]: {
         ...currentSubTabData,
         [orderKey]: {
@@ -375,10 +344,11 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     setSignatureError('');
     setSignatureSuccess('');
 
-    if (!currentUser || !data) {
+    if (!currentUser) {
       setSignatureError('Usuário não identificado.');
       return;
     }
+    const safeData = data || { chefeDep: {}, chefeSeg: {} } as any;
 
     const cleanedPassword = passwordInput.trim().replace(/\D/g, '');
     const userCpf = currentUser.cpf.trim().replace(/\D/g, '');
@@ -399,11 +369,11 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     const timestamp = new Date().toLocaleString('pt-BR');
     const signerName = subTab === 'chefeDep' ? 'DOUGLAS FERNANDO SEMENZIN GALDINO' : 'ALFREDO GUILHERME LOPES';
 
-    const currentSubTabData = data[subTab] || {};
+    const currentSubTabData = safeData[subTab] || {};
     const currentActiveOrderData = currentSubTabData[orderKey] || {};
 
     const updatedData = {
-      ...data,
+      ...safeData,
       [subTab]: {
         ...currentSubTabData,
         [orderKey]: {
@@ -462,10 +432,11 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   };
 
   const handleClearTable = async () => {
-    if (!data) return;
     if (!window.confirm('Tem certeza de que deseja limpar totalmente a tabela de itens e a assinatura digital?')) {
       return;
     }
+
+    const safeData = data || { chefeDep: {}, chefeSeg: {} } as any;
 
     const emptyItems = Array.from({ length: 25 }, (_, i) => ({
       index: i + 1,
@@ -475,11 +446,11 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     }));
 
     const subTab = activeSubTab;
-    const currentSubTabData = data[subTab] || {};
+    const currentSubTabData = safeData[subTab] || {};
     const currentActiveOrderData = currentSubTabData[orderKey] || {};
 
     const updatedData = {
-      ...data,
+      ...safeData,
       [subTab]: {
         ...currentSubTabData,
         [orderKey]: {
@@ -1002,13 +973,13 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                     </tr>
                   </thead>
                   <tbody className="text-xs font-semibold text-slate-700 divide-y divide-slate-100">
-                    {Object.values(data?.[activeSubTab]?.[historyKey] || {})
-                      .sort((a, b) => {
+                    {(Object.values(data?.[activeSubTab]?.[historyKey] || {}) as OrderData[])
+                      .sort((a: OrderData, b: OrderData) => {
                         const timeA = a.id.replace('pedido_', '');
                         const timeB = b.id.replace('pedido_', '');
                         return Number(timeB) - Number(timeA);
                       })
-                      .map((pastOrder) => {
+                      .map((pastOrder: OrderData) => {
                         const filledCount = (pastOrder.items || []).filter(i => i.itemName.trim() !== '').length;
                         return (
                           <tr key={pastOrder.id} className="hover:bg-slate-50/50 transition-all">
@@ -1318,8 +1289,9 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                           {categoryTab === 'alimentacao' && focusedRowIndex === item.index && isEditable && (
                             <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 max-h-48 overflow-y-auto font-sans" style={{ minWidth: '220px' }}>
                               {(() => {
-                                const q = item.itemName.trim().toLowerCase();
-                                const suggestions = percapitaAllItems.filter(p => p.toLowerCase().includes(q));
+                                const normalizeText = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                                const q = normalizeText(item.itemName.trim());
+                                const suggestions = percapitaAllItems.filter(p => normalizeText(p).includes(q));
                                 if (suggestions.length === 0) {
                                   return (
                                     <div className="p-2.5 text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-center col-span-1">
@@ -1327,19 +1299,30 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                                     </div>
                                   );
                                 }
-                                return suggestions.slice(0, 30).map((sugg, idx) => (
+                                return suggestions.slice(0, 30).map((sugg, idx) => {
+                                  const getShortItemName = (fullName: string) => {
+                                    if (fullName.includes(';')) {
+                                      const parts = fullName.split(';').map(p => p.trim()).filter(Boolean);
+                                      const combined = parts.slice(0, 2).join(' ');
+                                      return combined.split(/\s+/).slice(0, 4).join(' ');
+                                    }
+                                    const words = fullName.split(/\s+/);
+                                    return words.slice(0, 4).join(' ');
+                                  };
+
+                                  return (
                                   <button
                                     key={idx}
                                     type="button"
                                     onMouseDown={() => {
-                                      handleFieldChange(item.index, 'itemName', sugg);
+                                      handleFieldChange(item.index, 'itemName', getShortItemName(sugg));
                                       setFocusedRowIndex(null);
                                     }}
                                     className="w-full text-left px-3.5 py-2 text-[10.5px] uppercase font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors border-b border-slate-100 last:border-b-0"
                                   >
                                     {sugg}
                                   </button>
-                                ));
+                                )});
                               })()}
                             </div>
                           )}
@@ -1371,13 +1354,18 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
                         {/* Actions Column */}
                         <div className="flex justify-center h-full items-center">
-                          {isEditable && (item.itemName || item.quantity || item.observation) && (
+                          {isEditable && (
                             <button
                               onClick={() => handleClearRow(item.index)}
-                              className="text-slate-400 hover:text-rose-500 transition-colors p-2 rounded-lg hover:bg-rose-50"
+                              disabled={!(item.itemName || item.quantity || item.observation)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                (item.itemName || item.quantity || item.observation)
+                                  ? 'text-slate-400 hover:text-rose-500 hover:bg-rose-50 cursor-pointer'
+                                  : 'text-slate-200 cursor-not-allowed opacity-50'
+                              }`}
                               title="Limpar Linha"
                             >
-                              <X className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           )}
                         </div>

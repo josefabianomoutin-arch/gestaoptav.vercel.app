@@ -36,7 +36,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     const [selectedItemName, setSelectedItemName] = useState('');
     const [manualBarcode, setManualBarcode] = useState('');
     const [manualQuantity, setManualQuantity] = useState('');
-    const [manualInboundNf, setManualInboundNf] = useState<{ number: string, availableQuantity: number, lot: string, exp: string, timestamp?: number } | null>(null);
+    const [manualInboundNf, setManualInboundNf] = useState<{ number: string, availableQuantity: number, lot: string, exp: string, timestamp?: number, entryDate?: string, barcode?: string, supplierName?: string } | null>(null);
 
     const [manualLot, setManualLot] = useState('');
     const [manualExp, setManualExp] = useState('');
