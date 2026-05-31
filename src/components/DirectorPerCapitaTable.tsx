@@ -10,7 +10,8 @@ import {
   History, 
   FileCheck, 
   ArrowLeft, 
-  Trash 
+  Trash,
+  X 
 } from 'lucide-react';
 
 interface RowItem {
@@ -335,6 +336,26 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     saveActiveOrderToFirebase(updated);
   };
 
+  const handleClearRow = (index: number) => {
+    if (isReadOnly || isCurrentOrderSigned) return;
+
+    const hasEditPermission = (activeSubTab === 'chefeDep' && isDouglas) || 
+                              (activeSubTab === 'chefeSeg' && isAlfredo) ||
+                              currentUser?.role === 'admin' ||
+                              (currentUser?.role === 'financeiro' && !isReadOnly);
+
+    if (!hasEditPermission) return;
+
+    const updated = localActiveItems.map((itm) => {
+      if (itm.index === index) {
+        return { index: itm.index, itemName: '', quantity: '', observation: '' };
+      }
+      return itm;
+    });
+    setLocalActiveItems(updated);
+    saveActiveOrderToFirebase(updated);
+  };
+
   const saveActiveOrderToFirebase = async (itemsList: RowItem[]) => {
     if (!data) return;
     const subTab = activeSubTab;
@@ -492,17 +513,19 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
     const subTab = activeSubTab;
     const currentSubTabData = data[subTab] || {};
+    const currentActiveOrderData = currentSubTabData[orderKey] || {};
 
     const updatedData = {
       ...data,
       [subTab]: {
         ...currentSubTabData,
         [orderKey]: {
+          ...currentActiveOrderData,
           items: emptyItems,
           id: 'atual',
           signed: false,
-          signedAt: undefined,
-          signerName: undefined
+          signedAt: null,
+          signerName: null
         }
       }
     };
@@ -1276,11 +1299,12 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
             {/* Main Interactive Table Grid */}
             <div className="overflow-x-auto">
               <div className="min-w-[650px]">
-                <div className="grid grid-cols-[60px_1fr_120px_2fr] gap-2 md:gap-3 mb-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                <div className="grid grid-cols-[60px_1fr_120px_2fr_40px] gap-2 md:gap-3 mb-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
                   <div>Ref</div>
                   <div className="text-left">Nome do Item</div>
                   <div>Quantidade</div>
                   <div className="text-left">Observações / Destinação</div>
+                  <div></div>
                 </div>
 
                 <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
@@ -1296,7 +1320,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                     return (
                       <div
                         key={item.index}
-                        className={`grid grid-cols-[60px_1fr_120px_2fr] gap-2 md:gap-3 items-center p-2 rounded-2xl border transition-all ${
+                        className={`grid grid-cols-[60px_1fr_120px_2fr_40px] gap-2 md:gap-3 items-center p-2 rounded-2xl border transition-all ${
                           item.itemName.trim() !== '' ? 'bg-slate-50 border-zinc-200' : 'bg-white border-slate-100'
                         } hover:border-slate-300`}
                       >
@@ -1380,6 +1404,19 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                             onChange={(e) => handleFieldChange(item.index, 'observation', e.target.value)}
                             className="w-full bg-transparent px-3 py-2 rounded-xl text-xs text-slate-600 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
                           />
+                        </div>
+
+                        {/* Actions Column */}
+                        <div className="flex justify-center h-full items-center">
+                          {isEditable && (item.itemName || item.quantity || item.observation) && (
+                            <button
+                              onClick={() => handleClearRow(item.index)}
+                              className="text-slate-400 hover:text-rose-500 transition-colors p-2 rounded-lg hover:bg-rose-50"
+                              title="Limpar Linha"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
