@@ -1,0 +1,642 @@
+
+import React, { useState, useRef, useMemo } from 'react';
+import { toast } from 'sonner';
+import type { PerCapitaSupplier, Delivery } from '../types';
+import ConfirmModal from './ConfirmModal';
+import html2pdf from 'html2pdf.js';
+import { FileText, Upload, AlertCircle, X, Download, Trash2, Calendar } from 'lucide-react';
+
+interface AdminPerCapitaSuppliersProps {
+    suppliers: PerCapitaSupplier[];
+    onUpdate: (suppliers: PerCapitaSupplier[]) => void;
+    onSaveInvoice?: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => Promise<any>;
+    onDeleteDelivery?: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean }>;
+    type: 'PRODUTOR' | 'FORNECEDOR';
+    colorScheme?: 'emerald' | 'indigo';
+}
+
+const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppliers, onUpdate, onSaveInvoice, onDeleteDelivery, type, colorScheme = 'emerald' }) => {
+    const [isAdding, setIsAdding] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const tableRef = useRef<HTMLDivElement>(null);
+    
+    // Invoices Modal State
+    const [showInvoicesModal, setShowInvoicesModal] = useState(false);
+    const [selectedSupplierForInvoices, setSelectedSupplierForInvoices] = useState<PerCapitaSupplier | null>(null);
+    const [isUploading, setIsUploading] = useState<string | null>(null); // NF number being uploaded
+
+    // Form state
+    const [name, setName] = useState('');
+    const [cpfCnpj, setCpfCnpj] = useState('');
+    const [processNumber, setProcessNumber] = useState('');
+    const [contractNumber, setContractNumber] = useState('');
+    const [address, setAddress] = useState('');
+    const [city, setCity] = useState('');
+    const [representativeName, setRepresentativeName] = useState('');
+    const [representativeCpf, setRepresentativeCpf] = useState('');
+    const [monthlySchedule, setMonthlySchedule] = useState<Record<string, number[]>>({});
+    
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant?: 'danger' | 'warning' | 'info';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => {},
+    });
+
+    const filteredSuppliers = suppliers.filter(p => 
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.cpfCnpj.includes(searchTerm) ||
+        p.processNumber.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const currentSupplier = useMemo(() => {
+        if (!selectedSupplierForInvoices) return null;
+        return suppliers.find(s => s.id === selectedSupplierForInvoices.id) || selectedSupplierForInvoices;
+    }, [suppliers, selectedSupplierForInvoices]);
+
+    const handlePrintList = () => {
+        if (!tableRef.current) return;
+
+        const opt = {
+            margin: [10, 10, 10, 10] as [number, number, number, number],
+            filename: `Lista_${type}_${new Date().toISOString().split('T')[0]}.pdf`,
+            image: { type: 'jpeg' as const, quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' as const }
+        };
+
+        html2pdf().set(opt).from(tableRef.current).save();
+    };
+
+    const resetForm = () => {
+        setName('');
+        setCpfCnpj('');
+        setProcessNumber('');
+        setContractNumber('');
+        setAddress('');
+        setCity('');
+        setRepresentativeName('');
+        setRepresentativeCpf('');
+        setMonthlySchedule({});
+        setIsAdding(false);
+        setEditingId(null);
+    };
+
+    const handleEdit = (supplier: PerCapitaSupplier) => {
+        setName(supplier.name);
+        setCpfCnpj(supplier.cpfCnpj.replace(/[^\d]/g, ''));
+        setProcessNumber(supplier.processNumber);
+        setContractNumber(supplier.contractNumber || '');
+        setAddress(supplier.address || '');
+        setCity(supplier.city || '');
+        setRepresentativeName(supplier.representativeName || '');
+        setRepresentativeCpf(supplier.representativeCpf || '');
+        setMonthlySchedule(supplier.monthlySchedule || {});
+        setEditingId(supplier.id);
+        setIsAdding(true);
+    };
+
+    const handleSave = () => {
+        if (!name || !cpfCnpj || !processNumber) {
+            toast.error(`Preencha os campos obrigatórios: Nome, CPF/CNPJ e Número do Processo.`);
+            return;
+        }
+
+        const existing = editingId ? suppliers.find(p => p.id === editingId) : null;
+        
+        const newSupplier: PerCapitaSupplier = {
+            ...existing,
+            id: editingId || crypto.randomUUID(),
+            name: name.toUpperCase(),
+            cpfCnpj,
+            processNumber,
+            contractNumber: contractNumber.toUpperCase(),
+            address: address.toUpperCase(),
+            city: city.toUpperCase(),
+            representativeName: representativeName.toUpperCase(),
+            representativeCpf,
+            monthlySchedule,
+        };
+
+        let updatedSuppliers: PerCapitaSupplier[];
+        if (editingId) {
+            updatedSuppliers = suppliers.map(p => p.id === editingId ? newSupplier : p);
+        } else {
+            updatedSuppliers = [...suppliers, newSupplier];
+        }
+
+        onUpdate(updatedSuppliers);
+        resetForm();
+    };
+
+    const handleDelete = (id: string) => {
+        setConfirmConfig({
+            isOpen: true,
+            title: `Excluir ${type}`,
+            message: `Tem certeza que deseja excluir este ${type.toLowerCase()}?`,
+            onConfirm: () => {
+                onUpdate(suppliers.filter(p => p.id !== id));
+                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            },
+            variant: 'danger'
+        });
+    };
+
+    const toggleWeek = (month: string, week: number) => {
+        setMonthlySchedule(prev => {
+            const currentWeeks = prev[month] || [];
+            const newWeeks = currentWeeks.includes(week)
+                ? currentWeeks.filter(w => w !== week)
+                : [...currentWeeks, week].sort();
+            
+            return {
+                ...prev,
+                [month]: newWeeks
+            };
+        });
+    };
+
+    const colorClasses = {
+        emerald: {
+            border: 'border-emerald-600',
+            focus: 'focus:border-emerald-500',
+            bg: 'bg-emerald-600',
+            hover: 'hover:bg-emerald-700',
+            text: 'text-emerald-600',
+            textDark: 'text-emerald-900',
+            bgLight: 'bg-emerald-50',
+            borderLight: 'border-emerald-100',
+            shadow: 'hover:shadow-emerald-200'
+        },
+        indigo: {
+            border: 'border-indigo-600',
+            focus: 'focus:border-indigo-500',
+            bg: 'bg-indigo-600',
+            hover: 'hover:bg-indigo-700',
+            text: 'text-indigo-600',
+            textDark: 'text-indigo-900',
+            bgLight: 'bg-indigo-50',
+            borderLight: 'border-indigo-100',
+            shadow: 'hover:shadow-indigo-200'
+        }
+    }[colorScheme];
+
+    return (
+        <div className="space-y-6 animate-fade-in">
+            <div className={`flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-[2rem] shadow-xl border-b-4 ${colorClasses.border}`}>
+                <div className="relative w-full md:max-w-md">
+                    <input 
+                        type="text" 
+                        placeholder={`Pesquisar ${type.toLowerCase()}, CPF ou processo...`} 
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className={`w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-2xl outline-none font-bold transition-all shadow-inner`}
+                    />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                </div>
+                <div className="flex gap-2 w-full md:w-auto">
+                    <button 
+                        onClick={handlePrintList}
+                        className="w-full md:w-auto bg-white border-2 border-gray-200 text-gray-600 font-black py-4 px-8 rounded-2xl shadow-lg hover:bg-gray-50 transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        PDF
+                    </button>
+                    <button 
+                        onClick={() => { resetForm(); setIsAdding(true); }}
+                        className={`w-full md:w-auto ${colorClasses.bg} ${colorClasses.hover} text-white font-black py-4 px-8 rounded-2xl shadow-lg ${colorClasses.shadow} transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2`}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+                        Novo {type}
+                    </button>
+                </div>
+            </div>
+
+            {isAdding && (
+                <div className={`bg-white p-8 rounded-[2rem] shadow-2xl border-2 ${colorClasses.borderLight} animate-fade-in`}>
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className={`text-xl font-black ${colorClasses.textDark} uppercase tracking-tighter`}>
+                            {editingId ? `Editar ${type}` : `Cadastrar Novo ${type}`}
+                        </h3>
+                        <button onClick={resetForm} className="text-gray-400 hover:text-gray-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        <div className="space-y-1">
+                            <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>Nome do {type}</label>
+                            <input 
+                                type="text"
+                                value={name}
+                                onChange={e => setName(e.target.value)}
+                                className={`w-full p-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-xl outline-none font-bold transition-all`}
+                                placeholder="NOME COMPLETO"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>CPF / CNPJ</label>
+                            <input 
+                                type="text"
+                                value={cpfCnpj}
+                                onChange={e => setCpfCnpj(e.target.value.replace(/[^\d]/g, ''))}
+                                className={`w-full p-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-xl outline-none font-bold transition-all font-mono`}
+                                placeholder="000.000.000-00"
+                                maxLength={14}
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>Número do Processo</label>
+                            <input 
+                                type="text"
+                                value={processNumber}
+                                onChange={e => setProcessNumber(e.target.value)}
+                                className={`w-full p-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-xl outline-none font-bold transition-all`}
+                                placeholder="PROCESSO SEI"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>Número do Contrato</label>
+                            <input 
+                                type="text"
+                                value={contractNumber}
+                                onChange={e => setContractNumber(e.target.value)}
+                                className={`w-full p-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-xl outline-none font-bold transition-all`}
+                                placeholder="000/2026"
+                            />
+                        </div>
+                        <div className="space-y-1 md:col-span-3">
+                            <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>Endereço</label>
+                            <input 
+                                type="text"
+                                value={address}
+                                onChange={e => setAddress(e.target.value)}
+                                className={`w-full p-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-xl outline-none font-bold transition-all`}
+                                placeholder="ENDEREÇO COMPLETO"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>Cidade</label>
+                            <input 
+                                type="text"
+                                value={city}
+                                onChange={e => setCity(e.target.value)}
+                                className={`w-full p-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-xl outline-none font-bold transition-all`}
+                                placeholder="NOME DA CIDADE"
+                            />
+                        </div>
+                        <div className="space-y-1 md:col-span-3">
+                            <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>Nome do Representante Legal</label>
+                            <input 
+                                type="text"
+                                value={representativeName}
+                                onChange={e => setRepresentativeName(e.target.value)}
+                                className={`w-full p-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-xl outline-none font-bold transition-all`}
+                                placeholder="NOME DO REPRESENTANTE"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>CPF do Representante</label>
+                            <input 
+                                type="text"
+                                value={representativeCpf}
+                                onChange={e => setRepresentativeCpf(e.target.value.replace(/[^\d]/g, ''))}
+                                className={`w-full p-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-xl outline-none font-bold transition-all font-mono`}
+                                placeholder="000.000.000-00"
+                                maxLength={14}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 mb-8">
+                        <label className={`text-[10px] font-black ${colorClasses.text} uppercase tracking-widest ml-1`}>Agenda de Entregas (Semanas por Mês)</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {months.map(month => (
+                                <div key={month} className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                    <div className="text-[9px] font-black text-gray-400 uppercase mb-2 ml-1">{month}</div>
+                                    <div className="flex gap-1.5">
+                                        {[1, 2, 3, 4, 5].map(week => (
+                                            <button
+                                                key={week}
+                                                onClick={() => toggleWeek(month, week)}
+                                                className={`flex-1 py-2 rounded-lg text-[9px] font-black transition-all border-2 ${
+                                                    (monthlySchedule[month] || []).includes(week)
+                                                    ? `${colorClasses.bg} ${colorClasses.border} text-white shadow-sm` 
+                                                    : 'bg-white border-gray-200 text-gray-400 hover:border-emerald-200'
+                                                }`}
+                                            >
+                                                S{week}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                        <button 
+                            onClick={resetForm}
+                            className="px-8 py-4 bg-gray-100 text-gray-500 font-black rounded-xl uppercase text-xs tracking-widest hover:bg-gray-200 transition-all"
+                        >
+                            Cancelar
+                        </button>
+                        <button 
+                            onClick={handleSave}
+                            className={`px-8 py-4 ${colorClasses.bg} text-white font-black rounded-xl uppercase text-xs tracking-widest ${colorClasses.hover} shadow-lg transition-all active:scale-95`}
+                        >
+                            {editingId ? 'Salvar Alterações' : 'Confirmar Cadastro'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <div ref={tableRef} className="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-gray-100">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className={`${colorClasses.bgLight}/50`}>
+                                <th className={`p-6 text-[10px] font-black ${colorClasses.text} uppercase tracking-widest border-b ${colorClasses.borderLight}`}>{type}</th>
+                                <th className={`p-6 text-[10px] font-black ${colorClasses.text} uppercase tracking-widest border-b ${colorClasses.borderLight}`}>Documento</th>
+                                <th className={`p-6 text-[10px] font-black ${colorClasses.text} uppercase tracking-widest border-b ${colorClasses.borderLight}`}>Endereço</th>
+                                <th className={`p-6 text-[10px] font-black ${colorClasses.text} uppercase tracking-widest border-b ${colorClasses.borderLight}`}>Processo</th>
+                                <th className={`p-6 text-[10px] font-black ${colorClasses.text} uppercase tracking-widest border-b ${colorClasses.borderLight}`}>Agenda Semanal</th>
+                                <th className={`p-6 text-[10px] font-black ${colorClasses.text} uppercase tracking-widest border-b ${colorClasses.borderLight} text-right`}>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {filteredSuppliers.length > 0 ? (
+                                filteredSuppliers.map(supplier => (
+                                    <tr key={supplier.id} className={`${colorClasses.bgLight}/30 transition-colors group`}>
+                                        <td className="p-6">
+                                            <div className="font-black text-gray-800 uppercase tracking-tight">{supplier.name}</div>
+                                        </td>
+                                        <td className="p-6">
+                                            <div className="font-mono text-xs text-gray-500">{supplier.cpfCnpj}</div>
+                                        </td>
+                                        <td className="p-6">
+                                            {supplier.address || supplier.city ? (
+                                                <div className="flex flex-col">
+                                                    {supplier.address && <span className="text-xs text-gray-700 font-bold uppercase">{supplier.address}</span>}
+                                                    {supplier.city && <span className="text-[10px] text-gray-500 uppercase">{supplier.city}</span>}
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-300 italic text-[10px]">Não informado</span>
+                                            )}
+                                        </td>
+                                        <td className="p-6">
+                                            <div className="font-bold text-sm text-indigo-600">{supplier.processNumber}</div>
+                                        </td>
+                                        <td className="p-6">
+                                            <div className="flex flex-col gap-2 max-w-[300px]">
+                                                {months.filter(m => (supplier.monthlySchedule?.[m] || []).length > 0).length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {months.filter(m => (supplier.monthlySchedule?.[m] || []).length > 0).map(m => (
+                                                            <div key={m} className={`flex flex-col ${colorClasses.bgLight} border ${colorClasses.borderLight} rounded-lg p-1.5 min-w-[60px]`}>
+                                                                <span className={`text-[8px] font-black ${colorClasses.text} uppercase mb-1 border-b ${colorClasses.borderLight} pb-0.5`}>{m.substring(0, 3)}</span>
+                                                                <div className="flex gap-0.5">
+                                                                    {(supplier.monthlySchedule[m] || []).map(w => (
+                                                                        <span key={w} className={`w-4 h-4 flex items-center justify-center ${colorClasses.bg} text-white rounded-[4px] text-[7px] font-black`}>
+                                                                            {w}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-300 italic text-[10px]">Nenhum agendamento</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="p-6 text-right">
+                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button 
+                                                    onClick={() => { setSelectedSupplierForInvoices(supplier); setShowInvoicesModal(true); }}
+                                                    className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-md active:scale-95 flex items-center gap-2 px-3"
+                                                    title="Gerenciar Notas e Entregas"
+                                                >
+                                                    <Upload className="h-4 w-4" />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">Notas</span>
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleEdit(supplier)}
+                                                    className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                                    title="Editar"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 00-2 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDelete(supplier.id)}
+                                                    className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                                                    title="Excluir"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={6} className="p-12 text-center">
+                                        <div className="flex flex-col items-center gap-2 text-gray-300">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                            <p className="font-bold uppercase text-xs tracking-widest">Nenhum {type.toLowerCase()} encontrado</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <ConfirmModal 
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                variant={confirmConfig.variant}
+            />
+
+            {/* Invoices Modal */}
+            {showInvoicesModal && currentSupplier && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[2rem] shadow-2xl flex flex-col overflow-hidden animate-fade-in border-4 border-emerald-600">
+                        <div className="bg-emerald-600 p-6 flex justify-between items-center">
+                            <div className="flex items-center gap-3 text-white">
+                                <FileText className="h-8 w-8" />
+                                <div>
+                                    <h3 className="text-xl font-black uppercase tracking-tighter leading-none">{currentSupplier.name}</h3>
+                                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mt-1">Gestão de Entregas e Notas Fiscais</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setShowInvoicesModal(false)}
+                                className="bg-white/20 p-2 rounded-full text-white hover:bg-white/30 transition-colors"
+                            >
+                                <X className="h-6 w-6" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                            {currentSupplier.deliveries && currentSupplier.deliveries.length > 0 ? (
+                                <div className="space-y-4">
+                                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2">Entregas Registradas</h4>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {currentSupplier.deliveries.map((delivery: any, idx: number) => (
+                                            <div key={delivery.id || idx} className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all hover:bg-emerald-50/30">
+                                                <div className="flex gap-4">
+                                                    <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center min-w-[70px]">
+                                                        <Calendar className="h-4 w-4 text-emerald-600 mb-1" />
+                                                        <span className="text-[10px] font-black text-gray-900">{new Date(delivery.date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-black text-emerald-900 uppercase">{delivery.item || delivery.itemName || ''}</span>
+                                                            <span className="text-[10px] bg-white border border-gray-200 px-1.5 py-0.5 rounded font-mono text-gray-500">#{delivery.invoiceNumber || 'S/N'}</span>
+                                                        </div>
+                                                        <div className="text-[10px] text-gray-400 font-bold uppercase mt-1">
+                                                            Qtd: <span className="text-gray-700 font-black">{delivery.kg.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span> {delivery.unit || 'UN'} | 
+                                                            Valor: <span className="text-gray-700 font-black">R$ {delivery.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-3 ml-auto md:ml-0">
+                                                    {delivery.invoiceUrl ? (
+                                                        <a 
+                                                            href={delivery.invoiceUrl} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-200 transition-all border border-emerald-200 shadow-sm"
+                                                        >
+                                                            <Download className="h-3.5 w-3.5" />
+                                                            Ver PDF
+                                                        </a>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 rounded-xl text-[10px] font-black uppercase tracking-widest border border-amber-200">
+                                                            <AlertCircle className="h-3.5 w-3.5" />
+                                                            Sem Nota
+                                                        </div>
+                                                    )}
+
+                                                    <input 
+                                                        type="file" 
+                                                        id={`nf-file-${delivery.id || idx}`}
+                                                        className="hidden"
+                                                        accept="application/pdf"
+                                                        onChange={async (e) => {
+                                                            if (e.target.files && e.target.files[0] && onSaveInvoice) {
+                                                                const file = e.target.files[0];
+                                                                if (file.size > 5 * 1024 * 1024) {
+                                                                    toast.error("O arquivo é muito grande (máximo 5MB)");
+                                                                    return;
+                                                                }
+                                                                
+                                                                setIsUploading(delivery.invoiceNumber || String(idx));
+                                                                
+                                                                try {
+                                                                    const reader = new FileReader();
+                                                                    reader.readAsDataURL(file);
+                                                                    reader.onload = async () => {
+                                                                        const base64 = reader.result as string;
+                                                                        const res = await onSaveInvoice(
+                                                                            currentSupplier.cpfCnpj || (currentSupplier as any).cpf, 
+                                                                            [delivery.id],
+                                                                            delivery.invoiceNumber || '0', 
+                                                                            base64, 
+                                                                            [delivery],
+                                                                            delivery.invoiceDate
+                                                                        );
+                                                                        if (res.success) {
+                                                                            toast.success("Nota salva com sucesso!");
+                                                                            // Update local state temporarily or trigger parent refresh
+                                                                            // Since we don't have a direct way to update parent without a full refresh, 
+                                                                            // we just hope handleSaveInvoice worked and parent will refresh.
+                                                                        }
+                                                                        setIsUploading(null);
+                                                                    };
+                                                                } catch {
+                                                                    toast.error("Erro ao processar arquivo");
+                                                                    setIsUploading(null);
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
+                                                    <button 
+                                                        disabled={isUploading === (delivery.invoiceNumber || String(idx))}
+                                                        onClick={() => document.getElementById(`nf-file-${delivery.id || idx}`)?.click()}
+                                                        className={`flex items-center gap-2 px-4 py-2 ${isUploading === (delivery.invoiceNumber || String(idx)) ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-emerald-600 hover:bg-emerald-50 border-2 border-emerald-600'} rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95`}
+                                                    >
+                                                        {isUploading === (delivery.invoiceNumber || String(idx)) ? (
+                                                            <div className="h-3.5 w-3.5 border-2 border-emerald-500 border-t-transparent animate-spin rounded-full"></div>
+                                                        ) : (
+                                                            <Upload className="h-3.5 w-3.5" />
+                                                        )}
+                                                        {delivery.invoiceUrl ? 'Substituir NF' : 'Upload NF'}
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => {
+                                                            setConfirmConfig({
+                                                                isOpen: true,
+                                                                title: 'Excluir Entrega/Agendamento',
+                                                                message: `Tem certeza que deseja excluir esta entrega do dia ${new Date(delivery.date + 'T00:00:00').toLocaleDateString()}?`,
+                                                                variant: 'danger',
+                                                                onConfirm: async () => {
+                                                                    if (onDeleteDelivery) {
+                                                                        await onDeleteDelivery(currentSupplier.cpfCnpj || (currentSupplier as any).cpf, delivery.id);
+                                                                        // Parent will refresh
+                                                                        // setShowInvoicesModal(false); // No need to close, currentSupplier will update
+                                                                    }
+                                                                    setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                                                                }
+                                                            });
+                                                        }}
+                                                        className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-md active:scale-95"
+                                                        title="Excluir Entrega/Agendamento"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center p-12 text-gray-300 gap-4">
+                                    <div className="bg-gray-50 p-6 rounded-full border-2 border-dashed border-gray-200">
+                                        <AlertCircle className="h-16 w-16" />
+                                    </div>
+                                    <p className="text-center font-black uppercase tracking-widest text-xs">Nenhuma entrega registrada para este {type.toLowerCase()}.</p>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase text-center max-w-xs">As entregas são geradas automaticamente através do módulo de almoxarifado quando uma entrada é realizada.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="bg-gray-50 p-6 border-t border-gray-100 flex justify-end">
+                            <button 
+                                onClick={() => setShowInvoicesModal(false)}
+                                className="px-10 py-4 bg-white border-2 border-zinc-200 text-zinc-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-zinc-50 transition-all shadow-sm"
+                            >
+                                Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default AdminPerCapitaSuppliers;

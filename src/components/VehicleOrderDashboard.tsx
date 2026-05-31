@@ -1,0 +1,118 @@
+
+import React from 'react';
+import InfobarTicker from './InfobarTicker';
+import type { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, VehicleInspection, PublicInfo } from '../types';
+import AdminVehicleExitOrder from './AdminVehicleExitOrder';
+
+interface VehicleOrderDashboardProps {
+  orders: VehicleExitOrder[];
+  vehicleAssets: VehicleAsset[];
+  driverAssets: DriverAsset[];
+  validationRoles: ValidationRole[];
+  vehicleInspections?: VehicleInspection[];
+  publicInfoList: PublicInfo[];
+  onRegister: (order: Omit<VehicleExitOrder, 'id'>) => Promise<{ success: boolean; message: string; id?: string }>;
+  onUpdate: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
+  onDelete: (id: string) => Promise<{ success: boolean; message: string }>;
+  onRegisterVehicleAsset: (asset: Omit<VehicleAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
+  onUpdateVehicleAsset: (asset: VehicleAsset) => Promise<{ success: boolean; message: string }>;
+  onDeleteVehicleAsset: (id: string) => Promise<{ success: boolean; message: string }>;
+  onRegisterDriverAsset: (asset: Omit<DriverAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
+  onUpdateDriverAsset: (asset: DriverAsset) => Promise<{ success: boolean; message: string }>;
+  onDeleteDriverAsset: (id: string) => Promise<{ success: boolean; message: string }>;
+  onRegisterVehicleInspection?: (inspection: Omit<VehicleInspection, 'id'>) => Promise<{ success: boolean; message: string }>;
+  onUpdateVehicleInspection?: (inspection: VehicleInspection) => Promise<{ success: boolean; message: string }>;
+  onDeleteVehicleInspection?: (id: string) => Promise<{ success: boolean; message: string }>;
+  onLogout: () => void;
+  role?: 'infraestrutura' | 'ordem_saida';
+  [key: string]: any;
+}
+
+const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
+  orders = [],
+  vehicleAssets = [],
+  driverAssets = [],
+  validationRoles = [],
+  vehicleInspections = [],
+  publicInfoList = [],
+  onRegister,
+  onUpdate,
+  onDelete,
+  onRegisterVehicleAsset,
+  onUpdateVehicleAsset,
+  onDeleteVehicleAsset,
+  onRegisterDriverAsset,
+  onUpdateDriverAsset,
+  onDeleteDriverAsset,
+  onRegisterVehicleInspection,
+  onUpdateVehicleInspection,
+  onDeleteVehicleInspection,
+  onLogout,
+  role
+}) => {
+  const filteredOrders = orders;
+
+  const handleRegister = async (order: Omit<VehicleExitOrder, 'id'>) => {
+    return await onRegister(order);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+       {/* Infobar */}
+       <InfobarTicker 
+          items={publicInfoList.filter(info => role === 'ordem_saida' ? true : !info.isConfidential)} 
+          variant="light" 
+          label="Comunicados:" 
+       />
+
+      <header className="bg-white text-indigo-950 p-4 shadow-sm flex justify-between items-center sticky top-0 z-50 border-b border-gray-200">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-50 p-2 rounded-xl border border-indigo-100">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-lg font-black uppercase italic tracking-tighter leading-none text-indigo-950">
+                {role === 'infraestrutura' ? 'Infraestrutura' : 'Ordem de Saída'}
+              </h1>
+              <p className="text-[9px] text-indigo-500 font-bold uppercase tracking-widest">Gestão de Veículos</p>
+            </div>
+          </div>
+        </div>
+
+        <button onClick={onLogout} className="bg-red-50 hover:bg-red-100 text-red-600 font-black py-2 px-4 rounded-xl text-[10px] uppercase transition-all border border-red-200">Sair</button>
+      </header>
+
+      <main className="p-4 max-w-7xl mx-auto">
+        <AdminVehicleExitOrder 
+          orders={filteredOrders}
+          vehicleAssets={vehicleAssets}
+          driverAssets={driverAssets}
+          validationRoles={validationRoles}
+          inspections={vehicleInspections}
+          onRegister={handleRegister}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+          onRegisterVehicleAsset={onRegisterVehicleAsset}
+          onUpdateVehicleAsset={onUpdateVehicleAsset}
+          onDeleteVehicleAsset={onDeleteVehicleAsset}
+          onRegisterDriverAsset={onRegisterDriverAsset}
+          onUpdateDriverAsset={onUpdateDriverAsset}
+          onDeleteDriverAsset={onDeleteDriverAsset}
+          onRegisterInspection={onRegisterVehicleInspection}
+          onUpdateInspection={onUpdateVehicleInspection}
+          onDeleteInspection={onDeleteVehicleInspection}
+          readOnly={false}
+          hideAssets={true}
+          hideEdit={false}
+          showGateTab={true}
+          userRole={role}
+        />
+      </main>
+    </div>
+  );
+};
+
+export default VehicleOrderDashboard;

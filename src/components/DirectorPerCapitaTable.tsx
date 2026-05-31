@@ -1,1506 +1,1504 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import type { PerCapitaConfig } from '../types';
 import { 
+  CheckCircle2, 
+  ShieldCheck, 
   Printer, 
-  Search, 
-  Info, 
-  AlertTriangle, 
-  Calendar, 
-  SearchCheck, 
-  Flame, 
-  TrendingUp, 
-  DollarSign, 
-  FileSpreadsheet, 
+  Trash2, 
+  CheckCircle, 
   FileText, 
-  Truck, 
-  Car, 
-  UtensilsCrossed, 
-  Check, 
-  X, 
-  RefreshCw, 
-  Plus, 
-  Trash2
+  History, 
+  FileCheck, 
+  ArrowLeft, 
+  Trash 
 } from 'lucide-react';
-import { DirectorPerCapitaRow, InventoryItem, DirectorConfig } from '../types';
 
-// Standard items database
-const initialInventory: InventoryItem[] = [
-  { id: '1', name: 'ALMÔNDEGAS, TIPO: BOVINO, SABOR: TEMPERADO, ESTADO DE CONSERVAÇÃO CONGELADA', category: 'alimentacao', stockQty: 450, unit: 'Kg', expirationDate: '12/08/2026', lote: 'L-2026-001', isActivePerCapita: true },
-  { id: '2', name: 'ABÓBORA JAPONESA, COM PESO UNITÁRIO VARIANDO DE 1 A 2 KG', category: 'alimentacao', stockQty: 180, unit: 'Sacos', expirationDate: '24/06/2026', lote: 'L-2026-002', isActivePerCapita: true },
-  { id: '3', name: 'ARROZ AGULHINHA, TIPO 1, POLIDO, PACOTE DE 5KG', category: 'alimentacao', stockQty: 1200, unit: 'Pacotes', expirationDate: '15/12/2026', lote: 'L-2026-003', isActivePerCapita: true },
-  { id: '4', name: 'FEIJÃO CARIOCA, TIPO 1, NOVO, GRÃOS INTEIROS, PACOTE DE 1KG', category: 'alimentacao', stockQty: 850, unit: 'Pacotes', expirationDate: '22/09/2026', lote: 'L-2026-004', isActivePerCapita: true },
-  { id: '5', name: 'CARNE BOVINA MOÍDA, ISENTA DE SEBO E APONEUROSE, PACOTE DE 1KG', category: 'alimentacao', stockQty: 320, unit: 'Kg', expirationDate: '10/06/2026', lote: 'L-2026-005', isActivePerCapita: true },
-  { id: '6', name: 'LEITE INTEGRAL UHT, EMBALAGEM TETRAPAK DE 1L', category: 'alimentacao', stockQty: 140, unit: 'Litros', expirationDate: '02/07/2026', lote: 'L-2026-006', isActivePerCapita: false },
-  { id: '7', name: 'ÓLEO DE SOJA REFINADO, FRASCO DE 900ML', category: 'alimentacao', stockQty: 600, unit: 'Frascos', expirationDate: '30/11/2026', lote: 'L-2026-007', isActivePerCapita: true },
-  { id: '8', name: 'SALSICHA TIPO HOT DOG, RESFRIADA, DE CARNE DE AVES E BOVINO', category: 'alimentacao', stockQty: 0, unit: 'Kg', expirationDate: '15/06/2026', lote: 'L-2026-008', isActivePerCapita: true },
-  { id: '9', name: 'MACARRÃO ESPAGUETE COM OVOS, PACOTE DE 500G', category: 'alimentacao', stockQty: 480, unit: 'Pacotes', expirationDate: '28/02/2027', lote: 'L-2027-009', isActivePerCapita: true },
-  { id: '10', name: 'BATATA INGLESA LAVADA, DE FORMATO UNIFORME, SACO DE 25KG', category: 'alimentacao', stockQty: 400, unit: 'Sacos', expirationDate: '18/06/2026', lote: 'L-2026-010', isActivePerCapita: true },
-  { id: '11', name: 'CAFÉ TORRADO E MOÍDO, EMBALAGEM DE 500G', category: 'alimentacao', stockQty: 210, unit: 'Pacotes', expirationDate: '04/10/2026', lote: 'L-2026-011', isActivePerCapita: true },
-  { id: '12', name: 'AÇÚCAR REFINADO EXTRA FINO, PACOTE DE 1KG', category: 'alimentacao', stockQty: 740, unit: 'Pacotes', expirationDate: '11/11/2026', lote: 'L-2026-012', isActivePerCapita: true },
-  { id: '13', name: 'BACON EM CUBOS, DEFUMADO NATURALMENTE, EMBALAGEM DE 1KG', category: 'alimentacao', stockQty: 95, unit: 'Kg', expirationDate: '05/08/2026', lote: 'L-2026-013', isActivePerCapita: true },
-  { id: '14', name: 'POLPA DE UVA CONGELADA, SEM ADIÇÃO DE CONSERVANTES, PACOTE DE 1KG', category: 'alimentacao', stockQty: 300, unit: 'Pacotes', expirationDate: '30/08/2026', lote: 'L-2026-014', isActivePerCapita: false },
-  
-  // Cleaning items
-  { id: 'c1', name: 'SABÃO EM PÓ, MULTIAÇÃO, CAIXA COM 1KG', category: 'limpeza', stockQty: 250, unit: 'Caixas', expirationDate: '01/05/2028', lote: 'L-2028-C01', isActivePerCapita: false },
-  { id: 'c2', name: 'DETERGENTE LÍQUIDO NEUTRO, FRASCO DE 500ML', category: 'limpeza', stockQty: 420, unit: 'Frascos', expirationDate: '10/03/2027', lote: 'L-2027-C02', isActivePerCapita: true },
-  { id: 'c3', name: 'DESINFETANTE SANITÁRIO AUXILIAR DE LIMPEZA, FRASCO DE 2L', category: 'limpeza', stockQty: 180, unit: 'Frascos', expirationDate: '14/12/2027', lote: 'L-2027-C03', isActivePerCapita: true },
-  { id: 'c4', name: 'ÁGUA SANITÁRIA, SOLUÇÃO DE HIPOCLORITO DE SÓDIO 2.5%, GALÃO DE 5L', category: 'limpeza', stockQty: 90, unit: 'Galões', expirationDate: '21/04/2027', lote: 'L-2027-C04', isActivePerCapita: true },
-  { id: 'c5', name: 'SABONETE EM BARRA SUAVE, DERMATOLOGICAMENTE TESTADO, EMBALAGEM DE 90G', category: 'limpeza', stockQty: 600, unit: 'Unidades', expirationDate: '09/01/2028', lote: 'L-2028-C05', isActivePerCapita: true }
-];
-
-const DIRECTORS: DirectorConfig[] = [
-  { id: 'chefeDep', name: 'José Fabiano Moutin', role: 'Diretor de Serviço - Infraestrutura (DEP.)', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80' },
-  { id: 'chefeSeg', name: 'Marcos Antônio de Almeida', role: 'Diretor de Centro de Segurança (SEG.)', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&auto=format&fit=crop&q=80' }
-];
-
-// Helper to keep only the first three words from the full item name
-const getFirstThreeWords = (name: string): string => {
-  if (!name) return '';
-  const clean = name.replace(/[;:,.]/g, ' ').replace(/\s+/g, ' ').trim();
-  const words = clean.split(' ').filter(Boolean);
-  if (words.length <= 3) return name;
-  return words.slice(0, 3).join(' ').toUpperCase();
-};
-
-const APP_VERSION = '3.0';
-
-// Clean old cached localStorage arrays from previous code versions
-if (typeof window !== 'undefined') {
-  const cachedVersion = localStorage.getItem('app_version');
-  if (cachedVersion !== APP_VERSION) {
-    localStorage.clear();
-    localStorage.setItem('app_version', APP_VERSION);
-  }
+interface RowItem {
+  index: number;
+  itemName: string;
+  quantity: string;
+  observation: string;
 }
 
-export default function DirectorPerCapitaTable() {
-  // Navigation Tabs state
-  const [activeTab, setActiveTab] = useState<'recursos' | 'adiantamentos' | 'ptres' | 'cardapio' | 'chegadas' | 'saida' | 'percapita'>('percapita');
-  
-  // Per Capita specific state
-  const [activeDirector, setActiveDirector] = useState<DirectorConfig>(DIRECTORS[0]);
-  const [categoryFilter, setCategoryFilter] = useState<'alimentacao' | 'limpeza'>('alimentacao');
-  const [periodFilter, setPeriodFilter] = useState<'semanal' | 'mensal'>('semanal');
+interface OrderData {
+  items: RowItem[];
+  id: string;
+  createdAt?: string;
+  signed: boolean;
+  signedAt?: string;
+  signerName?: string;
+  periodType?: 'mensal' | 'semanal';
+}
 
-  // Dynamic greeting based on current time
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'BOM DIA';
-    if (hour < 18) return 'BOA TARDE';
-    return 'BOA NOITE';
-  };
+interface SubTabData {
+  activeOrder: OrderData;
+  history?: Record<string, OrderData>;
+}
 
-  // Dynamic full name of the logged-in director
-  const getActiveDirectorFullName = () => {
-    return activeDirector.name.toUpperCase();
-  };
+interface DirectorPerCapitaData {
+  chefeDep: SubTabData;
+  chefeSeg: SubTabData;
+}
 
-  // Adiantamentos Tab states
-  const [advances, setAdvances] = useState<any[]>(() => {
-    const saved = localStorage.getItem('advances');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
-    }
-    return [
-      { id: 1, name: 'Marcos Antônio de Almeida', role: 'Diretor de Centro de Segurança (SEG.)', amount: 30000, description: 'Abastecimento emergencial de gêneros e kits de higiene para a ala norte', date: '30/05/2026', status: 'Liberado' },
-      { id: 2, name: 'Julio Santana', role: 'Coordenador Subportaria', amount: 15000, description: 'Manutenção imediata do portão eletrônico e iluminação perimetral', date: '29/05/2026', status: 'Liberado' },
-      { id: 3, name: 'Daniele Garcia Possidonio', role: 'Depto. Financeiro', amount: 25000, description: 'Custeio extraordinário para lavanderia de uniformes', date: '28/05/2026', status: 'Aprovado' }
-    ];
+interface DirectorPerCapitaTableProps {
+  data: DirectorPerCapitaData | null;
+  onUpdate: (updatedData: DirectorPerCapitaData) => Promise<{ success: boolean; message?: string }>;
+  currentUser?: { name: string; cpf: string; role: string };
+  isReadOnly?: boolean; // For Stock Module (Almoxarifado) viewing
+  warehouseLog?: any[];
+  suppliers?: any[];
+  standardMenu?: any;
+  perCapitaConfig?: PerCapitaConfig;
+}
+
+export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
+  data,
+  onUpdate,
+  currentUser,
+  isReadOnly = false,
+  warehouseLog = [],
+  suppliers = [],
+  standardMenu = {},
+  perCapitaConfig,
+}) => {
+  // Identify who the current logged-in user is
+  const isDouglas = currentUser?.cpf === '29099022859' || currentUser?.name?.toUpperCase().includes('DOUGLAS');
+  const isAlfredo = currentUser?.cpf === '29462706821' || currentUser?.name?.toUpperCase().includes('ALFREDO');
+
+  const showChefeDep = isReadOnly || isDouglas || currentUser?.role === 'admin';
+  const showChefeSeg = isReadOnly || isAlfredo || currentUser?.role === 'admin';
+
+  // Top level tabs: 'chefeDep' (Douglas Galdino) and 'chefeSeg' (Alfredo Lopes)
+  const [activeSubTab, setActiveSubTab] = useState<'chefeDep' | 'chefeSeg'>(() => {
+    if (isAlfredo && !isDouglas && showChefeSeg) return 'chefeSeg';
+    if (!showChefeDep && showChefeSeg) return 'chefeSeg';
+    return 'chefeDep';
   });
 
-  // PTRES/Natures States
-  const ptresList = [
-    { id: '174092', code: '33.90.30', desc: 'Material de Consumo - Gêneros de Alimentação', initial: 350000, current: 247500, color: 'emerald' },
-    { id: '174095', code: '33.90.30', desc: 'Combustíveis e Lubrificantes Automotivos', initial: 120000, current: 14800, color: 'rose' },
-    { id: '174098', code: '33.90.39', desc: 'Serviços de Terceiros - Limpeza e Higiene', initial: 180000, current: 122000, color: 'indigo' },
-    { id: '174100', code: '33.90.30', desc: 'Material de Copa, Cozinha e Refeitório', initial: 95000, current: 63500, color: 'amber' }
-  ];
+  // Category sub-tab of the active manager: 'alimentacao' or 'limpeza'
+  const [categoryTab, setCategoryTab] = useState<'alimentacao' | 'limpeza'>('alimentacao');
 
-  // Logistic arrivals state
-  const [arrivals, setArrivals] = useState<any[]>(() => {
-    const saved = localStorage.getItem('arrivals');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
-    }
-    return [
-      { id: 'SH30', carrier: 'Coan Nutrição S.A.', plate: 'FLZ-8C41', cargo: 'Gêneros Alimentícios (Proteína Congelada)', scheduled: '14:30', real: '14:22', status: 'Pátio Interno' },
-      { id: 'SH31', carrier: 'Nutri-Vida Comercial', plate: 'BRA-3Z92', cargo: 'Hortifruti Fresco e Legumes', scheduled: '15:15', real: 'A caminho', status: 'Em Trânsito' },
-      { id: 'SH32', carrier: 'D&D Distribuidora', plate: 'KLP-1M45', cargo: 'Produtos Químicos de Higiene Sanitária', scheduled: '16:00', real: 'Check na balsa', status: 'Aguardando' }
-    ];
-  });
+  // Currently focused row input index for suggestions
+  const [focusedRowIndex, setFocusedRowIndex] = useState<number | null>(null);
 
-  // Vehicle logs
-  const [vehicleExits, setVehicleExits] = useState<any[]>(() => {
-    const saved = localStorage.getItem('vehicleExits');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
-    }
-    return [
-      { id: 101, plate: 'BRA-9E28', driver: 'Motorista Marcos Mendes', destination: 'Almoxarifado Geral Penitenciário', departure: '08:15', returnTime: '13:40', purpose: 'Retirada de insumos industriais', status: 'Concluído' },
-      { id: 102, plate: 'EGO-0942', driver: 'Motorista Carlos Fonseca', destination: 'Distribuidora Logística Central', departure: '14:00', returnTime: '--:--', purpose: 'Recolhimento de cestas padrão', status: 'Em Trânsito' }
-    ];
-  });
+  // Current view mode inside active tab: 'form' or 'history'
+  const [viewMode, setViewMode] = useState<'form' | 'history'>('form');
+  const [viewingPastOrder, setViewingPastOrder] = useState<OrderData | null>(null);
 
-  // Rows state for the selected director - pre-loaded for demonstration to look high-fidelity
-  const [depRows, setDepRows] = useState<DirectorPerCapitaRow[]>(() => {
-    const saved = localStorage.getItem('depRows');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
-    }
-    return Array.from({ length: 25 }, (_, i) => {
-      if (i === 0) {
-        return {
-          ref: 1,
-          itemName: 'ALMÔNDEGAS, TIPO: BOVINO',
-          itemFullName: 'ALMÔNDEGAS, TIPO: BOVINO, SABOR: TEMPERADO, ESTADO DE CONSERVAÇÃO CONGELADA',
-          quantity: '15 Sacos',
-          observations: 'Destinar ao refeitório interno bloco A'
-        };
-      }
-      if (i === 5) {
-        return {
-          ref: 6,
-          itemName: 'ABÓBORA JAPONESA COM',
-          itemFullName: 'ABÓBORA JAPONESA, COM PESO UNITÁRIO VARIANDO DE 1 A 2 KG',
-          quantity: '8 Sacos',
-          observations: 'Prazo urgente para sopa da ala sul'
-        };
-      }
-      return { ref: i + 1, itemName: '', itemFullName: '', quantity: '', observations: '' };
-    });
-  });
+  // Local state for active items to support seamless typing
+  const [localActiveItems, setLocalActiveItems] = useState<RowItem[]>([]);
 
-  const [segRows, setSegRows] = useState<DirectorPerCapitaRow[]>(() => {
-    const saved = localStorage.getItem('segRows');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
-    }
-    return Array.from({ length: 25 }, (_, i) => {
-      if (i === 2) {
-        return {
-          ref: 3,
-          itemName: 'FEIJÃO CARIOCA TIPO',
-          itemFullName: 'FEIJÃO CARIOCA, TIPO 1, NOVO, GRÃOS INTEIROS, PACOTE DE 1KG',
-          quantity: '200 Pacotes',
-          observations: 'Garantir estoque de emergência'
-        };
-      }
-      if (i === 7) {
-        return {
-          ref: 8,
-          itemName: 'DETERGENTE LÍQUIDO NEUTRO',
-          itemFullName: 'DETERGENTE LÍQUIDO NEUTRO, FRASCO DE 500ML',
-          quantity: '50 Frascos',
-          observations: 'Copa principal administrativa'
-        };
-      }
-      return { ref: i + 1, itemName: '', itemFullName: '', quantity: '', observations: '' };
-    });
-  });
+  // Validation States
+  const [passwordInput, setPasswordInput] = useState('');
+  const [signatureError, setSignatureError] = useState('');
+  const [signatureSuccess, setSignatureSuccess] = useState('');
 
-  // Sync state variables write triggers
-  useEffect(() => {
-    localStorage.setItem('depRows', JSON.stringify(depRows));
-  }, [depRows]);
+  // Stock display states - replaced with dynamic request-based state
+  // Keys representing active path in database for category
+  const orderKey = categoryTab === 'alimentacao' ? 'activeOrder' : 'limpezaActiveOrder';
+  const historyKey = categoryTab === 'alimentacao' ? 'history' : 'limpezaHistory';
 
-  useEffect(() => {
-    localStorage.setItem('segRows', JSON.stringify(segRows));
-  }, [segRows]);
-
-  useEffect(() => {
-    localStorage.setItem('advances', JSON.stringify(advances));
-  }, [advances]);
-
-  useEffect(() => {
-    localStorage.setItem('arrivals', JSON.stringify(arrivals));
-  }, [arrivals]);
-
-  useEffect(() => {
-    localStorage.setItem('vehicleExits', JSON.stringify(vehicleExits));
-  }, [vehicleExits]);
-
-  // Modal dialog triggers to bypass iframe blocks
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showNewAdvanceModal, setShowNewAdvanceModal] = useState(false);
-  const [newAdvanceDesc, setNewAdvanceDesc] = useState('');
-  const [newAdvanceAmt, setNewAdvanceAmt] = useState('');
-  const [newAdvanceName, setNewAdvanceName] = useState('Daniele Garcia Possidonio');
-  const [newAdvanceRole, setNewAdvanceRole] = useState('Depto. Financeiro');
-  const [advanceToSettle, setAdvanceToSettle] = useState<any | null>(null);
-
-  // Bottom table inventory search & filters
-  const [foodFilter, setFoodFilter] = useState<'all' | 'active' | 'inStock'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeRowIndex, setActiveRowIndex] = useState<number | null>(null);
-  const [showSuggestions, setShowSuggestions] = useState<number | null>(null);
-
-  const autocompleteRef = useRef<HTMLDivElement | null>(null);
-
-  // Close suggestions if clicked outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (autocompleteRef.current && !autocompleteRef.current.contains(event.target as Node)) {
-        setShowSuggestions(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  // Find database item information matching the typed/entered row item
-  const getInventoryItemDetails = (row: DirectorPerCapitaRow) => {
-    if (!row.itemName) return null;
-    return initialInventory.find(item => {
-      // Direct full name match
-      if (row.itemFullName && item.name.toLowerCase() === row.itemFullName.toLowerCase()) {
-        return true;
-      }
-      // Match by exact short name prefix
-      const itemShort = getFirstThreeWords(item.name).toLowerCase();
-      const rowShort = row.itemName.toLowerCase();
-      return (
-        item.name.toLowerCase().includes(rowShort) || 
-        itemShort.includes(rowShort) || 
-        rowShort.includes(itemShort)
-      );
-    });
-  };
-
-  const activeRows = activeDirector.id === 'chefeDep' ? depRows : segRows;
-  
-  const updateActiveRows = (updated: DirectorPerCapitaRow[]) => {
-    if (activeDirector.id === 'chefeDep') {
-      setDepRows(updated);
-    } else {
-      setSegRows(updated);
-    }
-  };
-
-  // Render rows correctly based on state
-  useEffect(() => {
-    // This effect ensures table displays the correct state when switching directors
-  }, [activeDirector]);
-
-  const handleRowChange = (index: number, field: keyof DirectorPerCapitaRow, val: string) => {
-    const updated = [...activeRows];
-    if (field === 'itemName') {
-      updated[index].itemName = val;
-      updated[index].itemFullName = val;
-    } else {
-      (updated[index] as any)[field] = val;
-    }
-    updateActiveRows(updated);
-  };
-
-  // Click an autocomplete suggestion
-  const handleSelectSuggestion = (rowIndex: number, item: InventoryItem) => {
-    const shortName = getFirstThreeWords(item.name);
-    const updated = [...activeRows];
-    updated[rowIndex].itemName = shortName;
-    updated[rowIndex].itemFullName = item.name;
-    if (!updated[rowIndex].quantity) {
-      updated[rowIndex].quantity = `10 ${item.unit}`;
-    }
-    updateActiveRows(updated);
-    setShowSuggestions(null);
-  };
-
-  // Apply bottom item selection into active rows upstairs
-  const handleApplyToActiveRow = (item: InventoryItem) => {
-    let indexToUse = activeRowIndex !== null ? activeRowIndex : -1;
-    if (indexToUse === -1) {
-      indexToUse = activeRows.findIndex(r => !r.itemName);
-    }
-    if (indexToUse === -1) {
-      indexToUse = 0;
-    }
-
-    const shortName = getFirstThreeWords(item.name);
-    const updated = [...activeRows];
-    updated[indexToUse] = {
-      ...updated[indexToUse],
-      itemName: shortName,
-      itemFullName: item.name,
-      quantity: updated[indexToUse].quantity || `10 ${item.unit}`
-    };
-    updateActiveRows(updated);
+  // Get all unique items in perCapitaConfig (PPAIS, Estocáveis, and Perecíveis) + Standard Menu + Fallback traditional suppliers
+  const percapitaAllItems = React.useMemo(() => {
+    const list: string[] = [];
     
-    window.scrollTo({ top: 400, behavior: 'smooth' });
-    setActiveRowIndex(null);
+    // 1. From perCapitaConfig (ppaisProducers, pereciveisSuppliers, estocaveisSuppliers)
+    if (perCapitaConfig) {
+      [
+        ...(perCapitaConfig.ppaisProducers || []),
+        ...(perCapitaConfig.pereciveisSuppliers || []),
+        ...(perCapitaConfig.estocaveisSuppliers || [])
+      ].forEach(supplier => {
+        (supplier.contractItems || []).forEach(item => {
+          if (item.name && item.name.trim()) {
+            const trimmed = item.name.trim().toUpperCase();
+            if (!list.includes(trimmed)) {
+              list.push(trimmed);
+            }
+          }
+        });
+      });
+    }
+
+    // 2. From standardMenu (per-capita general food items)
+    if (standardMenu) {
+      Object.keys(standardMenu).forEach((day) => {
+        const rows = (standardMenu as any)[day];
+        if (Array.isArray(rows)) {
+          rows.forEach((row: any) => {
+            const name = row.contractedItem || row.foodItem || row.item || '';
+            if (name && name.trim()) {
+              const trimmed = name.trim().toUpperCase();
+              if (!list.includes(trimmed)) {
+                list.push(trimmed);
+              }
+            }
+          });
+        }
+      });
+    }
+
+    // 3. Fallback from traditional suppliers
+    if (suppliers) {
+      suppliers.forEach(supplier => {
+        (supplier.contractItems || []).forEach(item => {
+          if (item.name && item.name.trim()) {
+            const trimmed = item.name.trim().toUpperCase();
+            if (!list.includes(trimmed)) {
+              list.push(trimmed);
+            }
+          }
+        });
+      });
+    }
+
+    return list.sort((a, b) => a.localeCompare(b));
+  }, [perCapitaConfig, standardMenu, suppliers]);
+
+  // get unique names from general standard menu (percapta geral)
+  const generalMenuNames = React.useMemo(() => {
+    const names = new Set<string>();
+    if (standardMenu) {
+      Object.keys(standardMenu).forEach((day) => {
+        const rows = standardMenu[day];
+        if (Array.isArray(rows)) {
+          rows.forEach((row: any) => {
+            const name = row.contractedItem || row.foodItem || row.item || '';
+            if (name && name.trim()) {
+              names.add(name.trim().toUpperCase());
+            }
+          });
+        }
+      });
+    }
+    return names;
+  }, [standardMenu]);
+
+  // get unique active names (first 2 words) from perCapitaConfig
+  const activePercapitaItems = React.useMemo(() => {
+    const names = new Set<string>();
+    if (perCapitaConfig) {
+        [
+            ...(perCapitaConfig.ppaisProducers || []),
+            ...(perCapitaConfig.pereciveisSuppliers || []),
+            ...(perCapitaConfig.estocaveisSuppliers || [])
+        ].forEach(supplier => {
+            (supplier.contractItems || []).forEach(item => {
+                if (item.name) {
+                    const twoWords = item.name.trim().split(' ').slice(0, 2).join(' ').toUpperCase();
+                    if (twoWords) names.add(twoWords);
+                }
+            });
+        });
+    }
+    return names;
+  }, [perCapitaConfig]);
+
+  // computed stock balances per requested item, lot, and expiration
+  const requestedItemsStockList = React.useMemo(() => {
+    const requestedNames = new Set<string>();
+    localActiveItems.forEach(item => {
+      if (item.itemName && item.itemName.trim()) {
+        const twoWords = item.itemName.trim().split(' ').slice(0, 2).join(' ').toUpperCase();
+        requestedNames.add(twoWords);
+      }
+    });
+
+    if (requestedNames.size === 0) return [];
+
+    const stockMap: Record<string, { itemName: string; balance: number; unit: string; lot: string; expiration: string }> = {};
+
+    (warehouseLog || []).forEach((log: any) => {
+      if (!log) return;
+      const name = log.itemName || log.item || '';
+      if (!name) return;
+      
+      const twoWordsKey = name.trim().split(' ').slice(0, 2).join(' ').toUpperCase();
+      if (!requestedNames.has(twoWordsKey)) return;
+      
+      const lot = log.lotNumber || log.lot || log.lote || 'UNICO';
+      const expirationOrig = log.expirationDate || log.expiration || log.val || log.validade || '';
+      const expiration = expirationOrig ? expirationOrig : 'N/A';
+
+      const key = `${twoWordsKey}|${lot}|${expiration}`;
+
+      if (!stockMap[key]) {
+        let unit = 'Kg';
+        if (suppliers) {
+          for (const s of suppliers) {
+            if (s.contractItems) {
+              const matched = Object.values(s.contractItems).find((ci: any) => ci.name?.trim().split(' ').slice(0, 2).join(' ').toUpperCase() === twoWordsKey);
+              if (matched && matched.unit) {
+                unit = matched.unit;
+                break;
+              }
+            }
+          }
+        }
+        
+        stockMap[key] = {
+          itemName: twoWordsKey,
+          balance: 0,
+          unit,
+          lot,
+          expiration
+        };
+      }
+
+      const qty = Number(log.quantity || log.kg || 0);
+      // 'entrada' or similarly indicating a reception
+      const isEntrada = log.type === 'entrada';
+      
+      if (isEntrada) {
+        stockMap[key].balance += qty;
+      } else {
+        stockMap[key].balance -= qty;
+      }
+    });
+
+    return Object.values(stockMap)
+      .filter((item) => item.balance > 0.001)
+      .sort((a, b) => a.itemName.localeCompare(b.itemName) || a.expiration.localeCompare(b.expiration) || a.lot.localeCompare(b.lot));
+  }, [warehouseLog, localActiveItems, suppliers]);
+
+  // Keep local items in sync with active subtab's activeOrder items
+  useEffect(() => {
+    const activeOrderItems = data?.[activeSubTab]?.[orderKey]?.items;
+    const timerId = setTimeout(() => {
+      if (activeOrderItems && activeOrderItems.length > 0) {
+        const dbStr = JSON.stringify(activeOrderItems);
+        const locStr = JSON.stringify(localActiveItems);
+        if (dbStr !== locStr) {
+          setLocalActiveItems(activeOrderItems);
+        }
+      } else {
+        // Create empty 25 rows
+        const emptyItems = Array.from({ length: 25 }, (_, i) => ({
+          index: i + 1,
+          itemName: '',
+          quantity: '',
+          observation: '',
+        }));
+        setLocalActiveItems(emptyItems);
+      }
+      // Clear validations when tab updates
+      setPasswordInput('');
+      setSignatureError('');
+      setSignatureSuccess('');
+    }, 0);
+
+    return () => {
+      clearTimeout(timerId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.[activeSubTab]?.[orderKey]?.items, activeSubTab, orderKey]);
+
+  const handleTabChange = (tab: 'chefeDep' | 'chefeSeg') => {
+    setActiveSubTab(tab);
+    setViewMode('form');
+    setViewingPastOrder(null);
   };
 
-  const handleClearTable = () => {
-    setShowClearConfirm(true);
+  const handleFieldChange = (index: number, field: keyof RowItem, value: string) => {
+    if (isReadOnly || isCurrentOrderSigned) return;
+
+    // Check if user is the designated chef of this subtab or admin or financeiro editing
+    const hasEditPermission = (activeSubTab === 'chefeDep' && isDouglas) || 
+                              (activeSubTab === 'chefeSeg' && isAlfredo) ||
+                              currentUser?.role === 'admin' ||
+                              (currentUser?.role === 'financeiro' && !isReadOnly);
+
+    if (!hasEditPermission) return;
+
+    const updated = localActiveItems.map((itm) => {
+      if (itm.index === index) {
+        return { ...itm, [field]: value };
+      }
+      return itm;
+    });
+    setLocalActiveItems(updated);
+
+    // Auto save to database
+    saveActiveOrderToFirebase(updated);
   };
 
-  const executeClearTable = () => {
-    const reseted = Array.from({ length: 25 }, (_, i) => ({
-      ref: i + 1,
-      itemName: '',
-      itemFullName: '',
-      quantity: '',
-      observations: ''
-    }));
-    if (activeDirector.id === 'chefeDep') {
-      setDepRows(reseted);
+  const saveActiveOrderToFirebase = async (itemsList: RowItem[]) => {
+    if (!data) return;
+    const subTab = activeSubTab;
+    const currentSubTabData = data[subTab] || {};
+    const currentActiveOrder = currentSubTabData[orderKey] || {};
+
+    const updatedData = {
+      ...data,
+      [subTab]: {
+        ...currentSubTabData,
+        [orderKey]: {
+          ...currentActiveOrder,
+          items: itemsList
+        }
+      }
+    };
+    await onUpdate(updatedData);
+  };
+
+  const handlePeriodTypeChange = async (newPeriod: 'mensal' | 'semanal') => {
+    if (isReadOnly || isCurrentOrderSigned) return;
+
+    const hasEditPermission = (activeSubTab === 'chefeDep' && isDouglas) || 
+                              (activeSubTab === 'chefeSeg' && isAlfredo) ||
+                              currentUser?.role === 'admin' ||
+                              (currentUser?.role === 'financeiro' && !isReadOnly);
+
+    if (!hasEditPermission) return;
+
+    if (!data) return;
+    const subTab = activeSubTab;
+    const currentSubTabData = data[subTab] || {};
+    const currentActiveOrder = currentSubTabData[orderKey] || {};
+
+    const updatedData = {
+      ...data,
+      [subTab]: {
+        ...currentSubTabData,
+        [orderKey]: {
+          ...currentActiveOrder,
+          periodType: newPeriod
+        }
+      }
+    };
+    await onUpdate(updatedData);
+  };
+
+  // State checks for the current active subtab and category
+  const currentActiveOrder = data?.[activeSubTab]?.[orderKey];
+  const isCurrentOrderSigned = !!currentActiveOrder?.signed;
+
+  const handleDigitalSign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignatureError('');
+    setSignatureSuccess('');
+
+    if (!currentUser || !data) {
+      setSignatureError('Usuário não identificado.');
+      return;
+    }
+
+    const cleanedPassword = passwordInput.trim().replace(/\D/g, '');
+    const userCpf = currentUser.cpf.trim().replace(/\D/g, '');
+
+    // Signature must match their entrance password (their CPF)
+    if (cleanedPassword !== userCpf) {
+      setSignatureError('Senha inválida (A senha digital de validação deve ser igual ao seu CPF de acesso).');
+      return;
+    }
+
+    const subTab = activeSubTab;
+    const isOwner = (subTab === 'chefeDep' && isDouglas) || (subTab === 'chefeSeg' && isAlfredo);
+    if (!isOwner && currentUser.role !== 'admin') {
+      setSignatureError('Seu usuário não possui permissão para validar essa planilha.');
+      return;
+    }
+
+    const timestamp = new Date().toLocaleString('pt-BR');
+    const signerName = subTab === 'chefeDep' ? 'DOUGLAS FERNANDO SEMENZIN GALDINO' : 'ALFREDO GUILHERME LOPES';
+
+    const currentSubTabData = data[subTab] || {};
+    const currentActiveOrderData = currentSubTabData[orderKey] || {};
+
+    const updatedData = {
+      ...data,
+      [subTab]: {
+        ...currentSubTabData,
+        [orderKey]: {
+          ...currentActiveOrderData,
+          signed: true,
+          signedAt: timestamp,
+          signerName: signerName
+        }
+      }
+    };
+
+    const res = await onUpdate(updatedData);
+    if (res.success) {
+      setSignatureSuccess('Assinatura digital autenticada com sucesso!');
+      setPasswordInput('');
     } else {
-      setSegRows(reseted);
-    }
-    setShowClearConfirm(false);
-  };
-
-  const executeFullReset = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.clear();
-      localStorage.setItem('app_version', APP_VERSION);
-      window.location.reload();
+      setSignatureError(res.message || 'Erro ao registrar assinatura.');
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleRevokeSignature = async () => {
+    if (!data) return;
+    const subTab = activeSubTab;
+    const isOwner = (subTab === 'chefeDep' && isDouglas) || (subTab === 'chefeSeg' && isAlfredo);
+    if (!isOwner && currentUser?.role !== 'admin') {
+      alert('Apenas o responsável correspondente ou o Administrador pode remover a assinatura.');
+      return;
+    }
+
+    if (!window.confirm('Deseja realmente revogar a assinatura deste pedido? Ele voltará ao estado de rascunho.')) {
+      return;
+    }
+
+    const currentSubTabData = data[subTab] || {};
+    const currentActiveOrderData = currentSubTabData[orderKey] || {};
+
+    const updatedData = {
+      ...data,
+      [subTab]: {
+        ...currentSubTabData,
+        [orderKey]: {
+          ...currentActiveOrderData,
+          signed: false,
+          signedAt: undefined,
+          signerName: undefined
+        }
+      }
+    };
+
+    const res = await onUpdate(updatedData);
+    if (res.success) {
+      setSignatureSuccess('Assinatura digital revogada de volta a rascunho.');
+    } else {
+      setSignatureError('Erro ao revogar assinatura.');
+    }
   };
 
-  // Filter food items based on selected tab and search
-  const filteredInventory = initialInventory.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          item.expirationDate.includes(searchQuery);
-    if (!matchesSearch) return false;
-
-    if (foodFilter === 'all') return true;
-    if (foodFilter === 'active') {
-      const filledInDep = depRows.map(r => r.itemName.trim().toLowerCase()).filter(Boolean);
-      const filledInDepFull = depRows.map(r => r.itemFullName?.trim().toLowerCase()).filter(Boolean);
-      const filledInSeg = segRows.map(r => r.itemName.trim().toLowerCase()).filter(Boolean);
-      const filledInSegFull = segRows.map(r => r.itemFullName?.trim().toLowerCase()).filter(Boolean);
-
-      const allFilled = [...filledInDep, ...filledInSeg];
-      const allFilledFull = [...filledInDepFull, ...filledInSegFull];
-
-      const isFilled = allFilled.some(name => name.length >= 3 && (item.name.toLowerCase().includes(name) || name.includes(getFirstThreeWords(item.name).toLowerCase())));
-      const isFilledFull = allFilledFull.some(fullName => fullName.length >= 3 && (item.name.toLowerCase().includes(fullName) || fullName.includes(item.name.toLowerCase())));
-
-      return item.isActivePerCapita || isFilled || isFilledFull;
+  const handleClearTable = async () => {
+    if (!data) return;
+    if (!window.confirm('Tem certeza de que deseja limpar totalmente a tabela de itens e a assinatura digital?')) {
+      return;
     }
-    if (foodFilter === 'inStock') return item.stockQty > 0;
-    return true;
-  });
+
+    const emptyItems = Array.from({ length: 25 }, (_, i) => ({
+      index: i + 1,
+      itemName: '',
+      quantity: '',
+      observation: '',
+    }));
+
+    const subTab = activeSubTab;
+    const currentSubTabData = data[subTab] || {};
+
+    const updatedData = {
+      ...data,
+      [subTab]: {
+        ...currentSubTabData,
+        [orderKey]: {
+          items: emptyItems,
+          id: 'atual',
+          signed: false,
+          signedAt: undefined,
+          signerName: undefined
+        }
+      }
+    };
+
+    const res = await onUpdate(updatedData);
+    if (res.success) {
+      setLocalActiveItems(emptyItems);
+      setSignatureSuccess('Tabela limpa com sucesso!');
+    } else {
+      setSignatureError('Erro ao limpar a tabela.');
+    }
+  };
+
+  const handleArchiveOrder = async () => {
+    if (!data) return;
+    const subTab = activeSubTab;
+    const currentSubTabData = data[subTab] || {};
+    const currentActiveOrderData = currentSubTabData[orderKey] || {};
+
+    if (!currentActiveOrderData.signed) {
+      alert('Por favor, assine digitalmente o pedido antes de enviá-lo ao histórico para separação.');
+      return;
+    }
+
+    const filledItems = (currentActiveOrderData.items || []).filter(item => item.itemName.trim() !== '');
+    if (filledItems.length === 0) {
+      alert('Não é possível arquivar um pedido que não possui itens preenchidos.');
+      return;
+    }
+
+    if (!window.confirm('Deseja finalizar esta solicitação e registrá-la no Histórico Permanente? O rascunho atual será reposto para novos preenchimentos.')) {
+      return;
+    }
+
+    const timestampId = `pedido_${Date.now()}`;
+    const formattedDate = new Date().toLocaleString('pt-BR');
+
+    const currentHistory = currentSubTabData[historyKey] || {};
+    const newHistoricalOrder: OrderData = {
+      ...currentActiveOrderData,
+      id: timestampId,
+      createdAt: formattedDate,
+    };
+
+    const emptyItems = Array.from({ length: 25 }, (_, i) => ({
+      index: i + 1,
+      itemName: '',
+      quantity: '',
+      observation: '',
+    }));
+
+    const updatedData = {
+      ...data,
+      [subTab]: {
+        ...currentSubTabData,
+        [orderKey]: {
+          items: emptyItems,
+          id: 'atual',
+          signed: false,
+          signedAt: undefined,
+          signerName: undefined
+        },
+        [historyKey]: {
+          ...currentHistory,
+          [timestampId]: newHistoricalOrder
+        }
+      }
+    };
+
+    const res = await onUpdate(updatedData);
+    if (res.success) {
+      setLocalActiveItems(emptyItems);
+      setSignatureSuccess('Solicitação enviada e adicionada ao histórico de pedidos!');
+      setViewMode('history');
+    } else {
+      alert('Erro ao registrar histórico.');
+    }
+  };
+
+  const handleDeletePastOrder = async (orderId: string) => {
+    if (!data) return;
+    if (!window.confirm('Deseja excluir permanentemente esse pedido do histórico? Essa exclusão é irreversível.')) {
+      return;
+    }
+
+    const subTab = activeSubTab;
+    const currentSubTabData = data[subTab] || {};
+    const currentHistory = { ...(currentSubTabData[historyKey] || {}) };
+    
+    delete currentHistory[orderId];
+
+    const updatedData = {
+      ...data,
+      [subTab]: {
+        ...currentSubTabData,
+        [historyKey]: currentHistory
+      }
+    };
+
+    const res = await onUpdate(updatedData);
+    if (res.success) {
+      if (viewingPastOrder?.id === orderId) {
+        setViewingPastOrder(null);
+        setViewMode('history');
+      }
+      alert('Pedido excluído com sucesso.');
+    } else {
+      alert('Erro ao excluir pedido.');
+    }
+  };
+
+  const handlePrintOrder = (order: OrderData) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Por favor, permita pop-ups para imprimir o relatório.');
+      return;
+    }
+
+    const itemsToPrint = order.items || [];
+    const allItemsHtml = itemsToPrint.map(item => `
+        <tr style="${item.itemName.trim() !== '' ? 'background-color: #f8fafc;' : ''}">
+          <td style="text-align: center; height: 32px;">${item.index}</td>
+          <td style="text-align: left; font-weight: ${item.itemName.trim() !== '' ? 'bold' : 'normal'};">${item.itemName.toUpperCase() || ''}</td>
+          <td style="text-align: center; font-weight: bold; color: #1e3a8a;">${item.quantity || ''}</td>
+          <td style="text-align: left; color: #475569;">${item.observation || ''}</td>
+        </tr>
+    `).join('');
+
+    const titleText = activeSubTab === 'chefeDep' 
+      ? 'PEDIDO DE PER CAPITA - CHEFE DO DEPARTAMENTO' 
+      : 'PEDIDO DE PER CAPITA - CHEFE DE SEGURANÇA INTERNA';
+      
+    const signerSection = activeSubTab === 'chefeDep' 
+      ? 'Divisão de Chefia de Departamento (Administração)' 
+      : 'Divisão de Chefia de Segurança Interna';
+
+    const defaultSignerName = activeSubTab === 'chefeDep'
+      ? 'DOUGLAS FERNANDO SEMENZIN GALDINO'
+      : 'ALFREDO GUILHERME LOPES';
+
+    const timestampText = order.signedAt || 'Não assinada';
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Pedido Per Capita - Validação Digital</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+          body {
+            font-family: 'Inter', sans-serif;
+            margin: 40px;
+            color: #1e293b;
+            background-color: #ffffff;
+            font-size: 11px;
+            line-height: 1.4;
+          }
+          .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #1e3a8a;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+          }
+          .logo {
+            font-size: 18px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+            color: #1e3a8a;
+          }
+          .logo span {
+            color: #ef4444;
+          }
+          .document-title {
+            text-align: right;
+          }
+          .document-title h1 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 800;
+            color: #0f172a;
+            text-transform: uppercase;
+          }
+          .document-title p {
+            margin: 3px 0 0 0;
+            font-size: 8px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+          }
+          .meta-info {
+            background-color: #f1f5f9;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+          }
+          .meta-item {
+            margin: 0;
+            font-size: 10px;
+          }
+          .meta-item strong {
+            color: #0f172a;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+          }
+          th {
+            background-color: #1e3a8a;
+            color: #ffffff;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 9px;
+            padding: 8px;
+            border: 1px solid #1e3a8a;
+            letter-spacing: 0.5px;
+          }
+          td {
+            padding: 6px 8px;
+            border: 1px solid #cbd5e1;
+          }
+          .signatures-container {
+            margin-top: 40px;
+            display: flex;
+            justify-content: center;
+          }
+          .signature-box {
+            border: 2px dashed #94a3b8;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            background-color: #f8fafc;
+            width: 330px;
+          }
+          .signature-box.signed {
+            border: 2px solid #10b981;
+            background-color: #ecfdf5;
+          }
+          .signature-box h3 {
+            margin: 0 0 8px 0;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #475569;
+          }
+          .signature-box.signed h3 {
+            color: #065f46;
+          }
+          .signature-box .seal {
+            background-color: #10b981;
+            color: white;
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 9999px;
+            font-weight: 700;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+          }
+          .signature-box .signer-name {
+            font-size: 12px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 4px;
+          }
+          .signature-box .signer-meta {
+            font-size: 9px;
+            color: #64748b;
+          }
+          .signature-box .empty-seal {
+            color: #94a3b8;
+            font-size: 10px;
+            font-weight: 500;
+            padding: 10px 0;
+          }
+          .footer-note {
+            margin-top: 45px;
+            text-align: center;
+            font-size: 8px;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 15px;
+          }
+          @media print {
+            body {
+              margin: 20px;
+            }
+            .no-print {
+              display: none;
+            }
+            .signature-box {
+              background-color: #ffffff !important;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header-container">
+          <div class="logo">P. TAIÚVA<span>•</span>ESTOQUE</div>
+          <div class="document-title">
+            <h1>${titleText}</h1>
+            <p>Módulo de Estoque - Gestão de Dados P Taiúva</p>
+          </div>
+        </div>
+
+        <div class="meta-info">
+          <div>
+            <p class="meta-item"><strong>Nº Pedido:</strong> ${order.id === 'atual' ? 'RASCUNHO CORRENTE' : order.id.toUpperCase()}</p>
+            <p class="meta-item"><strong>Solicitante Oficial:</strong> ${signerSection}</p>
+            <p class="meta-item"><strong>Preenchimento:</strong> ${order.createdAt || 'Documento em Elaboração'}</p>
+            <p class="meta-item"><strong>Tipo de Per Capita:</strong> <span style="font-weight: bold; color: #1e3a8a;">${(order.periodType || 'semanal').toUpperCase()}</span></p>
+          </div>
+          <div style="text-align: right;">
+            <p class="meta-item"><strong>Status:</strong> ${order.signed ? '<span style="color: #10b981; font-weight: bold;">AUTENTICADO DIGITALMENTE</span>' : '<span style="color: #f59e0b; font-weight: bold;">PENDENTE DE ASSINATURA</span>'}</p>
+            <p class="meta-item"><strong>Data de Impressão:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 45px; text-align: center;">Item</th>
+              <th style="text-align: left;">Descrição do Item Solicitado</th>
+              <th style="width: 100px; text-align: center;">Quantidade</th>
+              <th style="text-align: left;">Observações / Destinação</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${allItemsHtml}
+          </tbody>
+        </table>
+
+        <div class="signatures-container">
+          <div class="signature-box ${order.signed ? 'signed' : ''}">
+            <h3>Validação Eletrônica Autorizada</h3>
+            ${order.signed ? `
+              <div class="seal">Chave Digital Validada</div>
+              <div class="signer-name">${order.signerName || defaultSignerName}</div>
+              <div class="signer-meta">${activeSubTab === 'chefeDep' ? 'Chefe de Departamento' : 'Chefe de Segurança Interna'}</div>
+              <div class="signer-meta">Validado em: ${timestampText}</div>
+            ` : `
+              <div class="empty-seal">Pendente de assinatura eletrônica do responsável</div>
+            `}
+          </div>
+        </div>
+
+        <div class="footer-note">
+          Este documento foi processado digitalmente no sistema integrado da Penitenciária de Taiúva.<br/>
+          A assinatura digital vinculada valida o pedido de separação de cota e instrui a equipe de Almoxarifado.
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
+  const currentActiveOrderToPrint = currentActiveOrder || { items: localActiveItems, id: 'atual', signed: false };
+
+  if (!showChefeDep && !showChefeSeg) {
+    return (
+      <div id="director-per-capita-panel" className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 text-center animate-fade-in max-w-lg mx-auto">
+        <div className="flex flex-col items-center gap-4">
+          <span className="p-4 bg-amber-50 rounded-full text-amber-600">
+            <ShieldCheck className="h-8 w-8 text-amber-600" />
+          </span>
+          <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">
+            Acesso Restrito
+          </h2>
+          <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+            Este painel da Cota Per Capita é de acesso restrito aos diretores autorizados: 
+            <strong className="block mt-1 text-slate-700">Douglas Fernando Semenzin Galdino</strong>
+            ou <strong className="block text-slate-700">Alfredo Guilherme Lopes</strong>.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-slate-50 min-h-screen text-slate-850 flex flex-col font-sans selection:bg-indigo-600 selection:text-white pb-12 transition-all">
-      {/* 1. TOP TICKER MARQUEE AS SHOWN IN IMAGE 3 */}
-      <div className="bg-[#1e2354] dark:bg-slate-950 text-white py-1.5 px-6 border-b border-white/10 text-xs overflow-hidden flex items-center print:hidden">
-        <span className="bg-[#bfdbfe] text-[#1e3a8a] text-[10px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-wider shrink-0 mr-3 animate-pulse">
-          COMUNICADOS:
-        </span>
-        <div className="relative w-full overflow-hidden whitespace-nowrap">
-          <div className="inline-block animate-marquee pl-10 font-medium">
-            O Movimento Maio Amarelo nasceu em 2014, criado pelo Observatório Nacional de Segurança Viária (ONSV) no Brasil, com o objetivo internacional de reduzir acidentes e mortes no trânsito. A cor amarela simboliza atenção e a sinalização de advertência. • Abastecimento Geral Penitenciário SAP SP • Adiantabilidade updated em 30/05/2026.
+    <div id="director-per-capita-panel" className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-fade-in">
+      
+      {/* 1. Header with Dual Tab Switch of Chefs */}
+      <div className="p-4 md:p-6 bg-slate-900 border-b border-slate-800">
+        <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest text-center mb-4">
+          Cota Per Capita dos Diretores
+        </h2>
+        
+        <div className="flex bg-slate-800 p-1.5 rounded-2xl max-w-lg mx-auto border border-slate-700">
+          {showChefeDep && (
+            <button
+              onClick={() => handleTabChange('chefeDep')}
+              className={`flex-1 py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeSubTab === 'chefeDep' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              📝 {isDouglas ? 'Seu Painel: Dep.' : 'Chefe Departamento'}
+            </button>
+          )}
+          {showChefeSeg && (
+            <button
+              onClick={() => handleTabChange('chefeSeg')}
+              className={`flex-1 py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeSubTab === 'chefeSeg' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              👮 {isAlfredo ? 'Seu Painel: Seg.' : 'Segurança Interna'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 2. Responsable Officer Metadata Info Block & Subtabs toggle */}
+      <div className="p-4 md:p-6 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block">Chefia Ativa Selecionada</span>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse"></span>
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                {activeSubTab === 'chefeDep' ? 'Douglas Fernando Semenzin Galdino' : 'Alfredo Guilherme Lopes'}
+              </h3>
+            </div>
+          </div>
+          
+          <div className="flex bg-white rounded-xl p-1 border border-slate-200 shadow-sm w-full md:w-auto">
+            <button
+              onClick={() => { setViewMode('form'); setViewingPastOrder(null); }}
+              className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${viewMode === 'form' && !viewingPastOrder ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              <FileText className="h-3.5 w-3.5" /> Pedido Ativo
+            </button>
+            <button
+              onClick={() => { setViewMode('history'); setViewingPastOrder(null); }}
+              className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${viewMode === 'history' || viewingPastOrder ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              <History className="h-3.5 w-3.5" /> Histórico ({Object.keys(data?.[activeSubTab]?.[historyKey] || {}).length})
+            </button>
           </div>
         </div>
       </div>
 
-      {/* 2. DUAL MAIN HEADER CARD */}
-      <header className="bg-white px-6 md:px-8 py-5 border-b border-slate-200 shadow-sm print:hidden">
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-center gap-4">
-          
-          {/* Brand/Department */}
-          <div className="flex flex-col text-center lg:text-left">
-            <span className="text-[#202758] font-black tracking-wide text-lg md:text-xl font-sans italic uppercase">
-              VISÃO FINANCEIRA INSTITUCIONAL
-            </span>
-            <span className="text-[10px] text-slate-400 font-extrabold tracking-widest uppercase mt-0.5">
-              Monitoramento de Recursos e Despesas
-            </span>
-          </div>
-
-          {/* Central rounded greeting badge */}
-          <div className="bg-[#e0f2fe] border border-blue-200 text-[#0369a1] text-xs md:text-sm font-black px-6 py-2.5 rounded-full shadow-inner text-center max-w-2xl">
-            {getGreeting()}, {getActiveDirectorFullName()}, HOJE TEMOS LIBERADOS OS ADIANTADOS: {activeDirector.id === 'chefeDep' ? 'MARCOS - JULIO' : 'FABIANO - JULIO'}
-          </div>
-
-          {/* Action buttons (Reports and Logout) */}
-          <div className="flex gap-2 shrink-0">
-            <button 
-              onClick={handlePrint}
-              className="bg-[#4834e4] hover:bg-[#341f97] text-white text-[11px] font-extrabold px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-md shadow-[#4834e4]/20 uppercase transition-all"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              RELATÓRIO PDF
-            </button>
-            <button 
-              onClick={() => {
-                setActiveTab('percapita');
-              }}
-              className="bg-[#eb4d4b] hover:bg-[#ff7675] text-white text-[11px] font-extrabold px-3 py-2 rounded-lg flex items-center gap-1 uppercase transition-all"
-            >
-              <X className="w-3.5 h-3.5" />
-              SAIR
-            </button>
-          </div>
+      <div className="p-4 md:p-6">
+        {/* Category Tabs: Alimentação vs Limpeza */}
+        <div className="flex bg-slate-100 p-1.5 rounded-2xl max-w-md mb-6 border border-slate-200">
+          <button
+            onClick={() => {
+              setCategoryTab('alimentacao');
+              setViewingPastOrder(null);
+            }}
+            className={`flex-1 py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+              categoryTab === 'alimentacao'
+                ? 'bg-white text-indigo-700 shadow-md'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            🍎 Alimentação
+          </button>
+          <button
+            onClick={() => {
+              setCategoryTab('limpeza');
+              setViewingPastOrder(null);
+            }}
+            className={`flex-1 py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+              categoryTab === 'limpeza'
+                ? 'bg-white text-indigo-700 shadow-md'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            🧹 Limpeza
+          </button>
         </div>
-      </header>
-
-      {/* 3. PRIMARY NAVIGATION BAR */}
-      <nav className="bg-[#242b5c] shadow-lg sticky top-0 z-40 print:hidden border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 overflow-x-auto scrollbar-none flex">
-          {[
-            { id: 'recursos', label: 'RECURSO DISPONÍVEL', icon: DollarSign },
-            { id: 'adiantamentos', label: 'CONTROLE DE ADIANTAMENTOS', icon: RefreshCw },
-            { id: 'ptres', label: 'SALDOS PTRES / NATUREZA', icon: FileSpreadsheet },
-            { id: 'cardapio', label: '🍴 CARDÁPIO INSTITUCIONAL', icon: UtensilsCrossed, isHighlight: true },
-            { id: 'chegadas', label: '📅 AGENDA DE CHEGADAS', icon: Truck },
-            { id: 'saida', label: '🚗 SAÍDA DE VEÍCULOS', icon: Car },
-            { id: 'percapita', label: '📝 PER CAPITA CHEFE DEP.', icon: AlertTriangle }
-          ].map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id as any);
-                }}
-                className={`flex items-center gap-2 px-5 py-4 text-xs font-black tracking-wider uppercase border-b-4 transition-all outline-none whitespace-nowrap shrink-0 ${
-                  isActive 
-                    ? 'border-yellow-400 text-yellow-400 bg-white/5' 
-                    : tab.isHighlight 
-                      ? 'border-transparent text-yellow-300 hover:text-yellow-100 hover:bg-white/5' 
-                      : 'border-transparent text-slate-200 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {tab.id === 'percapita' ? `PER CAPITA CHEFE ${activeDirector.id === 'chefeDep' ? 'DEP.' : 'SEG.'}` : tab.label}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
-
-      {/* 4. ACTIVE VIEWPORTS INTEGRATED DYNAMICALLY */}
-      <div className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-6 py-6 font-sans">
         
-        {/* TAB 1: RECURSO DISPONÍVEL */}
-        {activeTab === 'recursos' && (
-          <div className="space-y-6 animate-fadeIn">
-            <div className="flex justify-between items-center border-b pb-3">
-              <div>
-                <h2 className="text-xl font-extrabold text-[#1a237e] uppercase">Demonstrativo de Recursos Financeiros</h2>
-                <p className="text-xs text-slate-500">Fluxo geral de recursos e orçamentos para aquisição direta</p>
-              </div>
-              <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
-                <span className="w-2 h-2 bg-emerald-500 rounded-full"></span> Conexão Orçamentária SIAP Net
-              </span>
+        {/* VIEW 1: HISTORY LIST */}
+        {viewMode === 'history' && !viewingPastOrder && (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex items-center gap-2">
+              <History className="h-5 w-5 text-indigo-600" />
+              <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest">
+                Pedidos Finalizados ({categoryTab === 'alimentacao' ? 'Alimentação' : 'Limpeza'}) de {activeSubTab === 'chefeDep' ? 'Chefe de Departamento' : 'Segurança Interna'}
+              </h4>
             </div>
-
-            {/* Quick dashboard figures */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wider">Verba Total Disponível</span>
-                <span className="text-2xl font-black text-[#1a237e] mt-1 block">R$ 545.000,00</span>
-                <div className="text-[10px] text-slate-500 mt-2 flex justify-between">
-                  <span>DEP: R$ 320.000,00</span>
-                  <span>SEG: R$ 225.000,00</span>
-                </div>
-              </div>
-              <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wider">Adiantamentos Consumidos</span>
-                <span className="text-2xl font-black text-amber-600 mt-1 block">R$ 70.000,00</span>
-                <span className="text-[10px] text-emerald-600 mt-2 block font-extrabold">● 100% PRESTADOS OU EM ANÁLISE</span>
-              </div>
-              <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wider">Saldo de Empenho Ativo</span>
-                <span className="text-2xl font-black text-emerald-600 mt-1 block">R$ 380.200,00</span>
-                <span className="text-[10px] text-slate-500 mt-2 block">Dedicado a gêneros alimentares diretos</span>
-              </div>
-              <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wider">Reserva Emergencial</span>
-                <span className="text-2xl font-black text-slate-600 mt-1 block">R$ 94.800,00</span>
-                <span className="text-[10px] text-slate-500 mt-2 block">Para substituições urgentes na cota percapita</span>
-              </div>
-            </div>
-
-            {/* budget breakdown graph */}
-            <div className="bg-white p-6 rounded-xl border border-slate-200 text-center">
-              <TrendingUp className="w-10 h-10 text-indigo-500 mx-auto mb-3" />
-              <h3 className="font-extrabold text-[#1a237e] uppercase mb-1">Taxas de Comprometimento de Saldo Recurso</h3>
-              <p className="text-xs text-slate-500 mb-6">Gráfico demonstrativo de empenhos versus adiantabilidade corrente</p>
-              
-              <div className="space-y-4 max-w-xl mx-auto text-left">
-                <div>
-                  <div className="flex justify-between text-xs font-bold mb-1">
-                    <span>Gêneros Alimentícios Base (DEP)</span>
-                    <span>78% Utilizado (R$ 249.600,00)</span>
-                  </div>
-                  <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                    <div className="bg-[#4834e4] h-full rounded-full" style={{ width: '78%' }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs font-bold mb-1">
-                    <span>Insumos e Produtos de Limpeza (SEG)</span>
-                    <span>42% Utilizado (R$ 94.500,00)</span>
-                  </div>
-                  <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                    <div className="bg-emerald-500 h-full rounded-full" style={{ width: '42%' }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs font-bold mb-1">
-                    <span>Despesas Emergenciais Administrativas</span>
-                    <span>15% Utilizado (R$ 14.220,00)</span>
-                  </div>
-                  <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                    <div className="bg-amber-500 h-full rounded-full" style={{ width: '15%' }}></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: CONTROLE DE ADIANTAMENTOS */}
-        {activeTab === 'adiantamentos' && (
-          <div className="space-y-6 animate-fadeIn">
-            <div className="flex justify-between items-center border-b pb-3">
-              <div>
-                <h2 className="text-xl font-extrabold text-[#1a237e] uppercase">Controle de Adiantamentos Ativos</h2>
-                <p className="text-xs text-slate-500">Valores emergenciais sob responsabilidade direta dos gestores</p>
-              </div>
-              <button 
-                onClick={() => {
-                  setNewAdvanceName('Daniele Garcia Possidonio');
-                  setNewAdvanceRole('Depto. Financeiro');
-                  setNewAdvanceAmt('');
-                  setNewAdvanceDesc('');
-                  setShowNewAdvanceModal(true);
-                }}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3 py-2 rounded-lg flex items-center gap-1 transition-all"
-              >
-                <Plus className="w-3.5 h-3.5" /> NOVO ADIANTAMENTO
-              </button>
-            </div>
-
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider">
-                    <th className="py-3 px-4">GESTOR RESPONÁVEL</th>
-                    <th className="py-3 px-4">VALOR ADIANTADO</th>
-                    <th className="py-3 px-4">FINALIDADE / MOTIVO</th>
-                    <th className="py-3 px-4">DATA LIBERAÇÃO</th>
-                    <th className="py-3 px-4">STATUS FINANCEIRO</th>
-                    <th className="py-3 px-4 text-center">AÇÃO</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 font-medium">
-                  {advances.map(adv => (
-                    <tr key={adv.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-4 font-extrabold text-slate-800">
-                        {adv.name}
-                        <span className="block text-[10px] text-slate-400 font-normal">{adv.role}</span>
-                      </td>
-                      <td className="py-3 px-4 text-slate-900 font-bold">R$ {adv.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                      <td className="py-3 px-4 text-slate-600 max-w-xs">{adv.description}</td>
-                      <td className="py-3 px-4 text-slate-500">{adv.date}</td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                          adv.status === 'Liberado' ? 'bg-emerald-100 text-emerald-850' : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {adv.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <button 
-                          onClick={() => setAdvanceToSettle(adv)}
-                          className="bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 text-slate-600 text-[10px] px-2.5 py-1 rounded"
-                        >
-                          ✓ Prestar Contas
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: SALDOS PTRES / NATUREZA */}
-        {activeTab === 'ptres' && (
-          <div className="space-y-6 animate-fadeIn">
-            <div className="flex justify-between items-center border-b pb-3">
-              <div>
-                <h2 className="text-xl font-extrabold text-[#1a237e] uppercase">Saldos Disponíveis - PTRES / Natureza de Despesa</h2>
-                <p className="text-xs text-slate-500">Planejamento Orçamentário e Classificação de Insumos da Unidade</p>
-              </div>
-              <span className="bg-slate-100 text-slate-600 text-xs px-2.5 py-1 rounded border">Valores de Exercício Atual - 2026</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {ptresList.map(pt => {
-                const currentPct = Math.round((pt.current / pt.initial) * 100);
-                return (
-                  <div key={pt.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <span className="bg-[#1a237e] text-white text-[10px] font-black px-2 py-0.5 rounded uppercase">
-                          PTRES {pt.id}
-                        </span>
-                        <span className="text-xs font-bold text-slate-400">Natureza: {pt.code}</span>
-                      </div>
-                      <span className={`text-xs font-extrabold ${pt.color === 'rose' ? 'text-rose-600' : 'text-[#1a237e]'}`}>{currentPct}% Saldo Livre</span>
-                    </div>
-                    <p className="font-extrabold text-sm text-slate-800 leading-normal">{pt.desc}</p>
-                    
-                    <div className="flex justify-between text-xs pt-1.5 border-t">
-                      <span>Saldo Inicial: <strong>R$ {pt.initial.toLocaleString('pt-BR')}</strong></span>
-                      <span className="text-slate-900 font-bold">Saldo Corrente: R$ {pt.current.toLocaleString('pt-BR')}</span>
-                    </div>
-
-                    <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mt-1">
-                      <div className={`h-full rounded-full ${
-                        pt.color === 'rose' ? 'bg-red-500' : pt.color === 'amber' ? 'bg-amber-500' : pt.color === 'emerald' ? 'bg-emerald-500' : 'bg-indigo-500'
-                      }`} style={{ width: `${currentPct}%` }}></div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 4: CARDÁPIO INSTITUCIONAL */}
-        {activeTab === 'cardapio' && (
-          <div className="space-y-6 animate-fadeIn">
-            <div className="flex justify-between items-center border-b pb-3">
-              <div>
-                <h2 className="text-xl font-extrabold text-[#1a237e] uppercase">🍴 Cardápio Semanal Sugerido</h2>
-                <p className="text-xs text-slate-500">Planejamento das refeições elaboradas pelo Setor de Nutrição</p>
-              </div>
-              <span className="bg-yellow-100 text-yellow-800 text-xs font-black px-3 py-1 rounded-full uppercase">Cardápio em Alta</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {[
-                { day: 'SEGUNDA-FEIRA', b: 'Preparo: Arroz, Pão Francês com manteiga e café com leite integral.', l: 'Carne de Panela moída com legumes frescos (abóbora, batata e cenoura), feijão e salada.', d: 'Caldo quentinho de feijão com macarrão e torrada temperada.' },
-                { day: 'TERÇA-FEIRA', b: 'Preparo: Mingau de aveia tradicional com canela, café preto adoçado.', l: 'Almôndegas ao molho vermelho encorpado, arroz agulhinha e acompanhamento verde.', d: 'Sopa de legumes batidos com tiras finas de frango grelhado.' },
-                { day: 'QUARTA-FEIRA', b: 'Preparo: Pão de leite fatiado com queijo minas frescal, chá quente.', l: 'Feijoada leve com bacon defumado em cubos, couve refogada e gomos de laranja.', d: 'Canja de galinha desfiada com grãos cozidos e cheiro-verde.' },
-                { day: 'QUINTA-FEIRA', b: 'Preparo: Salada de frutas picadas com mel, pão integral e leite.', l: 'Frango assado em pedaços suculentos, arroz dourado e feijão carioca tipo 1.', d: 'Sopa de lentilha nutritiva com croutons de pão caseiro.' }
-              ].map((c, i) => (
-                <div key={i} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col justify-between">
-                  <div className="bg-[#1e2354] px-4 py-2.5 text-center text-white text-xs font-black tracking-widest uppercase">
-                    {c.day}
-                  </div>
-                  <div className="p-4 space-y-3.5 flex-1 divide-y divide-slate-100">
-                    <div className="text-xs">
-                      <span className="font-extrabold text-[#1a237e] block uppercase text-[10px]">Café da Manhã</span>
-                      <p className="text-slate-600 mt-1 leading-normal font-medium">{c.b}</p>
-                    </div>
-                    <div className="text-xs pt-3">
-                      <span className="font-extrabold text-[#1a237e] block uppercase text-[10px]">Almoço Principal</span>
-                      <p className="text-slate-600 mt-1 leading-normal font-medium">{c.l}</p>
-                    </div>
-                    <div className="text-xs pt-3">
-                      <span className="font-extrabold text-[#1a237e] block uppercase text-[10px]">Jantar Geral</span>
-                      <p className="text-slate-600 mt-1 leading-normal font-medium">{c.d}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 5: AGENDA DE CHEGADAS */}
-        {activeTab === 'chegadas' && (
-          <div className="space-y-6 animate-fadeIn">
-            <div className="flex justify-between items-center border-b pb-3">
-              <div>
-                <h2 className="text-xl font-extrabold text-[#1a237e] uppercase">📅 Agenda de Chegadas de Insumos</h2>
-                <p className="text-xs text-slate-500">Logística de fornecedores cadastrados na portaria principal em tempo real</p>
-              </div>
-              <button 
-                onClick={() => {
-                  setArrivals([...arrivals, {
-                    id: 'SH' + (arrivals.length + 30),
-                    carrier: 'Comercial Alvorada Eireli',
-                    plate: 'EDH-5V32',
-                    cargo: 'Suplementos Alimentares e Leite UHT',
-                    scheduled: '16:45',
-                    real: 'A caminho',
-                    status: 'Em Trânsito'
-                  }]);
-                }}
-                className="bg-[#1e2354] hover:bg-slate-900 text-white font-extrabold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1 shadow transition-all"
-              >
-                <Plus className="w-3.5 h-3.5" /> AGENDAR NOVO HISTÓRICO
-              </button>
-            </div>
-
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider">
-                    <th className="py-3 px-4">NOTIFICAÇÃO REF</th>
-                    <th className="py-3 px-4">DISTRIBUIDORA / ABASTECEDOR</th>
-                    <th className="py-3 px-4">PLACA VEÍCULO</th>
-                    <th className="py-3 px-4">VEÍCULO / CARGA</th>
-                    <th className="py-3 px-4">JANELA AGENDADA</th>
-                    <th className="py-3 px-4">CHEGADA REAL</th>
-                    <th className="py-3 px-4">LOGÍSTICA STATUS</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 font-medium">
-                  {arrivals.map(arr => (
-                    <tr key={arr.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-4 font-black text-indigo-600">{arr.id}</td>
-                      <td className="py-3 px-4 font-bold text-slate-800">{arr.carrier}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-600">{arr.plate}</td>
-                      <td className="py-3 px-4 text-slate-600">{arr.cargo}</td>
-                      <td className="py-3 px-4 text-slate-900 font-bold">{arr.scheduled}</td>
-                      <td className="py-3 px-4 text-slate-500">{arr.real}</td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                          arr.status === 'Pátio Interno' 
-                            ? 'bg-emerald-100 text-emerald-850' 
-                            : arr.status === 'Em Trânsito' 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : 'bg-amber-100 text-amber-800'
-                        }`}>
-                          {arr.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 6: SAÍDA DE VEÍCULOS */}
-        {activeTab === 'saida' && (
-          <div className="space-y-6 animate-fadeIn">
-            <div className="flex justify-between items-center border-b pb-3">
-              <div>
-                <h2 className="text-xl font-extrabold text-[#1a237e] uppercase">🚗 Ordem de Saída de Veículos (VTR)</h2>
-                <p className="text-xs text-slate-500">Monitoramento e autorização de transporte externo de bens</p>
-              </div>
-              <button 
-                onClick={() => {
-                  setVehicleExits([...vehicleExits, {
-                    id: vehicleExits.length + 101,
-                    plate: 'FGT-2910',
-                    driver: 'Motorista Lima',
-                    destination: 'Supermercado Atacadão Varejo',
-                    departure: '15:10',
-                    returnTime: '--:--',
-                    purpose: 'Aquisição secundária de frutas e ovos',
-                    status: 'Em Trânsito'
-                  }]);
-                }}
-                className="bg-[#1e2354] hover:bg-slate-900 text-white font-extrabold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow transition-all"
-              >
-                <Plus className="w-3.5 h-3.5" /> EMITIR REGISTRO SAÍDA
-              </button>
-            </div>
-
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider">
-                    <th className="py-3 px-4">ORDEM N°</th>
-                    <th className="py-3 px-4">PLACA VTR</th>
-                    <th className="py-3 px-4">MOTORISTA CONDUTOR</th>
-                    <th className="py-3 px-4">DESTINAÇÃO DETALHADA</th>
-                    <th className="py-3 px-4">FORA DA UNIDADE</th>
-                    <th className="py-3 px-4">RETORNO CONFIRMADO</th>
-                    <th className="py-3 px-4">MISSÃO FINALIDADE</th>
-                    <th className="py-3 px-4">STATUS</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 font-medium">
-                  {vehicleExits.map(ex => (
-                    <tr key={ex.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-4 font-black">{ex.id}</td>
-                      <td className="py-3 px-4 font-mono font-black text-indigo-650">{ex.plate}</td>
-                      <td className="py-3 px-4 font-bold text-slate-800">{ex.driver}</td>
-                      <td className="py-3 px-4 text-slate-600">{ex.destination}</td>
-                      <td className="py-3 px-4 text-slate-900 font-bold">{ex.departure}</td>
-                      <td className="py-3 px-4 text-slate-550">{ex.returnTime}</td>
-                      <td className="py-3 px-4 text-slate-500 italic max-w-xs">{ex.purpose}</td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                          ex.status === 'Concluído' ? 'bg-emerald-100 text-emerald-850' : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {ex.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 7: PER CAPITA CHEFE DEP. (ACTIVE IN IMAGE 3) */}
-        {activeTab === 'percapita' && (
-          <div className="space-y-6 animate-fadeIn">
             
-            {/* Screen layout framed exactly based on third image */}
-            <div className="bg-[#0b1329] border border-slate-850 rounded-2xl p-6 shadow-2xl relative text-white">
-              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#4834e4] via-yellow-400 to-[#eb4d4b] rounded-t-2xl"></div>
-
-              {/* Title Section (COTA PER CAPITA DOS DIRETORES and button panel) */}
-              <div className="text-center pb-5 mb-6 border-b border-white/10">
-                <h2 className="text-base md:text-lg font-black tracking-widest uppercase text-white">
-                  COTA PER CAPITA DOS DIRETORES
-                </h2>
-                
-                {/* Large center button indicator */}
-                <div className="mt-4 flex justify-center">
-                  <span className="bg-[#4834e4] border border-[#686de0] text-white text-xs font-black px-8 py-2.5 rounded-lg shadow-lg flex items-center gap-2 uppercase">
-                    📝 SEU PAINEL: {activeDirector.id === 'chefeDep' ? 'DEP.' : 'SEG.'}
-                  </span>
-                </div>
+            {(!data?.[activeSubTab]?.[historyKey] || Object.keys(data?.[activeSubTab]?.[historyKey]).length === 0) ? (
+              <div className="p-12 text-center bg-slate-50 border border-dashed border-slate-200 rounded-3xl">
+                <FileText className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-xs text-slate-400 font-extrabold uppercase tracking-widest">Nenhum pedido de {categoryTab === 'alimentacao' ? 'alimentação' : 'limpeza'} no histórico permanente.</p>
+                <p className="text-[10px] text-slate-400 font-semibold mt-1">Preencha o formulário e valide-o digitalmente para poder arquivar pedidos.</p>
               </div>
-
-              {/* Active Selection, Active Order, History Buttons Block */}
-              <div className="bg-[#111c2e] p-4 rounded-xl border border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                
-                {/* Active chief */}
-                <div className="flex flex-col">
-                  <span className="text-[9px] text-[#0369a1] font-extrabold uppercase tracking-widest">
-                    CHEFIA ATIVA SELECIONADA
-                  </span>
-                  <div className="flex items-center gap-2.5 mt-1">
-                    <span className="w-2.5 h-2.5 bg-indigo-400 rounded-full animate-ping shrink-0"></span>
-                    <button 
-                      onClick={() => setActiveDirector(activeDirector.id === 'chefeDep' ? DIRECTORS[1] : DIRECTORS[0])}
-                      className="text-sm md:text-base font-black text-white hover:text-yellow-400 cursor-pointer transition-colors uppercase text-left flex items-center gap-1 border-b border-dashed border-white/20"
-                      title="Clique para alternar gestor responsável"
-                    >
-                      {activeDirector.name.toUpperCase()} (Alternar)
-                    </button>
-                  </div>
-                </div>
-
-                {/* Subportaria toggles as requested in the image */}
-                <div className="flex gap-2">
-                  <button className="bg-[#4834e4] text-white text-xs font-black px-4 py-2.5 rounded-lg border border-indigo-400 shadow flex items-center gap-1.5 uppercase">
-                    <Check className="w-3.5 h-3.5" /> PEDIDO ATIVO
-                  </button>
-                  <button className="bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-black px-4 py-2.5 rounded-lg border border-slate-700 flex items-center gap-1.5 uppercase">
-                    <Calendar className="w-3.5 h-3.5" /> HISTÓRICO (0)
-                  </button>
-                </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-[9px] uppercase font-black tracking-widest text-slate-400 border-b border-slate-100">
+                      <th className="p-3">Data Envio / Arquivo</th>
+                      <th className="p-3">Responsável</th>
+                      <th className="p-3 text-center">Tipo</th>
+                      <th className="p-3 text-center">Produtos do Pedido</th>
+                      <th className="p-3 text-center">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-xs font-semibold text-slate-700 divide-y divide-slate-100">
+                    {Object.values(data?.[activeSubTab]?.[historyKey] || {})
+                      .sort((a, b) => {
+                        const timeA = a.id.replace('pedido_', '');
+                        const timeB = b.id.replace('pedido_', '');
+                        return Number(timeB) - Number(timeA);
+                      })
+                      .map((pastOrder) => {
+                        const filledCount = (pastOrder.items || []).filter(i => i.itemName.trim() !== '').length;
+                        return (
+                          <tr key={pastOrder.id} className="hover:bg-slate-50/50 transition-all">
+                            <td className="p-3 text-[11px] font-bold text-slate-900">{pastOrder.createdAt || pastOrder.signedAt || 'N/A'}</td>
+                            <td className="p-3">
+                              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
+                                <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                                {pastOrder.signerName || 'Chefia Validada'}
+                              </div>
+                            </td>
+                            <td className="p-3 text-center">
+                              <span className={`inline-block text-[9px] font-extrabold tracking-wider px-2.5 py-1 rounded-full uppercase ${pastOrder.periodType === 'mensal' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-700 border border-slate-200'}`}>
+                                {pastOrder.periodType === 'mensal' ? '📅 Mensal' : '⏳ Semanal'}
+                              </span>
+                            </td>
+                            <td className="p-3 text-center font-black text-indigo-600 text-[11px]">{filledCount} / 25 Itens</td>
+                            <td className="p-3 text-center">
+                              <div className="flex gap-2 justify-center">
+                                <button
+                                  onClick={() => setViewingPastOrder(pastOrder)}
+                                  className="bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-700 font-black px-3 py-1.5 rounded-xl text-[9px] uppercase transition-all"
+                                >
+                                  👁️ Detalhes
+                                </button>
+                                <button
+                                  onClick={() => handlePrintOrder(pastOrder)}
+                                  className="bg-indigo-50 hover:bg-slate-900 hover:text-white text-indigo-700 font-black px-3 py-1.5 rounded-xl text-[9px] uppercase transition-all flex items-center gap-1"
+                                >
+                                  <Printer className="h-3 w-3" /> Imprimir
+                                </button>
+                                {(!isReadOnly && (isDouglas && activeSubTab === 'chefeDep' || isAlfredo && activeSubTab === 'chefeSeg' || currentUser?.role === 'admin')) && (
+                                  <button
+                                    onClick={() => handleDeletePastOrder(pastOrder.id)}
+                                    className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-black p-1.5 rounded-xl transition-all"
+                                    title="Excluir Permanentemente"
+                                  >
+                                    <Trash className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
               </div>
+            )}
+          </div>
+        )}
 
-              {/* Category Filters + Target Period Selection as in image */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-center mb-6">
-                
-                {/* Alimentacao vs Limpeza Category Tab Toggles */}
-                <div className="bg-[#111c2e] p-1 rounded-xl border border-white/5 flex gap-1 max-w-md">
-                  <button 
-                    onClick={() => setCategoryFilter('alimentacao')}
-                    className={`flex-1 py-2 text-xs font-black tracking-wider uppercase rounded-lg transition-all outline-none flex justify-center items-center gap-1.5 ${
-                      categoryFilter === 'alimentacao' 
-                        ? 'bg-white text-slate-900 shadow-md font-bold' 
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    🍎 ALIMENTAÇÃO
-                  </button>
-                  <button 
-                    onClick={() => setCategoryFilter('limpeza')}
-                    className={`flex-1 py-2 text-xs font-black tracking-wider uppercase rounded-lg transition-all outline-none flex justify-center items-center gap-1.5 ${
-                      categoryFilter === 'limpeza' 
-                        ? 'bg-white text-slate-900 shadow-md font-bold' 
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    🧹 LIMPEZA
-                  </button>
-                </div>
-
-                {/* Reference Period Selector */}
-                <div className="bg-[#111c2e] p-4 rounded-xl border border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">PERÍODO DE REFERÊNCIA DA PER CAPITA</span>
-                    <span className="text-[10px] text-[#0369a1] font-bold block mt-0.5">Selecione se o consumo será semanal ou mensal para este rascunho de pedido de diretor</span>
-                  </div>
-                  <div className="bg-slate-900 p-0.5 rounded-lg border border-slate-850 flex gap-1 self-end md:self-auto">
-                    <button 
-                      onClick={() => setPeriodFilter('semanal')}
-                      className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-md transition-all ${
-                        periodFilter === 'semanal' ? 'bg-[#4834e4] text-white font-bold' : 'text-slate-400'
-                      }`}
-                    >
-                      ⏳ SEMANAL
-                    </button>
-                    <button 
-                      onClick={() => setPeriodFilter('mensal')}
-                      className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-md transition-all ${
-                        periodFilter === 'mensal' ? 'bg-[#4834e4] text-white font-bold' : 'text-slate-400'
-                      }`}
-                    >
-                      📅 MENSAL
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Rascunho Corrente Action Header Banner */}
-              <div className="bg-[#111c2e] px-4 py-3 rounded-t-xl border-l-[6px] border-[#4834e4] flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shadow-md mb-0.5">
+        {/* VIEW 2: DETAILS OF HISTORICAL ORDER */}
+        {viewingPastOrder && (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex justify-between items-center bg-slate-900 text-white rounded-3xl p-4 gap-4">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setViewingPastOrder(null)}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white p-2 rounded-xl transition-all"
+                  title="Voltar ao Histórico"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 bg-yellow-400 rounded-full animate-pulse shrink-0"></span>
-                    <span className="text-yellow-400 text-xs font-black tracking-widest uppercase">
-                      ● RASCUNHO CORRENTE: {activeDirector.id === 'chefeDep' ? 'DEP.' : 'SEG.'}
+                  <h4 className="text-[10px] uppercase font-black text-indigo-400 tracking-wider">Visualizando Pedido Arquivado</h4>
+                  <p className="text-[12px] font-black flex items-center gap-2">
+                    {viewingPastOrder.createdAt}
+                    <span className="bg-indigo-700/55 text-indigo-150 text-[8px] font-extrabold uppercase px-2.5 py-0.5 rounded-full tracking-wider select-none border border-indigo-500/20">
+                      {viewingPastOrder.periodType === 'mensal' ? '📅 Mensal' : '⏳ Semanal'}
                     </span>
-                  </div>
-                  <h2 className="text-[10px] text-slate-400 font-extrabold tracking-wider mt-0.5 uppercase">
-                    DIGITE AS COTAÇÕES NAS 25 LINHAS ABAIXO
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => handlePrintOrder(viewingPastOrder)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-2.5 px-4 rounded-xl text-[10px] uppercase tracking-wider flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+              >
+                <Printer className="h-3.5 w-3.5" /> Imprimir
+              </button>
+            </div>
+
+            <div className="bg-emerald-50 border border-emerald-200 px-5 py-3 rounded-2xl flex items-center gap-3.5">
+              <div className="bg-emerald-500 text-white p-1 rounded-full">
+                <CheckCircle className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-[10px] text-emerald-800 font-black uppercase">
+                  PEDIDO AUTENTICADO DE FORMA ELETRÔNICA
+                </p>
+                <p className="text-[10px] font-bold text-slate-600 mt-0.5">
+                  Assinado por: {viewingPastOrder.signerName} • Data: {viewingPastOrder.signedAt}
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <div className="min-w-[650px]">
+                <div className="grid grid-cols-[60px_1fr_120px_2fr] gap-2 md:gap-3 mb-2 bg-slate-100 p-3 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                  <div>Item</div>
+                  <div className="text-left">Nome do Item</div>
+                  <div>Quantidade</div>
+                  <div className="text-left">Observações / Destinar</div>
+                </div>
+
+                <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
+                  {(viewingPastOrder.items || []).map((item) => (
+                    <div
+                      key={item.index}
+                      className={`grid grid-cols-[60px_1fr_120px_2fr] gap-2 md:gap-3 items-center p-2 rounded-2xl border ${
+                        item.itemName.trim() !== '' ? 'bg-slate-50 border-slate-200 shadow-sm' : 'bg-white border-slate-100'
+                      }`}
+                    >
+                      <div className="flex justify-center">
+                        <span className="h-7 w-7 rounded-lg bg-slate-100 text-slate-400 font-black text-xs flex items-center justify-center border border-slate-200">
+                          {item.index}
+                        </span>
+                      </div>
+                      <div className="px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100/40 rounded-xl">
+                        {item.itemName || <span className="text-slate-300">-</span>}
+                      </div>
+                      <div className="px-3 py-2 text-center text-xs font-black text-indigo-600 bg-slate-100/40 rounded-xl">
+                        {item.quantity || <span className="text-slate-300">-</span>}
+                      </div>
+                      <div className="px-3 py-2 text-xs text-slate-500 bg-slate-100/40 rounded-xl">
+                        {item.observation || <span className="text-slate-300">-</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-start pt-2">
+              <button
+                onClick={() => setViewingPastOrder(null)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-[10px] uppercase py-2.5 px-5 rounded-xl transition-all"
+              >
+                Voltar ao Histórico
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 3: ACTIVE DRAFT FORM SUMMARY */}
+        {viewMode === 'form' && !viewingPastOrder && (
+          <div className="space-y-4 animate-fade-in">
+            
+            {/* Period selector: Mensal or Semanal */}
+            <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+              <div>
+                <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block">Período de Referência da Per Capita</span>
+                <span className="text-[10px] text-slate-500 font-semibold mt-0.5 block sm:inline">Selecione se o consumo será semanal ou mensal para este rascunho de pedido de diretor.</span>
+              </div>
+              
+              <div className="flex bg-slate-200/50 p-1 rounded-2xl w-full sm:w-auto">
+                <button
+                  type="button"
+                  disabled={isReadOnly || isCurrentOrderSigned}
+                  onClick={() => handlePeriodTypeChange('semanal')}
+                  className={`flex-1 sm:flex-none px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                    (currentActiveOrder?.periodType || 'semanal') === 'semanal' 
+                      ? 'bg-indigo-600 text-white shadow-sm' 
+                      : 'text-slate-500 hover:text-slate-700 disabled:opacity-50'
+                  }`}
+                >
+                  ⏳ Semanal
+                </button>
+                <button
+                  type="button"
+                  disabled={isReadOnly || isCurrentOrderSigned}
+                  onClick={() => handlePeriodTypeChange('mensal')}
+                  className={`flex-1 sm:flex-none px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                    (currentActiveOrder?.periodType || 'semanal') === 'mensal' 
+                      ? 'bg-indigo-600 text-white shadow-sm' 
+                      : 'text-slate-500 hover:text-slate-700 disabled:opacity-50'
+                  }`}
+                >
+                  📅 Mensal
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-900 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${isCurrentOrderSigned ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50' : 'bg-amber-500 animate-pulse bg-logo'}`}></span>
+                  <h2 className="text-sm font-black text-white uppercase tracking-tighter flex items-center gap-1.5">
+                    {activeSubTab === 'chefeDep' ? 'Rascunho Corrente: Dep.' : 'Rascunho Corrente: Seg.'}
                   </h2>
                 </div>
-
-                <div className="flex gap-2 w-full md:w-auto">
-                  {/* Clear button */}
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                  Digite as cotações nas 25 linhas abaixo
+                </p>
+              </div>
+              
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <button
+                  onClick={() => handlePrintOrder(currentActiveOrderToPrint)}
+                  className="flex-1 md:flex-none justify-center bg-indigo-600 hover:bg-slate-800 text-white font-black py-2.5 px-5 rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all"
+                >
+                  <Printer className="h-4 w-4" />
+                  Imprimir Pedido
+                </button>
+                {!isReadOnly && !isCurrentOrderSigned && (
                   <button
                     onClick={handleClearTable}
-                    className="bg-slate-800 hover:bg-rose-950 border border-slate-700/80 text-slate-350 hover:text-white px-3 py-1.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-all"
+                    className="md:flex-none bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-black p-2.5 rounded-xl transition-all"
+                    title="Limpar Tabela Inteira"
                   >
-                    <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                    LIMPAR CAMPO
+                    <Trash2 className="h-4 w-4" />
                   </button>
-
-                  {/* Reset system / cache cleanup button */}
-                  <button
-                    onClick={() => setShowResetConfirm(true)}
-                    className="bg-slate-800 hover:bg-amber-950 border border-slate-700/80 text-amber-350 hover:text-white px-3 py-1.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-all"
-                    title="Se o sistema estiver travado ou com dados desatualizados, clique aqui para restaurar padrões originais"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5 text-amber-450" />
-                    RESETAR CACHE / RESTAURAR
-                  </button>
-
-                  {/* Print command */}
-                  <button
-                    onClick={handlePrint}
-                    className="bg-[#4834e4] hover:bg-[#341f97] text-white font-black px-4 py-1.5 rounded-lg text-[10px] flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 transition-all ml-auto md:ml-0"
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    IMPRIMIR PEDIDO
-                  </button>
-                </div>
+                )}
               </div>
-
-              {/* Main table list with 25 customizable rows */}
-              <div className="bg-[#111c2e]/60 border border-white/5 shadow-2xl rounded-b-xl overflow-x-auto">
-                <div className="grid grid-cols-[50px_2.2fr_1.1fr_2.2fr] gap-3 text-slate-300 text-[10px] font-black uppercase tracking-widest px-4 py-3 border-b border-white/5 bg-slate-900/60 font-sans">
-                  <div>REF</div>
-                  <div>NOME DO ITEM (Apenas as 3 primeiras palavras para otimização)</div>
-                  <div>QUANTIDADE</div>
-                  <div>OBSERVAÇÕES / DESTINAÇÃO</div>
-                </div>
-
-                <div className="divide-y divide-white/5">
-                  {activeRows.map((row, idx) => (
-                    <div 
-                      key={row.ref} 
-                      className={`grid grid-cols-[50px_2.2fr_1.1fr_2.2fr] gap-3 items-center px-4 py-2 hover:bg-slate-900/40 transition-colors ${
-                        activeRowIndex === idx ? 'bg-indigo-600/10 border-l-2 border-indigo-400' : ''
-                      }`}
-                      onClick={() => setActiveRowIndex(idx)}
-                    >
-                      {/* REF ID block */}
-                      <div className="flex items-center">
-                        <span className="w-7 h-7 bg-slate-850 text-slate-300 font-extrabold text-xs rounded-full flex items-center justify-center border border-white/10">
-                          {row.ref}
-                        </span>
-                      </div>
-
-                      {/* ITEM AUTOCOMPLETE INTERACTIVE FIELD */}
-                      <div className="relative" ref={activeRowIndex === idx ? autocompleteRef : null}>
-                        <input
-                          type="text"
-                          placeholder="Escreva para buscar ou digite livre..."
-                          value={row.itemName}
-                          onChange={(e) => {
-                            handleRowChange(idx, 'itemName', e.target.value);
-                            setShowSuggestions(idx);
-                          }}
-                          onFocus={() => {
-                            setActiveRowIndex(idx);
-                            setShowSuggestions(idx);
-                          }}
-                          className="w-full bg-[#0a0f1d] border border-slate-700/60 hover:border-slate-500 rounded-lg px-3 py-1.5 text-xs text-white font-black uppercase focus:outline-none focus:border-[#4834e4] focus:bg-[#060a13] placeholder-slate-500 transition-all"
-                        />
-
-                        {/* Quick indicator if item has long full name loaded */}
-                        {row.itemFullName && row.itemFullName !== row.itemName && (
-                          <div className="absolute right-2 top-2 group">
-                            <Info className="w-4 h-4 text-slate-400 hover:text-indigo-400 cursor-help" />
-                            <span className="absolute bottom-full right-0 mb-2 w-72 hidden group-hover:block bg-[#050912] text-slate-100 border border-indigo-500 text-[10px] p-2.5 rounded-lg shadow-2xl z-50 normal-case leading-relaxed font-normal">
-                              <strong className="text-indigo-400 block mb-0.5">Especificação Completa:</strong>
-                              {row.itemFullName}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Dynamic Suggestions List */}
-                        {showSuggestions === idx && row.itemName.trim().length > 0 && (
-                          <div className="absolute left-0 mt-1.5 w-full bg-[#060b14] border border-[#1e2e4b] rounded-lg shadow-2xl z-50 max-h-56 overflow-y-auto divide-y divide-white/5 animate-fadeIn">
-                            {initialInventory
-                              .filter(item => item.name.toLowerCase().includes(row.itemName.toLowerCase()))
-                              .map(item => (
-                                <button
-                                  key={item.id}
-                                  type="button"
-                                  onClick={() => handleSelectSuggestion(idx, item)}
-                                  className="w-full text-left px-3 py-2 text-[11px] text-slate-300 hover:bg-slate-800 hover:text-white flex justify-between gap-1.5"
-                                >
-                                  <div className="flex flex-col">
-                                    <span className="font-bold underline text-indigo-400">
-                                      {getFirstThreeWords(item.name)}
-                                    </span>
-                                    <span className="text-[9px] text-slate-400 mt-0.5 line-clamp-1">{item.name}</span>
-                                    <span className="text-[9px] text-emerald-500 mt-1 font-bold">
-                                      Qtd: {item.stockQty} {item.unit} | Lote: {item.lote} | Val: {item.expirationDate}
-                                    </span>
-                                  </div>
-                                  <span className={`text-[9px] px-1.5 self-center rounded-full capitalize ${
-                                    item.category === 'alimentacao' ? 'bg-orange-950 text-orange-400' : 'bg-blue-950 text-blue-400'
-                                  }`}>
-                                    {item.category === 'alimentacao' ? 'Comida' : 'Limpeza'}
-                                  </span>
-                                </button>
-                              ))}
-                          </div>
-                        )}
-
-                        {/* Instant visual confirmation of Stock Balance and Expiration when item matches */}
-                        {(() => {
-                          const matchedItem = getInventoryItemDetails(row);
-                          if (matchedItem) {
-                            return (
-                              <div className="mt-1.5 flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-slate-400 capitalize tracking-wide font-sans animate-fadeIn">
-                                <span className="text-[#38bdf8] bg-[#0284c7]/20 border border-[#0369a1]/30 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                  📦 Estoque: <strong className="text-white font-black">{matchedItem.stockQty} {matchedItem.unit}</strong>
-                                </span>
-                                <span className="text-amber-400 bg-amber-950/30 border border-amber-900/30 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                  📅 Validade: <strong className="text-white font-black">{matchedItem.expirationDate}</strong>
-                                </span>
-                              </div>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </div>
-
-                      {/* QUANTITY selector */}
-                      <div>
-                        <input
-                          type="text"
-                          placeholder="Ex: 10 Sacos"
-                          value={row.quantity}
-                          onChange={(e) => handleRowChange(idx, 'quantity', e.target.value)}
-                          className="w-full bg-[#0a0f1d] border border-slate-700/60 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-[#4834e4] focus:bg-[#060a13] font-bold"
-                        />
-                      </div>
-
-                      {/* OBSERVATIONS target */}
-                      <div>
-                        <input
-                          type="text"
-                          placeholder="Ex: Destinação da Ala sul..."
-                          value={row.observations}
-                          onChange={(e) => handleRowChange(idx, 'observations', e.target.value)}
-                          className="w-[#0a0f1d] w-full bg-[#0a0f1d] border border-slate-700/60 rounded-lg px-3 py-1.5 text-xs text-slate-400 focus:outline-none focus:border-[#4834e4] focus:bg-[#060a13]"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Bottom Stock Selector Portal directly linked underneath */}
-              <div className="mt-8 bg-[#111c2e] border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
-                
-                {/* Header title for stock logs */}
-                <div className="p-5 border-b border-white/5 bg-slate-900/60 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                  <div className="flex items-start gap-2">
-                    <span className="w-3.5 h-3.5 bg-yellow-400 rounded-full animate-bounce shrink-0 mt-1"></span>
-                    <div>
-                      <h3 className="text-sm font-black uppercase text-white tracking-wider">
-                        🍲 SALDO DE ITENS EM ESTOQUE
-                      </h3>
-                      <p className="text-[10px] text-[#0369a1] font-extrabold tracking-wider mt-0.5 uppercase">
-                        Visualização do Inventário de Abastecimento Geral para Lançamento Rápido
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Stock quick categorizer */}
-                  <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                    <button
-                      onClick={() => setFoodFilter('all')}
-                      className={`text-[10px] font-black uppercase px-3 py-2 rounded-lg transition-all ${
-                        foodFilter === 'all' ? 'bg-[#4834e4] text-white shadow font-bold' : 'bg-slate-800 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      🍲 CARDÁPIO / GERAL
-                    </button>
-                    <button
-                      onClick={() => setFoodFilter('active')}
-                      className={`text-[10px] font-black uppercase px-3 py-2 rounded-lg transition-all ${
-                        foodFilter === 'active' ? 'bg-[#4834e4] text-white shadow font-bold' : 'bg-slate-800 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      🍊 ATIVOS NA PERCAPITA
-                    </button>
-                    <button
-                      onClick={() => setFoodFilter('inStock')}
-                      className={`text-[10px] font-black uppercase px-3 py-2 rounded-lg transition-all ${
-                        foodFilter === 'inStock' ? 'bg-[#4834e4] text-white shadow font-bold' : 'bg-slate-800 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      📦 TODOS EM ESTOQUE
-                    </button>
-
-                    {/* Stock search box */}
-                    <div className="relative ml-auto lg:ml-2 w-full sm:w-48">
-                      <span className="absolute left-2.5 top-2.5 text-slate-500">
-                        <Search className="w-3.5 h-3.5" />
-                      </span>
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="BUSCAR ITEM..."
-                        className="w-full bg-[#0a0f1d] border border-slate-700/60 rounded-lg pl-8 pr-3 py-1.5 text-[10px] text-white font-extrabold placeholder-slate-500 uppercase tracking-wider"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Grid items */}
-                <div className="p-4 bg-slate-950/20 max-h-[420px] overflow-y-auto">
-                  {filteredInventory.length === 0 ? (
-                    <div className="text-center py-12">
-                      <SearchCheck className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-                      <p className="text-xs text-slate-400 font-extrabold tracking-widest uppercase">
-                        NENHUM INSUMO ADERENTE AOS FILTROS SELECIONADOS NO PÁTIO DE ABASTECIMENTO.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead>
-                          <tr className="border-b border-white/5 text-slate-400 uppercase tracking-widest text-[9px] font-black">
-                            <th className="pb-3 pl-2">ITEM DESCRIÇÃO / ESPECIFICAÇÃO</th>
-                            <th className="pb-3 text-center">CATEGORIA</th>
-                            <th className="pb-3 text-center">QUANTIDADE EM SUCURSAL</th>
-                            <th className="pb-3 text-center">LOTE</th>
-                            <th className="pb-3 text-center">PRAZO DE VALIDADE</th>
-                            <th className="pb-3 text-center pr-2">AÇÃO</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                          {filteredInventory.map(item => {
-                            const isCloseToExpr = item.expirationDate.includes('06/2026') || item.expirationDate.includes('07/2026');
-                            const isOutOfStock = item.stockQty === 0;
-
-                            return (
-                              <tr key={item.id} className="hover:bg-slate-900/30 transition-colors">
-                                <td className="py-2.5 pl-2">
-                                  {/* Keeps only three words as explicitly requested by USER */}
-                                  <div className="font-extrabold text-slate-200">{getFirstThreeWords(item.name)}</div>
-                                  <div className="text-[10px] text-slate-400 font-normal leading-relaxed mt-0.5 line-clamp-1">{item.name}</div>
-                                </td>
-                                <td className="py-2.5 text-center">
-                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                                    item.category === 'alimentacao' 
-                                      ? 'bg-orange-950/45 text-orange-400 border border-orange-900/30' 
-                                      : 'bg-blue-950/45 text-blue-400 border border-blue-900/40'
-                                  }`}>
-                                    {item.category === 'alimentacao' ? '🍲 Comida' : '🧹 Limpeza'}
-                                  </span>
-                                </td>
-                                <td className="py-2.5 text-center">
-                                  {isOutOfStock ? (
-                                    <span className="inline-flex items-center gap-1 text-red-400 font-bold bg-red-950/10 px-2 py-0.5 rounded border border-red-900/20">
-                                      <Flame className="w-3 h-3 text-red-500 shrink-0" /> ELIMINADO
-                                    </span>
-                                  ) : (
-                                    <span className={`font-black ${item.stockQty < 150 ? 'text-yellow-400' : 'text-slate-250'}`}>
-                                      {item.stockQty} {item.unit}
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="py-2.5 text-center">
-                                  <span className={`font-bold ${isCloseToExpr ? 'text-rose-400 animate-pulse' : 'text-slate-350'}`}>
-                                    {item.lote}
-                                  </span>
-                                </td>
-                                <td className="py-2.5 text-center">
-                                  <span className={`font-bold ${isCloseToExpr ? 'text-rose-400 animate-pulse' : 'text-slate-350'}`}>
-                                    {item.expirationDate}
-                                  </span>
-                                </td>
-                                <td className="py-2.5 text-center pr-2">
-                                  <button
-                                    onClick={() => handleApplyToActiveRow(item)}
-                                    className="bg-slate-800 hover:bg-slate-700/80 hover:text-white text-slate-300 font-black px-3 py-1 rounded text-[10px] transition-all uppercase tracking-tight"
-                                  >
-                                    {activeRowIndex !== null ? `✓ LANÇAR NA LINHA ${activeRowIndex + 1}` : '✓ LANÇAR RÁPIDO'}
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-
-                {/* Informative bottom bar */}
-                <div className="bg-white/5 py-3 px-5 text-[10px] text-slate-400 border-t border-white/5 flex flex-col sm:flex-row justify-between gap-2">
-                  <span>
-                    💡 Dica: Clique em qualquer linha acima de 1 a 25. Em seguida, selecione <span className="font-bold text-white">"✓ LANÇAR RÁPIDO"</span> aqui embaixo para preencher a tabela superior.
-                  </span>
-                  <span className="text-indigo-400 font-bold">Total Sistema: {initialInventory.length} Materiais Monitorados</span>
-                </div>
-              </div>
-
             </div>
+
+            {/* Validation warning or success header */}
+            {isCurrentOrderSigned && (
+              <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-emerald-600 text-white p-2 rounded-2xl shadow-lg shadow-emerald-600/20">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-emerald-900 font-black text-xs uppercase">SOLICITAÇÃO DE PER CAPITA TOTALMENTE ASSINADA</p>
+                    <p className="text-[10px] text-emerald-600 font-bold uppercase mt-0.5">
+                      Validado por: {currentActiveOrder?.signerName} • {currentActiveOrder?.signedAt}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 w-full md:w-auto">
+                  {((activeSubTab === 'chefeDep' && isDouglas) || (activeSubTab === 'chefeSeg' && isAlfredo) || currentUser?.role === 'admin') && (
+                    <button
+                      onClick={handleRevokeSignature}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 font-extrabold py-2 px-4 rounded-xl text-[10px] uppercase transition-all"
+                    >
+                      Editar Rascunho / Remover Assinatura
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={handleArchiveOrder}
+                    className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-5 rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/10 active:scale-95 transition-all"
+                  >
+                    <FileCheck className="h-4.5 w-4.5" /> Enviar & Finalizar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Main Interactive Table Grid */}
+            <div className="overflow-x-auto">
+              <div className="min-w-[650px]">
+                <div className="grid grid-cols-[60px_1fr_120px_2fr] gap-2 md:gap-3 mb-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                  <div>Ref</div>
+                  <div className="text-left">Nome do Item</div>
+                  <div>Quantidade</div>
+                  <div className="text-left">Observações / Destinação</div>
+                </div>
+
+                <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
+                  {localActiveItems.map((item) => {
+                    // Check if edit is permitted
+                    const isEditable = !isReadOnly && !isCurrentOrderSigned && (
+                      (activeSubTab === 'chefeDep' && isDouglas) ||
+                      (activeSubTab === 'chefeSeg' && isAlfredo) ||
+                      currentUser?.role === 'admin' ||
+                      (currentUser?.role === 'financeiro' && !isReadOnly)
+                    );
+
+                    return (
+                      <div
+                        key={item.index}
+                        className={`grid grid-cols-[60px_1fr_120px_2fr] gap-2 md:gap-3 items-center p-2 rounded-2xl border transition-all ${
+                          item.itemName.trim() !== '' ? 'bg-slate-50 border-zinc-200' : 'bg-white border-slate-100'
+                        } hover:border-slate-300`}
+                      >
+                        {/* Index Column */}
+                        <div className="flex justify-center">
+                          <span className="h-7 w-7 rounded-lg bg-slate-100 text-slate-500 font-black text-xs flex items-center justify-center border border-slate-200 shadow-sm">
+                            {item.index}
+                          </span>
+                        </div>
+
+                        {/* Name Column */}
+                        <div className="relative">
+                          <input
+                            type="text"
+                            disabled={!isEditable}
+                            placeholder={isEditable ? (categoryTab === 'alimentacao' ? "Escreva para buscar..." : "Nome do produto...") : "(Vazio)"}
+                            value={item.itemName}
+                            onFocus={() => {
+                              if (categoryTab === 'alimentacao') {
+                                setFocusedRowIndex(item.index);
+                              }
+                            }}
+                            onBlur={() => {
+                              // Brief delay to allow clicking on the dropdown candidates list
+                              setTimeout(() => {
+                                setFocusedRowIndex(prev => prev === item.index ? null : prev);
+                              }, 250);
+                            }}
+                            onChange={(e) => handleFieldChange(item.index, 'itemName', e.target.value)}
+                            className="w-full bg-transparent px-3 py-2 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
+                          />
+                          {categoryTab === 'alimentacao' && focusedRowIndex === item.index && isEditable && (
+                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 max-h-48 overflow-y-auto font-sans" style={{ minWidth: '220px' }}>
+                              {(() => {
+                                const q = item.itemName.trim().toLowerCase();
+                                const suggestions = percapitaAllItems.filter(p => p.toLowerCase().includes(q));
+                                if (suggestions.length === 0) {
+                                  return (
+                                    <div className="p-2.5 text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-center col-span-1">
+                                      Nenhum item cadastrado
+                                    </div>
+                                  );
+                                }
+                                return suggestions.slice(0, 30).map((sugg, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onMouseDown={() => {
+                                      handleFieldChange(item.index, 'itemName', sugg);
+                                      setFocusedRowIndex(null);
+                                    }}
+                                    className="w-full text-left px-3.5 py-2 text-[10.5px] uppercase font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors border-b border-slate-100 last:border-b-0"
+                                  >
+                                    {sugg}
+                                  </button>
+                                ));
+                              })()}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Quantity Column */}
+                        <div>
+                          <input
+                            type="text"
+                            disabled={!isEditable}
+                            placeholder={isEditable ? "Ex: 10 Sacos" : "-"}
+                            value={item.quantity}
+                            onChange={(e) => handleFieldChange(item.index, 'quantity', e.target.value)}
+                            className="w-full bg-transparent px-3 py-2 text-center rounded-xl text-xs font-extrabold text-indigo-700 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
+                          />
+                        </div>
+
+                        {/* Observation Column */}
+                        <div>
+                          <input
+                            type="text"
+                            disabled={!isEditable}
+                            placeholder={isEditable ? "Observação do destino..." : "-"}
+                            value={item.observation}
+                            onChange={(e) => handleFieldChange(item.index, 'observation', e.target.value)}
+                            className="w-full bg-transparent px-3 py-2 rounded-xl text-xs text-slate-600 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Signature validation boxes */}
+            {!isReadOnly && !isCurrentOrderSigned && (
+              <div className="p-4 md:p-6 bg-slate-50 border-t border-slate-100 rounded-3xl">
+                {((activeSubTab === 'chefeDep' && isDouglas) || (activeSubTab === 'chefeSeg' && isAlfredo)) ? (
+                  <form onSubmit={handleDigitalSign} className="mt-2 p-4 md:p-6 bg-white rounded-3xl border border-zinc-200 max-w-lg mx-auto shadow-md">
+                    <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1 bg-slate-100 px-3 py-1 rounded-full w-max">
+                      <ShieldCheck className="h-3 w-3 text-indigo-600" /> Assinador Digital Oficial
+                    </span>
+                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-tight mb-2">
+                      Validar Registro com Seu CPF
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-medium mb-4">
+                      Digite seu CPF de acesso abaixo. Sua senha eletrônica atesta a veracidade do preenchimento e autoriza a separação da cota per capita.
+                    </p>
+
+                    <div className="space-y-4">
+                      <div>
+                        <input
+                          type="password"
+                          placeholder="Digite seu CPF..."
+                          value={passwordInput}
+                          onChange={(e) => setPasswordInput(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-sm font-bold text-center focus:bg-white focus:border-indigo-600 focus:outline-none transition-all"
+                          required
+                        />
+                      </div>
+
+                      {signatureError && (
+                        <p className="text-rose-600 text-[11px] font-black text-center">{signatureError}</p>
+                      )}
+                      {signatureSuccess && (
+                        <p className="text-emerald-600 text-[11px] font-black text-center">{signatureSuccess}</p>
+                      )}
+
+                      <button
+                        type="submit"
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-2xl text-[11px] uppercase tracking-wider flex justify-center items-center gap-2 shadow-lg shadow-indigo-600/10 active:scale-95 transition-all"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        Gravar Minha Assinatura Digital
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <p className="text-center text-xs font-bold uppercase tracking-wide text-amber-600 py-3 bg-amber-50 rounded-2xl border border-amber-100 max-w-xl mx-auto">
+                    ⚠️ Painel de Assinatura Eletrônica disponível apenas sob o login próprio de {activeSubTab === 'chefeDep' ? 'Douglas' : 'Alfredo'}.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
-
       </div>
 
-      {/* MODAL 1: CLEAR ALL LINES CONFIRMATION */}
-      {showClearConfirm && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] print:hidden">
-          <div className="bg-[#111c2e] border border-red-500/30 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scaleUp">
-            <div className="flex items-start gap-4">
-              <div className="bg-red-500/10 p-3 rounded-full text-red-500 shrink-0">
-                <Trash2 className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-white uppercase tracking-wider">
-                  ⚠️ Limpar Todas as Linhas?
+      {/* 4. Bottom Section: Items in Stock Table */}
+      <div className="mx-4 md:mx-6 mb-6 mt-4 pt-6 border-t border-slate-100 space-y-8">
+        
+        {/* Unified Table: Requested Items Stock */}
+        <div className="bg-slate-50/50 rounded-3xl p-4 md:p-6 border border-slate-100">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 shadow-sm animate-pulse"></span>
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1">
+                  📊 Saldo em Estoque - Itens Solicitados na Lista
                 </h3>
-                <p className="text-xs text-slate-300 mt-2 leading-relaxed font-semibold">
-                  Tem certeza que deseja zerar todas as 25 linhas deste rascunho de cotação atual? Essa ação limpará todos os itens inseridos.
-                </p>
               </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <button
-                type="button"
-                onClick={() => setShowClearConfirm(false)}
-                className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition-all"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={executeClearTable}
-                className="bg-red-600 hover:bg-red-500 text-white font-black px-5 py-2 rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-red-900/30 transition-all"
-              >
-                Limpar Cotação
-              </button>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                Visualização do inventário e validade apenas dos itens ativos solicitados no painel
+              </p>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* MODAL 2: NEW FINANCE ADVANCE REGISTRATION */}
-      {showNewAdvanceModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] print:hidden">
-          <div className="bg-[#111c2e] border border-white/10 rounded-2xl p-6 max-w-lg w-full shadow-2xl animate-scaleUp">
-            <h3 className="text-base font-black text-white uppercase tracking-wider border-b border-white/5 pb-3 flex items-center gap-2">
-              <span>💵 Novo Adiantamento Financeiro</span>
-            </h3>
-            <div className="space-y-4 mt-4 text-xs font-semibold text-slate-350">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] text-slate-400 font-black uppercase tracking-wider mb-1">
-                    Gestor Responsável
-                  </label>
-                  <input
-                    type="text"
-                    value={newAdvanceName}
-                    onChange={(e) => setNewAdvanceName(e.target.value)}
-                    className="w-full bg-[#0a0f1d] border border-slate-700/60 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-indigo-500"
-                    placeholder="Ex: Daniele Garcia Possidonio"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-slate-400 font-black uppercase tracking-wider mb-1">
-                    Cargo / Função
-                  </label>
-                  <input
-                    type="text"
-                    value={newAdvanceRole}
-                    onChange={(e) => setNewAdvanceRole(e.target.value)}
-                    className="w-full bg-[#0a0f1d] border border-slate-700/60 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-indigo-500"
-                    placeholder="Ex: Depto. Financeiro"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-3">
-                <div>
-                  <label className="block text-[10px] text-slate-400 font-black uppercase tracking-wider mb-1">
-                    Valor Adiantado (R$)
-                  </label>
-                  <input
-                    type="number"
-                    value={newAdvanceAmt}
-                    onChange={(e) => setNewAdvanceAmt(e.target.value)}
-                    className="w-full bg-[#0a0f1d] border border-slate-700/60 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-indigo-500 font-mono font-bold"
-                    placeholder="Ex: 25000"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-slate-400 font-black uppercase tracking-wider mb-1">
-                    Finalidade / Motivo Real da Despesa
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={newAdvanceDesc}
-                    onChange={(e) => setNewAdvanceDesc(e.target.value)}
-                    className="w-full bg-[#0a0f1d] border border-slate-700/60 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-indigo-500"
-                    placeholder="Ex: Custeio extraordinário para fardas..."
-                  />
-                </div>
+          {requestedItemsStockList.length === 0 ? (
+            <div className="p-8 text-center bg-white rounded-2xl border border-slate-100">
+              <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">
+                Lista de solicitações vazia no momento.
+              </p>
+              <p className="text-[10px] text-slate-400 font-semibold mt-1">
+                Preencha a Cota Per Capita acima para visualizar o estoque disponível, lote e validade dos itens requeridos.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+              <div className="max-h-[300px] overflow-y-auto pr-1">
+                <table className="w-full text-left border-collapse font-sans">
+                  <thead>
+                    <tr className="bg-slate-50 text-[8px] uppercase font-black tracking-widest text-slate-400 border-b border-slate-100 sticky top-0 bg-opacity-95 backdrop-blur z-10">
+                      <th className="p-3 pl-4">Nome do Item Solicitado</th>
+                      <th className="p-3 text-center">Unidade</th>
+                      <th className="p-3 text-center">Lote Em Estoque</th>
+                      <th className="p-3 text-center">Validade do Lote</th>
+                      <th className="p-3 text-right">Saldo Disponível no Lote</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-xs font-semibold text-slate-700 divide-y divide-slate-100">
+                    {requestedItemsStockList.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-2.5 pl-4 uppercase font-bold text-slate-800 text-[10.5px]">
+                          {item.itemName}
+                        </td>
+                        <td className="p-2.5 text-center text-slate-500 text-[10px] uppercase font-bold">
+                          {item.unit}
+                        </td>
+                        <td className="p-2.5 text-center text-indigo-700 text-[10px] uppercase font-black">
+                          {item.lot}
+                        </td>
+                        <td className="p-2.5 text-center text-slate-500 text-[10px] uppercase font-bold">
+                          {item.expiration && item.expiration !== 'N/A' && item.expiration.includes('-')
+                            ? item.expiration.split('-').reverse().join('/') 
+                            : item.expiration}
+                        </td>
+                        <td className="p-2.5 text-right text-indigo-700 font-extrabold text-[11px]">
+                          {new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.balance)} {item.unit}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-            <div className="flex justify-end gap-2.5 mt-6 border-t border-white/5 pt-4">
-              <button
-                type="button"
-                onClick={() => setShowNewAdvanceModal(false)}
-                className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition-all"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const amt = Number(newAdvanceAmt);
-                  if (newAdvanceDesc && amt) {
-                    setAdvances([
-                      ...advances,
-                      {
-                        id: advances.length + 1,
-                        name: newAdvanceName,
-                        role: newAdvanceRole,
-                        amount: amt,
-                        description: newAdvanceDesc,
-                        date: '30/05/2026',
-                        status: 'Aprovado'
-                      }
-                    ]);
-                    setNewAdvanceDesc('');
-                    setNewAdvanceAmt('');
-                    setShowNewAdvanceModal(false);
-                  }
-                }}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-5 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg shadow-indigo-900/30"
-              >
-                Cadastrar Adiantamento
-              </button>
-            </div>
-          </div>
+          )}
         </div>
-      )}
-
-      {/* MODAL 3: PRESTAR CONTAS CONFIRMATION */}
-      {advanceToSettle && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] print:hidden">
-          <div className="bg-[#111c2e] border border-emerald-500/30 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scaleUp">
-            <div className="flex items-start gap-4">
-              <div className="bg-emerald-500/10 p-3 rounded-full text-emerald-500 shrink-0">
-                <Check className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-white uppercase tracking-wider">
-                  ✓ Prestar Contas de Adiantamento?
-                </h3>
-                <p className="text-xs text-slate-300 mt-2 leading-relaxed font-semibold">
-                  Confirma a prestação de contas integral e a devida conclusão do adiantamento de <span className="text-white font-black">{advanceToSettle.name}</span> no valor de <span className="text-emerald-400 font-black">R$ {advanceToSettle.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>?
-                </p>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2.5 mt-6">
-              <button
-                type="button"
-                onClick={() => setAdvanceToSettle(null)}
-                className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition-all"
-              >
-                Não, Manter Ativo
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAdvances(advances.filter((a: any) => a.id !== advanceToSettle.id));
-                  setAdvanceToSettle(null);
-                }}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-5 py-2 rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-emerald-950/30 transition-all font-sans"
-              >
-                Prestar Contas
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 4: FULL SYSTEM FACTORY RESET */}
-      {showResetConfirm && (
-        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] print:hidden">
-          <div className="bg-[#111c2e] border border-amber-500/30 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scaleUp">
-            <div className="flex items-start gap-4">
-              <div className="bg-amber-500/10 p-3 rounded-full text-amber-500 shrink-0">
-                <RefreshCw className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-white uppercase tracking-wider">
-                  ⚠ Restaurar Configurações de Fábrica?
-                </h3>
-                <p className="text-xs text-slate-300 mt-2 leading-relaxed font-semibold">
-                  Isso irá <span className="text-amber-400 font-extrabold">limpar de forma absoluta toda a memória temporária (cache) do navegador</span>, restaurando o estoque original, limpando os rascunhos de ambos os diretores e aplicando as <span className="text-white font-black">últimas atualizações e melhorias</span> do sistema imediatamente.
-                </p>
-                <p className="text-[10px] text-slate-400 mt-2 italic font-medium">
-                  Recomendado caso você não esteja vendo as últimas modificações online.
-                </p>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2.5 mt-6">
-              <button
-                type="button"
-                onClick={() => setShowResetConfirm(false)}
-                className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition-all"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={executeFullReset}
-                className="bg-amber-600 hover:bg-amber-500 text-white font-black px-5 py-2 rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-amber-950/30 transition-all font-sans"
-              >
-                Limpar Cache e Forçar Atualizações
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      </div>
     </div>
   );
-}
+};

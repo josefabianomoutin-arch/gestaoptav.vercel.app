@@ -1,0 +1,1312 @@
+
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Plus, X, Package, Calendar, FileText, Barcode, Copy, Printer, Trash2 } from 'lucide-react';
+import type { Supplier, WarehouseMovement } from '../types';
+import { toast } from 'sonner';
+import { safeLocalStorageSetItem } from '../lib/utils';
+
+interface WarehouseMovementFormProps {
+    suppliers: Supplier[];
+    warehouseLog: WarehouseMovement[];
+    onRegisterEntry: (payload: any) => Promise<{ success: boolean; message: string }>;
+    onRegisterWithdrawal: (payload: any) => Promise<{ success: boolean; message: string }>;
+    initialMode?: 'entrada' | 'saída';
+    perCapitaConfig?: any;
+    acquisitionItems?: any[];
+}
+
+const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({ 
+    suppliers, 
+    warehouseLog, 
+    onRegisterEntry, 
+    onRegisterWithdrawal,
+    initialMode = 'entrada',
+    perCapitaConfig,
+}) => {
+    const barcodeInputRef = useRef<HTMLInputElement>(null);
+
+    // Estados para o formulário manual/individual
+    const [manualType, setManualType] = useState<'entrada' | 'saída'>(initialMode);
+    const [selectedSupplierCpf, setSelectedSupplierCpf] = useState('');
+    const [manualNf, setManualNf] = useState('');
+    const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
+    const [manualInvoiceUrl, setManualInvoiceUrl] = useState<string>('');
+
+    // Estados para o item sendo adicionado
+    const [selectedItemName, setSelectedItemName] = useState('');
+    const [manualBarcode, setManualBarcode] = useState('');
+    const [manualQuantity, setManualQuantity] = useState('');
+    const [manualInboundNf, setManualInboundNf] = useState<{ number: string, availableQuantity: number, lot: string, exp: string, timestamp?: number } | null>(null);
+
+    const [manualLot, setManualLot] = useState('');
+    const [manualExp, setManualExp] = useState('');
+    const [manualPd, setManualPd] = useState('');
+    const [manualValue, setManualValue] = useState('');
+    const [manualWeight, setManualWeight] = useState('');
+    const [selectedPeriod, setSelectedPeriod] = useState<'1_QUAD' | '2_3_QUAD'>('1_QUAD');
+    
+    const currentTotalValue = useMemo(() => {
+        // Agora o manualValue representa o valor TOTAL do item na nota, não o unitário.
+        return parseFloat(manualValue.replace(',', '.')) || 0;
+    }, [manualValue]);
+
+    const updateManualValue = (_itemName?: string, _period?: string, _qty?: string) => {
+        // Removed automatic total calculation as requested
+    };
+
+    // Lista de itens a serem processados
+    const [items, setItems] = useState<{ 
+        id: string; 
+        itemName: string; 
+        quantity: number; 
+        lot: string; 
+        exp: string; 
+        barcode: string; 
+        inboundInvoice?: string;
+        pdNumber?: string;
+        value?: number;
+        weight?: number;
+    }[]>([]);
+    
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [nfSearchTerm, setNfSearchTerm] = useState('');
+
+    const registeredInvoicesWithStock = useMemo(() => {
+        if (manualType !== 'saída') return [];
+        
+        // Entradas agrupadas por NF, Fornecedor e Item
+        const stockMap: { [key: string]: { 
+            nfNumber: string, 
+            supplierName: string, 
+            itemName: string, 
+            totalIn: number, 
+            totalOut: number,
+            lot: string,
+            exp: string,
+            timestamp: number,
+            entryDate?: string,
+            barcode?: string
+        } } = {};
+
+        (warehouseLog || []).forEach(log => {
+            if (!log) return;
+            const logInv = log.invoiceNumber || log.inboundInvoice || log.outboundInvoice;
+            if (!logInv) return;
+            const key = `${logInv}|${log.supplierName}|${log.itemName}`;
+            if (!stockMap[key]) {
+                const ts = log.timestamp || (log.date ? new Date(log.date + 'T12:00:00').getTime() : 0);
+                stockMap[key] = { 
+                    nfNumber: log.invoiceNumber || log.inboundInvoice || '', 
+                    supplierName: log.supplierName, 
+                    itemName: log.itemName, 
+                    totalIn: 0, 
+                    totalOut: 0,
+                    lot: log.lotNumber || '',
+                    exp: log.expirationDate || '',
+                    timestamp: ts,
+                    entryDate: log.date || '',
+                    barcode: log.barcode || ''
+                };
+            }
+            if (log.type === 'entrada') {
+                stockMap[key].totalIn += (log.quantity || log.kg || 0);
+                if (log.lotNumber) stockMap[key].lot = log.lotNumber;
+                if (log.expirationDate) stockMap[key].exp = log.expirationDate;
+                if (log.date) stockMap[key].entryDate = log.date;
+                if (log.barcode) stockMap[key].barcode = log.barcode;
+                // Mantém o timestamp mais antigo para a NF se houver múltiplas entradas
+                const currentTs = log.timestamp || (log.date ? new Date(log.date + 'T12:00:00').getTime() : 0);
+                if (currentTs < stockMap[key].timestamp) {
+                    stockMap[key].timestamp = currentTs;
+                    if (log.date) stockMap[key].entryDate = log.date;
+                }
+            } else {
+                stockMap[key].totalOut += (log.quantity || log.kg || 0);
+            }
+        });
+
+        return Object.values(stockMap)
+            .filter(s => (s.totalIn - s.totalOut) > 0.001)
+            .map(s => ({
+                ...s,
+                balance: s.totalIn - s.totalOut
+            }))
+            .sort((a, b) => a.timestamp - b.timestamp || a.nfNumber.localeCompare(b.nfNumber));
+    }, [warehouseLog, manualType]);
+
+    const filteredNfSearch = useMemo(() => {
+        if (!nfSearchTerm) return [];
+        const term = nfSearchTerm.toLowerCase();
+        return registeredInvoicesWithStock.filter(nf => 
+            nf.nfNumber.toLowerCase().includes(term) || 
+            nf.supplierName.toLowerCase().includes(term) ||
+            nf.itemName.toLowerCase().includes(term)
+        ).slice(0, 5); // Limita a 5 resultados para o dropdown
+    }, [registeredInvoicesWithStock, nfSearchTerm]);
+
+    const validateAndSelectNf = React.useCallback((nf: any) => {
+        // Encontra se existe algum outro lote do MESMO ITEM e MESMO FORNECEDOR que seja mais antigo
+        const olderLot = registeredInvoicesWithStock.find(item => 
+            item.itemName === nf.itemName && 
+            item.supplierName === nf.supplierName && 
+            item.timestamp < nf.timestamp &&
+            item.nfNumber !== nf.nfNumber
+        );
+
+        if (olderLot) {
+            toast.error(`EXISTE LOTE MAIS ANTIGO - PEPS! (NF: ${olderLot.nfNumber})`, {
+                duration: 5000,
+                description: "Por favor, utilize o estoque mais antigo primeiro."
+            });
+            return false;
+        }
+
+        const supplier = (suppliers || []).find(s => s && s.name === nf.supplierName);
+        if (supplier) setSelectedSupplierCpf(supplier.cpf);
+        setSelectedItemName(nf.itemName);
+        setManualInboundNf({
+            number: nf.nfNumber,
+            availableQuantity: nf.balance,
+            lot: nf.lot,
+            exp: nf.exp,
+            timestamp: nf.timestamp,
+            entryDate: nf.entryDate,
+            barcode: nf.barcode
+        });
+        setManualLot(nf.lot);
+        setManualExp(nf.exp);
+        setNfSearchTerm(''); // Limpa a busca
+        return true;
+    }, [registeredInvoicesWithStock, suppliers]);
+
+    const handleSelectSearchedNf = (nf: any) => {
+        if (validateAndSelectNf(nf)) {
+            toast.success(`NF ${nf.nfNumber} selecionada: ${nf.itemName}`);
+        }
+    };
+
+    useEffect(() => {
+        barcodeInputRef.current?.focus();
+    }, [manualType]);
+
+    const filteredSuppliers = useMemo(() => {
+        if (selectedPeriod === '1_QUAD') {
+            return suppliers;
+        } else {
+            const raw = [
+                ...(perCapitaConfig?.ppaisProducers || []),
+                ...(perCapitaConfig?.pereciveisSuppliers || []),
+                ...(perCapitaConfig?.estocaveisSuppliers || [])
+            ];
+            return raw.map((s: any) => ({
+                ...s,
+                cpf: s.cpfCnpj || s.cpf || ''
+            }));
+        }
+    }, [selectedPeriod, suppliers, perCapitaConfig]);
+
+    const selectedSupplier = useMemo(() => 
+        filteredSuppliers.find(s => s.cpf === selectedSupplierCpf), 
+    [filteredSuppliers, selectedSupplierCpf]);
+
+    const manualSupplierInvoices = useMemo(() => {
+        if (!selectedSupplier || !selectedItemName) return [];
+        // Filtra entradas do log que batem com o fornecedor e o item selecionado
+        const entries = (warehouseLog || []).filter(l => l && l.supplierName === selectedSupplier.name && l.itemName === selectedItemName && l.type === 'entrada');
+        
+        // Agrupa por NF para saber o saldo disponível
+        const invoiceBalances: { [key: string]: { total: number, lot: string, exp: string, timestamp: number } } = {};
+        
+        entries.forEach(e => {
+            const num = e.invoiceNumber || e.inboundInvoice || '';
+            if (!invoiceBalances[num]) {
+                const ts = e.timestamp || (e.date ? new Date(e.date + 'T12:00:00').getTime() : 0);
+                invoiceBalances[num] = { 
+                    total: 0, 
+                    lot: e.lotNumber || 'UNICO', 
+                    exp: e.expirationDate || '',
+                    timestamp: ts
+                };
+            }
+            invoiceBalances[num].total += (e.quantity || e.kg || 0);
+            
+            // Mantém o timestamp mais antigo para a NF se houver múltiplas entradas
+            const currentTs = e.timestamp || (e.date ? new Date(e.date + 'T12:00:00').getTime() : 0);
+            if (currentTs < invoiceBalances[num].timestamp) invoiceBalances[num].timestamp = currentTs;
+        });
+
+        // Subtrai as saídas dessa NF
+        (warehouseLog || []).filter(l => l && l.supplierName === selectedSupplier.name && l.inboundInvoice && l.type === 'saída').forEach(e => {
+            if (invoiceBalances[e.inboundInvoice!]) {
+                invoiceBalances[e.inboundInvoice!].total -= (e.quantity || e.kg || 0);
+            }
+        });
+
+        return Object.entries(invoiceBalances)
+            .filter(([, data]) => data.total > 0)
+            .map(([number, data]) => ({ number, availableQuantity: data.total, lot: data.lot, exp: data.exp, timestamp: data.timestamp }))
+            .sort((a, b) => a.timestamp - b.timestamp);
+    }, [selectedSupplier, selectedItemName, warehouseLog]);
+
+    const availableItems = useMemo(() => {
+        const itemsList: { name: string; displayName: string }[] = [];
+        const seen = new Set<string>();
+
+        const processSupplier = (s: Supplier) => {
+            if (!s.contractItems) return;
+            const items = Array.isArray(s.contractItems) ? s.contractItems : Object.values(s.contractItems);
+            items.forEach((ci: any) => {
+                if (!ci.name) return;
+                if (!seen.has(ci.name)) {
+                    const displayName = ci.nickname ? `${ci.nickname} (${ci.name})` : ci.name;
+                    itemsList.push({ name: ci.name, displayName });
+                    seen.add(ci.name);
+                }
+            });
+        };
+
+        if (selectedSupplier) {
+            processSupplier(selectedSupplier);
+        } else {
+            // Se nenhum fornecedor selecionado, busca em todos os fornecedores (PPAIS, Perecíveis, Estocáveis)
+            filteredSuppliers.forEach(processSupplier);
+        }
+
+        // Em modo saída, garante que itens com estoque apareçam mesmo que não estejam no contrato explicitamente
+        if (manualType === 'saída') {
+            registeredInvoicesWithStock.forEach(s => {
+                if (!seen.has(s.itemName)) {
+                    itemsList.push({ name: s.itemName, displayName: `[EM ESTOQUE] ${s.itemName}` });
+                    seen.add(s.itemName);
+                }
+            });
+        }
+
+        return itemsList.sort((a, b) => a.name.localeCompare(b.name));
+    }, [selectedSupplier, manualType, filteredSuppliers, registeredInvoicesWithStock]);
+
+    useEffect(() => {
+        const barcode = manualBarcode.trim();
+        if (barcode.length >= 8) {
+            const timer = setTimeout(() => {
+                let foundMatch = false;
+                const supps = (suppliers || []);
+                for (const s of supps) {
+                    if (!s) continue;
+                    const deliveriesData = s.deliveries || {};
+                    const deliveries = (typeof deliveriesData === 'object' ? Object.values(deliveriesData) : (Array.isArray(deliveriesData) ? deliveriesData : [])) as any[];
+                    const filteredDeliveries = deliveries.filter((d: any) => d && d.barcode === barcode);
+                    if (filteredDeliveries.length > 0) {
+                        if (!selectedSupplierCpf && s.cpf) {
+                            setSelectedSupplierCpf(s.cpf);
+                        }
+                        if (manualType === 'saída' && !manualInboundNf) {
+                            const invNum = filteredDeliveries[0].invoiceNumber || '';
+                            const itName = filteredDeliveries[0].item || '';
+                            const supplierName = s.name;
+                            const foundInStock = registeredInvoicesWithStock.find(st => st.nfNumber === invNum && st.itemName === itName && st.supplierName === supplierName);
+                            if (foundInStock) validateAndSelectNf(foundInStock);
+                        }
+                        if (filteredDeliveries.length === 1) {
+                            const itName = filteredDeliveries[0].item || '';
+                            setSelectedItemName(itName);
+                            const entryLog = (warehouseLog || []).find(l => l && l.barcode === barcode && l.type === 'entrada');
+                            if (entryLog) {
+                                setManualLot(entryLog.lotNumber || '');
+                                setManualExp(entryLog.expirationDate || '');
+                            }
+                        }
+                        foundMatch = true;
+                        break;
+                    }
+                }
+                
+                if (!foundMatch) {
+                    const entryLog = (warehouseLog || []).find(l => l && l.barcode === barcode && l.type === 'entrada');
+                    if (entryLog) {
+                        const supplier = supps.find(s => s && s.name === entryLog.supplierName);
+                        if (supplier && !selectedSupplierCpf) setSelectedSupplierCpf(supplier.cpf);
+                        setSelectedItemName(entryLog.itemName);
+                        if (manualType === 'saída' && !manualInboundNf) {
+                             const foundInv = manualSupplierInvoices.find(nf => nf.number === entryLog.inboundInvoice);
+                             if (foundInv) setManualInboundNf(foundInv);
+                        }
+                        setManualLot(entryLog.lotNumber || '');
+                        setManualExp(entryLog.expirationDate || '');
+                    }
+                }
+            }, 50);
+            return () => clearTimeout(timer);
+        }
+    }, [manualBarcode, suppliers, warehouseLog, manualType, selectedSupplierCpf, manualInboundNf, manualSupplierInvoices, registeredInvoicesWithStock, validateAndSelectNf]);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.type !== 'application/pdf') {
+                toast.error('Por favor, selecione apenas arquivos PDF.');
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error('O arquivo é muito grande (máx 5MB).');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setManualInvoiceUrl(event.target?.result as string);
+                toast.success('PDF anexado com sucesso!');
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleAddItem = () => {
+        const qtyVal = parseFloat(manualQuantity.replace(',', '.'));
+        if (!selectedItemName || isNaN(qtyVal) || qtyVal <= 0) {
+            alert('Preencha Item e Quantidade válida.');
+            return;
+        }
+
+        if (manualType === 'saída' && !manualInboundNf) {
+             alert('Selecione a Nota Fiscal de Origem (Entrada) para este item.');
+             return;
+        }
+
+        if (manualType === 'saída' && manualInboundNf && qtyVal > manualInboundNf.availableQuantity) {
+            alert(`Quantidade solicitada (${qtyVal}) maior que o saldo disponível na NF (${manualInboundNf.availableQuantity.toFixed(2)}).`);
+            return;
+        }
+
+        if (manualType === 'saída' && manualInboundNf) {
+             const olderLot = registeredInvoicesWithStock.find(item => 
+                item.itemName === selectedItemName && 
+                item.supplierName === selectedSupplier?.name && 
+                item.timestamp < (manualInboundNf.timestamp || 0) &&
+                item.nfNumber !== manualInboundNf.number
+            );
+
+            if (olderLot) {
+                toast.error(`EXISTE LOTE MAIS ANTIGO - PEPS! (NF: ${olderLot.nfNumber})`, {
+                    duration: 5000,
+                    description: "Por favor, utilize o estoque mais antigo primeiro."
+                });
+                return;
+            }
+        }
+
+        const totalValue = parseFloat(manualValue.replace(',', '.')) || 0;
+        setItems(prev => [...prev, {
+            id: `item-${Date.now()}`,
+            itemName: selectedItemName,
+            quantity: qtyVal,
+            lot: manualLot || 'UNICO',
+            exp: manualExp,
+            barcode: manualBarcode || crypto.randomUUID().substring(0, 10).toUpperCase(),
+            inboundInvoice: manualInboundNf?.number,
+            availableBefore: manualInboundNf?.availableQuantity || 0,
+            pdNumber: manualPd,
+            value: totalValue,
+            weight: parseFloat(manualWeight.replace(',', '.')) || qtyVal
+        }]);
+
+        // Limpa campos do item para próxima inserção
+        setSelectedItemName('');
+        setManualQuantity('');
+        setManualLot('');
+        setManualExp('');
+        setManualBarcode('');
+        // Não limpamos manualInboundNf automaticamente pois pode ser a mesma para o próximo item? 
+        // Melhor limpar para forçar atenção ou manter? Manter é mais prático.
+        // Mas se o usuário mudar de item, talvez a NF mude.
+        // Vamos manter por conveniência, mas o usuário pode mudar.
+        barcodeInputRef.current?.focus();
+    };
+
+    const handlePrintItemLabel = (item: any) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const balanceAfter = item.availableBefore ? (item.availableBefore - item.quantity) : null;
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Etiqueta - ${item.itemName}</title>
+                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <style>
+                    @page { size: 100mm 50mm; margin: 0; }
+                    body { margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: white; }
+                    .label-card {
+                        width: 100mm; height: 50mm;
+                        padding: 2mm 4mm; box-sizing: border-box;
+                        display: flex; flex-direction: column;
+                        border: 0.1mm solid #eee;
+                    }
+                    h1 { font-size: 11pt; margin: 0 0 1mm 0; font-weight: 900; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 0.3mm solid #000; padding-bottom: 0.5mm; }
+                    h2 { font-size: 7.5pt; margin: 0.5mm 0 1.5mm 0; font-weight: bold; text-transform: uppercase; color: #333; }
+                    .info { font-size: 7.5pt; line-height: 1.1; flex-grow: 1; }
+                    .info p { margin: 0.2mm 0; display: flex; justify-content: space-between; }
+                    .info strong { font-weight: 900; text-transform: uppercase; margin-right: 1mm; }
+                    .barcode-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+                    .barcode-svg { max-width: 90%; height: 14mm !important; }
+                    .balance-box { border: 0.5mm solid #000; padding: 1mm; margin-top: 1mm; text-align: center; }
+                </style>
+            </head>
+            <body>
+                <div class="label-card">
+                    <h1>${item.itemName.split(' ').slice(0, 2).join(' ')}</h1>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <h2>${selectedSupplier?.name || 'FORNECEDOR'}</h2>
+                        ${balanceAfter !== null ? `<div class="balance-box"><strong>SALDO RESTANTE:</strong> ${balanceAfter.toFixed(2)} kg</div>` : ''}
+                    </div>
+                    <div class="info">
+                        <p><strong>LOTE:</strong> <span>${item.lot}</span></p>
+                        <p><strong>VAL:</strong> <span>${item.exp ? item.exp.split('-').reverse().join('/') : 'N/A'}</span> / <strong>SAÍDA:</strong> <span>${manualDate.split('-').reverse().join('/')}</span></p>
+                        <p><strong>RETIROU:</strong> <span>${item.quantity.toFixed(2)} kg</span> / <strong>ORIGEM NF:</strong> <span>${item.inboundInvoice || 'N/A'}</span></p>
+                    </div>
+                    <div class="barcode-container">
+                        <svg id="barcode-item" class="barcode-svg"></svg>
+                    </div>
+                </div>
+                <script>
+                    window.onload = function() {
+                        try {
+                            JsBarcode("#barcode-item", "${item.barcode}", {
+                                format: "CODE128", width: 1.2, height: 40, displayValue: true, margin: 0
+                            });
+                        } catch (e) { console.error(e); }
+                        setTimeout(() => { window.print(); window.close(); }, 500);
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
+    const handlePrintStockRemainingLabel = (nf: any, remainingQtyOverride?: number) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const qty = remainingQtyOverride !== undefined ? remainingQtyOverride : (nf.availableQuantity || 0);
+        const entryDateFormatted = nf.entryDate ? nf.entryDate.split('-').reverse().join('/') : '---';
+        const expFormatted = nf.exp ? nf.exp.split('-').reverse().join('/') : '---';
+        const supplierName = nf.supplierName || selectedSupplier?.name || 'FORNECEDOR';
+        const itemText = selectedItemName || nf.itemName || 'ITEM';
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Etiqueta de Saldo - ${itemText}</title>
+                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <style>
+                    @page { size: 100mm 50mm; margin: 0; }
+                    body { margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: white; color: #000; }
+                    .label-card {
+                        width: 100mm; height: 50mm;
+                        padding: 3mm 5mm; box-sizing: border-box;
+                        display: flex; flex-direction: column;
+                        border: 0.1mm solid #000;
+                    }
+                    .header-row { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 0.4mm solid #000; padding-bottom: 1px; }
+                    h1 { font-size: 11pt; margin: 0; font-weight: 900; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; }
+                    .tag-saldo-label { background: #000; color: #fff; padding: 1px 4px; font-size: 7.5pt; font-weight: bold; text-transform: uppercase; border-radius: 2px; margin-left: 5px; }
+                    h2 { font-size: 7.5pt; margin: 1mm 0; font-weight: bold; text-transform: uppercase; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                    .info-grid { display: flex; flex-wrap: wrap; font-size: 7.5pt; line-height: 1.2; flex-grow: 1; margin-top: 1mm; }
+                    .info-col { width: 50%; box-sizing: border-box; }
+                    .info-col p { margin: 0.4mm 0; }
+                    .info-col strong { font-weight: 900; }
+                    .balance-box { border: 0.6mm solid #000; padding: 1.5mm 3mm; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 25mm; }
+                    .balance-val { font-size: 13pt; font-weight: 900; }
+                    .balance-title { font-size: 5pt; font-weight: bold; letter-spacing: 0.5px; }
+                    .barcode-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+                    .barcode-svg { max-width: 90%; height: 12mm !important; }
+                </style>
+            </head>
+            <body>
+                <div class="label-card">
+                    <div class="header-row">
+                        <h1 title="${itemText}">${itemText.split(' ').slice(0, 3).join(' ')}</h1>
+                        <span class="tag-saldo-label">SALDO RESTANTE</span>
+                    </div>
+                    <h2>${supplierName}</h2>
+                    <div style="display: flex; gap: 4px; justify-content: space-between; align-items: center; flex-grow: 1;">
+                        <div class="info-grid">
+                            <div style="width: 100%;">
+                                <p><strong>REGISTRO:</strong> <span>ENTRADA DA NOTA</span></p>
+                                <p><strong>ORIGEM NF:</strong> <span>${nf.number || nf.nfNumber || 'N/A'}</span></p>
+                                <p><strong>LOTE:</strong> <span>${nf.lot || 'UNICO'}</span></p>
+                                <p><strong>VAL:</strong> <span>${expFormatted}</span></p>
+                                <p><strong>ENTRADA:</strong> <span>${entryDateFormatted}</span></p>
+                            </div>
+                        </div>
+                        <div class="balance-box">
+                            <span class="balance-title">O SALDO FICARÁ EM</span>
+                            <span class="balance-val">${qty.toFixed(2)} KG</span>
+                        </div>
+                    </div>
+                    <div class="barcode-container">
+                        <svg id="barcode-item-stock" class="barcode-svg"></svg>
+                    </div>
+                </div>
+                <script>
+                    window.onload = function() {
+                        try {
+                            const code = "${nf.barcode || '00000000'}";
+                            JsBarcode("#barcode-item-stock", code, {
+                                format: "CODE128", width: 1.2, height: 35, displayValue: true, margin: 0
+                            });
+                        } catch (e) { console.error(e); }
+                        setTimeout(() => { window.print(); window.close(); }, 500);
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
+    const handleRemoveItem = (id: string) => {
+        setItems(prev => prev.filter(i => i.id !== id));
+    };
+
+    const handleDuplicateItem = (item: any) => {
+        setSelectedItemName(item.itemName);
+        setManualQuantity(item.quantity.toString());
+        setManualLot(item.lot);
+        setManualExp(item.exp);
+        setManualBarcode(item.barcode);
+        
+        if (item.inboundInvoice) {
+            const found = manualSupplierInvoices.find(nf => nf.number === item.inboundInvoice);
+            if (found) {
+                setManualInboundNf(found);
+            } else {
+                // Se não achou no memo filtered, busca no global se em modo saída
+                const globalFound = registeredInvoicesWithStock.find(nf => nf.nfNumber === item.inboundInvoice && nf.itemName === item.itemName);
+                if (globalFound) {
+                    setManualInboundNf({
+                        number: globalFound.nfNumber,
+                        availableQuantity: globalFound.balance,
+                        lot: globalFound.lot,
+                        exp: globalFound.exp
+                    });
+                }
+            }
+        }
+        
+        setManualPd(item.pdNumber || '');
+        setManualValue(item.value?.toString() || '');
+        setManualWeight(item.weight?.toString() || '');
+        
+        // Foca no input de quantidade ou código de barras
+        barcodeInputRef.current?.focus();
+        toast.info(`Dados de "${item.itemName}" copiados para o formulário.`);
+    };
+
+    const handleRegisterAll = async () => {
+        if (!selectedSupplierCpf) {
+            alert('Selecione o Fornecedor.');
+            return;
+        }
+        if (items.length === 0) {
+            alert('Adicione pelo menos um item à lista.');
+            return;
+        }
+
+        if (!navigator.onLine) {
+            const offlineEntries = JSON.parse(localStorage.getItem('offline_warehouse_entries') || '[]');
+            const newEntries = items.map(item => ({
+                supplierCpf: selectedSupplierCpf,
+                date: manualDate,
+                invoiceDate: manualDate,
+                invoiceNumber: manualNf,
+                outboundInvoice: manualNf,
+                itemName: item.itemName,
+                quantity: item.quantity,
+                barcode: item.barcode,
+                lotNumber: item.lot || 'UNICO',
+                expirationDate: item.exp,
+                inboundInvoice: item.inboundInvoice,
+                pdNumber: item.pdNumber,
+                value: item.value,
+                weight: item.weight,
+                type: manualType,
+                timestamp: new Date().toISOString()
+            }));
+            offlineEntries.push(...newEntries);
+            try {
+                safeLocalStorageSetItem('offline_warehouse_entries', JSON.stringify(offlineEntries));
+            } catch (e) {
+                console.error("Failed to write offline entries to local storage:", e);
+            }
+            toast.success("Lançamento salvo localmente com sucesso!");
+            toast.info("Sistema em Modo Offline: Registros salvos no navegador para sincronização futura.");
+            setItems([]);
+            setManualNf('');
+            return;
+        }
+
+        setIsSubmitting(true);
+        const loadingToast = toast.loading('Processando lançamentos...');
+        
+        try {
+            let successCount = 0;
+            let failCount = 0;
+            let currentInvoiceUrl = manualInvoiceUrl;
+
+            console.log("Iniciando registro de itens:", items.length);
+
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                toast.loading(`Registrando item ${i + 1} de ${items.length}...`, { id: loadingToast });
+                
+                const res = (manualType === 'entrada' 
+                    ? await onRegisterEntry({
+                        supplierCpf: selectedSupplierCpf,
+                        itemName: item.itemName,
+                        invoiceNumber: manualNf,
+                        invoiceDate: manualDate,
+                        lotNumber: item.lot || 'UNICO',
+                        quantity: item.quantity,
+                        expirationDate: item.exp,
+                        barcode: item.barcode,
+                        pdNumber: item.pdNumber,
+                        value: item.value,
+                        weight: item.weight,
+                        invoiceUrl: currentInvoiceUrl
+                    })
+                    : await onRegisterWithdrawal({
+                        supplierCpf: selectedSupplierCpf,
+                        itemName: item.itemName,
+                        outboundInvoice: manualNf,
+                        inboundInvoice: item.inboundInvoice,
+                        lotNumber: item.lot || 'UNICO',
+                        quantity: item.quantity,
+                        expirationDate: item.exp,
+                        date: manualDate,
+                        barcode: item.barcode,
+                        pdNumber: item.pdNumber,
+                        value: item.value,
+                        weight: item.weight
+                    })) as any;
+                
+                if (res.success) {
+                    successCount++;
+                    // Se o App.tsx retornou uma URL permanente (ex: Firebase Storage), reutilizamos para os próximos itens
+                    if (res.invoiceUrl && res.invoiceUrl.startsWith('http')) {
+                        currentInvoiceUrl = res.invoiceUrl;
+                    }
+                } else {
+                    console.error("Erro ao registrar item:", item.itemName, res.message);
+                    toast.error(`Falha no item ${item.itemName}: ${res.message || 'Erro desconhecido'}`, { duration: 4000 });
+                    failCount++;
+                }
+            }
+
+            toast.dismiss(loadingToast);
+
+            if (failCount === 0) {
+                toast.success('Todos os itens foram registrados com sucesso!');
+                setItems([]);
+                setManualNf('');
+                setManualInboundNf(null);
+                setManualBarcode('');
+                setManualQuantity('');
+                setManualLot('');
+                setManualExp('');
+                setSelectedItemName('');
+                setManualInvoiceUrl('');
+            } else {
+                toast.error(`${successCount} itens registrados. ${failCount} falharam.`);
+                setItems([]); 
+            }
+        } catch (err) {
+            console.error("Erro crítico no processamento:", err);
+            toast.error('Ocorreu um erro no processamento dos dados.');
+            toast.dismiss(loadingToast);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden animate-fade-in mb-4">
+            <div className="p-2 md:p-3 border-b border-gray-100 bg-gradient-to-r from-white to-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                <div className="flex items-center gap-3">
+                    <div className={`p-1.5 rounded-lg ${manualType === 'entrada' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'} transition-colors duration-500 shadow-sm`}>
+                        <Package className="h-4 w-4" />
+                    </div>
+                    <div>
+                        <h2 className="text-xs font-black text-gray-900 uppercase tracking-tighter leading-none italic">
+                            {manualType === 'entrada' ? 'Entrada de Estoque' : 'Saída de Estoque'}
+                        </h2>
+                        <p className="text-gray-400 font-bold text-[7px] uppercase tracking-widest mt-0.5">
+                            {manualType === 'entrada' ? 'Registro de Recebimento' : 'Registro de Requisição (SAN)'}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex bg-gray-100 p-0.5 rounded-lg shadow-inner w-full md:w-auto">
+                    <button 
+                        type="button" 
+                        onClick={() => { setManualType('entrada'); setItems([]); setManualInboundNf(null); }} 
+                        className={`px-3 py-1 rounded-md text-[7px] font-black uppercase transition-all duration-300 flex items-center justify-center gap-1.5 ${manualType === 'entrada' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                        Entrada
+                    </button>
+                    <button 
+                        type="button" 
+                        onClick={() => { setManualType('saída'); setItems([]); setManualInboundNf(null); }} 
+                        className={`px-3 py-1 rounded-md text-[7px] font-black uppercase transition-all duration-300 flex items-center justify-center gap-1.5 ${manualType === 'saída' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                        Saída
+                    </button>
+                </div>
+            </div>
+
+            <div className="p-1.5 md:p-2 space-y-2">
+                {manualType === 'entrada' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-1.5 bg-gray-50/50 p-1.5 rounded-lg border border-gray-100">
+                        <div className="md:col-span-5 space-y-0.5">
+                            <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
+                                <FileText className="h-2 w-2" /> Fornecedor
+                            </label>
+                            <select 
+                                value={selectedSupplierCpf} 
+                                onChange={e => { setSelectedSupplierCpf(e.target.value); setSelectedItemName(''); setItems([]); }} 
+                                className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-white shadow-xs font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] uppercase appearance-none cursor-pointer">
+                                <option value="">-- FORNECEDOR --</option>
+                                {filteredSuppliers.map(s => <option key={s.cpf} value={s.cpf}>{s.name}</option>)}
+                            </select>
+                        </div>
+                        <div className="md:col-span-3 space-y-0.5">
+                            <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
+                                <Calendar className="h-2 w-2" /> Data
+                            </label>
+                            <input 
+                                type="date" 
+                                value={manualDate} 
+                                onChange={e => setManualDate(e.target.value)} 
+                                className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-white shadow-xs font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px]" />
+                        </div>
+                        <div className="md:col-span-4 space-y-0.5">
+                            <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1 flex items-center gap-1">
+                                <Barcode className="h-2 w-2" /> Nº NF
+                            </label>
+                            <input 
+                                type="text" 
+                                value={manualNf} 
+                                onChange={e => setManualNf(e.target.value)} 
+                                placeholder="Nº NOTA FISCAL" 
+                                className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-white shadow-xs font-mono font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] placeholder:text-gray-300 uppercase" />
+                        </div>
+                        <div className="md:col-span-12 space-y-0.5">
+                            <label className="text-[7.5px] font-black text-indigo-600 uppercase ml-1 flex items-center gap-1 italic">
+                                <FileText className="h-2 w-2" /> Anexo em PDF (NF)
+                            </label>
+                            <div className="relative group">
+                                <input 
+                                    type="file" 
+                                    accept="application/pdf"
+                                    onChange={handleFileChange}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                                />
+                                <div className={`w-full h-8 px-3 border border-dashed rounded-lg flex items-center gap-2 transition-all ${manualInvoiceUrl ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-gray-200 text-gray-400 group-hover:border-indigo-300'}`}>
+                                    <FileText className={`h-3 w-3 ${manualInvoiceUrl ? 'text-indigo-600' : 'text-gray-300'}`} />
+                                    <span className="text-[9px] font-bold uppercase truncate">
+                                        {manualInvoiceUrl ? 'PDF Anexado ✓' : 'Clique ou arraste a NF em PDF aqui'}
+                                    </span>
+                                    {manualInvoiceUrl && (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); setManualInvoiceUrl(''); }}
+                                            className="ml-auto p-1 bg-white hover:bg-red-50 text-red-400 hover:text-red-600 rounded-md shadow-sm border border-red-50 transition-all z-20"
+                                        >
+                                            <X className="h-2 w-2" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    /* Saída layout remains similar but more compact if needed */
+                    <div className="space-y-4">
+                        {/* No changes needed to Saída for now as per user request focus is Invoice entry */}
+                        <div className="bg-red-50/50 p-3 rounded-xl border border-red-100 space-y-2 relative animate-fade-in shadow-sm">
+                            <div className="flex justify-between items-center">
+                                <label className="text-[8px] font-black text-red-600 uppercase flex items-center gap-2 italic">
+                                    <Barcode className="h-3 w-3" /> 1. BUSCAR PRODUTOR OU NOTA FISCAL
+                                </label>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex flex-col items-end">
+                                        <label className="text-[6px] font-black text-gray-400 uppercase">Data da Saída</label>
+                                        <input 
+                                            type="date" 
+                                            value={manualDate} 
+                                            onChange={e => setManualDate(e.target.value)} 
+                                            className="h-5 px-1 border-none bg-transparent font-black text-[9px] outline-none text-right text-red-600" />
+                                    </div>
+                                    <div className="flex flex-col items-end border-l pl-2 border-red-100">
+                                        <label className="text-[6px] font-black text-gray-400 uppercase">Nº REQ / Pedido</label>
+                                        <input 
+                                            type="text" 
+                                            value={manualNf} 
+                                            onChange={e => setManualNf(e.target.value)} 
+                                            placeholder="REQ..." 
+                                            className="h-5 px-1 border-none bg-transparent font-black text-[9px] outline-none text-right text-gray-900 placeholder:text-gray-300 uppercase" />
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="relative">
+                                <input 
+                                    type="text" 
+                                    value={nfSearchTerm}
+                                    onChange={e => setNfSearchTerm(e.target.value)}
+                                    placeholder="🔍 Digite Produtor ou Nº da Nota Fiscal para selecionar o saldo..."
+                                    className="w-full h-8 px-3 pr-10 border-2 border-red-100 rounded-lg bg-white shadow-md font-black outline-none focus:ring-4 focus:ring-red-200 transition-all text-[10px] placeholder:text-gray-300 italic"
+                                />
+                                {nfSearchTerm && (
+                                    <button 
+                                        onClick={() => setNfSearchTerm('')}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-600"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                )}
+                            </div>
+
+                            {filteredNfSearch.length > 0 && (
+                                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl z-[100] overflow-hidden divide-y divide-gray-100">
+                                    {filteredNfSearch.map((nf, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => handleSelectSearchedNf(nf)}
+                                            className="w-full p-2.5 hover:bg-red-50 text-left transition-all flex justify-between items-center group cursor-pointer"
+                                        >
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-black text-gray-900 leading-none group-hover:text-red-700 uppercase">NF {nf.nfNumber}</span>
+                                                    <span className="text-[10px] font-black text-red-600 italic">• {nf.itemName}</span>
+                                                </div>
+                                                <span className="text-[8.5px] font-bold text-gray-500 uppercase">{nf.supplierName}</span>
+                                                <div className="flex items-center gap-2 mt-0.5 text-[8px] font-black text-gray-400">
+                                                    <span className="bg-slate-100 text-slate-700 px-1 py-0.2 rounded uppercase">ENTRADA: {nf.entryDate ? nf.entryDate.split('-').reverse().join('/') : '---'}</span>
+                                                    <span className="bg-amber-50 text-amber-700 px-1 py-0.2 rounded uppercase">VAL: {nf.exp ? nf.exp.split('-').reverse().join('/') : '---'}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col items-end">
+                                                <span className="text-xs font-black text-emerald-600 italic leading-none">{nf.balance.toFixed(2)} KG DISP.</span>
+                                                <span className="text-[7px] font-black text-gray-300 uppercase mt-0.5">Lote: {nf.lot || '-'}</span>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                <div className="bg-white border border-gray-100 rounded-lg p-2 space-y-2 shadow-inner">
+                    {manualType === 'saída' && manualInboundNf ? (
+                        <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-205 shadow-md animate-fade-in space-y-3">
+                            {/* Cabecalho Principal */}
+                            <div className="flex justify-between items-start gap-4 border-b border-indigo-100 pb-2">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="p-2 bg-indigo-600 rounded-xl text-white shadow-md shadow-indigo-600/10">
+                                        <Package className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-[12px] font-black text-gray-950 uppercase italic tracking-tight">{selectedItemName}</h3>
+                                        <p className="text-[8.5px] text-indigo-700 font-bold uppercase mt-0.5 tracking-wide">
+                                            FORN: {selectedSupplier?.name || manualInboundNf.supplierName || '---'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => { setManualInboundNf(null); setSelectedItemName(''); setSelectedSupplierCpf(''); setNfSearchTerm(''); }}
+                                    className="p-1 text-gray-400 hover:text-red-600 hover:bg-indigo-100 rounded-lg transition-all"
+                                    title="Desmarcar item"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+
+                            {/* Informações detalhadas da Entrada e Validade */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                {/* Entrada Info Box */}
+                                <div className="bg-white p-2 rounded-lg border border-indigo-100/50 flex items-center gap-2.5 shadow-xs">
+                                    <div className="p-1 bg-blue-50 text-blue-600 rounded-md">
+                                        <FileText className="h-3.5 w-3.5" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[6px] font-black text-gray-400 uppercase">DADOS DA NOTA DE ENTRADA</p>
+                                        <p className="text-[10px] font-bold text-gray-800 uppercase mt-0.5 truncate">NF {manualInboundNf.number}</p>
+                                        <p className="text-[8px] font-black text-blue-600 uppercase">
+                                            RECEBIDO EM: {manualInboundNf.entryDate ? manualInboundNf.entryDate.split('-').reverse().join('/') : '---'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Validade Info Box */}
+                                {(() => {
+                                    const expStatus = (() => {
+                                        if (!manualInboundNf.exp) return { label: 'SEM VALIDADE', color: 'text-gray-400 bg-gray-50 border-gray-100' };
+                                        const expDate = new Date(manualInboundNf.exp + 'T00:00:00');
+                                        const today = new Date();
+                                        today.setHours(0, 0, 0, 0);
+                                        const timeDiff = expDate.getTime() - today.getTime();
+                                        const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+                                        if (daysDiff < 0) {
+                                            return { label: 'VENCIDO!', color: 'text-red-700 bg-red-50 border-red-200 animate-pulse font-black' };
+                                        } else if (daysDiff <= 15) {
+                                            return { label: `CRÍTICO! VENCE EM ${daysDiff} DIAS`, color: 'text-red-600 bg-red-50 border-red-105 font-black' };
+                                        } else if (daysDiff <= 45) {
+                                            return { label: `VENCE EM ${daysDiff} DIAS`, color: 'text-amber-700 bg-amber-50 border-amber-200 font-bold' };
+                                        } else {
+                                            return { label: `VALIDADE REGULAR (${daysDiff} d)`, color: 'text-emerald-700 bg-emerald-50 border-emerald-100' };
+                                        }
+                                    })();
+
+                                    return (
+                                        <div className="bg-white p-2 rounded-lg border border-indigo-100/50 flex items-center gap-2.5 shadow-xs">
+                                            <div className="p-1 bg-amber-50 text-amber-600 rounded-md">
+                                                <Calendar className="h-3.5 w-3.5" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[6px] font-black text-gray-400 uppercase">CONTROLE DE VALIDADE</p>
+                                                <p className="text-[10px] font-bold text-gray-800 uppercase mt-0.5">
+                                                    VALIDADE: {manualInboundNf.exp ? manualInboundNf.exp.split('-').reverse().join('/') : 'N/A'}
+                                                </p>
+                                                <span className={`inline-block text-[7.5px] px-1 py-0.2 rounded font-black border uppercase mt-0.5 ${expStatus.color}`}>
+                                                    {expStatus.label}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Lote e Código de Barras Box */}
+                                <div className="bg-white p-2 rounded-lg border border-indigo-100/50 flex items-center gap-2.5 shadow-xs">
+                                    <div className="p-1 bg-slate-50 text-slate-600 rounded-md">
+                                        <Barcode className="h-3.5 w-3.5" />
+                                    </div>
+                                    <div className="flex-grow min-w-0">
+                                        <p className="text-[6px] font-black text-gray-400 uppercase">LOTE E IDENTIFICAÇÃO</p>
+                                        <p className="text-[10px] font-bold text-gray-800 uppercase mt-0.5 truncate">Lote: {manualInboundNf.lot || 'UNICO'}</p>
+                                        <p className="text-[8px] font-mono text-slate-500 font-bold uppercase truncate">
+                                            BARCODE: {manualInboundNf.barcode || 'N/A'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Painel de Controle de Baixa e Saldos Dinâmicos */}
+                            <div className="bg-indigo-900 text-white rounded-xl p-3 border border-indigo-950 shadow-inner flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
+                                {/* Estatísticas Dinâmicas de Estoque */}
+                                <div className="flex items-center gap-3 md:gap-4 divide-x divide-indigo-800">
+                                    <div className="flex flex-col">
+                                        <span className="text-[6.5px] font-black text-indigo-300 uppercase tracking-widest leading-none">Saldo em Estoque</span>
+                                        <span className="text-[15px] font-black text-white italic mt-1 leading-none">
+                                            {manualInboundNf.availableQuantity.toFixed(2)} kg
+                                        </span>
+                                    </div>
+                                    {parseFloat(manualQuantity.replace(',', '.')) > 0 && (
+                                        <div className="flex flex-col pl-3 md:pl-4 animate-fade-in">
+                                            <span className="text-[6.5px] font-black text-indigo-300 uppercase tracking-widest leading-none">Restará no Estoque</span>
+                                            <span className="text-[15px] font-black text-amber-300 italic mt-1 leading-none">
+                                                {Math.max(0, manualInboundNf.availableQuantity - (parseFloat(manualQuantity.replace(',', '.')) || 0)).toFixed(2)} kg
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Form Input de Retirada, Botão Etiqueta e Botão Baixa */}
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                    {/* Link/Botão para Etiqueta do Restante */}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const qtyLeft = Math.max(0, manualInboundNf.availableQuantity - (parseFloat(manualQuantity.replace(',', '.')) || 0));
+                                            handlePrintStockRemainingLabel(manualInboundNf, qtyLeft);
+                                        }}
+                                        className="h-8 px-2.5 rounded-lg font-black text-[8px] uppercase border border-indigo-700 hover:border-white bg-indigo-950 hover:bg-white hover:text-indigo-900 transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                                        title="Imprimir etiqueta do saldo que restará em estoque"
+                                    >
+                                        <Printer className="h-3.5 w-3.5" /> Etiqueta do Restante
+                                    </button>
+
+                                    {/* Input da quantidade a ser baixada */}
+                                    <div className="relative flex items-center">
+                                        <input 
+                                            type="text" 
+                                            autoFocus
+                                            value={manualQuantity} 
+                                            onChange={e => setManualQuantity(e.target.value.replace(/[^0-9,.]/g, ''))} 
+                                            placeholder="0,00" 
+                                            className="w-20 h-8 px-2 border-2 border-indigo-400 rounded-lg bg-indigo-950 text-white font-black text-center text-[11px] outline-none shadow-sm font-mono placeholder:text-indigo-700 focus:border-white transition-all" 
+                                        />
+                                        <span className="absolute right-2 text-[7px] font-black text-indigo-400 pointer-events-none uppercase">KG</span>
+                                    </div>
+
+                                    {/* Botão Baixar */}
+                                    <button 
+                                        type="button" 
+                                        onClick={handleAddItem}
+                                        disabled={!manualQuantity || parseFloat(manualQuantity.replace(',', '.')) <= 0}
+                                        className="h-8 px-4 rounded-lg font-black uppercase text-[9px] shadow-md transition-all active:scale-95 disabled:bg-indigo-805 disabled:text-indigo-400 bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center gap-1 shadow-emerald-500/10"
+                                    >
+                                        <Plus className="h-3.5 w-3.5" /> CONFIRMAR BAIXA
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : manualType === 'saída' ? (
+                        <div className="py-6 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                             <Package className="h-6 w-6 text-gray-300 mx-auto mb-1 opacity-50" />
+                             <p className="text-[8px] text-gray-400 font-black uppercase tracking-[0.15em]">Selecione o saldo acima para realizar a baixa</p>
+                        </div>
+                    ) : (
+                        /* ENTRADA DE NOTA FISCAL - REDESIGN */
+                        <div className="space-y-2 p-1">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+                                {/* Row 1: Item Selection */}
+                                <div className="md:col-span-12 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-indigo-600 uppercase ml-1 italic tracking-widest flex items-center justify-between gap-1.5">
+                                        <span className="flex items-center gap-1.5"><Package className="h-2 w-2" /> 1. Produto / Item</span>
+                                        <span className="text-[6px] text-gray-400 font-bold lowercase">Busca em todos os contratos cadastrados</span>
+                                    </label>
+                                    <input 
+                                        list="items-datalist"
+                                        value={selectedItemName} 
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            setSelectedItemName(val);
+                                            updateManualValue(val, selectedPeriod);
+                                            
+                                            // Tenta auto-selecionar fornecedor se o item for exclusivo de um
+                                            if (!selectedSupplierCpf) {
+                                            const suppliersWithItem = filteredSuppliers.filter(s => {
+                                                    const items = Array.isArray(s.contractItems) ? s.contractItems : Object.values(s.contractItems || {});
+                                                    return items.some((ci: any) => ci.name === val);
+                                                });
+                                                if (suppliersWithItem.length === 1) {
+                                                    setSelectedSupplierCpf(suppliersWithItem[0].cpf);
+                                                }
+                                            }
+                                        }} 
+                                        placeholder="QUAL O PRODUTO? (DIGITE OU SELECIONE)"
+                                        className="w-full h-8 px-3 border border-gray-200 rounded-lg bg-white font-black outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] uppercase italic placeholder:text-gray-300" 
+                                    />
+                                    <datalist id="items-datalist">
+                                        {availableItems.map((it, idx) => (
+                                            <option key={idx} value={it.name}>
+                                                {it.displayName}
+                                            </option>
+                                        ))}
+                                    </datalist>
+                                </div>
+
+                                {/* Row 2: Barcode and Lote */}
+                                <div className="md:col-span-6 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1">Cód. Barras</label>
+                                    <input 
+                                        type="text" 
+                                        ref={barcodeInputRef}
+                                        value={manualBarcode} 
+                                        onChange={e => setManualBarcode(e.target.value)} 
+                                        placeholder="SCANEIE OU DIGITE"
+                                        className="w-full h-8 px-2 border border-gray-200 rounded-lg bg-white font-mono font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] placeholder:text-gray-300 uppercase" 
+                                    />
+                                </div>
+                                <div className="md:col-span-6 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1">Lote</label>
+                                    <input 
+                                        type="text" 
+                                        value={manualLot} 
+                                        onChange={e => setManualLot(e.target.value)} 
+                                        placeholder="LOTE"
+                                        className="w-full h-8 px-2 border border-gray-200 rounded-lg bg-white font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] uppercase" 
+                                    />
+                                </div>
+
+                                {/* Row 3: Quantidade and Validade */}
+                                <div className="md:col-span-4 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-emerald-600 uppercase ml-1 block">Quantidade (Kg/Un)</label>
+                                    <input 
+                                        type="text" 
+                                        value={manualQuantity} 
+                                        onChange={e => {
+                                            const val = e.target.value.replace(/[^0-9,.]/g, '');
+                                            setManualQuantity(val);
+                                            if (selectedItemName) {
+                                                updateManualValue(selectedItemName, selectedPeriod, val);
+                                            }
+                                        }} 
+                                        placeholder="0,00"
+                                        className="w-full h-8 px-2 border-2 border-emerald-100 rounded-lg bg-white font-black outline-none focus:ring-2 focus:ring-emerald-200 transition-all text-[11px] text-center" 
+                                    />
+                                </div>
+                                <div className="md:col-span-4 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1">Validade</label>
+                                    <input 
+                                        type="date" 
+                                        value={manualExp} 
+                                        onChange={e => setManualExp(e.target.value)} 
+                                        className="w-full h-8 px-1 border border-gray-200 rounded-lg bg-white font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[9.5px]" 
+                                    />
+                                </div>
+                                <div className="md:col-span-4 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1 italic tracking-widest">Nº PD</label>
+                                    <input 
+                                        type="text" 
+                                        value={manualPd} 
+                                        onChange={e => setManualPd(e.target.value)} 
+                                        placeholder="Nº PD"
+                                        className="w-full h-8 px-2 border border-gray-200 rounded-lg bg-white font-black outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] uppercase text-indigo-600" 
+                                    />
+                                </div>
+
+                                {/* Row 4: Period and Values */}
+                                <div className="md:col-span-7 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-indigo-600 uppercase ml-1">Período de Aquisição</label>
+                                    <div className="flex gap-1 p-0.5 bg-gray-100 rounded-lg border border-gray-200">
+                                        <button 
+                                            type="button"
+                                            onClick={() => { setSelectedPeriod('1_QUAD'); updateManualValue(selectedItemName, '1_QUAD'); }}
+                                            className={`flex-1 py-1 rounded-md text-[7px] font-black uppercase transition-all ${selectedPeriod === '1_QUAD' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            1º Quadrim.
+                                        </button>
+                                        <button 
+                                            type="button"
+                                            onClick={() => { setSelectedPeriod('2_3_QUAD'); updateManualValue(selectedItemName, '2_3_QUAD'); }}
+                                            className={`flex-1 py-1 rounded-md text-[7px] font-black uppercase transition-all ${selectedPeriod === '2_3_QUAD' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            2º e 3º Quad.
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="md:col-span-5 space-y-0.5">
+                                    <label className="text-[7.5px] font-black text-gray-400 uppercase ml-1">Valor Total na NF (R$)</label>
+                                    <input 
+                                        type="text" 
+                                        value={manualValue} 
+                                        onChange={e => setManualValue(e.target.value)} 
+                                        className="w-full h-8 px-2 border border-gray-200 rounded-lg bg-gray-50 font-black outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-[10px] text-right" 
+                                    />
+                                </div>
+
+                                {/* Row 5: Total Highlight and Add Button */}
+                                <div className="md:col-span-12 flex items-center justify-between gap-3 bg-zinc-900 p-2 rounded-xl border border-zinc-800 shadow-2xl mt-1">
+                                    <div className="flex flex-col">
+                                        <span className="text-[7px] font-black text-zinc-500 uppercase tracking-widest leading-none">Total deste Item</span>
+                                        <span className="text-xl font-black text-emerald-400 italic leading-none mt-1">
+                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(currentTotalValue)}
+                                        </span>
+                                    </div>
+                                    <button 
+                                        type="button" 
+                                        onClick={handleAddItem}
+                                        disabled={!selectedItemName || !manualQuantity || parseFloat(manualQuantity.replace(',', '.')) <= 0}
+                                        className="h-10 px-6 rounded-xl font-black uppercase text-[10px] shadow-xl transition-all active:scale-95 disabled:bg-zinc-800 disabled:text-zinc-600 bg-emerald-500 hover:bg-emerald-600 text-white flex items-center gap-2 shadow-emerald-500/20"
+                                    >
+                                        <Plus className="h-4 w-4" /> ADICIONAR ITEM NA NF
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {items.length > 0 && (
+                        <div className="pt-3 border-t border-gray-100 mt-2">
+                            <div className="flex flex-wrap gap-1.5 mb-3">
+                                {items.map((item) => (
+                                    <div key={item.id} className="bg-slate-50 px-2 py-1 rounded-xl border border-gray-100 flex items-center gap-2 shadow-xs animate-in slide-in-from-left-2 transition-all group">
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] font-black text-gray-900 leading-none">{item.itemName}</span>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-[7px] text-gray-400 font-bold uppercase tracking-tighter">
+                                                    {item.quantity} kg • Unit: R$ {((item.value || 0) / (item.quantity || 1)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                                                </span>
+                                                {item.barcode && (
+                                                    <>
+                                                        <div className="w-1 h-1 rounded-full bg-gray-200"></div>
+                                                        <span className="text-[7px] text-blue-500 font-bold uppercase flex items-center gap-0.5">
+                                                           <Barcode className="h-2 w-2" /> {item.barcode}
+                                                        </span>
+                                                    </>
+                                                )}
+                                                <div className="w-1 h-1 rounded-full bg-gray-200"></div>
+                                                <span className="text-[7px] text-indigo-500 font-black uppercase">
+                                                    Tot: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.value || 0)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1 ml-auto transition-opacity touch-auto">
+                                            <button 
+                                                type="button"
+                                                onClick={() => handlePrintItemLabel(item)}
+                                                className="p-1 text-gray-400 hover:text-emerald-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-emerald-100"
+                                                title="Imprimir Etiqueta"
+                                            >
+                                                <Printer className="h-3 w-3" />
+                                            </button>
+                                            <button 
+                                                type="button"
+                                                onClick={() => handleDuplicateItem(item)}
+                                                className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-indigo-100"
+                                            >
+                                                <Copy className="h-3 w-3" />
+                                            </button>
+                                            <button 
+                                                type="button"
+                                                onClick={() => handleRemoveItem(item.id)} 
+                                                className="p-1 text-rose-400 hover:text-rose-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-rose-100 active:scale-95"
+                                                title="Remover Item"
+                                            >
+                                                <Trash2 className="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <div className="flex justify-between items-center bg-gray-900 p-3 rounded-2xl shadow-xl border-t-4 border-indigo-500 mb-2">
+                                <div className="flex flex-col">
+                                    <span className="text-[8px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-1">Total da Nota Fiscal</span>
+                                    <div className="text-xl font-black text-white font-mono tracking-tighter">
+                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                                            items.reduce((acc, item) => acc + (item.value || 0), 0)
+                                        )}
+                                    </div>
+                                </div>
+                                <button 
+                                    type="button" 
+                                    onClick={handleRegisterAll}
+                                    disabled={isSubmitting || items.length === 0} 
+                                    className={`h-11 px-8 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl transition-all active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 text-white flex items-center justify-center gap-2 ${manualType === 'entrada' ? 'bg-green-600 hover:bg-green-700 shadow-green-900/20' : 'bg-red-600 hover:bg-red-700 shadow-red-900/20'}`}>
+                                    {isSubmitting ? (
+                                        <>
+                                            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                            Processando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Plus className="h-4 w-4" /> Confirmar NF ({items.length} itens)
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default WarehouseMovementForm;
