@@ -63,7 +63,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 }) => {
   // Identify who the current logged-in user is
   const isDouglas = currentUser?.cpf === '29099022859' || currentUser?.name?.toUpperCase().includes('DOUGLAS');
-  const isAlfredo = currentUser?.cpf === '29462706821' || currentUser?.name?.toUpperCase().includes('ALFREDO');
+  const isAlfredo = currentUser?.cpf === '36554895876' || currentUser?.name?.toUpperCase().includes('ALFREDO');
 
   const showChefeDep = isReadOnly || isDouglas || currentUser?.role === 'admin';
   const showChefeSeg = isReadOnly || isAlfredo || currentUser?.role === 'admin';

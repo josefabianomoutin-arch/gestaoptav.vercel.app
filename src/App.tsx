@@ -460,7 +460,7 @@ const App: React.FC = () => {
       return true;
     }
 
-    const adminCpfs = ['15210361870', '29099022859', '29462706821', '36554895876'];
+    const adminCpfs = ['15210361870', '29099022859', '36554895876'];
 
     // ACESSO ESPECÍFICO: DOUGLAS FERNANDO SEMENZIN GALDINO
     if (['DOUGLAS', 'GALDINO', 'SEMENZIN'].some(n => cleanName.includes(n))) {
@@ -474,8 +474,8 @@ const App: React.FC = () => {
     // ACESSO ESPECÍFICO: ALFREDO GUILHERME LOPES
     if (['ALFREDO', 'LOPES', 'GUILHERME'].some(n => cleanName.includes(n))) {
       const alfredoDbPass = (systemPasswords['ALFREDO GUILHERME LOPES'] || 'diretor123').trim().toLowerCase();
-      if (numericPass === '29462706821' || rawPass.toLowerCase() === alfredoDbPass) {
-        setUser({ name: 'ALFREDO GUILHERME LOPES', cpf: '29462706821', role: 'financeiro' });
+      if (numericPass === '36554895876' || rawPass.toLowerCase() === alfredoDbPass) {
+        setUser({ name: 'ALFREDO GUILHERME LOPES', cpf: '36554895876', role: 'financeiro' });
         return true;
       }
     }
@@ -485,10 +485,10 @@ const App: React.FC = () => {
         let displayName = cleanName;
         if (numericPass === '29099022859') {
           displayName = 'DOUGLAS FERNANDO SEMENZIN GALDINO';
-        } else if (numericPass === '29462706821') {
+        } else if (numericPass === '36554895876') {
           displayName = 'ALFREDO GUILHERME LOPES';
         }
-        const isFinanceAdmin = cleanName.includes('DOUGLAS') || cleanName.includes('ALFREDO') || numericPass === '29099022859' || numericPass === '29462706821';
+        const isFinanceAdmin = cleanName.includes('DOUGLAS') || cleanName.includes('ALFREDO') || numericPass === '29099022859' || numericPass === '36554895876';
         setUser({ name: displayName, cpf: numericPass, role: isFinanceAdmin ? 'financeiro' : 'admin' });
         return true;
       }
