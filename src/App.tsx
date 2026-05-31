@@ -2851,6 +2851,7 @@ const App: React.FC = () => {
                directorPerCapita={directorPerCapita}
                onUpdateDirectorPerCapita={handleUpdateDirectorPerCapita}
                warehouseLog={warehouseLog}
+               perCapitaConfig={perCapitaConfig}
              />;
     }
 

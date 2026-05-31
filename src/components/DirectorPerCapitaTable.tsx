@@ -152,8 +152,21 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       });
     }
 
+    // 4. From WarehouseLog (stock)
+    if (warehouseLog) {
+      warehouseLog.forEach(log => {
+        const name = log.itemName || log.item || '';
+        if (name && name.trim()) {
+          const trimmed = name.trim().toUpperCase();
+          if (!list.includes(trimmed)) {
+            list.push(trimmed);
+          }
+        }
+      });
+    }
+
     return list.sort((a, b) => a.localeCompare(b));
-  }, [perCapitaConfig, standardMenu, suppliers]);
+  }, [perCapitaConfig, standardMenu, suppliers, warehouseLog]);
 
   // get unique names from general standard menu (percapta geral)
   const generalMenuNames = React.useMemo(() => {
