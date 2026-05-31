@@ -151,7 +151,19 @@ const App: React.FC = () => {
       { key: 'acquisitionItems', setter: setAcquisitionItems },
       { key: 'standardMenu', setter: setStandardMenu },
       { key: 'dailyMenus', setter: setDailyMenus },
-      { key: 'publicInfo', setter: setPublicInfo }
+      { key: 'publicInfo', setter: setPublicInfo },
+      { key: 'financialRecords', setter: setFinancialRecords },
+      { key: 'vehicleExitOrders', setter: setVehicleExitOrders },
+      { key: 'vehicleInspections', setter: setVehicleInspections },
+      { key: 'serviceOrders', setter: setServiceOrders },
+      { key: 'vehicleAssets', setter: setVehicleAssets },
+      { key: 'driverAssets', setter: setDriverAssets },
+      { key: 'validationRoles', setter: setValidationRoles },
+      { key: 'systemPasswords', setter: setSystemPasswords },
+      { key: 'maintenanceSchedules', setter: setMaintenanceSchedules },
+      { key: 'directorPerCapita', setter: setDirectorPerCapita },
+      { key: 'cleaningLogs', setter: setCleaningLogs },
+      { key: 'directorWithdrawals', setter: setDirectorWithdrawals }
     ];
 
     collectionsToPersist.forEach(({ key, setter }) => {
@@ -206,11 +218,15 @@ const App: React.FC = () => {
     });
     onValue(cleaningLogsRef, (snapshot) => {
       const data = snapshot.val();
-      setCleaningLogs(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setCleaningLogs(list as CleaningLog[]);
+      safeLocalStorageSetItem('cached_cleaningLogs', JSON.stringify(list));
     });
     onValue(directorWithdrawalsRef, (snapshot) => {
       const data = snapshot.val();
-      setDirectorWithdrawals(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setDirectorWithdrawals(list as DirectorPerCapitaLog[]);
+      safeLocalStorageSetItem('cached_directorWithdrawals', JSON.stringify(list));
     });
     onValue(standardMenuRef, (snapshot) => {
       const data = snapshot.val() || {};
@@ -224,15 +240,12 @@ const App: React.FC = () => {
     });
     onValue(financialRecordsRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) {
-        const recordsWithIds = Object.entries(data).map(([key, value]: [string, any]) => ({
-          ...value,
-          id: value.id || key
-        }));
-        setFinancialRecords(recordsWithIds);
-      } else {
-        setFinancialRecords([]);
-      }
+      const list = data ? Object.entries(data).map(([key, value]: [string, any]) => ({
+        ...value,
+        id: value.id || key
+      })) : [];
+      setFinancialRecords(list as FinancialRecord[]);
+      safeLocalStorageSetItem('cached_financialRecords', JSON.stringify(list));
     });
     onValue(thirdPartyEntriesRef, (snapshot) => {
       const data = snapshot.val();
@@ -248,43 +261,62 @@ const App: React.FC = () => {
     });
     onValue(vehicleExitOrdersRef, (snapshot) => {
       const data = snapshot.val();
-      setVehicleExitOrders(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setVehicleExitOrders(list as VehicleExitOrder[]);
+      safeLocalStorageSetItem('cached_vehicleExitOrders', JSON.stringify(list));
     });
     onValue(vehicleInspectionsRef, (snapshot) => {
       const data = snapshot.val();
-      setVehicleInspections(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setVehicleInspections(list as VehicleInspection[]);
+      safeLocalStorageSetItem('cached_vehicleInspections', JSON.stringify(list));
     });
 
     onValue(serviceOrdersRef, (snapshot) => {
       const data = snapshot.val();
-      setServiceOrders(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setServiceOrders(list as ServiceOrder[]);
+      safeLocalStorageSetItem('cached_serviceOrders', JSON.stringify(list));
     });
     onValue(vehicleAssetsRef, (snapshot) => {
       const data = snapshot.val();
-      setVehicleAssets(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setVehicleAssets(list as VehicleAsset[]);
+      safeLocalStorageSetItem('cached_vehicleAssets', JSON.stringify(list));
     });
     onValue(driverAssetsRef, (snapshot) => {
       const data = snapshot.val();
-      setDriverAssets(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setDriverAssets(list as DriverAsset[]);
+      safeLocalStorageSetItem('cached_driverAssets', JSON.stringify(list));
     });
     onValue(dailyAllowancesRef, (snapshot) => {
       const data = snapshot.val();
-      setDailyAllowances(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setDailyAllowances(list);
+      // Wait, setter name is _dailyAllowances but state setter is setDailyAllowances
     });
     onValue(staffRef, (snapshot) => {
       const data = snapshot.val();
-      setStaff(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setStaff(list);
     });
     onValue(validationRolesRef, (snapshot) => {
       const data = snapshot.val();
-      setValidationRoles(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setValidationRoles(list as ValidationRole[]);
+      safeLocalStorageSetItem('cached_validationRoles', JSON.stringify(list));
     });
     onValue(systemPasswordsRef, (snapshot) => {
-      setSystemPasswords(snapshot.val() || {});
+      const data = snapshot.val() || {};
+      setSystemPasswords(data);
+      safeLocalStorageSetItem('cached_systemPasswords', JSON.stringify(data));
     });
     onValue(maintenanceSchedulesRef, (snapshot) => {
       const data = snapshot.val();
-      setMaintenanceSchedules(data ? Object.values(data) : []);
+      const list = data ? Object.values(data) : [];
+      setMaintenanceSchedules(list as MaintenanceSchedule[]);
+      safeLocalStorageSetItem('cached_maintenanceSchedules', JSON.stringify(list));
     });
     onValue(publicInfoRef, (snapshot) => {
       const data = snapshot.val();
@@ -350,7 +382,9 @@ const App: React.FC = () => {
         chefeSeg.history = {};
       }
 
-      setDirectorPerCapita({ chefeDep, chefeSeg });
+      const merged = { chefeDep, chefeSeg };
+      setDirectorPerCapita(merged);
+      safeLocalStorageSetItem('cached_directorPerCapita', JSON.stringify(merged));
     });
   }, []);
 

@@ -10,8 +10,7 @@ import {
   History, 
   FileCheck, 
   ArrowLeft, 
-  Trash,
-  X 
+  Trash
 } from 'lucide-react';
 
 interface RowItem {
@@ -59,7 +58,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   isReadOnly = false,
   warehouseLog = [],
   suppliers = [],
-  standardMenu = {},
+  standardMenu: _standardMenu = {},
   perCapitaConfig,
 }) => {
   // Identify who the current logged-in user is
@@ -115,25 +114,32 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
         (supplier.contractItems || []).forEach(item => {
           if (item.name && item.name.trim()) {
             const fullName = item.name.trim().toUpperCase();
-            let shortName: string;
-            if (fullName.includes(';')) {
-              const parts = fullName.split(';').map(p => p.trim()).filter(Boolean);
-              const combined = parts.slice(0, 2).join(' ');
-              shortName = combined.split(/\s+/).slice(0, 4).join(' ');
-            } else {
-              const words = fullName.split(/\s+/);
-              shortName = words.slice(0, 4).join(' ');
-            }
-            if (!list.includes(shortName)) {
-              list.push(shortName);
+            if (!list.includes(fullName)) {
+              list.push(fullName);
             }
           }
         });
       });
     }
 
+    // 2. From suppliers state
+    if (suppliers && Array.isArray(suppliers)) {
+      suppliers.forEach(supplier => {
+        if (supplier && supplier.contractItems) {
+          supplier.contractItems.forEach((item: any) => {
+            if (item && item.name && item.name.trim()) {
+              const fullName = item.name.trim().toUpperCase();
+              if (!list.includes(fullName)) {
+                list.push(fullName);
+              }
+            }
+          });
+        }
+      });
+    }
+
     return list.sort((a, b) => a.localeCompare(b));
-  }, [perCapitaConfig]);
+  }, [perCapitaConfig, suppliers]);
 
 
 
@@ -1291,6 +1297,13 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                               {(() => {
                                 const normalizeText = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase();
                                 const q = normalizeText(item.itemName.trim());
+                                if (q === '') {
+                                  return (
+                                    <div className="p-2.5 text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-center col-span-1">
+                                      Digite para buscar...
+                                    </div>
+                                  );
+                                }
                                 const suggestions = percapitaAllItems.filter(p => normalizeText(p).includes(q));
                                 if (suggestions.length === 0) {
                                   return (
