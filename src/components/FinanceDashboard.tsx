@@ -148,8 +148,8 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
 
   const totalsGlobal = useMemo(() => {
       return records.reduce((acc, curr) => ({
-          utilizado: acc.utilizado + (curr.tipo === 'DESPESA' ? Number(curr.valorUtilizado) : 0),
-          recurso: acc.recurso + (curr.tipo === 'RECURSO' ? (Number(curr.valorRecebido) || Number(curr.valorSolicitado)) : 0)
+          utilizado: acc.utilizado + (curr.tipo === 'DESPESA' ? (Number(curr.valorUtilizado) || 0) : 0),
+          recurso: acc.recurso + (curr.tipo === 'RECURSO' ? (Number(curr.valorRecebido) || Number(curr.valorSolicitado) || 0) : 0)
       }), { utilizado: 0, recurso: 0 });
   }, [records]);
 
