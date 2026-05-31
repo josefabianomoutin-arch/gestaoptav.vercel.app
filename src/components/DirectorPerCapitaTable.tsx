@@ -169,44 +169,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     return list.sort((a, b) => a.localeCompare(b));
   }, [perCapitaConfig, standardMenu, suppliers, warehouseLog]);
 
-  // get unique names from general standard menu (percapta geral)
-  const generalMenuNames = React.useMemo(() => {
-    const names = new Set<string>();
-    if (standardMenu) {
-      Object.keys(standardMenu).forEach((day) => {
-        const rows = standardMenu[day];
-        if (Array.isArray(rows)) {
-          rows.forEach((row: any) => {
-            const name = row.contractedItem || row.foodItem || row.item || '';
-            if (name && name.trim()) {
-              names.add(name.trim().toUpperCase());
-            }
-          });
-        }
-      });
-    }
-    return names;
-  }, [standardMenu]);
 
-  // get unique active names (first 2 words) from perCapitaConfig
-  const activePercapitaItems = React.useMemo(() => {
-    const names = new Set<string>();
-    if (perCapitaConfig) {
-        [
-            ...(perCapitaConfig.ppaisProducers || []),
-            ...(perCapitaConfig.pereciveisSuppliers || []),
-            ...(perCapitaConfig.estocaveisSuppliers || [])
-        ].forEach(supplier => {
-            (supplier.contractItems || []).forEach(item => {
-                if (item.name) {
-                    const twoWords = item.name.trim().split(' ').slice(0, 2).join(' ').toUpperCase();
-                    if (twoWords) names.add(twoWords);
-                }
-            });
-        });
-    }
-    return names;
-  }, [perCapitaConfig]);
 
   // computed stock balances per requested item, lot, and expiration
   const requestedItemsStockList = React.useMemo(() => {
@@ -484,8 +447,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
         [orderKey]: {
           ...currentActiveOrderData,
           signed: false,
-          signedAt: undefined,
-          signerName: undefined
+          signedAt: null,
+          signerName: null
         }
       }
     };
@@ -585,8 +548,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
           items: emptyItems,
           id: 'atual',
           signed: false,
-          signedAt: undefined,
-          signerName: undefined
+          signedAt: null,
+          signerName: null
         },
         [historyKey]: {
           ...currentHistory,
