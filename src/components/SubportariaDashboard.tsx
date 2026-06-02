@@ -19,6 +19,7 @@ interface SubportariaDashboardProps {
   driverAssets: DriverAsset[];
   validationRoles: ValidationRole[];
   onUpdateVehicleExitOrder: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
+  onDeleteVehicleExitOrder: (id: string) => Promise<{ success: boolean; message: string }>;
   systemPasswords?: Record<string, string>;
   onUpdateSystemPassword?: (key: string, value: string) => Promise<void>;
   [key: string]: any;
@@ -35,6 +36,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     driverAssets,
     validationRoles,
     onUpdateVehicleExitOrder,
+    onDeleteVehicleExitOrder,
     systemPasswords = {},
     onUpdateSystemPassword = async () => {}
 }) => {
@@ -168,7 +170,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                 orders={vehicleExitOrders} 
                                 onRegister={async () => ({ success: true, message: 'OK' })}
                                 onUpdate={onUpdateVehicleExitOrder} 
-                                onDelete={async () => ({ success: true, message: 'OK' })}
+                                onDelete={onDeleteVehicleExitOrder}
                                 vehicleAssets={vehicleAssets}
                                 onRegisterVehicleAsset={async () => ({ success: true, message: 'OK' })}
                                 onUpdateVehicleAsset={async () => ({ success: true, message: 'OK' })}

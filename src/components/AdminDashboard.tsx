@@ -76,7 +76,7 @@ interface AdminDashboardProps {
   vehicleExitOrders: VehicleExitOrder[];
   onRegisterVehicleExitOrder: (order: Omit<VehicleExitOrder, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateVehicleExitOrder: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
-  onDeleteVehicleExitOrder: (id: string) => Promise<void | { success: boolean; message: string }>;
+  onDeleteVehicleExitOrder?: (id: string) => Promise<void | { success: boolean; message: string }>;
   vehicleAssets: VehicleAsset[];
   onRegisterVehicleAsset: (asset: Omit<VehicleAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateVehicleAsset: (asset: VehicleAsset) => Promise<{ success: boolean; message: string }>;

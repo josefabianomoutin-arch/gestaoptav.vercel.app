@@ -2937,10 +2937,7 @@ const App: React.FC = () => {
                    await set(child(vehicleExitOrdersRef, order.id), order);
                    return { success: true, message: 'Atualizado' };
                }}
-               onDeleteVehicleExitOrder={async (id) => {
-                   console.log("Deleting vehicle exit order with ID:", id);
-                   return remove(child(vehicleExitOrdersRef, id));
-               }}
+               onDeleteVehicleExitOrder={undefined}
                vehicleAssets={vehicleAssets}
                onRegisterVehicleAsset={async (asset) => {
                    const r = push(vehicleAssetsRef);
