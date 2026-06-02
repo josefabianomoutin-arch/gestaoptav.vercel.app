@@ -560,7 +560,7 @@ const App: React.FC = () => {
     try {
       const newRef = push(serviceOrdersRef);
       const id = newRef.key || `so-${Date.now()}`;
-      await set(newRef, { ...order, id });
+      await set(newRef, { ...order, id, createdAt: order.createdAt || new Date().toISOString() });
       return { success: true, message: 'Ordem de serviço registrada com sucesso!' };
     } catch (e) {
       console.error('Erro ao registrar ordem de serviço:', e);
