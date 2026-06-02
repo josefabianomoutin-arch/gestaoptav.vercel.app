@@ -108,6 +108,7 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
           hideAssets={true}
           hideEdit={false}
           showGateTab={true}
+          allowDelete={false}
           userRole={role}
         />
       </main>

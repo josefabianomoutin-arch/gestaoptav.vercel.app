@@ -171,6 +171,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                 onRegister={async () => ({ success: true, message: 'OK' })}
                                 onUpdate={onUpdateVehicleExitOrder} 
                                 onDelete={onDeleteVehicleExitOrder}
+                                allowDelete={true}
                                 vehicleAssets={vehicleAssets}
                                 onRegisterVehicleAsset={async () => ({ success: true, message: 'OK' })}
                                 onUpdateVehicleAsset={async () => ({ success: true, message: 'OK' })}

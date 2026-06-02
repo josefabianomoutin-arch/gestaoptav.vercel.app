@@ -312,6 +312,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
                     onRegister={() => Promise.resolve({ success: false, message: 'Não permitido' })}
                     onUpdate={() => Promise.resolve({ success: false, message: 'Não permitido' })}
                     onDelete={() => Promise.resolve()}
+                    allowDelete={false}
                     onRegisterVehicleAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
                     onUpdateVehicleAsset={() => Promise.resolve({ success: false, message: 'Não permitido' })}
                     onDeleteVehicleAsset={() => Promise.resolve()}
