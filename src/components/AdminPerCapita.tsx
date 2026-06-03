@@ -2073,8 +2073,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                             {(activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers)).sort((a, b) => a.name.localeCompare(b.name)).map(s => {
                                                 const scheduledMonths = months.filter(m => (s.monthlySchedule?.[m] || []).length > 0);
-                                                if (scheduledMonths.length === 0) return null;
-
+                                                
                                                 const items = (s.contractItems || []) as any[];
 
                                                 return (
