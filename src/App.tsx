@@ -823,46 +823,37 @@ const App: React.FC = () => {
       const targetCpf = clean(supplierCpf);
 
       // Check Per Capita suppliers FIRST to prioritize Per Capita scheduling
-      const timeoutPromisePC = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao agendar entrega Per Capita')), 10000));
+      const perCapitaData = (await get(perCapitaConfigRef)).val();
       
-      console.log('--- Debug: PerCapitaConfig ---', perCapitaConfig);
-      console.log('--- Debug: Producer List ---', perCapitaConfig?.ppaisProducers);
+      let producerIndex = -1;
+      let arrayName = '';
       
-      let pcFound = false;
-      await Promise.race([
-        runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
-          if (currentData) {
-              const findAndAdd = (list: any[] | undefined) => {
-                const s = list?.find(p => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
-                if (s) {
-                  const deliveries = Array.isArray(s.deliveries) ? [...s.deliveries] : Object.values(s.deliveries || {});
-                  deliveries.push({
-                    id: `del-${Date.now()}`,
-                    date,
-                    time,
-                    item: 'AGENDAMENTO PENDENTE',
-                    invoiceUploaded: false
-                  });
-                  s.deliveries = deliveries;
-                  pcFound = true;
-                  return true;
-                }
-                return false;
-              };
-            if (!findAndAdd(currentData.ppaisProducers)) {
-              if (!findAndAdd(currentData.pereciveisSuppliers)) {
-                 findAndAdd(currentData.estocaveisSuppliers);
+      const config = perCapitaData;
+      if (config) {
+          const findIndex = (list: any[] | undefined, name: string) => {
+              const idx = list?.findIndex(p => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
+              if (idx !== -1) {
+                  producerIndex = idx;
+                  arrayName = name;
               }
-            }
-          }
-          return currentData;
-        }),
-        timeoutPromisePC
-      ]);
+          };
+          findIndex(config.ppaisProducers, 'ppaisProducers');
+          if (producerIndex === -1) findIndex(config.pereciveisSuppliers, 'pereciveisSuppliers');
+          if (producerIndex === -1) findIndex(config.estocaveisSuppliers, 'estocaveisSuppliers');
+      }
 
-      if (pcFound) {
-        toast.success('Agendamento realizado!');
-        return;
+      if (producerIndex !== -1 && arrayName) {
+          const supRef = child(perCapitaConfigRef, `${arrayName}/${producerIndex}/deliveries`);
+          const newDeliveryRef = push(supRef);
+          await set(newDeliveryRef, {
+            id: newDeliveryRef.key,
+            date,
+            time,
+            item: 'AGENDAMENTO PENDENTE',
+            invoiceUploaded: false
+          });
+          toast.success('Agendamento realizado!');
+          return;
       }
 
       // If not in per capita lists, schedule inside the Main Suppliers list
@@ -3237,6 +3228,7 @@ const App: React.FC = () => {
         // Calculate weeks from Per Capita if registered
         let finalWeeks = ensureArray<number>(currentSupplier.allowedWeeks).filter(w => w <= 18);
         
+        console.log('--- Debug: PerCapitaEntry in scheduling ---', perCapitaEntry);
         if (isRegisteredForNextPeriod && perCapitaEntry?.monthlySchedule) {
             const year = 2026;
             const monthNames = [
