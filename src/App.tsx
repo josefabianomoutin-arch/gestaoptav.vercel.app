@@ -864,9 +864,16 @@ const App: React.FC = () => {
       // If not in per capita lists, schedule inside the Main Suppliers list
       const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
       if (mainSupplier) {
-        const supRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
+        console.log('Found main supplier:', mainSupplier);
+        const refId = mainSupplier.id || targetCpf;
+        if (!refId) {
+            throw new Error('Supplier ID not found');
+        }
+        const supRefPath = `${refId}/deliveries`;
+        console.log('Supplier ref path:', supRefPath);
+        const supRef = child(suppliersRef, supRefPath);
         await runTransaction(supRef, (current) => {
-          const list = ensureArray<any>(current);
+          const list = ensureArray<any>(current || []);
           list.push({
             id: `del-${Date.now()}`,
             date,
