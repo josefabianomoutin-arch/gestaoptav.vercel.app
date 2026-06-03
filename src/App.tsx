@@ -872,16 +872,13 @@ const App: React.FC = () => {
         const supRefPath = `${refId}/deliveries`;
         console.log('Supplier ref path:', supRefPath);
         const supRef = child(suppliersRef, supRefPath);
-        await runTransaction(supRef, (current) => {
-          const list = ensureArray<any>(current || []);
-          list.push({
-            id: `del-${Date.now()}`,
-            date,
-            time,
-            item: 'AGENDAMENTO PENDENTE',
-            invoiceUploaded: false
-          });
-          return list;
+        const newDeliveryRef = push(supRef);
+        await set(newDeliveryRef, {
+          id: newDeliveryRef.key,
+          date,
+          time,
+          item: 'AGENDAMENTO PENDENTE',
+          invoiceUploaded: false
         });
         toast.success('Agendamento realizado!');
         return;
