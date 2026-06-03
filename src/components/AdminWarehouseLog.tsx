@@ -215,7 +215,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
         const grouped: Record<string, any> = {};
 
         allPCSupers.forEach((s: any) => {
-            const schedule = s.monthlySchedule || {};
+            const schedule = s?.monthlySchedule || {};
             const monthsNamesMatch = [monthName, monthName.toLowerCase()];
             const weeks = monthsNamesMatch.reduce((acc, m) => acc.length > 0 ? acc : (schedule[m] || []), [] as number[]);
             

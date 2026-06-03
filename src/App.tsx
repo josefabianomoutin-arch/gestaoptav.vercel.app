@@ -817,6 +817,7 @@ const App: React.FC = () => {
 
   const handleScheduleDelivery = useCallback(async (supplierCpf: string, date: string, time: string) => {
     try {
+      console.log('Agendando entrega:', { supplierCpf, date, time });
       const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
       const targetCpf = clean(supplierCpf);
 
@@ -882,7 +883,7 @@ const App: React.FC = () => {
       toast.error('Fornecedor não encontrado para agendar.');
     } catch (error) {
       console.error('Erro ao agendar entrega:', error);
-      toast.error('Erro ao agendar entrega.');
+      toast.error(`Erro ao agendar entrega: ${error instanceof Error ? error.message : String(error)}`);
     }
   }, [suppliers]);
 
