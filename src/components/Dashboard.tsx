@@ -458,7 +458,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   // Helper to verify if a week belongs to any of the arrived months
   const isWeekInArrivedMonth = (w: number): boolean => {
-    if (supplier.monthlySchedule && Object.keys(supplier.monthlySchedule).length > 0) {
+    if (supplier?.monthlySchedule && Object.keys(supplier.monthlySchedule).length > 0) {
       return arrivedMonths.some(mName => {
         const weeksForMonth = supplier.monthlySchedule?.[mName] || supplier.monthlySchedule?.[mName.toUpperCase()] || [];
         return weeksForMonth.includes(w);
@@ -524,7 +524,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   // 4. Current month alert check: are there ANY allowed weeks in the current month (May) that do not have a scheduled delivery yet?
   const currentMonthName = monthsList[currentMonthIdx]; // "maio"
   const isWeekInCurrentMonth = (w: number): boolean => {
-    if (supplier.monthlySchedule && Object.keys(supplier.monthlySchedule).length > 0) {
+    if (supplier?.monthlySchedule && Object.keys(supplier.monthlySchedule).length > 0) {
       const weeksForMonth = supplier.monthlySchedule?.[currentMonthName] || supplier.monthlySchedule?.[currentMonthName.toUpperCase()] || [];
       return weeksForMonth.includes(w);
     } else {

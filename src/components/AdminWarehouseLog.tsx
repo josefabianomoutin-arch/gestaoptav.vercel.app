@@ -434,7 +434,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             const allowedWeeksArray = sup.allowedWeeks || [];
 
             const isWeekInCurrentMonth = (w: number): boolean => {
-                if (sup.monthlySchedule && Object.keys(sup.monthlySchedule).length > 0) {
+                if (sup?.monthlySchedule && Object.keys(sup.monthlySchedule).length > 0) {
                     const weeksForMonth = sup.monthlySchedule?.[currentMonthName] || sup.monthlySchedule?.[currentMonthName.toUpperCase()] || [];
                     return weeksForMonth.includes(w);
                 } else {
@@ -530,7 +530,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             const allowedWeeksArray = sup.allowedWeeks || [];
 
             const isWeekInCurrentMonth = (w: number): boolean => {
-                if (sup.monthlySchedule && Object.keys(sup.monthlySchedule).length > 0) {
+                if (sup?.monthlySchedule && Object.keys(sup.monthlySchedule).length > 0) {
                     const weeksForMonth = sup.monthlySchedule?.[currentMonthName] || sup.monthlySchedule?.[currentMonthName.toUpperCase()] || [];
                     return weeksForMonth.includes(w);
                 } else {
