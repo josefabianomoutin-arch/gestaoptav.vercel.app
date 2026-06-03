@@ -822,40 +822,6 @@ const App: React.FC = () => {
       const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
       const targetCpf = clean(supplierCpf);
 
-      // Check Per Capita suppliers FIRST to prioritize Per Capita scheduling
-      const perCapitaData = (await get(perCapitaConfigRef)).val();
-      
-      let producerIndex = -1;
-      let arrayName = '';
-      
-      const config = perCapitaData;
-      if (config) {
-          const findIndex = (list: any[] | undefined, name: string) => {
-              const idx = list?.findIndex(p => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
-              if (idx !== -1) {
-                  producerIndex = idx;
-                  arrayName = name;
-              }
-          };
-          findIndex(config.ppaisProducers, 'ppaisProducers');
-          if (producerIndex === -1) findIndex(config.pereciveisSuppliers, 'pereciveisSuppliers');
-          if (producerIndex === -1) findIndex(config.estocaveisSuppliers, 'estocaveisSuppliers');
-      }
-
-      if (producerIndex !== -1 && arrayName) {
-          const supRef = child(perCapitaConfigRef, `${arrayName}/${producerIndex}/deliveries`);
-          const newDeliveryRef = push(supRef);
-          await set(newDeliveryRef, {
-            id: newDeliveryRef.key,
-            date,
-            time,
-            item: 'AGENDAMENTO PENDENTE',
-            invoiceUploaded: false
-          });
-          toast.success('Agendamento realizado!');
-          return;
-      }
-
       // If not in per capita lists, schedule inside the Main Suppliers list
       const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
       if (mainSupplier) {
@@ -2690,6 +2656,7 @@ const App: React.FC = () => {
   }, [suppliers, perCapitaConfig]);
 
   const renderContent = () => {
+    console.log("renderContent called, hasError:", hasError, "user:", user);
     if (hasError) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
