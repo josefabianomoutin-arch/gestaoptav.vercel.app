@@ -530,6 +530,7 @@ const App: React.FC = () => {
       return true;
     }
     const ppaisProducer = ensureArray(perCapitaConfig.ppaisProducers).find(p => p.cpfCnpj.replace(/\D/g, '') === numericPass);
+    console.log('--- Debug: Login ---', { numericPass, found: !!ppaisProducer, all: perCapitaConfig.ppaisProducers?.map(p => p.cpfCnpj) });
     if (ppaisProducer) {
       setUser({ name: ppaisProducer.name, cpf: ppaisProducer.cpfCnpj, role: 'producer' });
       return true;
@@ -823,6 +824,9 @@ const App: React.FC = () => {
 
       // Check Per Capita suppliers FIRST to prioritize Per Capita scheduling
       const timeoutPromisePC = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao agendar entrega Per Capita')), 10000));
+      
+      console.log('--- Debug: PerCapitaConfig ---', perCapitaConfig);
+      console.log('--- Debug: Producer List ---', perCapitaConfig?.ppaisProducers);
       
       let pcFound = false;
       await Promise.race([
