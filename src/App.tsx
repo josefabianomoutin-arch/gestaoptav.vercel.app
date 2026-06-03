@@ -3237,7 +3237,7 @@ const App: React.FC = () => {
         // Calculate weeks from Per Capita if registered
         let finalWeeks = ensureArray<number>(currentSupplier.allowedWeeks).filter(w => w <= 18);
         
-        if (isRegisteredForNextPeriod && perCapitaEntry.monthlySchedule) {
+        if (isRegisteredForNextPeriod && perCapitaEntry?.monthlySchedule) {
             const year = 2026;
             const monthNames = [
                 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
