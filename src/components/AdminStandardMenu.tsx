@@ -13,7 +13,7 @@ interface AdminStandardMenuProps {
 
 const WEEK_DAYS_BR = ['DOMINGO', 'SEGUNDA-FEIRA', 'TERÇA-FEIRA', 'QUARTA-FEIRA', 'QUINTA-FEIRA', 'SEXTA-FEIRA', 'SÁBADO'];
 const MEAL_PERIODS = ['CAFÉ DA MANHÃ', 'ALMOÇO', 'JANTA', 'LANCHE NOITE'];
-const ROWS_PER_DAY = 20;
+const ROWS_PER_DAY = 27;
 
 const unitBasedKeywords = [
     'OVO', 'OVOS', 'PÃO', 'PAO', 'BISCOITO', 'BOLACHA', 
