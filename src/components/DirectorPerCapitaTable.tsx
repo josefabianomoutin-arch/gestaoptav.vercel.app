@@ -347,6 +347,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
   const handleDigitalSign = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isReadOnly) return;
     setSignatureError('');
     setSignatureSuccess('');
 
@@ -401,6 +402,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   };
 
   const handleRevokeSignature = async () => {
+    if (isReadOnly) return;
     if (!data) return;
     const subTab = activeSubTab;
     const isOwner = (subTab === 'chefeDep' && isDouglas) || (subTab === 'chefeSeg' && isAlfredo);
@@ -438,6 +440,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   };
 
   const handleClearTable = async () => {
+    if (isReadOnly) return;
     if (!window.confirm('Tem certeza de que deseja limpar totalmente a tabela de itens e a assinatura digital?')) {
       return;
     }
@@ -480,6 +483,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   };
 
   const handleArchiveOrder = async () => {
+    if (isReadOnly) return;
     if (!data) return;
     const subTab = activeSubTab;
     const currentSubTabData = data[subTab] || {};
@@ -546,6 +550,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   };
 
   const handleDeletePastOrder = async (orderId: string) => {
+    if (isReadOnly) return;
     if (!data) return;
     if (!window.confirm('Deseja excluir permanentemente esse pedido do histórico? Essa exclusão é irreversível.')) {
       return;
@@ -1177,7 +1182,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                   </h2>
                 </div>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                  Digite as cotações nas 25 linhas abaixo
+                  {isReadOnly ? "Visualização autorizada e impressão deste rascunho" : "Digite as cotações nas 25 linhas abaixo"}
                 </p>
               </div>
               
@@ -1217,7 +1222,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                 </div>
                 
                 <div className="flex gap-2 w-full md:w-auto">
-                  {((activeSubTab === 'chefeDep' && isDouglas) || (activeSubTab === 'chefeSeg' && isAlfredo) || currentUser?.role === 'admin') && (
+                  {!isReadOnly && ((activeSubTab === 'chefeDep' && isDouglas) || (activeSubTab === 'chefeSeg' && isAlfredo) || currentUser?.role === 'admin') && (
                     <button
                       onClick={handleRevokeSignature}
                       className="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 font-extrabold py-2 px-4 rounded-xl text-[10px] uppercase transition-all"
@@ -1226,12 +1231,14 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                     </button>
                   )}
                   
-                  <button
-                    onClick={handleArchiveOrder}
-                    className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-5 rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/10 active:scale-95 transition-all"
-                  >
-                    <FileCheck className="h-4.5 w-4.5" /> Enviar & Finalizar
-                  </button>
+                  {!isReadOnly && (
+                    <button
+                      onClick={handleArchiveOrder}
+                      className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-5 rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/10 active:scale-95 transition-all"
+                    >
+                      <FileCheck className="h-4.5 w-4.5" /> Enviar & Finalizar
+                    </button>
+                  )}
                 </div>
               </div>
             )}
