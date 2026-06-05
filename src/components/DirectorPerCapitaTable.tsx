@@ -101,7 +101,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   const historyKey = categoryTab === 'alimentacao' ? 'history' : 'limpezaHistory';
 
   // Get all unique items in perCapitaConfig (PPAIS, Estocáveis, and Perecíveis) + Standard Menu + Fallback traditional suppliers
-  const percapitaAllItems = React.useMemo(() => {
+  const percapitaSearchItems = React.useMemo(() => {
     const list: string[] = [];
     
     // 1. From perCapitaConfig (ppaisProducers, pereciveisSuppliers, estocaveisSuppliers)
@@ -138,7 +138,10 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       });
     }
 
-    return list.sort((a, b) => a.localeCompare(b));
+    return list.sort((a, b) => a.localeCompare(b)).map(item => ({
+      original: item,
+      normalized: item.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    }));
   }, [perCapitaConfig, suppliers]);
 
 
@@ -1311,7 +1314,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                                     </div>
                                   );
                                 }
-                                const suggestions = percapitaAllItems.filter(p => normalizeText(p).includes(q));
+                                const suggestions = percapitaSearchItems.filter(p => p.normalized.includes(q)).map(p => p.original);
                                 if (suggestions.length === 0) {
                                   return (
                                     <div className="p-2.5 text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-center col-span-1">
