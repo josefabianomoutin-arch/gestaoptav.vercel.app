@@ -100,7 +100,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   const orderKey = categoryTab === 'alimentacao' ? 'activeOrder' : 'limpezaActiveOrder';
   const historyKey = categoryTab === 'alimentacao' ? 'history' : 'limpezaHistory';
 
-  // Get all unique items in perCapitaConfig (PPAIS, Estocáveis, and Perecíveis) + Standard Menu + Fallback traditional suppliers
+  // Get all unique items in perCapitaConfig (PPAIS, Estocáveis, and Perecíveis)
   const percapitaSearchItems = React.useMemo(() => {
     const list: string[] = [];
     
@@ -122,27 +122,11 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       });
     }
 
-    // 2. From suppliers state
-    if (suppliers && Array.isArray(suppliers)) {
-      suppliers.forEach(supplier => {
-        if (supplier && supplier.contractItems) {
-          supplier.contractItems.forEach((item: any) => {
-            if (item && item.name && item.name.trim()) {
-              const fullName = item.name.trim().toUpperCase();
-              if (!list.includes(fullName)) {
-                list.push(fullName);
-              }
-            }
-          });
-        }
-      });
-    }
-
     return list.sort((a, b) => a.localeCompare(b)).map(item => ({
       original: item,
       normalized: item.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase()
     }));
-  }, [perCapitaConfig, suppliers]);
+  }, [perCapitaConfig]);
 
 
 
@@ -1327,7 +1311,9 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                                     key={idx}
                                     type="button"
                                     onMouseDown={() => {
-                                      handleFieldChange(item.index, 'itemName', sugg);
+                                      const words = sugg.trim().split(/\s+/);
+                                      const formatted = words.length > 3 ? words.slice(0, 3).join(' ') : sugg;
+                                      handleFieldChange(item.index, 'itemName', formatted);
                                       setFocusedRowIndex(null);
                                     }}
                                     className="w-full text-left px-3.5 py-2 text-[10.5px] uppercase font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors border-b border-slate-100 last:border-b-0"
