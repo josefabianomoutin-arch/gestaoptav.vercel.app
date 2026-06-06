@@ -396,16 +396,29 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
-        const SIMULATED_TODAY_LOCAL = new Date('2026-05-07T00:00:00');
-        const todayWeek = getWeekNumber(SIMULATED_TODAY_LOCAL);
-        const currentMonthIdx = SIMULATED_TODAY_LOCAL.getMonth();
+        const [selYearStr, selMonthStr] = (activeMonthTab || '2026-05').split('-');
+        const selYear = parseInt(selYearStr, 10);
+        const selMonthIdx = parseInt(selMonthStr, 10) - 1;
 
         const monthsList = [
             'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
             'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
         ];
 
-        const currentMonthName = monthsList[currentMonthIdx];
+        const currentMonthName = monthsList[selMonthIdx];
+
+        // Se o mês selecionado for maio de 2026 (mês padrão simulado no sistema),
+        // usamos 07/05/2026 como a data de hoje para manter coerência.
+        // Se for um mês anterior, estabelecemos como o final daquele mês para que
+        // todas as suas semanas sejam consideradas "passadas" e contem como atrasos pendentes.
+        let SIMULATED_TODAY_LOCAL = new Date('2026-05-07T00:00:00');
+        if (selYear < 2026 || (selYear === 2026 && selMonthIdx < 4)) {
+            SIMULATED_TODAY_LOCAL = new Date(selYear, selMonthIdx, 28, 23, 59, 59);
+        } else if (selYear > 2026 || (selYear === 2026 && selMonthIdx > 4)) {
+            SIMULATED_TODAY_LOCAL = new Date(selYear, selMonthIdx, 1, 0, 0, 0);
+        }
+
+        const todayWeek = getWeekNumber(SIMULATED_TODAY_LOCAL);
 
         const getWeekMonth = (weekNum: number): number => {
             const janFirst = new Date(2026, 0, 1);
@@ -553,12 +566,12 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     simplifiedEntries.push({
                         supplierName: sup.name,
                         supplierCpf: sup.cpf || 'N/A',
-                        itemName: (cItem.name || '').split(' ').slice(0, 2).join(' '),
+                        itemName: (cItem.name || '').toUpperCase(),
                         week: `Semana ${sd.week}`,
                         quantity: weeklyQty,
                         unit: cItem.unit || 'Kg',
                         value: weeklyValue,
-                        inconformidade: 'Sem Reservas de Agendamento'
+                        inconformidade: 'Sem Reserva / Agendamento'
                     });
                 });
             });
@@ -573,7 +586,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     simplifiedEntries.push({
                         supplierName: sup.name,
                         supplierCpf: sup.cpf || 'N/A',
-                        itemName: (cItem.name || '').split(' ').slice(0, 2).join(' '),
+                        itemName: (cItem.name || '').toUpperCase(),
                         week: `Semana ${dd.week}`,
                         quantity: weeklyQty,
                         unit: cItem.unit || 'Kg',
@@ -590,18 +603,18 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
         const htmlContent = `
             <html>
             <head>
-                <title>Relatório de Ativos em Atraso (Simplificado)</title>
+                <title>Prejuízo de Quebra de Contrato - ${currentMonthName.toUpperCase()} / ${selYear}</title>
                 <style>
                     body { font-family: 'Inter', system-ui, sans-serif; padding: 30px; color: #1f2937; line-height: 1.5; }
                     .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 12px; margin-bottom: 16px; }
-                    .title { font-size: 17px; font-weight: 800; color: #111827; text-transform: uppercase; margin: 0; letter-spacing: -0.02em; }
+                    .title { font-size: 15px; font-weight: 900; color: #991b1b; text-transform: uppercase; margin: 0; letter-spacing: -0.01em; }
                     .meta { font-size: 10px; color: #4b5563; text-align: right; font-family: monospace; }
                     .meta div { margin-bottom: 2px; }
                     
                     /* Summary Panel */
                     .summary-card { 
-                        background-color: #fff5f5; 
-                        border: 1px dashed #feb2b2; 
+                        background-color: #fef2f2; 
+                        border: 2px solid #fee2e2; 
                         border-radius: 12px; 
                         padding: 14px 18px; 
                         margin-bottom: 20px; 
@@ -609,16 +622,16 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         justify-content: space-between; 
                         align-items: center; 
                     }
-                    .summary-info h3 { margin: 0; font-size: 13px; font-weight: 800; color: #9b2c2c; text-transform: uppercase; }
-                    .summary-info p { margin: 4px 0 0 0; font-size: 10.5px; color: #c53030; font-weight: 500; }
-                    .summary-value { font-size: 20px; font-weight: 900; color: #9b2c2c; font-family: monospace; }
+                    .summary-info h3 { margin: 0; font-size: 13px; font-weight: 800; color: #991b1b; text-transform: uppercase; }
+                    .summary-info p { margin: 4px 0 0 0; font-size: 10.5px; color: #7f1d1d; font-weight: 500; }
+                    .summary-value { font-size: 22px; font-weight: 950; color: #b91c1c; font-family: monospace; }
 
-                    table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 10.5px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 10px; }
                     th, td { border: 1px solid #e5e7eb; padding: 10px 12px; text-align: left; vertical-align: middle; }
-                    th { background-color: #f9fafb; font-weight: bold; color: #374151; text-transform: uppercase; font-size: 9px; letter-spacing: 0.05em; }
+                    th { background-color: #f9fafb; font-weight: bold; color: #374151; text-transform: uppercase; font-size: 8.5px; letter-spacing: 0.03em; }
                     
                     /* Truncated text and styled numbers */
-                    .item-badge { font-family: monospace; font-size: 10px; font-weight: bold; color: #111827; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; border: 1px solid #e5e7eb; display: inline-block; text-transform: uppercase; }
+                    .item-badge { font-family: monospace; font-size: 9.5px; font-weight: bold; color: #111827; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; border: 1px solid #e5e7eb; display: inline-block; text-transform: uppercase; }
                     .val-num { font-family: monospace; text-align: right; font-weight: bold; }
                     .badge-delay-type { display: inline-block; font-size: 8px; font-weight: 900; padding: 1px 5px; border-radius: 3px; border: 1px solid #e5e7eb; text-transform: uppercase; }
                     .badge-red { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
@@ -633,20 +646,20 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             <body>
                 <div class="header">
                     <div>
-                        <h1 class="title">Relatório de Ativos em Atraso (PPAIS)</h1>
-                        <p style="margin: 3px 0 0 0; font-size: 10px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026 - Apenas Produtores PPAIS</p>
+                        <h1 class="title">Relatório de Prejuízo de Quebra de Contrato</h1>
+                        <p style="margin: 3px 0 0 0; font-size: 10px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026 - PPAIS e Fornecedores</p>
                     </div>
                     <div class="meta">
                         <div><b>Emissão:</b> ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}</div>
-                        <div><b>Mês de Controle:</b> ${currentMonthName.toUpperCase()} / 2026</div>
-                        <div><b>Data de Controle:</b> 07/05/2026</div>
+                        <div><b>Mês da Seleção:</b> ${currentMonthName.toUpperCase()} / ${selYear}</div>
+                        <div><b>Data de Controle:</b> ${SIMULATED_TODAY_LOCAL.toLocaleDateString('pt-BR')}</div>
                     </div>
                 </div>
 
                 <div class="summary-card">
                     <div class="summary-info">
-                        <h3>Valor Acumulado do Prejuízo (Cotas em Atraso - PPAIS)</h3>
-                        <p>Total financeiro não entregue ou sem agendamento regular verificado para produtores do PPAIS no mês vigente de ${currentMonthName.toUpperCase()} / 2026.</p>
+                        <h3>Prejuízo de Quebra de Contrato</h3>
+                        <p>Total financeiro não entregue ou sem agendamento regular verificado para fornecedores do PPAIS no mês de ${currentMonthName.toUpperCase()} / ${selYear}.</p>
                     </div>
                     <div class="summary-value">
                         R$ ${totalLossValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -656,18 +669,17 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 25%;">Fornecedor</th>
-                            <th style="width: 20%;">Item Contr. (2p)</th>
-                            <th style="width: 12%; text-align: center;">Semana</th>
-                            <th style="width: 15%; text-align: right;">Quantidade</th>
-                            <th style="width: 15%; text-align: right;">Valor (R$)</th>
-                            <th style="width: 13%; text-align: center;">Inconformidade</th>
+                            <th style="width: 25%;">Fornecedor (Não realizou entrega)</th>
+                            <th style="width: 32%;">Item que Faltou</th>
+                            <th style="width: 10%; text-align: center;">Período</th>
+                            <th style="width: 13%; text-align: right;">Qtd Faltante</th>
+                            <th style="width: 20%; text-align: right;">Prejuízo de Quebra de Contrato</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${simplifiedEntries.length === 0 ? `
                             <tr>
-                                <td colspan="6" class="text-center" style="padding: 24px; font-style: italic; color: #6b7280; font-size: 11px;">
+                                <td colspan="5" class="text-center" style="padding: 24px; font-style: italic; color: #6b7280; font-size: 11px;">
                                     Excelente! Nenhum item com inconformidade ou atraso registrado no período.
                                 </td>
                             </tr>
@@ -678,9 +690,6 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                 <td class="text-center" style="font-weight: 700; color: #4b5563;">${entry.week}</td>
                                 <td class="val-num text-right">${entry.quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.unit}</td>
                                 <td class="val-num text-right" style="color: #991b1b;">R$ ${entry.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                <td class="text-center">
-                                    <span class="badge-delay-type badge-red">${entry.inconformidade}</span>
-                                </td>
                             </tr>
                         `).join('')}
                     </tbody>
