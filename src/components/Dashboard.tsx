@@ -512,13 +512,22 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   // 3. Invoice or PDF missing (pendência de envio da nota fiscal)
   const hasInvoicePendency = deliveriesList.some(d => {
-    if (d.item === 'AGENDAMENTO PENDENTE') return false;
     const dDate = new Date(d.date + 'T00:00:00');
     const dMonthName = monthsList[dDate.getMonth()];
-    if (!arrivedMonths.includes(dMonthName)) return false;
+    
+    const realToday = new Date();
+    const effectiveToday = realToday > SIMULATED_TODAY ? realToday : SIMULATED_TODAY;
+    
+    // We check if the month of the delivery is in arrivedMonths relative to effectiveToday
+    const effectiveArrivedMonths = periodMonths.filter(m => {
+      const mIdx = monthsList.indexOf(m);
+      return mIdx <= effectiveToday.getMonth();
+    });
+    
+    if (!effectiveArrivedMonths.includes(dMonthName)) return false;
 
-    // Past or today deliveries that are completed but don't have invoiceNumber or invoiceUrl
-    return dDate <= SIMULATED_TODAY && (!d.invoiceNumber || !d.invoiceUrl);
+    // Past or today deliveries that don't have invoiceNumber or invoiceUrl
+    return dDate <= effectiveToday && (!d.invoiceNumber || !d.invoiceUrl);
   });
 
   // 4. Current month alert check: are there ANY allowed weeks in the current month (May) that do not have a scheduled delivery yet?
@@ -552,7 +561,11 @@ const Dashboard: React.FC<DashboardProps> = ({
   }
 
   if (hasInvoicePendency) {
-    alertMessages.push("⚠️ CONSTA PENDENCIA DE ENVIO DA NOTA FISCAL - FAVOR REGULARIZAR");
+    if (type === 'PRODUTOR') {
+      alertMessages.push("⚠️ O PRODUTOR NÃO ENVIOU A NOTA FISCAL");
+    } else {
+      alertMessages.push("⚠️ O FORNECEDOR NÃO ENVIOU A NOTA FISCAL");
+    }
   }
 
   if (hasPendingSchedulingInCurrentMonth) {

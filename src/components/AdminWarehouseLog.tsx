@@ -285,6 +285,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     
                     grouped[it.name].producers.push({
                         supplier: s.name,
+                        sourceCategory: s.sourceCategory,
                         monthlyWeight: monthlyWeight,
                         monthlyValue: monthlyValue,
                         totalContractWeight: it.totalKg || 0,
@@ -326,58 +327,172 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
+        const [selYearStr, selMonthStr] = (activeMonthTab || '2026-05').split('-');
+        const selYear = parseInt(selYearStr, 10);
+        const selMonthIdx = parseInt(selMonthStr, 10) - 1;
+
+        const monthsList = [
+            'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+            'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+        ];
+
+        const currentMonthName = monthsList[selMonthIdx];
+
+        // We will build a flat array of all scheduled items to render a beautiful table
+        const projectionLines: {
+            itemName: string;
+            supplierName: string;
+            category: string;
+            weeks: string;
+            monthlyWeight: number;
+            deliveredWeight: number;
+            totalValue: number;
+            status: string;
+            isLate: boolean;
+        }[] = [];
+
+        groupedProjectionData.forEach(item => {
+            item.producers.forEach((prod: any) => {
+                const weeksStr = prod.weeks && prod.weeks.length > 0
+                    ? prod.weeks.map((w: any) => `S${w}`).join(', ')
+                    : 'Mês';
+
+                projectionLines.push({
+                    itemName: item.itemName,
+                    supplierName: prod.supplier,
+                    category: prod.sourceCategory || 'PPAIS',
+                    weeks: weeksStr,
+                    monthlyWeight: prod.monthlyWeight,
+                    deliveredWeight: prod.deliveredWeight,
+                    totalValue: prod.monthlyValue,
+                    status: prod.status,
+                    isLate: prod.isLate
+                });
+            });
+        });
+
+        const totalPlannedWeight = projectionLines.reduce((sum, line) => sum + line.monthlyWeight, 0);
+        const totalDeliveredWeight = projectionLines.reduce((sum, line) => sum + line.deliveredWeight, 0);
+        const totalValue = projectionLines.reduce((sum, line) => sum + line.totalValue, 0);
+
         const htmlContent = `
             <html>
             <head>
-                <title>Relatório de Movimentações de Estoque</title>
+                <title>Acompanhamento de Projeção de Abastecimento - ${currentMonthName.toUpperCase()} / ${selYear}</title>
                 <style>
-                    body { font-family: sans-serif; padding: 20px; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
-                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                    th { background-color: #f2f2f2; }
-                    h1 { color: #333; font-size: 18px; }
-                    .text-right { text-align: right; }
+                    body { font-family: 'Inter', system-ui, sans-serif; padding: 30px; color: #1f2937; line-height: 1.5; }
+                    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 12px; margin-bottom: 16px; }
+                    .title { font-size: 15px; font-weight: 950; color: #1e3a8a; text-transform: uppercase; margin: 0; letter-spacing: -0.01em; }
+                    .meta { font-size: 10px; color: #4b5563; text-align: right; font-family: monospace; }
+                    .meta div { margin-bottom: 2px; }
+                    
+                    /* Summary Panel */
+                    .summary-grid { 
+                        display: grid;
+                        grid-template-columns: repeat(3, 1fr);
+                        gap: 15px;
+                        margin-bottom: 20px; 
+                    }
+                    .summary-card {
+                        background-color: #f8fafc;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 12px;
+                        padding: 12px 16px;
+                    }
+                    .summary-card h4 { margin: 0; font-size: 9px; font-weight: bold; color: #64748b; text-transform: uppercase; }
+                    .summary-card p { margin: 4px 0 0 0; font-size: 16px; font-weight: 900; color: #0f172a; font-family: monospace; }
+
+                    table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 9.5px; }
+                    th, td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; vertical-align: middle; }
+                    th { background-color: #f1f5f9; font-weight: 900; color: #334155; text-transform: uppercase; font-size: 8px; letter-spacing: 0.03em; }
+                    
+                    .item-badge { font-family: monospace; font-size: 9px; font-weight: bold; color: #1e293b; background: #f1f5f9; padding: 2px 5px; border-radius: 4px; display: inline-block; text-transform: uppercase; }
+                    .val-num { font-family: monospace; text-align: right; font-weight: bold; }
+                    
+                    .status-badge { display: inline-block; font-size: 8px; font-weight: 900; padding: 2px 6px; border-radius: 12px; text-transform: uppercase; font-family: monospace; }
+                    .status-concluido { background: #dcfce7; color: #15803d; }
+                    .status-andamento { background: #e0e7ff; color: #4338ca; }
+                    .status-aguardando { background: #f1f5f9; color: #64748b; }
+                    .status-atraso { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+
                     .text-center { text-align: center; }
-                    .font-bold { font-weight: bold; }
-                    .text-gray-500 { color: #6b7280; }
-                    .text-xs { font-size: 10px; }
+                    .text-right { text-align: right; }
                     @media print {
                         @page { size: A4 landscape; margin: 10mm; }
                     }
                 </style>
             </head>
             <body>
-                <h1>Relatório de Movimentações de Estoque</h1>
-                <p>Data de Emissão: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+                <div class="header">
+                    <div>
+                        <h1 class="title">Relatório de Projeção e Acompanhamento de Abastecimento</h1>
+                        <p style="margin: 3px 0 0 0; font-size: 10px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026</p>
+                    </div>
+                    <div class="meta">
+                        <div><b>Emissão:</b> ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}</div>
+                        <div><b>Mês da Seleção:</b> ${currentMonthName.toUpperCase()} / ${selYear}</div>
+                    </div>
+                </div>
+
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <h4>Volume Planejado Total</h4>
+                        <p>${totalPlannedWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kg</p>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Volume Entregue Total</h4>
+                        <p>${totalDeliveredWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kg</p>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Valor Bruto do Contrato</h4>
+                        <p>R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    </div>
+                </div>
+
                 <table>
                     <thead>
                         <tr>
-                            <th>Tipo</th>
-                            <th>Data Doc.</th>
-                            <th>Produto</th>
-                            <th>Barras</th>
-                            <th>Lote</th>
-                            <th class="text-right">Quantidade</th>
-                            <th>NF/Doc</th>
+                            <th style="width: 15%;">Categoria</th>
+                            <th style="width: 25%;">Fornecedor / Produtor</th>
+                            <th style="width: 25%;">Produto Contratado</th>
+                            <th style="width: 8%; text-align: center;">Período</th>
+                            <th style="width: 10%; text-align: right;">Qtd Planejada</th>
+                            <th style="width: 10%; text-align: right;">Qtd Entregue</th>
+                            <th style="width: 12%; text-align: right;">Valor</th>
+                            <th style="width: 12%; text-align: center;">Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${filteredLog.map(log => `
+                        ${projectionLines.length === 0 ? `
                             <tr>
-                                <td>${log.type.toUpperCase()}</td>
-                                <td>${(log.date || '').split('-').reverse().join('/')}</td>
-                                <td>
-                                    <div class="font-bold">${log.itemName}</div>
-                                    <div class="text-xs text-gray-500">${log.supplierName}</div>
+                                <td colspan="8" class="text-center" style="padding: 24px; font-style: italic; color: #6b7280; font-size: 11px;">
+                                    Nenhuma projeção ou planejamento de entrega encontrado para o período.
                                 </td>
-                                <td>${log.barcode || '-'}</td>
-                                <td>${log.lotNumber}</td>
-                                <td class="text-right font-bold">${(log.quantity || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</td>
-                                <td>${log.inboundInvoice || log.outboundInvoice || '-'}</td>
+                            </tr>
+                        ` : projectionLines.map(line => `
+                            <tr>
+                                <td style="font-weight: 700; color: #475569;">${line.category}</td>
+                                <td style="font-weight: 600; color: #1e293b;">${line.supplierName}</td>
+                                <td><span class="item-badge">${line.itemName}</span></td>
+                                <td class="text-center" style="font-weight: 700; color: #64748b;">${line.weeks}</td>
+                                <td class="val-num text-right">${line.monthlyWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} Kg</td>
+                                <td class="val-num text-right" style="color: ${line.deliveredWeight > 0 ? '#15803d' : '#94a3b8'}">${line.deliveredWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} Kg</td>
+                                <td class="val-num text-right" style="color: #1e3a8a;">R$ ${line.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                <td class="text-center">
+                                    <span class="status-badge ${
+                                        line.isLate ? 'status-atraso' :
+                                        line.status === 'CONCLUÍDO' ? 'status-concluido' :
+                                        line.status === 'EM ANDAMENTO' ? 'status-andamento' :
+                                        'status-aguardando'
+                                    }">
+                                        ${line.isLate ? 'Atrasado' : line.status}
+                                    </span>
+                                </td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
+
                 <script>
                     window.onload = () => {
                         window.print();
@@ -407,198 +522,48 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
 
         const currentMonthName = monthsList[selMonthIdx];
 
-        // Se o mês selecionado for maio de 2026 (mês padrão simulado no sistema),
-        // usamos 07/05/2026 como a data de hoje para manter coerência.
-        // Se for um mês anterior, estabelecemos como o final daquele mês para que
-        // todas as suas semanas sejam consideradas "passadas" e contem como atrasos pendentes.
-        let SIMULATED_TODAY_LOCAL = new Date('2026-05-07T00:00:00');
-        if (selYear < 2026 || (selYear === 2026 && selMonthIdx < 4)) {
-            SIMULATED_TODAY_LOCAL = new Date(selYear, selMonthIdx, 28, 23, 59, 59);
-        } else if (selYear > 2026 || (selYear === 2026 && selMonthIdx > 4)) {
-            SIMULATED_TODAY_LOCAL = new Date(selYear, selMonthIdx, 1, 0, 0, 0);
-        }
-
-        const todayWeek = getWeekNumber(SIMULATED_TODAY_LOCAL);
-
-        const getWeekMonth = (weekNum: number): number => {
-            const janFirst = new Date(2026, 0, 1);
-            const dayOffset = (4 - (janFirst.getDay() || 7));
-            const firstThursday = new Date(2026, 0, 1 + dayOffset);
-            const targetThursday = new Date(firstThursday.getTime() + (weekNum - 1) * 7 * 24 * 60 * 60 * 1000);
-            return targetThursday.getMonth();
-        };
-
-        const ppaisCpfs = new Set(
-            ensureArray<any>(perCapitaConfig?.ppaisProducers)
-                .map(p => {
-                    const cpf = p.cpfCnpj || p.cpf || '';
-                    return cpf.replace(/\D/g, '');
-                })
-                .filter(Boolean)
-        );
-
-        const suppliersList = ensureArray<Supplier>(suppliers).filter(sup => {
-            const cpf = (sup.cpf || '').replace(/\D/g, '');
-            return ppaisCpfs.has(cpf);
-        });
-
-        const lateSuppliersData = suppliersList.map(sup => {
-            const deliveriesList = ensureArray<any>(sup.deliveries);
-            const allowedWeeksArray = sup.allowedWeeks || [];
-
-            const isWeekInCurrentMonth = (w: number): boolean => {
-                if (sup?.monthlySchedule && Object.keys(sup.monthlySchedule).length > 0) {
-                    const weeksForMonth = sup.monthlySchedule?.[currentMonthName] || sup.monthlySchedule?.[currentMonthName.toUpperCase()] || [];
-                    return weeksForMonth.includes(w);
-                } else {
-                    const wMonthIdx = getWeekMonth(w);
-                    const wMonthName = monthsList[wMonthIdx];
-                    return wMonthName === currentMonthName;
-                }
-            };
-
-            const schedulingDelays: { week: number; info: string }[] = [];
-            const deliveryDelays: { week: number; info: string }[] = [];
-
-            // Helper to format date in Brazilian style DD/MM/YYYY
-            const formatDate = (dateStr: string) => {
-                if (!dateStr) return '';
-                const parts = dateStr.split('-');
-                if (parts.length === 3) {
-                    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-                }
-                return dateStr;
-            };
-
-            // 1. Verify Scheduling Delay (Atraso de Agendamento):
-            // Check each allowed week to see if there is any scheduled delivery.
-            for (const w of allowedWeeksArray) {
-                if (isWeekInCurrentMonth(w)) {
-                    const deliveriesInWeek = deliveriesList.filter(d => {
-                        const dDate = new Date(d.date + 'T00:00:00');
-                        return getWeekNumber(dDate) === w;
-                    });
-
-                    if (deliveriesInWeek.length === 0) {
-                        if (w < todayWeek) {
-                            schedulingDelays.push({
-                                week: w,
-                                info: `Semana ${w}: Prazo para agendamento expirado (Mês corrente). Nenhuma entrega foi programada.`
-                            });
-                        }
-                    }
-                }
-            }
-
-            // 2. Verify Delivery Delay (Atraso de Entrega):
-            // Check scheduled deliveries inside the current month
-            deliveriesList.forEach(d => {
-                const dDate = new Date(d.date + 'T00:00:00');
-                const dMonthName = monthsList[dDate.getMonth()];
-                const w = getWeekNumber(dDate);
-
-                if (dMonthName === currentMonthName) {
-                    if (d.item === 'AGENDAMENTO PENDENTE') {
-                        if (dDate < SIMULATED_TODAY_LOCAL) {
-                            deliveryDelays.push({
-                                week: w,
-                                info: `Agendamento pendente em aberto para a data de entrega: ${formatDate(d.date)} (Excedeu o prazo de entrega).`
-                            });
-                        }
-                    }
-                }
-            });
-
-            // Sort all descriptive outputs
-            schedulingDelays.sort((a, b) => a.week - b.week);
-            deliveryDelays.sort((a, b) => a.week - b.week);
-
-            const hasAnyPendency = schedulingDelays.length > 0 || deliveryDelays.length > 0;
-
-            return {
-                supplier: sup,
-                schedulingDelays,
-                deliveryDelays,
-                invoiceDelays: [],
-                hasAnyPendency
-            };
-        }).filter(item => item.hasAnyPendency);
-
-        // Build simplified flat list of delay entries for the table
-        const divisor = 8;
+        // 1. Compile entries from groupedProjectionData - ONLY THOSE NOT "CONCLUÍDO"
         const simplifiedEntries: {
             supplierName: string;
-            supplierCpf: string;
             itemName: string;
-            week: string;
-            quantity: number;
-            unit: string;
-            value: number;
-            inconformidade: string;
+            weeks: string;
+            monthlyWeight: number;
+            deliveredWeight: number;
+            remainingWeight: number;
+            remainingValue: number;
+            status: string;
+            isLate: boolean;
         }[] = [];
 
-        lateSuppliersData.forEach(item => {
-            const sup = item.supplier;
-            const contractItems = ensureArray<any>(sup.contractItems);
-            const allowedWeeksArray = sup.allowedWeeks || [];
+        groupedProjectionData.forEach(item => {
+            item.producers.forEach((prod: any) => {
+                if (prod.status !== 'CONCLUÍDO') {
+                    const remainingWeight = Math.max(0, prod.monthlyWeight - prod.deliveredWeight);
+                    if (remainingWeight > 0) {
+                        const pricePerKg = prod.monthlyWeight > 0 ? (prod.monthlyValue / prod.monthlyWeight) : 0;
+                        const remainingValue = remainingWeight * pricePerKg;
 
-            const isWeekInCurrentMonth = (w: number): boolean => {
-                if (sup?.monthlySchedule && Object.keys(sup.monthlySchedule).length > 0) {
-                    const weeksForMonth = sup.monthlySchedule?.[currentMonthName] || sup.monthlySchedule?.[currentMonthName.toUpperCase()] || [];
-                    return weeksForMonth.includes(w);
-                } else {
-                    const wMonthIdx = getWeekMonth(w);
-                    const wMonthName = monthsList[wMonthIdx];
-                    return wMonthName === currentMonthName;
+                        const weeksStr = prod.weeks && prod.weeks.length > 0
+                            ? prod.weeks.map((w: any) => `S${w}`).join(', ')
+                            : 'Mês';
+
+                        simplifiedEntries.push({
+                            supplierName: prod.supplier,
+                            itemName: item.itemName,
+                            weeks: weeksStr,
+                            monthlyWeight: prod.monthlyWeight,
+                            deliveredWeight: prod.deliveredWeight,
+                            remainingWeight,
+                            remainingValue,
+                            status: prod.status,
+                            isLate: prod.isLate
+                        });
+                    }
                 }
-            };
-
-            const allowedWeeksCurrentMonth = allowedWeeksArray.filter(w => isWeekInCurrentMonth(w));
-            const numWeeksInMonth = allowedWeeksCurrentMonth.length || 4;
-
-            // 1. Scheduling Delays (Count value for past weeks)
-            item.schedulingDelays.forEach(sd => {
-                contractItems.forEach(cItem => {
-                    const monthlyQuota = (Number(cItem.totalKg) || 0) / divisor;
-                    const weeklyQty = monthlyQuota / numWeeksInMonth;
-                    const weeklyValue = weeklyQty * (Number(cItem.valuePerKg) || 0);
-
-                    simplifiedEntries.push({
-                        supplierName: sup.name,
-                        supplierCpf: sup.cpf || 'N/A',
-                        itemName: (cItem.name || '').toUpperCase(),
-                        week: `Semana ${sd.week}`,
-                        quantity: weeklyQty,
-                        unit: cItem.unit || 'Kg',
-                        value: weeklyValue,
-                        inconformidade: 'Sem Reserva / Agendamento'
-                    });
-                });
-            });
-
-            // 2. Delivery Delays
-            item.deliveryDelays.forEach(dd => {
-                contractItems.forEach(cItem => {
-                    const monthlyQuota = (Number(cItem.totalKg) || 0) / divisor;
-                    const weeklyQty = monthlyQuota / numWeeksInMonth;
-                    const weeklyValue = weeklyQty * (Number(cItem.valuePerKg) || 0);
-
-                    simplifiedEntries.push({
-                        supplierName: sup.name,
-                        supplierCpf: sup.cpf || 'N/A',
-                        itemName: (cItem.name || '').toUpperCase(),
-                        week: `Semana ${dd.week}`,
-                        quantity: weeklyQty,
-                        unit: cItem.unit || 'Kg',
-                        value: weeklyValue,
-                        inconformidade: 'Atraso na Entrega Física'
-                    });
-                });
             });
         });
 
-        // Sum of all values representing the total monthly accumulated supply delay invoice loss
-        const totalLossValue = simplifiedEntries.reduce((sum, entry) => sum + entry.value, 0);
+        const totalLossValue = simplifiedEntries.reduce((sum, entry) => sum + entry.remainingValue, 0);
 
         const htmlContent = `
             <html>
@@ -634,7 +599,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     .item-badge { font-family: monospace; font-size: 9.5px; font-weight: bold; color: #111827; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; border: 1px solid #e5e7eb; display: inline-block; text-transform: uppercase; }
                     .val-num { font-family: monospace; text-align: right; font-weight: bold; }
                     .badge-delay-type { display: inline-block; font-size: 8px; font-weight: 900; padding: 1px 5px; border-radius: 3px; border: 1px solid #e5e7eb; text-transform: uppercase; }
-                    .badge-red { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+                    .badge-yellow { background: #fffbeb; color: #b45309; border-color: #fde68a; }
                     
                     .text-center { text-align: center; }
                     .text-right { text-align: right; }
@@ -647,19 +612,18 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                 <div class="header">
                     <div>
                         <h1 class="title">Relatório de Prejuízo de Quebra de Contrato</h1>
-                        <p style="margin: 3px 0 0 0; font-size: 10px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026 - PPAIS e Fornecedores</p>
+                        <p style="margin: 3px 0 0 0; font-size: 10px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026</p>
                     </div>
                     <div class="meta">
                         <div><b>Emissão:</b> ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}</div>
                         <div><b>Mês da Seleção:</b> ${currentMonthName.toUpperCase()} / ${selYear}</div>
-                        <div><b>Data de Controle:</b> ${SIMULATED_TODAY_LOCAL.toLocaleDateString('pt-BR')}</div>
                     </div>
                 </div>
 
                 <div class="summary-card">
                     <div class="summary-info">
-                        <h3>Prejuízo de Quebra de Contrato</h3>
-                        <p>Total financeiro não entregue ou sem agendamento regular verificado para fornecedores do PPAIS no mês de ${currentMonthName.toUpperCase()} / ${selYear}.</p>
+                        <h3>Atraso e Quebra de Contrato de Abastecimento</h3>
+                        <p>Lista de produtores e fornecedores que não realizaram a totalidade das entregas planejadas no mês de ${currentMonthName.toUpperCase()} / ${selYear}.</p>
                     </div>
                     <div class="summary-value">
                         R$ ${totalLossValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -669,8 +633,8 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 25%;">Fornecedor (Não realizou entrega)</th>
-                            <th style="width: 32%;">Item que Faltou</th>
+                            <th style="width: 25%;">Fornecedor / Produtor</th>
+                            <th style="width: 32%;">Item Pendente (Faltou)</th>
                             <th style="width: 10%; text-align: center;">Período</th>
                             <th style="width: 13%; text-align: right;">Qtd Faltante</th>
                             <th style="width: 20%; text-align: right;">Prejuízo de Quebra de Contrato</th>
@@ -680,16 +644,16 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         ${simplifiedEntries.length === 0 ? `
                             <tr>
                                 <td colspan="5" class="text-center" style="padding: 24px; font-style: italic; color: #6b7280; font-size: 11px;">
-                                    Excelente! Nenhum item com inconformidade ou atraso registrado no período.
+                                    Excelente! Todos os fornecedores realizaram suas entregas em dia neste mês.
                                 </td>
                             </tr>
                         ` : simplifiedEntries.map(entry => `
                             <tr>
                                 <td style="font-weight: 600; color: #374151;">${entry.supplierName}</td>
                                 <td><span class="item-badge">${entry.itemName}</span></td>
-                                <td class="text-center" style="font-weight: 700; color: #4b5563;">${entry.week}</td>
-                                <td class="val-num text-right">${entry.quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.unit}</td>
-                                <td class="val-num text-right" style="color: #991b1b;">R$ ${entry.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td class="text-center" style="font-weight: 700; color: #4b5563;">${entry.weeks}</td>
+                                <td class="val-num text-right">${entry.remainingWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kg</td>
+                                <td class="val-num text-right" style="color: #991b1b;">R$ ${entry.remainingValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                             </tr>
                         `).join('')}
                     </tbody>
