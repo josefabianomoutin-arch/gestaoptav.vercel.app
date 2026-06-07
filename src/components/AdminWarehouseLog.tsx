@@ -507,7 +507,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
         printWindow.document.close();
     };
 
-    const handlePrintLateSuppliersPDF = () => {
+    const handlePrintLateSuppliersPDF = (categoryFilter?: 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS') => {
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
@@ -538,6 +538,10 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
         groupedProjectionData.forEach(item => {
             item.producers.forEach((prod: any) => {
                 if (prod.status !== 'CONCLUÍDO') {
+                    if (categoryFilter && prod.sourceCategory !== categoryFilter) {
+                        return;
+                    }
+
                     const remainingWeight = Math.max(0, prod.monthlyWeight - prod.deliveredWeight);
                     if (remainingWeight > 0) {
                         const pricePerKg = prod.monthlyWeight > 0 ? (prod.monthlyValue / prod.monthlyWeight) : 0;
@@ -565,21 +569,51 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
 
         const totalLossValue = simplifiedEntries.reduce((sum, entry) => sum + entry.remainingValue, 0);
 
+        let themeColor = '#991b1b'; // Red for all/default
+        let themeBg = '#fef2f2';
+        let themeBorder = '#fee2e2';
+        let themeText = '#7f1d1d';
+        let reportSubtitle = `Lista de produtores e fornecedores que não realizaram a totalidade das entregas planejadas no mês de ${currentMonthName.toUpperCase()} / ${selYear}.`;
+        let reportTitle = 'Relatório de Prejuízo de Quebra de Contrato';
+
+        if (categoryFilter === 'PPAIS') {
+            themeColor = '#065f46'; // Emerald
+            themeBg = '#ecfdf5';
+            themeBorder = '#d1fae5';
+            themeText = '#064e3b';
+            reportTitle = 'Relatório de Quebra de Contrato - Itens PPAIS';
+            reportSubtitle = `Lista de produtores do PPAIS que não realizaram a totalidade das entregas planejadas no mês de ${currentMonthName.toUpperCase()} / ${selYear}.`;
+        } else if (categoryFilter === 'ESTOCÁVEIS') {
+            themeColor = '#1e3a8a'; // Blue
+            themeBg = '#eff6ff';
+            themeBorder = '#dbeafe';
+            themeText = '#1e3a8a';
+            reportTitle = 'Relatório de Quebra de Contrato - Itens Estocáveis';
+            reportSubtitle = `Lista de fornecedores de estocáveis que não realizaram a totalidade das entregas planejadas no mês de ${currentMonthName.toUpperCase()} / ${selYear}.`;
+        } else if (categoryFilter === 'PERECÍVEIS') {
+            themeColor = '#854d0e'; // Yellow/Amber
+            themeBg = '#fffbeb';
+            themeBorder = '#fef3c7';
+            themeText = '#713f12';
+            reportTitle = 'Relatório de Quebra de Contrato - Itens Perecíveis';
+            reportSubtitle = `Lista de fornecedores de perecíveis que não realizaram a totalidade das entregas planejadas no mês de ${currentMonthName.toUpperCase()} / ${selYear}.`;
+        }
+
         const htmlContent = `
             <html>
             <head>
-                <title>Prejuízo de Quebra de Contrato - ${currentMonthName.toUpperCase()} / ${selYear}</title>
+                <title>${reportTitle} - ${currentMonthName.toUpperCase()} / ${selYear}</title>
                 <style>
                     body { font-family: 'Inter', system-ui, sans-serif; padding: 30px; color: #1f2937; line-height: 1.5; }
                     .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 12px; margin-bottom: 16px; }
-                    .title { font-size: 15px; font-weight: 900; color: #991b1b; text-transform: uppercase; margin: 0; letter-spacing: -0.01em; }
+                    .title { font-size: 15px; font-weight: 900; color: ${themeColor}; text-transform: uppercase; margin: 0; letter-spacing: -0.01em; }
                     .meta { font-size: 10px; color: #4b5563; text-align: right; font-family: monospace; }
                     .meta div { margin-bottom: 2px; }
                     
                     /* Summary Panel */
                     .summary-card { 
-                        background-color: #fef2f2; 
-                        border: 2px solid #fee2e2; 
+                        background-color: ${themeBg}; 
+                        border: 2px solid ${themeBorder}; 
                         border-radius: 12px; 
                         padding: 14px 18px; 
                         margin-bottom: 20px; 
@@ -587,9 +621,9 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         justify-content: space-between; 
                         align-items: center; 
                     }
-                    .summary-info h3 { margin: 0; font-size: 13px; font-weight: 800; color: #991b1b; text-transform: uppercase; }
-                    .summary-info p { margin: 4px 0 0 0; font-size: 10.5px; color: #7f1d1d; font-weight: 500; }
-                    .summary-value { font-size: 22px; font-weight: 950; color: #b91c1c; font-family: monospace; }
+                    .summary-info h3 { margin: 0; font-size: 13px; font-weight: 800; color: ${themeColor}; text-transform: uppercase; }
+                    .summary-info p { margin: 4px 0 0 0; font-size: 10.5px; color: ${themeText}; font-weight: 500; }
+                    .summary-value { font-size: 22px; font-weight: 950; color: ${themeColor}; font-family: monospace; }
 
                     table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 10px; }
                     th, td { border: 1px solid #e5e7eb; padding: 10px 12px; text-align: left; vertical-align: middle; }
@@ -611,7 +645,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             <body>
                 <div class="header">
                     <div>
-                        <h1 class="title">Relatório de Prejuízo de Quebra de Contrato</h1>
+                        <h1 class="title">${reportTitle}</h1>
                         <p style="margin: 3px 0 0 0; font-size: 10px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026</p>
                     </div>
                     <div class="meta">
@@ -623,7 +657,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                 <div class="summary-card">
                     <div class="summary-info">
                         <h3>Atraso e Quebra de Contrato de Abastecimento</h3>
-                        <p>Lista de produtores e fornecedores que não realizaram a totalidade das entregas planejadas no mês de ${currentMonthName.toUpperCase()} / ${selYear}.</p>
+                        <p>${reportSubtitle}</p>
                     </div>
                     <div class="summary-value">
                         R$ ${totalLossValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -653,7 +687,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                 <td><span class="item-badge">${entry.itemName}</span></td>
                                 <td class="text-center" style="font-weight: 700; color: #4b5563;">${entry.weeks}</td>
                                 <td class="val-num text-right">${entry.remainingWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kg</td>
-                                <td class="val-num text-right" style="color: #991b1b;">R$ ${entry.remainingValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td class="val-num text-right" style="color: ${themeColor};">R$ ${entry.remainingValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -759,20 +793,49 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             
             {/* CABEÇALHO E FILTROS */}
             <div className="space-y-4">
-                <div className="flex flex-col md:flex-row justify-between items-start gap-4 pb-4 border-b border-gray-50">
-                    <div>
-                        <button 
-                            onClick={handlePrintLateSuppliersPDF}
-                            className="border border-amber-200 bg-amber-50 hover:bg-amber-100 rounded-2xl p-1.5 px-4 flex items-center gap-3 transition-all cursor-pointer shadow-sm active:scale-95"
-                        >
-                            <div className="bg-amber-500 text-white p-1 rounded-lg">
-                                <Clock className="h-3 md:h-3.5 w-3 md:w-3.5" />
-                            </div>
-                            <div className="text-left">
-                                <h4 className="text-[10px] font-black text-amber-950 uppercase tracking-tighter italic leading-none">Relatório de Ativos em Atraso</h4>
-                                <p className="text-[8px] text-amber-500 font-bold uppercase tracking-widest mt-0.5">Gerar PDF de Fornecedores Pendentes</p>
-                            </div>
-                        </button>
+                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 pb-4 border-b border-gray-50">
+                    <div className="flex flex-col gap-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 italic">Relatório de Ativos em Atraso (Quebra de Contrato):</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button 
+                                onClick={() => handlePrintLateSuppliersPDF('PPAIS')}
+                                className="border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 rounded-2xl p-1.5 px-3.5 flex items-center gap-2.5 transition-all cursor-pointer shadow-sm active:scale-95 text-left"
+                            >
+                                <div className="bg-emerald-500 text-white p-1 rounded-lg">
+                                    <Clock className="h-3 w-3" />
+                                </div>
+                                <div>
+                                    <h4 className="text-[9px] font-black text-emerald-950 uppercase tracking-tighter italic leading-none">Itens PPAIS</h4>
+                                    <p className="text-[7.5px] text-emerald-600 font-bold uppercase tracking-widest mt-0.5">Gerar PDF do Mês</p>
+                                </div>
+                            </button>
+
+                            <button 
+                                onClick={() => handlePrintLateSuppliersPDF('ESTOCÁVEIS')}
+                                className="border border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-2xl p-1.5 px-3.5 flex items-center gap-2.5 transition-all cursor-pointer shadow-sm active:scale-95 text-left"
+                            >
+                                <div className="bg-blue-500 text-white p-1 rounded-lg">
+                                    <Clock className="h-3 w-3" />
+                                </div>
+                                <div>
+                                    <h4 className="text-[9px] font-black text-blue-950 uppercase tracking-tighter italic leading-none">Itens Estocáveis</h4>
+                                    <p className="text-[7.5px] text-blue-600 font-bold uppercase tracking-widest mt-0.5">Gerar PDF do Mês</p>
+                                </div>
+                            </button>
+
+                            <button 
+                                onClick={() => handlePrintLateSuppliersPDF('PERECÍVEIS')}
+                                className="border border-amber-200 bg-amber-50 hover:bg-amber-100 rounded-2xl p-1.5 px-3.5 flex items-center gap-2.5 transition-all cursor-pointer shadow-sm active:scale-95 text-left"
+                            >
+                                <div className="bg-amber-500 text-white p-1 rounded-lg">
+                                    <Clock className="h-3 w-3" />
+                                </div>
+                                <div>
+                                    <h4 className="text-[9px] font-black text-amber-950 uppercase tracking-tighter italic leading-none">Itens Perecíveis</h4>
+                                    <p className="text-[7.5px] text-amber-600 font-bold uppercase tracking-widest mt-0.5">Gerar PDF do Mês</p>
+                                </div>
+                            </button>
+                        </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <button 
