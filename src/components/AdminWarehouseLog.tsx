@@ -599,6 +599,30 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
 
         const totalLossValue = simplifiedEntries.reduce((sum, entry) => sum + entry.remainingValue, 0);
 
+        // Group entries by supplierName
+        const groupedBySupplier: {
+            [supplierName: string]: {
+                items: typeof simplifiedEntries;
+                totalWeight: number;
+                totalValue: number;
+            }
+        } = {};
+
+        simplifiedEntries.forEach(entry => {
+            if (!groupedBySupplier[entry.supplierName]) {
+                groupedBySupplier[entry.supplierName] = {
+                    items: [],
+                    totalWeight: 0,
+                    totalValue: 0
+                };
+            }
+            groupedBySupplier[entry.supplierName].items.push(entry);
+            groupedBySupplier[entry.supplierName].totalWeight += entry.remainingWeight;
+            groupedBySupplier[entry.supplierName].totalValue += entry.remainingValue;
+        });
+
+        const hasEntries = simplifiedEntries.length > 0;
+
         let themeColor = '#991b1b'; // Red for all/default
         let themeBg = '#fef2f2';
         let themeBorder = '#fee2e2';
@@ -697,28 +721,41 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 25%;">Fornecedor / Produtor</th>
-                            <th style="width: 32%;">Item Pendente (Faltou)</th>
-                            <th style="width: 10%; text-align: center;">Período</th>
-                            <th style="width: 13%; text-align: right;">Qtd Faltante</th>
-                            <th style="width: 20%; text-align: right;">Prejuízo de Quebra de Contrato</th>
+                            <th style="width: 45%;">Item Pendente (Faltou)</th>
+                            <th style="width: 15%; text-align: center;">Período</th>
+                            <th style="width: 18%; text-align: right;">Qtd Faltante</th>
+                            <th style="width: 22%; text-align: right;">Prejuízo de Quebra de Contrato</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${simplifiedEntries.length === 0 ? `
+                        ${!hasEntries ? `
                             <tr>
-                                <td colspan="5" class="text-center" style="padding: 24px; font-style: italic; color: #6b7280; font-size: 11px;">
+                                <td colspan="4" class="text-center" style="padding: 24px; font-style: italic; color: #6b7280; font-size: 11px;">
                                     Excelente! Todos os fornecedores realizaram suas entregas em dia neste mês.
                                 </td>
                             </tr>
-                        ` : simplifiedEntries.map(entry => `
-                            <tr>
-                                <td style="font-weight: 600; color: #374151;">${entry.supplierName}</td>
-                                <td><span class="item-badge">${entry.itemName}</span></td>
-                                <td class="text-center" style="font-weight: 700; color: #4b5563;">${entry.weeks}</td>
-                                <td class="val-num text-right">${entry.remainingWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kg</td>
-                                <td class="val-num text-right" style="color: ${themeColor};">R$ ${entry.remainingValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        ` : Object.entries(groupedBySupplier).map(([supplier, data]) => `
+                            <!-- Supplier Divider Row -->
+                            <tr style="background-color: #f9fafb; font-weight: bold; border-top: 2px solid ${themeBorder};">
+                                <td colspan="2" style="font-size: 11px; padding: 10px; color: #111827; vertical-align: middle;">
+                                    Fornecedor / Produtor: <span style="font-size: 11.5px; font-weight: 850; color: #111827;">${supplier}</span>
+                                </td>
+                                <td class="text-right" style="padding: 10px; color: #dc2626; font-family: monospace; font-size: 11px; font-weight: 800; vertical-align: middle;">
+                                    Subtotal: ${data.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kg
+                                </td>
+                                <td class="text-right" style="padding: 10px; color: #dc2626; font-family: monospace; font-size: 11px; font-weight: 800; vertical-align: middle;">
+                                    R$ ${data.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
                             </tr>
+                            <!-- Items for this supplier -->
+                            ${data.items.map(entry => `
+                                <tr>
+                                    <td style="padding-left: 20px;"><span class="item-badge" style="border-left: 3px solid ${themeColor};">${entry.itemName}</span></td>
+                                    <td class="text-center" style="font-weight: 700; color: #4b5563;">${entry.weeks}</td>
+                                    <td class="val-num text-right" style="color: #dc2626; font-weight: bold;">${entry.remainingWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kg</td>
+                                    <td class="val-num text-right" style="color: #dc2626; font-weight: bold;">R$ ${entry.remainingValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                </tr>
+                            `).join('')}
                         `).join('')}
                     </tbody>
                 </table>
