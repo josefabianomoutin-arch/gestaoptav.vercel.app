@@ -323,7 +323,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
         return () => observer.disconnect();
     }, [filteredLog]);
 
-    const handlePrintPDF = () => {
+    const handlePrintPDF = (categoryFilter?: 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS') => {
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
@@ -353,6 +353,10 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
 
         groupedProjectionData.forEach(item => {
             item.producers.forEach((prod: any) => {
+                if (categoryFilter && prod.sourceCategory !== categoryFilter) {
+                    return;
+                }
+
                 const weeksStr = prod.weeks && prod.weeks.length > 0
                     ? prod.weeks.map((w: any) => `S${w}`).join(', ')
                     : 'Mês';
@@ -375,14 +379,40 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
         const totalDeliveredWeight = projectionLines.reduce((sum, line) => sum + line.deliveredWeight, 0);
         const totalValue = projectionLines.reduce((sum, line) => sum + line.totalValue, 0);
 
+        let themeColor = '#1e3a8a'; // Blue for default/Estocáveis
+        let themeBg = '#eff6ff';
+        let themeBorder = '#dbeafe';
+        let themeText = '#1e3a8a';
+        let reportTitle = 'Relatório de Projeção e Acompanhamento de Abastecimento';
+
+        if (categoryFilter === 'PPAIS') {
+            themeColor = '#065f46'; // Emerald
+            themeBg = '#ecfdf5';
+            themeBorder = '#d1fae5';
+            themeText = '#064e3b';
+            reportTitle = 'Projeção de Abastecimento - Itens PPAIS';
+        } else if (categoryFilter === 'ESTOCÁVEIS') {
+            themeColor = '#1e3a8a'; // Blue
+            themeBg = '#eff6ff';
+            themeBorder = '#dbeafe';
+            themeText = '#1e3a8a';
+            reportTitle = 'Projeção de Abastecimento - Itens Estocáveis';
+        } else if (categoryFilter === 'PERECÍVEIS') {
+            themeColor = '#854d0e'; // Amber
+            themeBg = '#fffbeb';
+            themeBorder = '#fef3c7';
+            themeText = '#713f12';
+            reportTitle = 'Projeção de Abastecimento - Itens Perecíveis';
+        }
+
         const htmlContent = `
             <html>
             <head>
-                <title>Acompanhamento de Projeção de Abastecimento - ${currentMonthName.toUpperCase()} / ${selYear}</title>
+                <title>${reportTitle} - ${currentMonthName.toUpperCase()} / ${selYear}</title>
                 <style>
                     body { font-family: 'Inter', system-ui, sans-serif; padding: 30px; color: #1f2937; line-height: 1.5; }
                     .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 12px; margin-bottom: 16px; }
-                    .title { font-size: 15px; font-weight: 950; color: #1e3a8a; text-transform: uppercase; margin: 0; letter-spacing: -0.01em; }
+                    .title { font-size: 15px; font-weight: 950; color: ${themeColor}; text-transform: uppercase; margin: 0; letter-spacing: -0.01em; }
                     .meta { font-size: 10px; color: #4b5563; text-align: right; font-family: monospace; }
                     .meta div { margin-bottom: 2px; }
                     
@@ -394,17 +424,17 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         margin-bottom: 20px; 
                     }
                     .summary-card {
-                        background-color: #f8fafc;
-                        border: 1px solid #e2e8f0;
+                        background-color: ${themeBg};
+                        border: 1px solid ${themeBorder};
                         border-radius: 12px;
                         padding: 12px 16px;
                     }
-                    .summary-card h4 { margin: 0; font-size: 9px; font-weight: bold; color: #64748b; text-transform: uppercase; }
-                    .summary-card p { margin: 4px 0 0 0; font-size: 16px; font-weight: 900; color: #0f172a; font-family: monospace; }
+                    .summary-card h4 { margin: 0; font-size: 9px; font-weight: bold; color: ${themeText}; text-transform: uppercase; opacity: 0.8; }
+                    .summary-card p { margin: 4px 0 0 0; font-size: 16px; font-weight: 900; color: ${themeColor}; font-family: monospace; }
 
                     table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 9.5px; }
                     th, td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; vertical-align: middle; }
-                    th { background-color: #f1f5f9; font-weight: 900; color: #334155; text-transform: uppercase; font-size: 8px; letter-spacing: 0.03em; }
+                    th { background-color: ${themeBg}; font-weight: 900; color: ${themeText}; text-transform: uppercase; font-size: 8px; letter-spacing: 0.03em; }
                     
                     .item-badge { font-family: monospace; font-size: 9px; font-weight: bold; color: #1e293b; background: #f1f5f9; padding: 2px 5px; border-radius: 4px; display: inline-block; text-transform: uppercase; }
                     .val-num { font-family: monospace; text-align: right; font-weight: bold; }
@@ -425,7 +455,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             <body>
                 <div class="header">
                     <div>
-                        <h1 class="title">Relatório de Projeção e Acompanhamento de Abastecimento</h1>
+                        <h1 class="title">${reportTitle}</h1>
                         <p style="margin: 3px 0 0 0; font-size: 10px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026</p>
                     </div>
                     <div class="meta">
@@ -477,7 +507,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                 <td class="text-center" style="font-weight: 700; color: #64748b;">${line.weeks}</td>
                                 <td class="val-num text-right">${line.monthlyWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} Kg</td>
                                 <td class="val-num text-right" style="color: ${line.deliveredWeight > 0 ? '#15803d' : '#94a3b8'}">${line.deliveredWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} Kg</td>
-                                <td class="val-num text-right" style="color: #1e3a8a;">R$ ${line.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                <td class="val-num text-right" style="color: ${themeColor};">R$ ${line.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                                 <td class="text-center">
                                     <span class="status-badge ${
                                         line.isLate ? 'status-atraso' :
@@ -837,14 +867,61 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                             </button>
                         </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <button 
-                            onClick={handlePrintPDF}
-                            className="bg-zinc-800 hover:bg-black text-white font-black py-1.5 px-4 rounded-xl transition-all shadow-sm active:scale-95 uppercase tracking-tighter text-[9px] flex items-center gap-1.5 italic"
-                        >
-                            <FileIcon className="h-3 w-3" />
-                            Exportar PDF
-                        </button>
+                    <div className="flex flex-col gap-2 items-start xl:items-end w-full xl:w-auto">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 italic">Previsão de Abastecimento (Exportar PDF):</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button 
+                                onClick={() => handlePrintPDF('PPAIS')}
+                                className="border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 rounded-2xl p-1.5 px-3 flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 text-left"
+                            >
+                                <div className="bg-emerald-500 text-white p-1 rounded-lg">
+                                    <FileIcon className="h-3 w-3" />
+                                </div>
+                                <div>
+                                    <h4 className="text-[9px] font-black text-emerald-950 uppercase tracking-tighter italic leading-none">Projeção PPAIS</h4>
+                                    <p className="text-[7.5px] text-emerald-600 font-bold uppercase tracking-widest mt-0.5">Gerar PDF</p>
+                                </div>
+                            </button>
+
+                            <button 
+                                onClick={() => handlePrintPDF('ESTOCÁVEIS')}
+                                className="border border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-2xl p-1.5 px-3 flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 text-left"
+                            >
+                                <div className="bg-blue-500 text-white p-1 rounded-lg">
+                                    <FileIcon className="h-3 w-3" />
+                                </div>
+                                <div>
+                                    <h4 className="text-[9px] font-black text-blue-950 uppercase tracking-tighter italic leading-none">Projeção Estocáveis</h4>
+                                    <p className="text-[7.5px] text-blue-600 font-bold uppercase tracking-widest mt-0.5">Gerar PDF</p>
+                                </div>
+                            </button>
+
+                            <button 
+                                onClick={() => handlePrintPDF('PERECÍVEIS')}
+                                className="border border-amber-200 bg-amber-50 hover:bg-amber-100 rounded-2xl p-1.5 px-3 flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 text-left"
+                            >
+                                <div className="bg-amber-500 text-white p-1 rounded-lg">
+                                    <FileIcon className="h-3 w-3" />
+                                </div>
+                                <div>
+                                    <h4 className="text-[9px] font-black text-amber-950 uppercase tracking-tighter italic leading-none">Projeção Perecíveis</h4>
+                                    <p className="text-[7.5px] text-amber-600 font-bold uppercase tracking-widest mt-0.5">Gerar PDF</p>
+                                </div>
+                            </button>
+
+                            <button 
+                                onClick={() => handlePrintPDF()}
+                                className="border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 rounded-2xl p-1.5 px-3 flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 text-left"
+                            >
+                                <div className="bg-zinc-600 text-white p-1 rounded-lg">
+                                    <FileIcon className="h-3 w-3" />
+                                </div>
+                                <div>
+                                    <h4 className="text-[9px] font-black text-zinc-900 uppercase tracking-tighter italic leading-none">Projeção Completa</h4>
+                                    <p className="text-[7.5px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">Exportar Tudo</p>
+                                </div>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
