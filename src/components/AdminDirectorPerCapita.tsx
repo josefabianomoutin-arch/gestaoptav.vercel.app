@@ -9,13 +9,18 @@ interface AdminDirectorPerCapitaProps {
   onDelete: (id: string) => Promise<void>;
 }
 
-const formatCurrency = (value: number) => {
+const formatCurrency = (value?: number) => {
+    if (typeof value !== 'number' || isNaN(value)) return 'R$ 0,00';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
 const formatDateBr = (dateString?: string) => {
     if (!dateString) return '-';
-    return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR');
+    try {
+        return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR');
+    } catch (_e) {
+        return '-';
+    }
 };
 
 const MONTHS = [
@@ -119,101 +124,106 @@ const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ supplie
   };
 
   const handlePrintReport = () => {
-    const printContent = `
-      <html>
-        <head>
-          <title>Relatório de Entrega - Diretoria</title>
-          <style>
-            @page { 
-                size: A4; 
-                margin: 0; 
-            }
-            @media print {
-                header, footer { display: none !important; }
-            }
-            body { 
-                font-family: Arial, sans-serif; 
-                padding: 20mm; 
-                color: #333; 
-                line-height: 1.4; 
-                margin: 0;
-            }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 11px; }
-            th { background-color: #f5f5f5; font-weight: bold; }
-            .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
-            .header-sap { font-size: 14px; margin-bottom: 2px; }
-            .header-unit { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
-            .header-address { font-size: 11px; }
-            .header-contact { font-size: 11px; }
-            .report-title { text-align: center; font-size: 18px; font-weight: bold; margin: 20px 0; text-transform: uppercase; }
-            .footer { margin-top: 60px; display: flex; justify-content: space-around; }
-            .sig { border-top: 1px solid #000; width: 220px; text-align: center; padding-top: 5px; font-size: 11px; font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="header-sap">Secretaria da Administração Penitenciária</div>
-            <div class="header-unit">Polícia Penal - Penitenciária de Taiúva</div>
-            <div class="header-address">Rodovia Brigadeiro Faria Lima, SP 326, KM 359,6 Taiúva/SP - CEP: 14.720-000</div>
-            <div class="header-contact">Fone: (16) 3247-6261 - E-mail: dg@ptaiuva.sap.gov.br</div>
-          </div>
-          
-          <div class="report-title">Controle de Saída - Itens para Diretoria</div>
-          
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 30px; text-align: center;">#</th>
-                <th>Data</th>
-                <th>Mês/Semana</th>
-                <th>Destinatário</th>
-                <th>Descrição do Item</th>
-                <th>Validade</th>
-                <th>Qtd.</th>
-                <th className="p-3 text-left">Vlr. Unitário</th>
-                <th className="p-3 text-left">Total Item</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${logs.flatMap(l => l.items.map((item, index) => `
-                <tr>
-                  <td style="text-align: center;">${index + 1}</td>
-                  <td>${new Date(l.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
-                  <td>${l.month} / S${l.week}</td>
-                  <td>${l.recipient}</td>
-                  <td>${item.name}</td>
-                  <td>${formatDateBr(item.expirationDate)}</td>
-                  <td>${item.quantity.toLocaleString('pt-BR')}</td>
-                  <td>${formatCurrency(item.unitPrice)}</td>
-                  <td>${formatCurrency(item.totalValue)}</td>
-                </tr>
-              `)).join('')}
-            </tbody>
-            <tfoot>
-               <tr style="font-weight: bold; background-color: #eee;">
-                  <td colspan="8" style="text-align: right">TOTAL GERAL DO RELATÓRIO:</td>
-                  <td>${formatCurrency(logs.reduce((acc, curr) => acc + curr.totalValue, 0))}</td>
-               </tr>
-            </tfoot>
-          </table>
-          
-          <div class="footer">
-            <div class="sig">Responsável (Almoxarifado)</div>
-            <div class="sig">Recebedor (Diretoria)</div>
-          </div>
-        </body>
-      </html>
-    `;
-    const win = window.open('', '_blank');
-    if (win) {
-      win.document.write(printContent);
-      win.document.close();
-      setTimeout(() => {
-        win.print();
-      }, 500);
-    }
-  };
+      try {
+        const printContent = `
+          <html>
+            <head>
+              <title>Relatório de Entrega - Diretoria</title>
+              <style>
+                @page { 
+                    size: A4; 
+                    margin: 0; 
+                }
+                @media print {
+                    header, footer { display: none !important; }
+                }
+                body { 
+                    font-family: Arial, sans-serif; 
+                    padding: 20mm; 
+                    color: #333; 
+                    line-height: 1.4; 
+                    margin: 0;
+                }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 11px; }
+                th { background-color: #f5f5f5; font-weight: bold; }
+                .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+                .header-sap { font-size: 14px; margin-bottom: 2px; }
+                .header-unit { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
+                .header-address { font-size: 11px; }
+                .header-contact { font-size: 11px; }
+                .report-title { text-align: center; font-size: 18px; font-weight: bold; margin: 20px 0; text-transform: uppercase; }
+                .footer { margin-top: 60px; display: flex; justify-content: space-around; }
+                .sig { border-top: 1px solid #000; width: 220px; text-align: center; padding-top: 5px; font-size: 11px; font-weight: bold; }
+              </style>
+            </head>
+            <body>
+              <div class="header">
+                <div class="header-sap">Secretaria da Administração Penitenciária</div>
+                <div class="header-unit">Polícia Penal - Penitenciária de Taiúva</div>
+                <div class="header-address">Rodovia Brigadeiro Faria Lima, SP 326, KM 359,6 Taiúva/SP - CEP: 14.720-000</div>
+                <div class="header-contact">Fone: (16) 3247-6261 - E-mail: dg@ptaiuva.sap.gov.br</div>
+              </div>
+              
+              <div class="report-title">Controle de Saída - Itens para Diretoria</div>
+              
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width: 30px; text-align: center;">#</th>
+                    <th>Data</th>
+                    <th>Mês/Semana</th>
+                    <th>Destinatário</th>
+                    <th>Descrição do Item</th>
+                    <th>Validade</th>
+                    <th>Qtd.</th>
+                    <th class="p-3 text-left">Vlr. Unitário</th>
+                    <th class="p-3 text-left">Total Item</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${logs.flatMap(l => l.items.map((item, index) => `
+                    <tr>
+                      <td style="text-align: center;">${index + 1}</td>
+                      <td>${new Date(l.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                      <td>${l.month} / S${l.week}</td>
+                      <td>${l.recipient}</td>
+                      <td>${item.name || ''}</td>
+                      <td>${formatDateBr(item.expirationDate)}</td>
+                      <td>${(item.quantity || 0).toLocaleString('pt-BR')}</td>
+                      <td>${formatCurrency(item.unitPrice || 0)}</td>
+                      <td>${formatCurrency(item.totalValue || 0)}</td>
+                    </tr>
+                  `)).join('')}
+                </tbody>
+                <tfoot>
+                   <tr style="font-weight: bold; background-color: #eee;">
+                      <td colspan="8" style="text-align: right">TOTAL GERAL DO RELATÓRIO:</td>
+                      <td>${formatCurrency(logs.reduce((acc, curr) => acc + (curr.totalValue || 0), 0))}</td>
+                   </tr>
+                </tfoot>
+              </table>
+              
+              <div class="footer">
+                <div class="sig">Responsável (Almoxarifado)</div>
+                <div class="sig">Recebedor (Diretoria)</div>
+              </div>
+            </body>
+          </html>
+        `;
+        const win = window.open('', '_blank');
+        if (win) {
+          win.document.write(printContent);
+          win.document.close();
+          setTimeout(() => {
+            win.print();
+          }, 500);
+        }
+      } catch (_err) {
+        console.error("Erro ao gerar relatório:", _err);
+        alert("Erro ao gerar o relatório. Tente novamente.");
+      }
+    };
 
   return (
     <div className="space-y-8 pb-12">
