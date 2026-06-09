@@ -419,6 +419,9 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
                         <option value="alvenaria">ALVENARIA</option>
                         <option value="estrutural">ESTRUTURAL</option>
                         <option value="pintura">PINTURA</option>
+                        <option value="serralheria">SERRALHERIA</option>
+                        <option value="marcenaria">MARCENARIA</option>
+                        <option value="manutencao_veiculos">MANUTENÇÃO DE VEÍCULOS</option>
                       </select>
                       <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>

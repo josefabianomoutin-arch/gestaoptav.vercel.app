@@ -93,10 +93,403 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
     }
   };
 
+  const printSingleServiceOrder = (order: ServiceOrder, schedule: MaintenanceSchedule | null) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const translateStatus = (s?: string) => {
+      switch (s) {
+        case 'pendente': return 'PENDENTE';
+        case 'em_andamento': return 'EM ANDAMENTO';
+        case 'concluido':
+        case 'concluida': return 'CONCLUÍDO';
+        case 'cancelado': return 'CANCELADO';
+        default: return s || 'NÃO DEFINIDO';
+      }
+    };
+
+    const translateStage = (stage?: string) => {
+      switch (stage) {
+        case '1_aquisicao_material': return '1ª Etapa: Aquisição de Material';
+        case '2_disponibilidade_mao_obra': return '2ª Etapa: Disponibilidade de Mão de Obra';
+        case '3_em_execucao': return '3ª Etapa: Em Execução';
+        case '4_finalizada': return '4ª Etapa: Finalizada';
+        default: return stage || 'NÃO DEFINIDA';
+      }
+    };
+
+    const formatServiceType = (t?: string) => {
+      if (!t) return 'NÃO DEFINIDO';
+      if (t === 'manutencao_veiculos') return 'MANUTENÇÃO DE VEÍCULOS';
+      return t.toUpperCase();
+    };
+
+    const pplsFormatted = schedule && schedule.ppls && schedule.ppls.filter((p: any) => p && p.trim() !== '').length > 0
+      ? schedule.ppls.filter((p: any) => p && p.trim() !== '').map((p: any) => `<li>${p}</li>`).join('')
+      : '<li>Nenhum reeducando designado</li>';
+
+    const toolsFormatted = schedule && schedule.tools && schedule.tools.filter((t: any) => t && t.trim() !== '').length > 0
+      ? schedule.tools.filter((t: any) => t && t.trim() !== '').map((t: any) => `<li>${t}</li>`).join('')
+      : '<li>Nenhuma ferramenta cadastrada</li>';
+
+    const formattedDate = order.createdAt 
+      ? new Date(order.createdAt).toLocaleDateString('pt-BR') 
+      : order.date
+        ? new Date(order.date + 'T00:00:00').toLocaleDateString('pt-BR')
+        : new Date().toLocaleDateString('pt-BR');
+
+    const formattedUpdatedDate = order.updatedAt
+      ? new Date(order.updatedAt).toLocaleDateString('pt-BR')
+      : new Date().toLocaleDateString('pt-BR');
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Ordem de Serviço - ${order.requestingSector?.toUpperCase() || 'OS'}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
+            body { 
+              font-family: 'Inter', sans-serif; 
+              padding: 30px; 
+              color: #1e293b;
+              line-height: 1.4;
+              font-size: 11px;
+            }
+            .header-unit { 
+              text-align: center; 
+              border-bottom: 2px solid #4f46e5; 
+              padding-bottom: 12px; 
+              margin-bottom: 20px; 
+            }
+            .header-unit h4 {
+              margin: 0;
+              font-size: 13px;
+              font-weight: 900;
+              color: #1e293b;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+            }
+            .header-unit p {
+              margin: 3px 0 0 0;
+              font-size: 9px;
+              font-weight: 500;
+              color: #64748b;
+              text-transform: uppercase;
+              letter-spacing: 0.1em;
+            }
+            .title-area {
+              text-align: center;
+              margin-bottom: 20px;
+            }
+            .title-area h2 {
+              margin: 0;
+              font-size: 16px;
+              font-weight: 900;
+              color: #4f46e5;
+              text-transform: uppercase;
+              font-style: italic;
+              letter-spacing: -0.02em;
+            }
+            .grid-info {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 10px;
+              margin-bottom: 20px;
+            }
+            .info-block {
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              padding: 10px 12px;
+            }
+            .info-block .label {
+              font-weight: bold;
+              color: #64748b;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              font-size: 8px;
+              margin-bottom: 2px;
+            }
+            .info-block .value {
+              font-size: 11px;
+              font-weight: 700;
+              color: #111827;
+            }
+            .section-title {
+              font-size: 10px;
+              font-weight: 900;
+              text-transform: uppercase;
+              color: #4f46e5;
+              border-bottom: 1px solid #e2e8f0;
+              padding-bottom: 4px;
+              margin-top: 20px;
+              margin-bottom: 8px;
+              letter-spacing: 0.05em;
+            }
+            .box-content {
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              padding: 12px;
+              font-weight: 500;
+              font-size: 11px;
+              color: #334155;
+              white-space: pre-wrap;
+              min-height: 48px;
+            }
+            .list-columns {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 15px;
+            }
+            .list-box {
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              padding: 12px;
+            }
+            .list-box ul {
+              margin: 0;
+              padding-left: 15px;
+            }
+            .list-box li {
+              margin-bottom: 4px;
+              font-weight: 600;
+              color: #334155;
+            }
+            
+            /* Bottom Manual Completion Form */
+            .manual-form-container {
+              margin-top: 35px;
+              border: 2px dashed #94a3b8;
+              border-radius: 16px;
+              padding: 16px;
+              background-color: #fafbfd;
+              page-break-inside: avoid;
+            }
+            .manual-header {
+              text-align: center;
+              font-size: 11px;
+              font-weight: 900;
+              color: #1e293b;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              margin-bottom: 12px;
+              border-bottom: 1px dashed #cbd5e1;
+              padding-bottom: 6px;
+            }
+            .manual-options {
+              display: flex;
+              justify-content: space-around;
+              margin-bottom: 15px;
+              font-weight: bold;
+              font-size: 11px;
+            }
+            .option-box {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+            .option-check {
+              width: 14px;
+              height: 14px;
+              border: 2px solid #475569;
+              border-radius: 3px;
+              display: inline-block;
+            }
+            .manual-lines {
+              margin-top: 10px;
+            }
+            .manual-lines-label {
+              font-weight: bold;
+              color: #475569;
+              text-transform: uppercase;
+              font-size: 8px;
+              margin-bottom: 4px;
+            }
+            .line-draw {
+              border-bottom: 1px solid #cbd5e1;
+              height: 22px;
+              margin-bottom: 4px;
+            }
+            .manual-signatures {
+              margin-top: 25px;
+              display: grid;
+              grid-template-columns: repeat(2, 1fr) 120px;
+              gap: 15px;
+            }
+            .sig-line {
+              border-top: 1.5px solid #475569;
+              text-align: center;
+              padding-top: 5px;
+              font-weight: bold;
+              font-size: 9px;
+              color: #475569;
+              text-transform: uppercase;
+              margin-top: 20px;
+            }
+            .sig-date {
+              text-align: center;
+              font-weight: bold;
+              font-size: 9px;
+              color: #475569;
+              text-transform: uppercase;
+            }
+            .sig-date-box {
+              border: 1px solid #cbd5e1;
+              border-radius: 8px;
+              height: 30px;
+              margin-top: 5px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-family: monospace;
+              letter-spacing: 2px;
+              font-size: 12px;
+              color: #94a3b8;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header-unit">
+            <h4>Secretaria da Administração Penitenciária</h4>
+            <p>Polícia Penal - Penitenciária de Taiúva - Módulo de Manutenção</p>
+          </div>
+
+          <div class="title-area">
+            <h2>Ordem de Serviço (Execução de Manutenção)</h2>
+          </div>
+
+          <div class="grid-info">
+            <div class="info-block">
+              <div class="label">Setor Solicitante</div>
+              <div class="value">${order.requestingSector?.toUpperCase() || '-'}</div>
+            </div>
+            <div class="info-block">
+              <div class="label">Solicitante</div>
+              <div class="value">${order.requester?.toUpperCase() || '-'}</div>
+            </div>
+            <div class="info-block">
+              <div class="label">Tipo de Serviço</div>
+              <div class="value">${formatServiceType(order.serviceType)}</div>
+            </div>
+            <div class="info-block">
+              <div class="label">Prioridade (Pós-Inspeção)</div>
+              <div class="value" style="color: ${order.priority === 'ALTA' ? '#b91c1c' : '#1e293b'}">${order.priority || 'PENDENTE'}</div>
+            </div>
+            <div class="info-block">
+              <div class="label">Status Atual</div>
+              <div class="value">${translateStatus(order.status)}</div>
+            </div>
+            <div class="info-block">
+              <div class="label">Etapa de Programação</div>
+              <div class="value">${translateStage(order.projectStage)}</div>
+            </div>
+            <div class="info-block">
+              <div class="label">Data de Solicitação / Entrada</div>
+              <div class="value">${formattedDate}</div>
+            </div>
+            <div class="info-block">
+              <div class="label">Data Programada / Atualização</div>
+              <div class="value">${formattedUpdatedDate}</div>
+            </div>
+          </div>
+
+          <div class="section-title">Descrição do Serviço Solicitado</div>
+          <div class="box-content">${order.description || '-'}</div>
+
+          <div class="section-title">Parecer Técnico / Observações da Inspeção</div>
+          <div class="box-content">${order.inspectionObservations || 'Aguardando avaliação em local / sem observações detalhadas até o momento.'}</div>
+
+          ${schedule ? `
+            <div class="section-title">Programação de Execução & Logística</div>
+            <div class="grid-info">
+              <div class="info-block">
+                <div class="label">Data de Execução</div>
+                <div class="value">${schedule.date ? new Date(schedule.date + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</div>
+              </div>
+              <div class="info-block">
+                <div class="label">Horário de Saída</div>
+                <div class="value">${schedule.time || '-'}</div>
+              </div>
+              <div class="info-block">
+                <div class="label">Local / Posto de Trabalho</div>
+                <div class="value">${schedule.location || '-'}</div>
+              </div>
+              <div class="info-block">
+                <div class="label">Servidor Acompanhante</div>
+                <div class="value">${schedule.accompanyingPerson || '-'}</div>
+              </div>
+            </div>
+
+            <div class="list-columns">
+              <div class="list-box">
+                <div class="label" style="font-size: 8.5px; font-weight: bold; color: #4f46e5; text-transform: uppercase; margin-bottom: 6px;">Mão de Obra Designada (PPLs)</div>
+                <ul>
+                  ${pplsFormatted}
+                </ul>
+              </div>
+              <div class="list-box">
+                <div class="label" style="font-size: 8.5px; font-weight: bold; color: #4f46e5; text-transform: uppercase; margin-bottom: 6px;">Inventário de Ferramentas / Equipamentos</div>
+                <ul>
+                  ${toolsFormatted}
+                </ul>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- REGISTRO DE EXECUÇÃO MANUAL (Preenchimento no Local de Trabalho) -->
+          <div class="manual-form-container">
+            <div class="manual-header">REGISTRO DE EXECUÇÃO (Preenchimento Manual pelo Executor no Local)</div>
+            
+            <div class="manual-options">
+              <div class="option-box">
+                <span class="option-check"></span>
+                <span>[  ] FINALIZADO / CONCLUÍDO TOTAL</span>
+              </div>
+              <div class="option-box">
+                <span class="option-check"></span>
+                <span>[  ] AGUARDANDO ADQUIRIR MATERIAL</span>
+              </div>
+            </div>
+
+            <div class="manual-lines">
+              <div class="manual-lines-label">Observações sobre a Execução / Materiais Utilizados / Pendências:</div>
+              <div class="line-draw"></div>
+              <div class="line-draw"></div>
+              <div class="line-draw"></div>
+            </div>
+
+            <div class="manual-signatures">
+              <div class="sig-block">
+                <div class="sig-line">Responsável pela Execução (Assinatura)</div>
+              </div>
+              <div class="sig-block">
+                <div class="sig-line">Diretoria / Setor Solicitante (Visto)</div>
+              </div>
+              <div class="sig-block">
+                <div class="sig-date text-center">Data Conclusão</div>
+                <div class="sig-date-box">____/____/____</div>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
   const handleSave = async () => {
     if (!editForm) return;
     
     try {
+      const orderToPrint = { ...editForm };
+      const scheduleToPrint = editScheduleForm ? { ...editScheduleForm } : null;
+
       const result = await onUpdate(editForm);
       if (result.success) {
         if (editScheduleForm && onUpdateMaintenanceSchedule) {
@@ -106,6 +499,9 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
         setEditForm(null);
         setEditScheduleForm(null);
         toast.success(result.message);
+
+        // Automatically open the print dialog
+        printSingleServiceOrder(orderToPrint, scheduleToPrint);
       } else {
         toast.error(result.message);
       }
@@ -926,6 +1322,16 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                       title="Editar Solicitação"
                     >
                       <Edit3 className="h-6 w-6 group-hover:scale-110 transition-transform" />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const schedule = maintenanceSchedules.find(s => s.serviceOrderId === order.id);
+                        printSingleServiceOrder(order, schedule || null);
+                      }}
+                      className="bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-600 p-4 rounded-2xl transition-all shadow-sm group"
+                      title="Imprimir Ordem de Serviço"
+                    >
+                      <Printer className="h-6 w-6 group-hover:scale-110 transition-transform" />
                     </button>
                     <button 
                       onClick={() => setDeletingId(order.id)}
