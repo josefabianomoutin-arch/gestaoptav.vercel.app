@@ -1362,6 +1362,7 @@ const App: React.FC = () => {
               logUpdates[`${logKey}/barcode`] = item.barcode || '';
               logUpdates[`${logKey}/pdNumber`] = pd ?? item.pd ?? '';
               logUpdates[`${logKey}/neNumber`] = ne ?? item.ne ?? '';
+              logUpdates[`${logKey}/location`] = item.location || '';
               logUpdates[`${logKey}/date`] = newDate || existingLogsForKey[logKey].date || '';
           } else {
               const newRef = push(warehouseLogRef);
@@ -1382,6 +1383,7 @@ const App: React.FC = () => {
                   lotNumber: item.lotNumber || 'UNICO',
                   expirationDate: item.expirationDate || '',
                   barcode: item.barcode || '',
+                  location: item.location || '',
                   pdNumber: pd ?? item.pd ?? '',
                   neNumber: ne ?? item.ne ?? ''
               };
@@ -1418,6 +1420,7 @@ const App: React.FC = () => {
             lotNumber: it.lotNumber || '',
             expirationDate: it.expirationDate || '',
             barcode: it.barcode || barcode || '',
+            location: it.location || '',
             receiptTermNumber: receiptTermNumber || original?.receiptTermNumber || '',
             invoiceDate: invoiceDate || original?.invoiceDate || '',
             pdNumber: pd ?? it.pd ?? original?.pdNumber ?? '',

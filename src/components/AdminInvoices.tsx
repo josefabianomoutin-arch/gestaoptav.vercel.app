@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ensureArray } from '../lib/utils';
 import type { Supplier, WarehouseMovement, AcquisitionItem } from '../types';
-import { Download, Search, FileCheck, Trash2, RotateCcw, Plus, X, Edit2, Printer, Barcode as BarcodeIcon, Upload, Calendar, FileText, Package } from 'lucide-react';
+import { Download, Search, FileCheck, Trash2, RotateCcw, Plus, X, Edit2, Printer, Barcode as BarcodeIcon, Upload, Calendar, FileText, Package, MapPin } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app } from '../firebaseConfig';
 import { toast } from 'sonner';
@@ -17,7 +17,7 @@ interface AdminInvoicesProps {
   onUpdateInvoiceItems: (
     supplierCpf: string, 
     invoiceNumber: string, 
-    items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string; pd?: string; ne?: string }[], 
+    items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string; pd?: string; ne?: string; location?: string }[], 
     barcode?: string, 
     newInvoiceNumber?: string, 
     newDate?: string, 
@@ -264,7 +264,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           barcode,
           lotNumber: itemMovement?.lotNumber || d.lotNumber,
           expirationDate: itemMovement?.expirationDate || d.expirationDate,
-          pd: itemMovement?.pdNumber || d.pd
+          pd: itemMovement?.pdNumber || d.pd,
+          location: itemMovement?.location || d.location || ''
         });
         
         if (new Date(d.date) < new Date(acc[invKey].date)) {
@@ -688,6 +689,11 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                             <BarcodeIcon className="h-2 w-2" /> {it.barcode}
                                         </span>
                                     )}
+                                    {it.location && (
+                                        <span className="text-[7px] font-black text-indigo-700 bg-indigo-50 px-1 py-0.5 border border-indigo-150 rounded flex items-center gap-1 uppercase tracking-tight">
+                                            <MapPin className="h-2 w-2 text-indigo-500" /> LOCAL: {it.location}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                             <button 
@@ -706,6 +712,18 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                                 h1 { font-size: 14pt; margin: 0; font-weight: 800; text-transform: uppercase; }
                                                 h2 { font-size: 10pt; margin: 0; color: #333; }
                                                 p { font-size: 8pt; margin: 1pt 0; font-weight: 600; }
+                                                .location-badge {
+                                                    font-size: 10pt;
+                                                    font-weight: 800;
+                                                    text-transform: uppercase;
+                                                    border: 2px solid #000;
+                                                    padding: 1px 6px;
+                                                    width: fit-content;
+                                                    display: inline-block;
+                                                    margin-top: 3.5px;
+                                                    letter-spacing: 0.05em;
+                                                    border-radius: 3px;
+                                                }
                                                 .barcode-container { text-align: center; margin-top: 2mm; }
                                                 .barcode { width: 100%; height: 12mm; }
                                             </style>
@@ -717,6 +735,9 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                                     <h2>Fornecedor: ${inv.supplierName}</h2>
                                                     <p>NF: ${inv.invoiceNumber} | Data: ${new Date(inv.date).toLocaleDateString()}</p>
                                                     <p>Lote: ${it.lotNumber || 'N/A'} | Validade: ${it.expirationDate ? it.expirationDate.split('-').reverse().join('/') : 'N/A'}</p>
+                                                    <div class="location-badge" style="${it.location ? '' : 'visibility: hidden;'}">
+                                                        ${it.location || '&nbsp;'}
+                                                    </div>
                                                 </div>
                                                 <div class="barcode-container">
                                                     <svg id="barcode" class="barcode"></svg>
@@ -1292,6 +1313,41 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                       />
                                   </div>
                               </div>
+
+                              <div className="space-y-0.5 mt-3">
+                                  <label className="text-[8px] font-black text-indigo-500 uppercase tracking-widest ml-0.5">Endereço de Armazenamento (Prateleira / Rua)</label>
+                                  <select 
+                                      value={item.location || ''} 
+                                      onChange={e => {
+                                          const newItems = [...editingInvoice.items];
+                                          newItems[idx] = { ...item, location: e.target.value };
+                                          setEditingInvoice({ ...editingInvoice, items: newItems });
+                                      }}
+                                      className="w-full h-9 px-3 rounded-lg border-2 border-indigo-100 outline-none focus:border-indigo-400 font-bold text-[10px] bg-white uppercase"
+                                  >
+                                      <option value="">Sem localização definida</option>
+                                      <optgroup label="Prateleiras">
+                                          <option value="Prateleira A">Prateleira A</option>
+                                          <option value="Prateleira B">Prateleira B</option>
+                                          <option value="Prateleira C">Prateleira C</option>
+                                          <option value="Prateleira D">Prateleira D</option>
+                                          <option value="Prateleira E">Prateleira E</option>
+                                          <option value="Prateleira F">Prateleira F</option>
+                                          <option value="Prateleira G">Prateleira G</option>
+                                          <option value="Prateleira H">Prateleira H</option>
+                                      </optgroup>
+                                      <optgroup label="Ruas">
+                                          <option value="Rua A">Rua A</option>
+                                          <option value="Rua B">Rua B</option>
+                                          <option value="Rua C">Rua C</option>
+                                          <option value="Rua D">Rua D</option>
+                                          <option value="Rua E">Rua E</option>
+                                          <option value="Rua F">Rua F</option>
+                                          <option value="Rua G">Rua G</option>
+                                          <option value="Rua H">Rua H</option>
+                                      </optgroup>
+                                  </select>
+                              </div>
                           </div>
                           );
                       })}
@@ -1338,7 +1394,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                         expirationDate: it.expirationDate,
                                         barcode: it.barcode,
                                         pd: editingInvoice.pd,
-                                        ne: editingInvoice.ne
+                                        ne: editingInvoice.ne,
+                                        location: it.location
                                     })),
                                     undefined, 
                                     editingInvoice.invoiceNumber, // Novo número (se mudou)
