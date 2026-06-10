@@ -128,6 +128,93 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     }));
   }, [perCapitaConfig]);
 
+  // Memoized map for item units
+  const itemUnitsMap = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    if (perCapitaConfig) {
+      const suppliersList = [
+        ...(perCapitaConfig.ppaisProducers || []),
+        ...(perCapitaConfig.pereciveisSuppliers || []),
+        ...(perCapitaConfig.estocaveisSuppliers || [])
+      ];
+      suppliersList.forEach(supplier => {
+        const contractItems = supplier?.contractItems || [];
+        contractItems.forEach(item => {
+          if (item?.name && item?.name.trim()) {
+            const nameKey = item.name.trim().toUpperCase();
+            if (item.unit) {
+              map[nameKey] = item.unit;
+              const words = item.name.trim().split(/\s+/);
+              const initials = words.slice(0, 2).join(' ').toUpperCase();
+              if (initials && !map[initials]) {
+                map[initials] = item.unit;
+              }
+              const threeWords = words.slice(0, 3).join(' ').toUpperCase();
+              if (threeWords && !map[threeWords]) {
+                map[threeWords] = item.unit;
+              }
+            }
+          }
+        });
+      });
+    }
+
+    if (suppliers && Array.isArray(suppliers)) {
+      suppliers.forEach(s => {
+        if (s && s.contractItems) {
+          const items = Array.isArray(s.contractItems) 
+            ? s.contractItems 
+            : typeof s.contractItems === 'object' 
+              ? Object.values(s.contractItems) 
+              : [];
+          items.forEach((ci: any) => {
+            if (ci && ci.name && ci.name.trim() && ci.unit) {
+              const nameKey = ci.name.trim().toUpperCase();
+              map[nameKey] = ci.unit;
+              const words = ci.name.trim().split(/\s+/);
+              const initials = words.slice(0, 2).join(' ').toUpperCase();
+              if (initials && !map[initials]) {
+                map[initials] = ci.unit;
+              }
+              const threeWords = words.slice(0, 3).join(' ').toUpperCase();
+              if (threeWords && !map[threeWords]) {
+                map[threeWords] = ci.unit;
+              }
+            }
+          });
+        }
+      });
+    }
+
+    return map;
+  }, [perCapitaConfig, suppliers]);
+
+  const getItemUnit = React.useCallback((itemName: string) => {
+    if (!itemName) return '';
+    const nameKey = itemName.trim().toUpperCase();
+    if (itemUnitsMap[nameKey]) return itemUnitsMap[nameKey];
+
+    // Try starting match
+    for (const key of Object.keys(itemUnitsMap)) {
+      if (key.startsWith(nameKey) || nameKey.startsWith(key)) {
+        return itemUnitsMap[key];
+      }
+    }
+
+    // Try first two words match
+    const words = itemName.trim().split(/\s+/);
+    if (words.length >= 2) {
+      const twoWordsKey = words.slice(0, 2).join(' ').toUpperCase();
+      if (itemUnitsMap[twoWordsKey]) return itemUnitsMap[twoWordsKey];
+      for (const key of Object.keys(itemUnitsMap)) {
+        if (key.startsWith(twoWordsKey) || twoWordsKey.startsWith(key)) {
+          return itemUnitsMap[key];
+        }
+      }
+    }
+    return '';
+  }, [itemUnitsMap]);
+
 
 
   // computed stock balances per requested item, lot, and expiration
@@ -580,11 +667,13 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     const allItemsHtml = itemsToPrint.map(item => {
       const itemName = item?.itemName || '';
       const isBold = itemName.trim() !== '';
+      const unitVal = isBold ? (getItemUnit(itemName) || 'KG') : '';
       return `
         <tr style="${isBold ? 'background-color: #f8fafc;' : ''}">
           <td style="text-align: center; height: 32px;">${item?.index || ''}</td>
           <td style="text-align: left; font-weight: ${isBold ? 'bold' : 'normal'};">${itemName.toUpperCase()}</td>
           <td style="text-align: center; font-weight: bold; color: #1e3a8a;">${item?.quantity || ''}</td>
+          <td style="text-align: center; font-weight: bold; color: #475569;">${unitVal}</td>
           <td style="text-align: left; color: #475569;">${item?.observation || ''}</td>
         </tr>
       `;
@@ -794,6 +883,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
               <th style="width: 45px; text-align: center;">Item</th>
               <th style="text-align: left;">Descrição do Item Solicitado</th>
               <th style="width: 100px; text-align: center;">Quantidade</th>
+              <th style="width: 80px; text-align: center;">Unid.</th>
               <th style="text-align: left;">Observações / Destinação</th>
             </tr>
           </thead>
@@ -1237,10 +1327,11 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
             {/* Main Interactive Table Grid */}
             <div className="overflow-x-auto">
               <div className="min-w-[650px]">
-                <div className="grid grid-cols-[60px_1fr_120px_2fr_40px] gap-2 md:gap-3 mb-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                <div className="grid grid-cols-[60px_1fr_100px_90px_2fr_40px] gap-2 md:gap-3 mb-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
                   <div>Ref</div>
                   <div className="text-left">Nome do Item</div>
                   <div>Quantidade</div>
+                  <div>Unid.</div>
                   <div className="text-left">Observações / Destinação</div>
                   <div></div>
                 </div>
@@ -1258,7 +1349,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                     return (
                       <div
                         key={item.index}
-                        className={`grid grid-cols-[60px_1fr_120px_2fr_40px] gap-2 md:gap-3 items-center p-2 rounded-2xl border transition-all ${
+                        className={`grid grid-cols-[60px_1fr_100px_90px_2fr_40px] gap-2 md:gap-3 items-center p-2 rounded-2xl border transition-all ${
                           item.itemName.trim() !== '' ? 'bg-slate-50 border-zinc-200' : 'bg-white border-slate-100'
                         } hover:border-slate-300`}
                       >
@@ -1340,6 +1431,17 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                             onChange={(e) => handleFieldChange(item.index, 'quantity', e.target.value)}
                             className="w-full bg-transparent px-3 py-2 text-center rounded-xl text-xs font-extrabold text-indigo-700 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
                           />
+                        </div>
+
+                        {/* Unit Column */}
+                        <div className="flex justify-center">
+                          {item.itemName.trim() !== '' ? (
+                            <span className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-white font-black text-[9px] uppercase tracking-wider select-none shadow-sm shadow-slate-900/10">
+                              {getItemUnit(item.itemName) || 'KG'}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-bold text-[10px]">-</span>
+                          )}
                         </div>
 
                         {/* Observation Column */}
