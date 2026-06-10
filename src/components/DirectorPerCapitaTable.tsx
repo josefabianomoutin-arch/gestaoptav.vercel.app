@@ -577,14 +577,18 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     }
 
     const itemsToPrint = order.items || [];
-    const allItemsHtml = itemsToPrint.map(item => `
-        <tr style="${item.itemName.trim() !== '' ? 'background-color: #f8fafc;' : ''}">
-          <td style="text-align: center; height: 32px;">${item.index}</td>
-          <td style="text-align: left; font-weight: ${item.itemName.trim() !== '' ? 'bold' : 'normal'};">${item.itemName.toUpperCase() || ''}</td>
-          <td style="text-align: center; font-weight: bold; color: #1e3a8a;">${item.quantity || ''}</td>
-          <td style="text-align: left; color: #475569;">${item.observation || ''}</td>
+    const allItemsHtml = itemsToPrint.map(item => {
+      const itemName = item?.itemName || '';
+      const isBold = itemName.trim() !== '';
+      return `
+        <tr style="${isBold ? 'background-color: #f8fafc;' : ''}">
+          <td style="text-align: center; height: 32px;">${item?.index || ''}</td>
+          <td style="text-align: left; font-weight: ${isBold ? 'bold' : 'normal'};">${itemName.toUpperCase()}</td>
+          <td style="text-align: center; font-weight: bold; color: #1e3a8a;">${item?.quantity || ''}</td>
+          <td style="text-align: left; color: #475569;">${item?.observation || ''}</td>
         </tr>
-    `).join('');
+      `;
+    }).join('');
 
     const titleText = activeSubTab === 'chefeDep' 
       ? 'PEDIDO DE PER CAPITA - CHEFE DO DEPARTAMENTO' 
@@ -773,7 +777,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
         <div class="meta-info">
           <div>
-            <p class="meta-item"><strong>Nº Pedido:</strong> ${order.id === 'atual' ? 'RASCUNHO CORRENTE' : order.id.toUpperCase()}</p>
+            <p class="meta-item"><strong>Nº Pedido:</strong> ${order?.id === 'atual' ? 'RASCUNHO CORRENTE' : (order?.id || '').toUpperCase()}</p>
             <p class="meta-item"><strong>Solicitante Oficial:</strong> ${signerSection}</p>
             <p class="meta-item"><strong>Preenchimento:</strong> ${order.createdAt || 'Documento em Elaboração'}</p>
             <p class="meta-item"><strong>Tipo de Per Capita:</strong> <span style="font-weight: bold; color: #1e3a8a;">${(order.periodType || 'semanal').toUpperCase()}</span></p>
