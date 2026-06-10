@@ -1326,6 +1326,10 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                       className="w-full h-9 px-3 rounded-lg border-2 border-indigo-100 outline-none focus:border-indigo-400 font-bold text-[10px] bg-white uppercase"
                                   >
                                       <option value="">Sem localização definida</option>
+                                      <optgroup label="Câmaras Frias">
+                                          <option value="Câmara Fria de Congelados">Câmara Fria de Congelados</option>
+                                          <option value="Câmara Fria de Resfriados">Câmara Fria de Resfriados</option>
+                                      </optgroup>
                                       <optgroup label="Prateleiras">
                                           <option value="Prateleira A">Prateleira A</option>
                                           <option value="Prateleira B">Prateleira B</option>
