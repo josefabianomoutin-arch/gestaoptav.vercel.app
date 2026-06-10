@@ -201,12 +201,19 @@ const Dashboard: React.FC<DashboardProps> = ({
   const monthlyQuotas = useMemo((): MonthlyQuota[] => {
     if (!selectedDate || !supplier.contractItems) return [];
     const currentMonth = selectedDate.getMonth();
-    return ensureArray<any>(supplier.contractItems).map((item: any) => {
+    const isQ1 = currentMonth <= 3;
+    const filteredItems = ensureArray<any>(supplier.contractItems).filter(item => {
+        if (isQ1) {
+            return item.period !== '2_3_QUAD';
+        } else {
+            return item.period === '2_3_QUAD';
+        }
+    });
+    return filteredItems.map((item: any) => {
         const deliveredThisMonth = ensureArray<Delivery>(supplier.deliveries)
             .filter((d: any) => d.item === item.name && new Date(String(d.date) + 'T00:00:00').getMonth() === currentMonth)
             .reduce((sum, d: any) => sum + (d.kg || 0), 0);
         
-        const isQ1 = currentMonth <= 3;
         const divisor = isQ1 ? 4 : 8; // Everything uses 8 for the long period except specifically quadrimestral contracts
         const monthlyQuota = item.totalKg / divisor;
         return { name: item.name, monthlyQuota, deliveredThisMonth, remainingThisMonth: monthlyQuota - deliveredThisMonth, unit: 'Kg' };
@@ -273,7 +280,13 @@ const Dashboard: React.FC<DashboardProps> = ({
     const isQ1 = monthIndex <= 3;
     const divisor = isQ1 ? 4 : 8;
 
-    const contractItems = ensureArray<any>(supplier.contractItems);
+    const contractItems = ensureArray<any>(supplier.contractItems).filter(item => {
+        if (isQ1) {
+            return item.period !== '2_3_QUAD';
+        } else {
+            return item.period === '2_3_QUAD';
+        }
+    });
 
     const availableDatesList: string[] = [];
     const daysInMonthObj = new Date(selectedYear, monthIndex + 1, 0).getDate();

@@ -3234,10 +3234,14 @@ const App: React.FC = () => {
           ).values()
         );
 
-        const supplierWithUpdatedData = {
+         const supplierWithUpdatedData = {
           ...currentSupplier,
           deliveries: mergedDeliveries,
-          allowedWeeks: finalWeeks
+          allowedWeeks: finalWeeks,
+          contractItems: perCapitaEntry?.contractItems || currentSupplier.contractItems || [],
+          address: perCapitaEntry?.address || currentSupplier.address || '',
+          city: perCapitaEntry?.city || currentSupplier.city || '',
+          processNumber: perCapitaEntry?.processNumber || currentSupplier.processNumber || ''
         };
 
         return (

@@ -434,16 +434,23 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
         // Merge info: use pcSupplier for metadata, both for deliveries
         const supplier: any = {
-            ...((pcSupplier as any) || {}),
             ...((mainSupplier as any) || {}),
+            ...((pcSupplier as any) || {}),
             name: (pcSupplier as any)?.name || (mainSupplier as any)?.name || 'DESCONHECIDO',
             cpfCnpj: (pcSupplier as any)?.cpfCnpj || (mainSupplier as any)?.cpf || selectedCronogramaSupplier
         };
 
         const divisor = (monthIndex <= 3) ? 4 : 8;
+        const isQ1 = monthIndex <= 3;
 
         const itemsSource = supplier.contractItems || {};
-        const supplierItems = ensureArray(itemsSource) as any[];
+        const supplierItems = (ensureArray(itemsSource) as any[]).filter(item => {
+            if (isQ1) {
+                return item.period !== '2_3_QUAD';
+            } else {
+                return item.period === '2_3_QUAD';
+            }
+        });
 
         const availableDatesList: string[] = [];
         const daysInMonthObj = new Date(selectedYear, monthIndex + 1, 0).getDate();
