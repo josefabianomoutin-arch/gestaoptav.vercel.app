@@ -84,7 +84,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   const [focusedRowIndex, setFocusedRowIndex] = useState<number | null>(null);
 
   // Current view mode inside active tab: 'form' or 'history'
-  const [viewMode, setViewMode] = useState<'form' | 'history'>('form');
+  const [viewMode, setViewMode] = useState<'form' | 'history'>(isReadOnly ? 'history' : 'form');
   const [viewingPastOrder, setViewingPastOrder] = useState<OrderData | null>(null);
 
   // Local state for active items to support seamless typing
@@ -924,6 +924,159 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     printWindow.document.close();
   };
 
+  const handlePrintHistoryReport = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Por favor, permita pop-ups para imprimir o relatório.');
+      return;
+    }
+
+    const orders = Object.values(data?.[activeSubTab]?.[historyKey] || {}) as OrderData[];
+    const sortedOrders = orders.sort((a, b) => {
+      const timeA = a.id.replace('pedido_', '');
+      const timeB = b.id.replace('pedido_', '');
+      return Number(timeB) - Number(timeA);
+    });
+
+    const isAlim = categoryTab === 'alimentacao';
+    const chefName = activeSubTab === 'chefeDep' 
+      ? 'DOUGLAS FERNANDO SEMENZIN GALDINO (DEPARTAMENTO)' 
+      : 'ALFREDO GUILHERME LOPES (SEGURANÇA INTERNA)';
+
+    const rowsHtml = sortedOrders.flatMap((order) => {
+      const activeItems = (order.items || []).filter(item => item.itemName.trim() !== '');
+      return activeItems.map((item, itemIdx) => `
+        <tr>
+          ${itemIdx === 0 ? `<td rowspan="${activeItems.length}" style="text-align: center; font-weight: bold; background-color: #fafafa; font-family: monospace;">${order.createdAt || order.signedAt || ''}</td>` : ''}
+          ${itemIdx === 0 ? `<td rowspan="${activeItems.length}" style="text-align: center; text-transform: uppercase; font-weight: bold;">${order.periodType || 'semanal'}</td>` : ''}
+          <td style="text-align: left; font-weight: bold;">${item.itemName.toUpperCase()}</td>
+          <td style="text-align: center; font-weight: bold; color: #1e3a8a;">${item.quantity}</td>
+          <td style="text-align: center; font-weight: bold; color: #475569;">${getItemUnit(item.itemName) || 'KG'}</td>
+          <td style="text-align: left; color: #64748b; font-size: 10px;">${item.observation || ''}</td>
+        </tr>
+      `);
+    }).join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Histórico de Pedidos de Per Capita</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+          body {
+            font-family: 'Inter', sans-serif;
+            margin: 40px;
+            color: #1e293b;
+            font-size: 11px;
+            line-height: 1.4;
+          }
+          .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #1e3a8a;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+          }
+          .logo {
+            font-size: 16px;
+            font-weight: 800;
+            color: #1e3a8a;
+          }
+          .document-title {
+            text-align: right;
+          }
+          .document-title h1 {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 800;
+            color: #0f172a;
+            text-transform: uppercase;
+          }
+          .meta-info {
+            background-color: #f1f5f9;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 10px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+          }
+          th, td {
+            border: 1px solid #cbd5e1;
+            padding: 8px 10px;
+            text-align: left;
+          }
+          th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .footer {
+            margin-top: 60px;
+            display: flex;
+            justify-content: space-around;
+          }
+          .signature-box {
+            border-top: 1px solid #1e293b;
+            width: 200px;
+            text-align: center;
+            padding-top: 5px;
+            font-size: 10px;
+            font-weight: 600;
+            color: #475569;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header-container">
+          <div class="logo">Polícia Penal - Penitenciária de Taiúva</div>
+          <div class="document-title">
+            <h1>Relatório Histórico de Pedidos</h1>
+            <p style="margin:2px 0 0 0; font-size: 8px; color: #64748b;">Módulo: Per Capita Diretores</p>
+          </div>
+        </div>
+
+        <div class="meta-info">
+          <p style="margin: 0 0 4px 0;"><strong>Seção/Categoria:</strong> ${isAlim ? 'ALIMENTAÇÃO' : 'LIMPEZA'}</p>
+          <p style="margin: 0;"><strong>Chefia de Referência:</strong> ${chefName}</p>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 140px; text-align: center;">Data Registro</th>
+              <th style="width: 80px; text-align: center;">Tipo</th>
+              <th>Item Solicitado</th>
+              <th style="width: 60px; text-align: center;">Quantidade</th>
+              <th style="width: 65px; text-align: center;">Unid.</th>
+              <th>Observação/Destinação</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml || `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #64748b; font-style: italic;">Nenhum item localizado no histórico permanente.</td></tr>`}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          <div class="signature-box">Responsável (Almoxarifado)</div>
+          <div class="signature-box">Fiscal Subscritor (Chefia)</div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   const currentActiveOrderToPrint = currentActiveOrder || { items: localActiveItems, id: 'atual', signed: false };
 
   if (!showChefeDep && !showChefeSeg) {
@@ -989,15 +1142,17 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
           </div>
           
           <div className="flex bg-white rounded-xl p-1 border border-slate-200 shadow-sm w-full md:w-auto">
-            <button
-              onClick={() => { setViewMode('form'); setViewingPastOrder(null); }}
-              className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${viewMode === 'form' && !viewingPastOrder ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
-            >
-              <FileText className="h-3.5 w-3.5" /> Pedido Ativo
-            </button>
+            {!isReadOnly && (
+              <button
+                onClick={() => { setViewMode('form'); setViewingPastOrder(null); }}
+                className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${viewMode === 'form' && !viewingPastOrder ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+              >
+                <FileText className="h-3.5 w-3.5" /> Pedido Ativo
+              </button>
+            )}
             <button
               onClick={() => { setViewMode('history'); setViewingPastOrder(null); }}
-              className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${viewMode === 'history' || viewingPastOrder ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+              className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${viewMode === 'history' || viewingPastOrder || isReadOnly ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
             >
               <History className="h-3.5 w-3.5" /> Histórico ({Object.keys(data?.[activeSubTab]?.[historyKey] || {}).length})
             </button>
@@ -1039,11 +1194,20 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
         {/* VIEW 1: HISTORY LIST */}
         {viewMode === 'history' && !viewingPastOrder && (
           <div className="space-y-4 animate-fade-in">
-            <div className="flex items-center gap-2">
-              <History className="h-5 w-5 text-indigo-600" />
-              <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest">
-                Pedidos Finalizados ({categoryTab === 'alimentacao' ? 'Alimentação' : 'Limpeza'}) de {activeSubTab === 'chefeDep' ? 'Chefe de Departamento' : 'Segurança Interna'}
-              </h4>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50 border border-slate-100 rounded-3xl p-4 gap-4">
+              <div className="flex items-center gap-2">
+                <History className="h-5 w-5 text-indigo-600" />
+                <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest">
+                  Pedidos Finalizados ({categoryTab === 'alimentacao' ? 'Alimentação' : 'Limpeza'}) de {activeSubTab === 'chefeDep' ? 'Chefe de Departamento' : 'Segurança Interna'}
+                </h4>
+              </div>
+              <button
+                onClick={handlePrintHistoryReport}
+                disabled={!data?.[activeSubTab]?.[historyKey] || Object.keys(data?.[activeSubTab]?.[historyKey]).length === 0}
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-slate-900 border border-transparent hover:border-slate-800 text-white font-black py-2 px-3.5 rounded-xl text-[9px] uppercase tracking-wider shadow-sm transition-all active:scale-95 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed"
+              >
+                <Printer className="h-3.5 w-3.5" /> Imprimir Histórico de Pedidos
+              </button>
             </div>
             
             {(!data?.[activeSubTab]?.[historyKey] || Object.keys(data?.[activeSubTab]?.[historyKey]).length === 0) ? (
