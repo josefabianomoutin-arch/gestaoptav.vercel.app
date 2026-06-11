@@ -2,11 +2,12 @@
 import React, { useMemo, useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { FinancialRecord, StandardMenu, DailyMenus, Supplier, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, WarehouseMovement, PerCapitaConfig } from '../types';
+import type { FinancialRecord, StandardMenu, DailyMenus, Supplier, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, WarehouseMovement, PerCapitaConfig, EpiLog, AcquisitionItem } from '../types';
 import MenuDashboard from './MenuDashboard';
 import AgendaChegadas from './AgendaChegadas';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 import { DirectorPerCapitaTable } from './DirectorPerCapitaTable';
+import AdminEPIControl from './AdminEPIControl';
 
 interface FinanceDashboardProps {
   records: FinancialRecord[];
@@ -24,6 +25,8 @@ interface FinanceDashboardProps {
   onUpdateDirectorPerCapita?: any;
   warehouseLog?: WarehouseMovement[];
   perCapitaConfig?: PerCapitaConfig;
+  epiLogs?: EpiLog[];
+  acquisitionItems?: AcquisitionItem[];
 }
 
 const PTRES_OPTIONS = ['380302', '380303', '380304', '380308', '380328'] as const;
@@ -40,7 +43,7 @@ const PTRES_DESCRIPTIONS: Record<string, string> = {
 const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
-type SubTab = 'recursos' | 'pagamentos' | 'saldos' | 'cardapio' | 'agenda' | 'vehicles' | 'directors_percapita';
+type SubTab = 'recursos' | 'pagamentos' | 'saldos' | 'cardapio' | 'agenda' | 'vehicles' | 'directors_percapita' | 'epiControl';
 
 const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ 
     records, 
@@ -58,6 +61,8 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
     onUpdateDirectorPerCapita,
     warehouseLog,
     perCapitaConfig,
+    epiLogs = [],
+    acquisitionItems = [],
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('pagamentos');
@@ -272,6 +277,12 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
                     >
                         📝 {user?.name.toUpperCase().includes('ALFREDO') ? 'Per Capita Seg. Interna' : user?.name.toUpperCase().includes('DOUGLAS') ? 'Per Capita Chefe Dep.' : 'Per Capita Diretores'}
                     </button>
+                    <button 
+                        onClick={() => setActiveSubTab('epiControl')}
+                        className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'epiControl' ? 'bg-orange-600 text-white shadow-lg' : 'hover:bg-indigo-800 text-orange-200'}`}
+                    >
+                        🛡️ Controle de EPIs
+                    </button>
                 </>
             )}
         </div>
@@ -338,7 +349,16 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
             </div>
         )}
 
-        {activeSubTab !== 'saldos' && activeSubTab !== 'cardapio' && activeSubTab !== 'agenda' && activeSubTab !== 'vehicles' && activeSubTab !== 'directors_percapita' && (
+        {activeSubTab === 'epiControl' && (
+            <div className="animate-fade-in-up">
+                <AdminEPIControl 
+                    logs={epiLogs}
+                    acquisitionItems={acquisitionItems}
+                />
+            </div>
+        )}
+
+        {activeSubTab !== 'saldos' && activeSubTab !== 'cardapio' && activeSubTab !== 'agenda' && activeSubTab !== 'vehicles' && activeSubTab !== 'directors_percapita' && activeSubTab !== 'epiControl' && (
             <div className="flex justify-center">
                 <div className="w-full max-w-2xl relative">
                     <span className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-400">

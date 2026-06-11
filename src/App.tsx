@@ -166,6 +166,7 @@ const App: React.FC = () => {
       { key: 'maintenanceSchedules', setter: setMaintenanceSchedules },
       { key: 'directorPerCapita', setter: setDirectorPerCapita },
       { key: 'cleaningLogs', setter: setCleaningLogs },
+      { key: 'epiLogs', setter: setEpiLogs },
       { key: 'directorWithdrawals', setter: setDirectorWithdrawals }
     ];
 
@@ -2726,6 +2727,13 @@ const App: React.FC = () => {
               return { success: true, message: 'Ok' };
           }}
           onDeleteCleaningLog={async (id) => remove(child(cleaningLogsRef, id))}
+          epiLogs={epiLogs}
+          onRegisterEpi={async (l) => {
+              const r = push(epiLogsRef);
+              await set(r, { ...l, id: r.key });
+              return { success: true, message: 'Ok' };
+          }}
+          onDeleteEpi={async (id) => remove(child(epiLogsRef, id))}
           financialRecords={financialRecords}
           onSaveFinancialRecord={async (rec) => {
               const id = rec.id || push(financialRecordsRef).key;
@@ -2862,6 +2870,8 @@ const App: React.FC = () => {
                onUpdateDirectorPerCapita={handleUpdateDirectorPerCapita}
                warehouseLog={warehouseLog}
                perCapitaConfig={perCapitaConfig}
+               epiLogs={epiLogs}
+               acquisitionItems={acquisitionItems}
              />;
     }
 

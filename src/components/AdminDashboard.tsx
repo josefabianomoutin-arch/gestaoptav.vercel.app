@@ -232,6 +232,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       { id: 'graphs', name: 'Gráficos', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" /><path d="M12 2.252A8.001 8.001 0 0117.748 8H12V2.252z" /></svg> },
       { id: 'info', name: 'Sistema', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm14 1a1 1 0 11-2 0 1 1 0 012 0zM2 13a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2zm14 1a1 1 0 11-2 0 1 1 0 012 0z" clipRule="evenodd" /></svg> },
       { id: 'almoxarifado', name: 'Almoxarifado', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8a1 1 0 011-1h1V6a1 1 0 012 0v1h2V6a1 1 0 112 0v1h1a1 1 0 110 2H6a1 1 0 01-1-1zm1 4a1 1 0 100 2h8a1 1 0 100-2H6z" /></svg> },
+      { id: 'epiControl', name: 'Controle de EPIs', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M2.166 4.9c0-.496.225-.96.613-1.272C4.16 2.501 6.543 2 10 2s5.84 1.5 7.22 2.628c.389.313.614.776.614 1.272v4.205c0 5.013-3.693 7.82-7.397 8.823a1.498 1.498 0 01-.874 0C5.859 18.062 2.166 15.255 2.166 10.24V4.9z" clipRule="evenodd" /></svg> },
     ];
     return tabs;
   }, []);
