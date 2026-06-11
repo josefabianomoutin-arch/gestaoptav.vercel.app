@@ -1,6 +1,57 @@
 import React, { useState, useMemo } from 'react';
 import type { EpiLog, AcquisitionItem } from '../types';
 
+const formatDateExtended = (dateStr: string) => {
+  if (!dateStr) return '';
+  let year: string;
+  let monthStr: string;
+  let dayStr: string;
+
+  if (dateStr.includes('-')) {
+    const parts = dateStr.split('-');
+    if (parts[0].length === 4) {
+      year = parts[0];
+      monthStr = parts[1];
+      dayStr = parts[2];
+    } else {
+      year = parts[2];
+      monthStr = parts[1];
+      dayStr = parts[0];
+    }
+  } else if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts[2].length === 4) {
+      year = parts[2];
+      monthStr = parts[1];
+      dayStr = parts[0];
+    } else {
+      year = parts[0];
+      monthStr = parts[1];
+      dayStr = parts[2];
+    }
+  } else {
+    const dateObj = new Date(dateStr);
+    if (!isNaN(dateObj.getTime())) {
+      year = String(dateObj.getFullYear());
+      monthStr = String(dateObj.getMonth() + 1);
+      dayStr = String(dateObj.getDate());
+    } else {
+      return dateStr;
+    }
+  }
+
+  const day = parseInt(dayStr, 10);
+  const monthIndex = parseInt(monthStr, 10) - 1;
+  const months = [
+    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+  ];
+  if (monthIndex >= 0 && monthIndex < 12 && !isNaN(day)) {
+    return `${day} de ${months[monthIndex]} de ${year}`;
+  }
+  return dateStr;
+};
+
 interface AdminEPIControlProps {
   logs: EpiLog[];
   acquisitionItems?: AcquisitionItem[];
@@ -146,17 +197,8 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                     {printTargetLog.observations && <div><strong>Observações:</strong> <span className="italic text-zinc-500">{printTargetLog.observations}</span></div>}
                   </div>
 
-                  <div className="space-y-1 text-[11px] text-zinc-600 leading-relaxed">
-                    <p className="font-bold uppercase text-zinc-700">Deveres do Usuário:</p>
-                    <ul className="list-disc pl-4 space-y-0.5">
-                      <li>Usar o EPI apenas no desempenho de suas funções de trabalho ou laborterapia;</li>
-                      <li>Responsabilizar-se pela higienização, guarda e conservação;</li>
-                      <li>Comunicar imediatamente qualquer alteração ou dano no equipamento de proteção.</li>
-                    </ul>
-                  </div>
-
-                  <div className="pt-10 space-y-8 text-center">
-                    <p className="text-right text-xs">Taiúva - SP, {printTargetLog.date}</p>
+                  <div className="pt-10 space-y-8 text-center animate-fade-in">
+                    <p className="text-right text-xs font-semibold">Taiúva - SP, {formatDateExtended(printTargetLog.date)}</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pt-4">
                       <div className="space-y-1.5">
                         <div className="border-t border-zinc-500 w-3/4 mx-auto"></div>
@@ -222,7 +264,7 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                       {/* If filtered by a single person, highlight their signature line as requested */}
                       {historySearchText.trim() && filteredLogs.length > 0 ? (
                         <div className="space-y-8 text-center pt-4">
-                          <p className="text-right text-xs">Taiúva - SP, {new Date().toLocaleDateString('pt-BR')}</p>
+                          <p className="text-right text-xs">Taiúva - SP, {formatDateExtended(new Date().toLocaleDateString('pt-BR'))}</p>
                           <div className="space-y-1.5 max-w-sm mx-auto">
                             <div className="border-t border-zinc-500 w-3/4 mx-auto"></div>
                             <p className="text-xs font-bold uppercase">{filteredLogs[0].responsible}</p>
@@ -299,18 +341,8 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
               {printTargetLog.observations && <div><strong>Observações Gerais:</strong> <span className="italic">{printTargetLog.observations}</span></div>}
             </div>
 
-            <div className="space-y-1.5 text-xs">
-              <p className="font-bold uppercase tracking-wider text-[10px]">Deveres e Regulamentação do Recebedor:</p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Utilizar o equipamento unicamente em benefício do labor e atividades internas indicadas;</li>
-                <li>Zelar, limpar e conservar o bem sob sua custódia com máxima diligência;</li>
-                <li>Substituir mediante boletim de ocorrência ou solicitação justificada em caso de quebra fortuita;</li>
-                <li>Qualquer ato deliberado de destruição, perdimento ou abandono será punido civil e disciplinarmente.</li>
-              </ul>
-            </div>
-
             <div className="pt-20 space-y-16">
-              <p className="text-right text-xs">Taiúva - SP, {printTargetLog.date}</p>
+              <p className="text-right text-xs font-bold">Taiúva - SP, {formatDateExtended(printTargetLog.date)}</p>
               <div className="grid grid-cols-2 gap-12 text-center pt-8">
                 <div className="space-y-2">
                   <div className="border-t border-black w-11/12 mx-auto"></div>
@@ -370,7 +402,7 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                 
                 {historySearchText.trim() && filteredLogs.length > 0 ? (
                   <div className="space-y-2 text-center pt-4">
-                    <p className="text-right text-xs">Taiúva - SP, {new Date().toLocaleDateString('pt-BR')}</p>
+                    <p className="text-right text-xs font-bold">Taiúva - SP, {formatDateExtended(new Date().toLocaleDateString('pt-BR'))}</p>
                     <div className="border-t border-black w-1/2 mx-auto pt-2">
                       <p className="text-xs font-bold uppercase">{filteredLogs[0].responsible}</p>
                       <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-black">Assinatura da Pessoa Privada de Liberdade</p>
