@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+import { toast } from 'sonner';
 import PublicInfoPortal from './PublicInfoPortal';
 import InfobarTicker from './InfobarTicker';
 import { PublicInfo } from '../types';
@@ -16,7 +17,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList }) =>
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(loginName, loginCpf);
+    const success = onLogin(loginName, loginCpf);
+    if (!success) {
+      toast.error('Usuário ou senha incorretos!', {
+        description: 'Verifique se o CPF/CNPJ (apenas números) ou senha estão corretos.',
+        style: { background: '#ef4444', color: '#fff', border: 'none' }
+      });
+    }
   };
 
   const displayInfo = useMemo(() => publicInfoList.filter(info => !info.isConfidential), [publicInfoList]);
