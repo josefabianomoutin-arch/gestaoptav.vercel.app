@@ -71,6 +71,14 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
   const [historySearchText, setHistorySearchText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Multiple items list state
+  const [selectedItems, setSelectedItems] = useState<{
+    id: string;
+    itemName: string;
+    quantity: number;
+    value: number;
+  }[]>([]);
+
   // States for print preview modal
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [printTargetLog, setPrintTargetLog] = useState<EpiLog | null>(null);
@@ -113,31 +121,99 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
     );
   }, [logs, historySearchText]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!onRegister) return;
-    if (!responsible.trim() || !itemName.trim() || quantity <= 0) {
-      alert('Preencha os campos obrigatórios (Responsável, Item, Quantidade).');
+  // Group logs of same session for beautiful multi-item printing
+  const groupedLogs = useMemo(() => {
+    if (!printTargetLog) return [];
+    return logs.filter(log => 
+      log.responsible === printTargetLog.responsible && 
+      log.date === printTargetLog.date && 
+      log.time === printTargetLog.time
+    );
+  }, [printTargetLog, logs]);
+
+  const handleAddItemToList = () => {
+    if (!itemName) {
+      alert('Selecione um item de EPI primeiro.');
       return;
     }
-    setIsSaving(true);
-    await onRegister({ 
-      date, 
-      time, 
-      responsible, 
-      registration: registration.trim() || undefined,
-      itemName, 
-      quantity, 
-      value: calculatedValue, 
-      observations 
-    });
-    setResponsible('');
-    setRegistration('');
+    if (quantity <= 0) {
+      alert('A quantidade deve ser maior que zero.');
+      return;
+    }
+
+    const existingIndex = selectedItems.findIndex(item => item.itemName === itemName);
+    if (existingIndex > -1) {
+      const updated = [...selectedItems];
+      updated[existingIndex].quantity += quantity;
+      updated[existingIndex].value += calculatedValue;
+      setSelectedItems(updated);
+    } else {
+      setSelectedItems([
+        ...selectedItems,
+        {
+          id: String(Date.now()) + Math.random().toString(36).substring(2, 5),
+          itemName,
+          quantity,
+          value: calculatedValue
+        }
+      ]);
+    }
+
     setItemName('');
     setItemSearchText('');
     setQuantity(0);
-    setObservations('');
-    setIsSaving(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onRegister) return;
+    if (!responsible.trim()) {
+      alert('Preencha o campo do Responsável.');
+      return;
+    }
+
+    const finalItems = [...selectedItems];
+    if (finalItems.length === 0 && itemName.trim() && quantity > 0) {
+      finalItems.push({
+        id: 'temp',
+        itemName,
+        quantity,
+        value: calculatedValue
+      });
+    }
+
+    if (finalItems.length === 0) {
+      alert('Por favor, adicione pelo menos um item de EPI para registrar.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      for (const item of finalItems) {
+        await onRegister({ 
+          date, 
+          time, 
+          responsible, 
+          registration: registration.trim() || undefined,
+          itemName: item.itemName, 
+          quantity: item.quantity, 
+          value: item.value, 
+          observations 
+        });
+      }
+      setSelectedItems([]);
+      setResponsible('');
+      setRegistration('');
+      setItemName('');
+      setItemSearchText('');
+      setQuantity(0);
+      setObservations('');
+    } catch (err) {
+      console.error(err);
+      alert('Ocorreu um erro ao salvar o cadastro de EPI.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const triggerIndividualPrint = (log: EpiLog) => {
@@ -179,22 +255,62 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                 <div className="space-y-6 text-sm">
                   <div className="text-center border-b border-gray-400 pb-4 space-y-1">
                     <h3 className="text-base font-black tracking-wide">PENITENCIÁRIA DE TAIÚVA</h3>
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Secretaria de Administração Penitenciária - SP</p>
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Secretaria de Administração Penitenciária - SP</p>
                     <h4 className="text-md font-bold mt-2 uppercase text-orange-600">TERMO DE RESPONSABILIDADE E ENTREGA DE EPI</h4>
                   </div>
                   
                   <p className="text-justify leading-relaxed text-xs">
-                    Declaro para os devidos fins de direito, que recebi do Setor de Almoxarifado desta unidade prisional, em perfeitas condições de higiene e uso, o Equipamento de Proteção Individual (EPI) listado abaixo, comprometendo-me a fazer o uso correto do mesmo e preservá-lo atendendo os normativos vigentes de segurança.
+                    Declaro que recebi do Almoxarifado, em perfeitas condições de uso, o(s) Equipamento(s) de Proteção Individual (EPI) listado(s) abaixo, comprometendo-me a utilizá-lo(s) corretamente.
                   </p>
 
-                  <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-xl space-y-1.5 text-xs">
-                    <div><strong>Beneficiário (PPL):</strong> <span className="uppercase font-semibold">{printTargetLog.responsible}</span></div>
-                    {printTargetLog.registration && <div><strong>Matrícula:</strong> <span className="font-mono">{printTargetLog.registration}</span></div>}
-                    <div><strong>Equipamento (Item):</strong> <span className="font-medium text-orange-700">{printTargetLog.itemName}</span></div>
-                    <div><strong>Quantidade:</strong> <span>{printTargetLog.quantity} unidade(s)</span></div>
-                    <div><strong>Data/Hora de Retirada:</strong> <span className="font-mono">{printTargetLog.date} às {printTargetLog.time}</span></div>
-                    {printTargetLog.value > 0 && <div><strong>Custo Registrado:</strong> <span>R$ {printTargetLog.value.toFixed(2)}</span></div>}
-                    {printTargetLog.observations && <div><strong>Observações:</strong> <span className="italic text-zinc-500">{printTargetLog.observations}</span></div>}
+                  <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-xl space-y-3 text-xs">
+                    <div className="grid grid-cols-2 gap-4 border-b border-zinc-150 pb-2">
+                      <div><strong>Beneficiário (PPL):</strong> <span className="uppercase font-semibold block">{printTargetLog.responsible}</span></div>
+                      {printTargetLog.registration && <div><strong>Matrícula:</strong> <span className="font-mono block">{printTargetLog.registration}</span></div>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 border-b border-zinc-150 pb-2">
+                      <div><strong>Data de Retirada:</strong> <span className="font-mono block">{formatDateExtended(printTargetLog.date)}</span></div>
+                      <div><strong>Horário:</strong> <span className="font-mono block">{printTargetLog.time}</span></div>
+                    </div>
+
+                    <div className="pt-1">
+                      <p className="font-bold mb-1 text-[11px] text-zinc-600 uppercase tracking-wider">Itens Recebidos:</p>
+                      <table className="w-full text-left border-collapse border border-zinc-200 text-xs text-zinc-800 rounded-lg overflow-hidden">
+                        <thead>
+                          <tr className="bg-zinc-100 border-b border-zinc-200 uppercase text-[10px] text-zinc-600 font-bold">
+                            <th className="p-2 border-r border-zinc-200">Equipamento / Item</th>
+                            <th className="p-2 border-r border-zinc-200 text-center" style={{ width: '80px' }}>Qtd.</th>
+                            <th className="p-2 text-right" style={{ width: '120px' }}>Custo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {groupedLogs.map((log, idx) => (
+                            <tr key={log.id || idx} className="border-b border-zinc-150 hover:bg-zinc-50/50">
+                              <td className="p-2 border-r border-zinc-200 font-medium">{log.itemName}</td>
+                              <td className="p-2 border-r border-zinc-200 text-center font-bold">{log.quantity}</td>
+                              <td className="p-2 text-right font-mono">R$ {(log.value || 0).toFixed(2)}</td>
+                            </tr>
+                          ))}
+                          {groupedLogs.length > 1 && (
+                            <tr className="bg-zinc-50 font-bold">
+                              <td className="p-2 border-r border-zinc-200 text-right">Total Geral:</td>
+                              <td className="p-2 border-r border-zinc-200 text-center">
+                                {groupedLogs.reduce((acc, curr) => acc + curr.quantity, 0)}
+                              </td>
+                              <td className="p-2 text-right text-orange-700 font-mono">
+                                R$ {groupedLogs.reduce((acc, curr) => acc + (curr.value || 0), 0).toFixed(2)}
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {printTargetLog.observations && (
+                      <div className="pt-1 border-t border-zinc-100 mt-2">
+                        <strong>Observações:</strong> <span className="italic text-zinc-500">{printTargetLog.observations}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="pt-10 space-y-8 text-center animate-fade-in">
@@ -203,12 +319,12 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                       <div className="space-y-1.5">
                         <div className="border-t border-zinc-500 w-3/4 mx-auto"></div>
                         <p className="text-xs font-bold uppercase">{printTargetLog.responsible}</p>
-                        <p className="text-[9px] text-zinc-400 uppercase tracking-widest">Assinatura da Pessoa Privada de Liberdade</p>
+                        <p className="text-[9px] text-zinc-400 uppercase tracking-widest">Assinatura do Recebedor</p>
                       </div>
                       <div className="space-y-1.5">
                         <div className="border-t border-zinc-300 w-3/4 mx-auto"></div>
-                        <p className="text-xs font-semibold uppercase text-zinc-600">Almoxarifado / Segurança</p>
-                        <p className="text-[9px] text-zinc-400 uppercase tracking-widest">Responsável pela Entrega</p>
+                        <p className="text-xs font-bold uppercase text-zinc-700">DOUGLAS FERNANDO SEMENZIN GALDINO</p>
+                        <p className="text-[9px] text-zinc-400 uppercase tracking-widest">Chefe de Departamento</p>
                       </div>
                     </div>
                   </div>
@@ -265,23 +381,30 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                       {historySearchText.trim() && filteredLogs.length > 0 ? (
                         <div className="space-y-8 text-center pt-4">
                           <p className="text-right text-xs">Taiúva - SP, {formatDateExtended(new Date().toLocaleDateString('pt-BR'))}</p>
-                          <div className="space-y-1.5 max-w-sm mx-auto">
-                            <div className="border-t border-zinc-500 w-3/4 mx-auto"></div>
-                            <p className="text-xs font-bold uppercase">{filteredLogs[0].responsible}</p>
-                            <p className="text-[9px] text-zinc-400 uppercase tracking-widest">Assinatura da Pessoa Privada de Liberdade</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+                            <div className="space-y-1.5">
+                              <div className="border-t border-zinc-500 w-3/4 mx-auto"></div>
+                              <p className="text-xs font-bold uppercase">{filteredLogs[0].responsible}</p>
+                              <p className="text-[9px] text-zinc-400 uppercase tracking-widest">Assinatura do Recebedor</p>
+                            </div>
+                            <div className="space-y-1.5">
+                              <div className="border-t border-zinc-500 w-3/4 mx-auto"></div>
+                              <p className="text-xs font-bold uppercase text-zinc-700">DOUGLAS FERNANDO SEMENZIN GALDINO</p>
+                              <p className="text-[9px] text-zinc-400 uppercase tracking-widest">Chefe de Departamento</p>
+                            </div>
                           </div>
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 gap-8 pt-4 text-center">
                           <div className="space-y-1.5">
                             <div className="border-t border-zinc-300 w-3/4 mx-auto"></div>
-                            <p className="text-[10px] font-bold uppercase text-zinc-500">SETOR DE TRABALHO / LABORTERAPIA</p>
-                            <p className="text-[9px] text-zinc-400 uppercase">Assinatura do Diretor de Trabalho</p>
+                            <p className="text-[10px] font-bold uppercase text-zinc-700">DOUGLAS FERNANDO SEMENZIN GALDINO</p>
+                            <p className="text-[9px] text-zinc-400 uppercase tracking-widest">Chefe de Departamento</p>
                           </div>
                           <div className="space-y-1.5">
                             <div className="border-t border-zinc-300 w-3/4 mx-auto"></div>
                             <p className="text-[10px] font-bold uppercase text-zinc-500">ALMOXARIFADO</p>
-                            <p className="text-[9px] text-zinc-400 uppercase">Conferente Geral</p>
+                            <p className="text-[9px] text-zinc-400 uppercase tracking-widest">Conferente Geral</p>
                           </div>
                         </div>
                       )}
@@ -323,22 +446,58 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
             </div>
             
             <p className="text-justify leading-relaxed indent-8 text-xs">
-              Declaro para os devidos fins de direito, que recebi do Setor de Almoxarifado desta unidade prisional, em perfeitas condições de higiene e uso, o Equipamento de Proteção Individual (EPI) listado abaixo, comprometendo-me a fazer o uso correto do mesmo e preservá-lo atendendo os normativos vigentes de segurança e disciplina de labor.
+              Declaro que recebi do Almoxarifado, em perfeitas condições de uso, o(s) Equipamento(s) de Proteção Individual (EPI) listado(s) abaixo, comprometendo-me a utilizá-lo(s) corretamente.
             </p>
 
-            <div className="border-2 border-zinc-800 p-4 rounded-lg space-y-2 text-xs">
-              <div><strong>Beneficiário (PPL):</strong> <span className="uppercase font-bold text-sm">{printTargetLog.responsible}</span></div>
-              {printTargetLog.registration && <div><strong>Matrícula:</strong> <span className="font-mono font-bold">{printTargetLog.registration}</span></div>}
-              <div className="grid grid-cols-2 gap-4 pt-1">
-                <div><strong>Equipamento (Item):</strong> <span className="font-bold">{printTargetLog.itemName}</span></div>
-                <div><strong>Quantidade:</strong> <span className="font-bold">{printTargetLog.quantity} unidade(s)</span></div>
+            <div className="border-2 border-zinc-800 p-4 rounded-lg space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-4 border-b border-zinc-300 pb-2">
+                <div><strong>Beneficiário (PPL):</strong> <span className="uppercase font-bold text-sm block">{printTargetLog.responsible}</span></div>
+                {printTargetLog.registration && <div><strong>Matrícula:</strong> <span className="font-mono font-bold block">{printTargetLog.registration}</span></div>}
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><strong>Data de Retirada:</strong> <span className="font-mono">{printTargetLog.date}</span></div>
-                <div><strong>Horário:</strong> <span className="font-mono">{printTargetLog.time}</span></div>
+              <div className="grid grid-cols-2 gap-4 border-b border-zinc-300 pb-2">
+                <div><strong>Data de Retirada:</strong> <span className="font-mono block">{formatDateExtended(printTargetLog.date)}</span></div>
+                <div><strong>Horário:</strong> <span className="font-mono block">{printTargetLog.time}</span></div>
               </div>
-              {printTargetLog.value > 0 && <div><strong>Custo Registrado:</strong> <span className="font-bold">R$ {printTargetLog.value.toFixed(2)}</span></div>}
-              {printTargetLog.observations && <div><strong>Observações Gerais:</strong> <span className="italic">{printTargetLog.observations}</span></div>}
+
+              {/* Items Table */}
+              <div className="pt-1">
+                <p className="font-bold mb-1">Equipamento(s) de Proteção Individual (EPI) Entregue(s):</p>
+                <table className="w-full text-left border-collapse border border-zinc-400 text-xs text-zinc-800">
+                  <thead>
+                    <tr className="bg-zinc-100 border-b border-zinc-400 font-bold">
+                      <th className="p-1 border-r border-zinc-400 font-bold">Equipamento / Item</th>
+                      <th className="p-1 border-r border-zinc-400 text-center font-bold" style={{ width: '80px' }}>Qtd.</th>
+                      <th className="p-1 text-right font-bold" style={{ width: '120px' }}>Custo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupedLogs.map((log, index) => (
+                      <tr key={log.id || index} className="border-b border-zinc-300">
+                        <td className="p-1.5 border-r border-zinc-400 font-medium">{log.itemName}</td>
+                        <td className="p-1.5 border-r border-zinc-400 text-center font-bold">{log.quantity}</td>
+                        <td className="p-1.5 text-right font-mono">R$ {(log.value || 0).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                    {groupedLogs.length > 1 && (
+                      <tr className="bg-zinc-50 font-bold border-t border-zinc-400">
+                        <td className="p-1.2 border-r border-zinc-400 text-right font-bold">Total Geral:</td>
+                        <td className="p-1.2 border-r border-zinc-400 text-center font-bold">
+                          {groupedLogs.reduce((acc, curr) => acc + curr.quantity, 0)}
+                        </td>
+                        <td className="p-1.2 text-right font-bold text-orange-700 font-mono">
+                          R$ {groupedLogs.reduce((acc, curr) => acc + (curr.value || 0), 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {printTargetLog.observations && (
+                <div className="pt-1 text-zinc-600 border-t border-zinc-100 mt-2">
+                  <strong>Observações Gerais:</strong> <span className="italic">{printTargetLog.observations}</span>
+                </div>
+              )}
             </div>
 
             <div className="pt-20 space-y-16">
@@ -347,12 +506,12 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                 <div className="space-y-2">
                   <div className="border-t border-black w-11/12 mx-auto"></div>
                   <p className="text-xs font-bold uppercase">{printTargetLog.responsible}</p>
-                  <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-black">Assinatura da Pessoa Privada de Liberdade</p>
+                  <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-black">Assinatura do Recebedor</p>
                 </div>
                 <div className="space-y-2">
                   <div className="border-t border-black w-11/12 mx-auto"></div>
-                  <p className="text-xs font-bold uppercase">ALMOXARIFADO / SEÇÃO DE EPIs</p>
-                  <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-black">Servidor Responsável</p>
+                  <p className="text-xs font-bold uppercase">DOUGLAS FERNANDO SEMENZIN GALDINO</p>
+                  <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-black">Chefe de Departamento</p>
                 </div>
               </div>
             </div>
@@ -403,17 +562,25 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                 {historySearchText.trim() && filteredLogs.length > 0 ? (
                   <div className="space-y-2 text-center pt-4">
                     <p className="text-right text-xs font-bold">Taiúva - SP, {formatDateExtended(new Date().toLocaleDateString('pt-BR'))}</p>
-                    <div className="border-t border-black w-1/2 mx-auto pt-2">
-                      <p className="text-xs font-bold uppercase">{filteredLogs[0].responsible}</p>
-                      <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-black">Assinatura da Pessoa Privada de Liberdade</p>
+                    <div className="grid grid-cols-2 gap-12 text-center pt-8">
+                      <div className="space-y-2">
+                        <div className="border-t border-black w-11/12 mx-auto"></div>
+                        <p className="text-xs font-bold uppercase">{filteredLogs[0].responsible}</p>
+                        <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-black">Assinatura do Recebedor</p>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="border-t border-black w-11/12 mx-auto"></div>
+                        <p className="text-xs font-bold uppercase">DOUGLAS FERNANDO SEMENZIN GALDINO</p>
+                        <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-black">Chefe de Departamento</p>
+                      </div>
                     </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-12 text-center pt-8">
                     <div className="space-y-2">
                       <div className="border-t border-black w-11/12 mx-auto"></div>
-                      <p className="text-xs font-bold uppercase">CHEFE DE DEPARTAMENTO / DIRETORIA</p>
-                      <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-black">Responsável Setorial</p>
+                      <p className="text-xs font-bold uppercase">DOUGLAS FERNANDO SEMENZIN GALDINO</p>
+                      <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-black">Chefe de Departamento</p>
                     </div>
                     <div className="space-y-2">
                       <div className="border-t border-black w-11/12 mx-auto"></div>
@@ -454,8 +621,8 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-              <div className="flex flex-col lg:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+              <div className="flex flex-col md:col-span-5">
                 <label className="text-[10px] font-bold text-gray-400 uppercase mb-1">Buscar & Selecionar Item de EPI</label>
                 <div className="space-y-1.5">
                   <input 
@@ -463,7 +630,7 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                     value={itemSearchText} 
                     onChange={e => setItemSearchText(e.target.value)} 
                     placeholder="🔍 Digite para filtrar os EPIs cadastrados..." 
-                    className="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50 text-gray-800"
+                    className="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50 text-gray-800 text-xs"
                   />
                   <select 
                     value={itemName} 
@@ -474,8 +641,8 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                         setItemSearchText(matched.name);
                       }
                     }} 
-                    className="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white text-gray-800 font-medium" 
-                    required
+                    className="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white text-gray-800 font-medium text-xs text-ellipsis overflow-hidden" 
+                    required={selectedItems.length === 0}
                   >
                     <option value="">Selecione o EPI ({filteredEpiItems.length} encontrados)</option>
                     {filteredEpiItems.map(item => (
@@ -487,31 +654,81 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                 </div>
               </div>
 
-              <div className="flex flex-col">
+              <div className="flex flex-col md:col-span-2">
                 <label className="text-[10px] font-bold text-gray-400 uppercase mb-1">Quantidade</label>
-                <input type="number" min="1" value={quantity || ''} onChange={e => setQuantity(Number(e.target.value))} placeholder="Quantidade" className="p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50 text-gray-800" required />
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={quantity || ''} 
+                  onChange={e => setQuantity(Number(e.target.value))} 
+                  placeholder="Quantidade" 
+                  className="p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50 text-gray-800 text-xs w-full" 
+                  required={selectedItems.length === 0}
+                />
               </div>
 
-              <div className="flex flex-col p-3 bg-orange-50 rounded-xl border border-orange-200">
+              <div className="flex flex-col p-3 bg-orange-50 rounded-xl border border-orange-200 md:col-span-3">
                 <span className="text-[9px] font-bold text-orange-600 uppercase">Resumo Financeiro</span>
-                <div className="flex justify-between mt-1 text-xs">
-                  <span className="text-gray-500">Unitário:</span>
+                <div className="flex justify-between mt-1 text-[11px] text-zinc-500">
+                  <span>Unitário:</span>
                   <span className="font-bold text-zinc-800">R$ {(selectedItem?.unitValue || 0).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Total:</span>
+                <div className="flex justify-between text-xs text-zinc-600">
+                  <span>Total do Item:</span>
                   <span className="font-black text-orange-700">R$ {calculatedValue.toFixed(2)}</span>
                 </div>
               </div>
+
+              <div className="md:col-span-2">
+                <button
+                  type="button"
+                  onClick={handleAddItemToList}
+                  className="w-full bg-zinc-800 hover:bg-zinc-900 text-white py-3 rounded-xl flex items-center justify-center font-bold text-xs uppercase cursor-pointer transition-colors duration-150 shadow-sm"
+                  title="Clique para adicionar este EPI à lista para esse PPL"
+                >
+                  ➕ Adicionar
+                </button>
+              </div>
             </div>
+
+            {/* Added items list */}
+            {selectedItems.length > 0 && (
+              <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 space-y-2">
+                <span className="text-[10px] font-black text-zinc-500 uppercase block tracking-wider">📋 EPIs Pré-Selecionados para Entrega ({selectedItems.length})</span>
+                <div className="divide-y divide-zinc-200 max-h-48 overflow-y-auto pr-1">
+                  {selectedItems.map((item) => (
+                    <div key={item.id} className="flex justify-between items-center py-2 text-xs">
+                      <div className="font-semibold text-zinc-800">
+                        <span className="bg-orange-100 text-orange-850 px-1.5 py-0.5 rounded text-[10px] font-black mr-2">{item.quantity}x</span>
+                        {item.itemName}
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="font-mono text-zinc-600 font-bold">R$ {item.value.toFixed(2)}</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedItems(selectedItems.filter(x => x.id !== item.id))}
+                          className="text-red-500 hover:text-red-700 font-black cursor-pointer bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-[10px] uppercase transition-all"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between pt-2 border-t border-zinc-200 font-bold text-sm">
+                  <span className="text-zinc-600">Total da Entrega (Soma):</span>
+                  <span className="text-orange-700 font-black">R$ {selectedItems.reduce((acc, curr) => acc + curr.value, 0).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col">
               <label className="text-[10px] font-bold text-gray-400 uppercase mb-1">Observações</label>
               <input type="text" value={observations} onChange={e => setObservations(e.target.value)} placeholder="Informações adicionais..." className="p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50 text-gray-800" />
             </div>
 
-            <button type="submit" disabled={isSaving} className="w-full bg-orange-600 text-white py-3.5 rounded-xl font-black uppercase tracking-wider text-xs hover:bg-orange-700 transition-all transition-duration-150 flex items-center justify-center gap-2">
-              {isSaving ? 'Salvando...' : 'Registrar Entrega de EPI'}
+            <button type="submit" disabled={isSaving} className="w-full bg-orange-600 text-white py-3.5 rounded-xl font-black uppercase tracking-wider text-xs hover:bg-orange-700 transition-all transition-duration-150 flex items-center justify-center gap-2 shadow-md shadow-orange-600/10">
+              {isSaving ? 'Salvando...' : selectedItems.length > 0 ? 'Registrar Todos os EPIs Selecionados' : 'Registrar Entrega de EPI'}
             </button>
           </form>
         </div>
