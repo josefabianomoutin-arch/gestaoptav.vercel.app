@@ -8,16 +8,25 @@ export function cn(...inputs: ClassValue[]) {
 export function safeLocalStorageSetItem(key: string, value: string): boolean {
   let processedValue = value;
 
+  const robustCompare = (a: any, b: any): number => {
+    const timeA = typeof a.timestamp === 'number' ? a.timestamp : (a.timestamp ? Number(a.timestamp) : (a.date ? new Date(a.date).getTime() : 0));
+    const timeB = typeof b.timestamp === 'number' ? b.timestamp : (b.timestamp ? Number(b.timestamp) : (b.date ? new Date(b.date).getTime() : 0));
+    
+    if (!isNaN(timeA) && !isNaN(timeB) && timeA !== 0 && timeB !== 0) {
+      return timeB - timeA; // Descending (newest first)
+    }
+    
+    const dateA = String(a.date || a.timestamp || '');
+    const dateB = String(b.date || b.timestamp || '');
+    return dateB.localeCompare(dateA);
+  };
+
   try {
     if (key === 'cached_warehouseLog') {
       try {
         const parsed = JSON.parse(value);
         if (Array.isArray(parsed)) {
-          const sorted = [...parsed].sort((a: any, b: any) => {
-            const dateA = a.timestamp || a.date || '';
-            const dateB = b.timestamp || b.date || '';
-            return dateB.localeCompare(dateA);
-          });
+          const sorted = [...parsed].sort(robustCompare);
           processedValue = JSON.stringify(sorted.slice(0, 300));
         }
       } catch (err) {
@@ -30,8 +39,8 @@ export function safeLocalStorageSetItem(key: string, value: string): boolean {
           const trimmed = parsed.map((sup: any) => {
             if (sup && Array.isArray(sup.deliveries)) {
               const sortedDeliveries = [...sup.deliveries].sort((a: any, b: any) => {
-                const dA = a.date || '';
-                const dB = b.date || '';
+                const dA = String(a.date || '');
+                const dB = String(b.date || '');
                 return dB.localeCompare(dA);
               });
               return {
@@ -60,8 +69,8 @@ export function safeLocalStorageSetItem(key: string, value: string): boolean {
               parsed[listKey] = parsed[listKey].map((sup: any) => {
                 if (sup && Array.isArray(sup.deliveries)) {
                   const sortedDeliveries = [...sup.deliveries].sort((a: any, b: any) => {
-                    const dA = a.date || '';
-                    const dB = b.date || '';
+                    const dA = String(a.date || '');
+                    const dB = String(b.date || '');
                     return dB.localeCompare(dA);
                   });
                   return {
@@ -82,11 +91,7 @@ export function safeLocalStorageSetItem(key: string, value: string): boolean {
       try {
         const parsed = JSON.parse(value);
         if (Array.isArray(parsed)) {
-          const sorted = [...parsed].sort((a: any, b: any) => {
-            const dateA = a.timestamp || a.date || '';
-            const dateB = b.timestamp || b.date || '';
-            return dateB.localeCompare(dateA);
-          });
+          const sorted = [...parsed].sort(robustCompare);
           processedValue = JSON.stringify(sorted.slice(0, 200));
         }
       } catch (err) {

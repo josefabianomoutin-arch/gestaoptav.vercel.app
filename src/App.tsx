@@ -144,8 +144,8 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // 1. Carrega os dados persistidos do LocalStorage IMEDIATAMENTE no mount para tempo de carregamento zero 
   useEffect(() => {
-    // --- Persistence: Load from Local Storage on Mount FIRST (offline-robust state loader) ---
     const collectionsToPersist = [
       { key: 'suppliers', setter: setSuppliers },
       { key: 'warehouseLog', setter: setWarehouseLog },
@@ -181,30 +181,66 @@ const App: React.FC = () => {
         }
       }
     });
+  }, []);
 
+  // 2. Conecta aos dados públicos essenciais no mount de forma leve (PublicInfo para tela de Login e Senhas do sistema)
+  useEffect(() => {
     if (!database) return;
 
+    const unsubscribes: (() => void)[] = [];
+
     const connectedRef = ref(database, '.info/connected');
-    onValue(connectedRef, (snap) => {
+    const unsubConnected = onValue(connectedRef, (snap) => {
       if (snap.val() === true) {
         console.log("Conectado ao Firebase Realtime Database!");
       } else {
         console.warn("Desconectado do Firebase Realtime Database.");
       }
     });
+    unsubscribes.push(unsubConnected);
 
-    onValue(suppliersRef, (snapshot) => {
+    const unsubPublicInfo = onValue(publicInfoRef, (snapshot) => {
+      const data = snapshot.val();
+      const list = data ? Object.values(data) : [];
+      setPublicInfo(list as PublicInfo[]);
+      safeLocalStorageSetItem('cached_publicInfo', JSON.stringify(list));
+    });
+    unsubscribes.push(unsubPublicInfo);
+
+    const unsubPasswords = onValue(systemPasswordsRef, (snapshot) => {
+      const data = snapshot.val() || {};
+      setSystemPasswords(data);
+      safeLocalStorageSetItem('cached_systemPasswords', JSON.stringify(data));
+    });
+    unsubscribes.push(unsubPasswords);
+
+    return () => {
+      unsubscribes.forEach((unsub) => unsub());
+    };
+  }, []);
+
+  // 3. Conecta aos dados pesados dinamicamente e APENAS quando o usuário estiver autenticado
+  useEffect(() => {
+    if (!database || !user) return;
+
+    const unsubscribes: (() => void)[] = [];
+
+    // Carregamento de Fornecedores
+    const unsubSuppliers = onValue(suppliersRef, (snapshot) => {
       const data = snapshot.val();
       console.log("Firebase Suppliers Data:", data);
       const list = data ? Object.entries(data).map(([key, value]: [string, any]) => ({
         ...value,
         id: value.id || key,
-        cpf: value.cpf || key // Ensure CPF is taken from key if missing
+        cpf: value.cpf || key
       })) : [];
       setSuppliers(list as Supplier[]);
       safeLocalStorageSetItem('cached_suppliers', JSON.stringify(list));
     });
-    onValue(warehouseLogRef, (snapshot) => {
+    unsubscribes.push(unsubSuppliers);
+
+    // Logs de Movimentação do Almoxarifado (Altamente pesado)
+    const unsubWarehouseLog = onValue(warehouseLogRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.entries(data).map(([key, value]: [string, any]) => ({
         ...value,
@@ -213,42 +249,63 @@ const App: React.FC = () => {
       setWarehouseLog(list as WarehouseMovement[]);
       safeLocalStorageSetItem('cached_warehouseLog', JSON.stringify(list));
     });
-    onValue(perCapitaConfigRef, (snapshot) => {
+    unsubscribes.push(unsubWarehouseLog);
+
+    // Configurações Per Capita
+    const unsubPerCapita = onValue(perCapitaConfigRef, (snapshot) => {
       const data = snapshot.val();
       console.log("Firebase PerCapitaConfig Data:", data);
       const config = data || {};
       setPerCapitaConfig(config);
       safeLocalStorageSetItem('cached_perCapitaConfig', JSON.stringify(config));
     });
-    onValue(cleaningLogsRef, (snapshot) => {
+    unsubscribes.push(unsubPerCapita);
+
+    // Registros de Limpeza
+    const unsubCleaningLogs = onValue(cleaningLogsRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setCleaningLogs(list as CleaningLog[]);
       safeLocalStorageSetItem('cached_cleaningLogs', JSON.stringify(list));
     });
-    onValue(epiLogsRef, (snapshot) => {
+    unsubscribes.push(unsubCleaningLogs);
+
+    // Registros de EPI
+    const unsubEpiLogs = onValue(epiLogsRef, (snapshot) => {
         const data = snapshot.val();
         const list = data ? Object.values(data) : [];
         setEpiLogs(list as EpiLog[]);
         safeLocalStorageSetItem('cached_epiLogs', JSON.stringify(list));
     });
-    onValue(directorWithdrawalsRef, (snapshot) => {
+    unsubscribes.push(unsubEpiLogs);
+
+    // Retiradas dos Diretores
+    const unsubDirectorWithdrawals = onValue(directorWithdrawalsRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setDirectorWithdrawals(list as DirectorPerCapitaLog[]);
       safeLocalStorageSetItem('cached_directorWithdrawals', JSON.stringify(list));
     });
-    onValue(standardMenuRef, (snapshot) => {
+    unsubscribes.push(unsubDirectorWithdrawals);
+
+    // Cardápio Padrão
+    const unsubStandardMenu = onValue(standardMenuRef, (snapshot) => {
       const data = snapshot.val() || {};
       setStandardMenu(data);
       safeLocalStorageSetItem('cached_standardMenu', JSON.stringify(data));
     });
-    onValue(dailyMenusRef, (snapshot) => {
+    unsubscribes.push(unsubStandardMenu);
+
+    // Cardápios Diários
+    const unsubDailyMenus = onValue(dailyMenusRef, (snapshot) => {
       const data = snapshot.val() || {};
       setDailyMenus(data);
       safeLocalStorageSetItem('cached_dailyMenus', JSON.stringify(data));
     });
-    onValue(financialRecordsRef, (snapshot) => {
+    unsubscribes.push(unsubDailyMenus);
+
+    // Registros Financeiros
+    const unsubFinancial = onValue(financialRecordsRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.entries(data).map(([key, value]: [string, any]) => ({
         ...value,
@@ -257,84 +314,107 @@ const App: React.FC = () => {
       setFinancialRecords(list as FinancialRecord[]);
       safeLocalStorageSetItem('cached_financialRecords', JSON.stringify(list));
     });
-    onValue(thirdPartyEntriesRef, (snapshot) => {
+    unsubscribes.push(unsubFinancial);
+
+    // Entradas de Terceiros
+    const unsubThirdParty = onValue(thirdPartyEntriesRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setThirdPartyEntries(list as ThirdPartyEntryLog[]);
       safeLocalStorageSetItem('cached_thirdPartyEntries', JSON.stringify(list));
     });
-    onValue(acquisitionItemsRef, (snapshot) => {
+    unsubscribes.push(unsubThirdParty);
+
+    // Itens de Aquisição
+    const unsubAcquisitionItems = onValue(acquisitionItemsRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setAcquisitionItems(list as AcquisitionItem[]);
       safeLocalStorageSetItem('cached_acquisitionItems', JSON.stringify(list));
     });
-    onValue(vehicleExitOrdersRef, (snapshot) => {
+    unsubscribes.push(unsubAcquisitionItems);
+
+    // Autorizações de Saída de Veículos
+    const unsubVehicleOrders = onValue(vehicleExitOrdersRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setVehicleExitOrders(list as VehicleExitOrder[]);
       safeLocalStorageSetItem('cached_vehicleExitOrders', JSON.stringify(list));
     });
-    onValue(vehicleInspectionsRef, (snapshot) => {
+    unsubscribes.push(unsubVehicleOrders);
+
+    // Inspeções de Veículos
+    const unsubVehicleInspections = onValue(vehicleInspectionsRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setVehicleInspections(list as VehicleInspection[]);
       safeLocalStorageSetItem('cached_vehicleInspections', JSON.stringify(list));
     });
+    unsubscribes.push(unsubVehicleInspections);
 
-    onValue(serviceOrdersRef, (snapshot) => {
+    // Ordens de Serviço
+    const unsubServiceOrders = onValue(serviceOrdersRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setServiceOrders(list as ServiceOrder[]);
       safeLocalStorageSetItem('cached_serviceOrders', JSON.stringify(list));
     });
-    onValue(vehicleAssetsRef, (snapshot) => {
+    unsubscribes.push(unsubServiceOrders);
+
+    // Veículos Ativos
+    const unsubVehicleAssets = onValue(vehicleAssetsRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setVehicleAssets(list as VehicleAsset[]);
       safeLocalStorageSetItem('cached_vehicleAssets', JSON.stringify(list));
     });
-    onValue(driverAssetsRef, (snapshot) => {
+    unsubscribes.push(unsubVehicleAssets);
+
+    // Motoristas Ativos
+    const unsubDriverAssets = onValue(driverAssetsRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setDriverAssets(list as DriverAsset[]);
       safeLocalStorageSetItem('cached_driverAssets', JSON.stringify(list));
     });
-    onValue(dailyAllowancesRef, (snapshot) => {
+    unsubscribes.push(unsubDriverAssets);
+
+    // Diárias/Ajuda de Custo
+    const unsubDailyAllowances = onValue(dailyAllowancesRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setDailyAllowances(list);
-      // Wait, setter name is _dailyAllowances but state setter is setDailyAllowances
     });
-    onValue(staffRef, (snapshot) => {
+    unsubscribes.push(unsubDailyAllowances);
+
+    // Funcionários Ativos
+    const unsubStaff = onValue(staffRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setStaff(list);
     });
-    onValue(validationRolesRef, (snapshot) => {
+    unsubscribes.push(unsubStaff);
+
+    // Perfis de Validação
+    const unsubValidationRoles = onValue(validationRolesRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setValidationRoles(list as ValidationRole[]);
       safeLocalStorageSetItem('cached_validationRoles', JSON.stringify(list));
     });
-    onValue(systemPasswordsRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      setSystemPasswords(data);
-      safeLocalStorageSetItem('cached_systemPasswords', JSON.stringify(data));
-    });
-    onValue(maintenanceSchedulesRef, (snapshot) => {
+    unsubscribes.push(unsubValidationRoles);
+
+    // Agendamentos de Manutenção
+    const unsubMaintenance = onValue(maintenanceSchedulesRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setMaintenanceSchedules(list as MaintenanceSchedule[]);
       safeLocalStorageSetItem('cached_maintenanceSchedules', JSON.stringify(list));
     });
-    onValue(publicInfoRef, (snapshot) => {
-      const data = snapshot.val();
-      const list = data ? Object.values(data) : [];
-      setPublicInfo(list as PublicInfo[]);
-      safeLocalStorageSetItem('cached_publicInfo', JSON.stringify(list));
-    });
-    onValue(directorPerCapitaRef, (snapshot) => {
+    unsubscribes.push(unsubMaintenance);
+
+    // Registros Per Capita dos Diretores
+    const unsubDirectorPerCapita = onValue(directorPerCapitaRef, (snapshot) => {
       const data = snapshot.val() || {};
       
       const createEmptyItems = () => Array.from({ length: 25 }, (_, i) => ({
@@ -396,7 +476,13 @@ const App: React.FC = () => {
       setDirectorPerCapita(merged);
       safeLocalStorageSetItem('cached_directorPerCapita', JSON.stringify(merged));
     });
-  }, []);
+    unsubscribes.push(unsubDirectorPerCapita);
+
+    return () => {
+      console.log("Desinscrevendo de todos os listeners pesados do Firebase Realtime Database.");
+      unsubscribes.forEach((unsub) => unsub());
+    };
+  }, [user]);
 
   const handleUpdateDirectorPerCapita = async (updatedData: any) => {
     try {
