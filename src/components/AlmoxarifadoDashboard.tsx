@@ -448,7 +448,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             if (isQ1) {
                 return item.period !== '2_3_QUAD';
             } else {
-                return item.period === '2_3_QUAD';
+                return !item.period || item.period === '2_3_QUAD';
             }
         });
 

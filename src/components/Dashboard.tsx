@@ -206,7 +206,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         if (isQ1) {
             return item.period !== '2_3_QUAD';
         } else {
-            return item.period === '2_3_QUAD';
+            return !item.period || item.period === '2_3_QUAD';
         }
     });
     return filteredItems.map((item: any) => {
@@ -284,7 +284,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         if (isQ1) {
             return item.period !== '2_3_QUAD';
         } else {
-            return item.period === '2_3_QUAD';
+            return !item.period || item.period === '2_3_QUAD';
         }
     });
 
