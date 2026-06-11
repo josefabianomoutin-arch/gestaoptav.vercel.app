@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
-import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, VehicleInspection, ServiceOrder, MaintenanceSchedule, PublicInfo, ValidationRole } from './types';
+import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, VehicleInspection, ServiceOrder, MaintenanceSchedule, PublicInfo, ValidationRole, EpiLog } from './types';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
@@ -25,6 +25,7 @@ let suppliersRef: any;
 let warehouseLogRef: any;
 let perCapitaConfigRef: any;
 let cleaningLogsRef: any;
+let epiLogsRef: any;
 let directorWithdrawalsRef: any;
 let standardMenuRef: any;
 let dailyMenusRef: any;
@@ -51,6 +52,7 @@ try {
   warehouseLogRef = ref(database, 'warehouseLog');
   perCapitaConfigRef = ref(database, 'perCapitaConfig');
   cleaningLogsRef = ref(database, 'cleaningLogs');
+  epiLogsRef = ref(database, 'epiLogs');
   directorWithdrawalsRef = ref(database, 'directorWithdrawals');
   directorPerCapitaRef = ref(database, 'directorPerCapita');
   standardMenuRef = ref(database, 'standardMenu');
@@ -87,6 +89,7 @@ const App: React.FC = () => {
   const [warehouseLog, setWarehouseLog] = useState<WarehouseMovement[]>([]);
   const [perCapitaConfig, setPerCapitaConfig] = useState<PerCapitaConfig>({});
   const [cleaningLogs, setCleaningLogs] = useState<CleaningLog[]>([]);
+  const [epiLogs, setEpiLogs] = useState<EpiLog[]>([]);
   const [directorWithdrawals, setDirectorWithdrawals] = useState<DirectorPerCapitaLog[]>([]);
   const [standardMenu, setStandardMenu] = useState<StandardMenu>({});
   const [dailyMenus, setDailyMenus] = useState<DailyMenus>({});
@@ -221,6 +224,12 @@ const App: React.FC = () => {
       const list = data ? Object.values(data) : [];
       setCleaningLogs(list as CleaningLog[]);
       safeLocalStorageSetItem('cached_cleaningLogs', JSON.stringify(list));
+    });
+    onValue(epiLogsRef, (snapshot) => {
+        const data = snapshot.val();
+        const list = data ? Object.values(data) : [];
+        setEpiLogs(list as EpiLog[]);
+        safeLocalStorageSetItem('cached_epiLogs', JSON.stringify(list));
     });
     onValue(directorWithdrawalsRef, (snapshot) => {
       const data = snapshot.val();

@@ -428,5 +428,17 @@ export interface DirectorItem {
     expirationDate?: string;
 }
 
+export interface EpiLog {
+    id: string;
+    date: string;
+    time: string;
+    responsible: string;
+    itemName: string;
+    quantity: number;
+    value: number;
+    observations?: string;
+    acquisitionItemId?: string;
+}
+
 export type UserRole = 'admin' | 'almoxarifado' | 'itesp' | 'financeiro' | 'cardapio' | 'subportaria' | 'infraestrutura' | 'ordem_saida' | 'julio' | 'producer' | 'pereciveis_supplier' | 'estocaveis_supplier' | 'supplier' | 'ordem_servico';
 

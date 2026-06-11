@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import type { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, UserRole, ServiceOrder, VehicleInspection, MaintenanceSchedule, PublicInfo } from '../types';
+import type { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, UserRole, ServiceOrder, VehicleInspection, MaintenanceSchedule, PublicInfo, EpiLog } from '../types';
 import AdminAnalytics from './AdminAnalytics';
 import AdminContractItems from './AdminContractItems';
 import EditSupplierModal from './EditSupplierModal';
@@ -21,8 +21,9 @@ import ConfirmModal from './ConfirmModal';
 import WeekSelector from './WeekSelector';
 import WarehouseMovementForm from './WarehouseMovementForm';
 import AdminDirectorPerCapita from './AdminDirectorPerCapita';
+import AdminEPIControl from './AdminEPIControl';
 
-type AdminTab = 'info' | 'register' | 'contracts' | 'finance' | 'analytics' | 'graphs' | 'schedule' | 'invoices' | 'perCapita' | 'cleaning' | 'vehicleExitOrder' | 'thirdPartyEntry' | 'directorPerCapita' | 'menu' | 'almoxarifado' | 'serviceOrder' | 'publicInfo';
+type AdminTab = 'info' | 'register' | 'contracts' | 'finance' | 'analytics' | 'graphs' | 'schedule' | 'invoices' | 'perCapita' | 'cleaning' | 'vehicleExitOrder' | 'thirdPartyEntry' | 'directorPerCapita' | 'menu' | 'almoxarifado' | 'serviceOrder' | 'publicInfo' | 'epiControl';
 
 interface AdminDashboardProps {
   user: { name: string; cpf: string; role: UserRole };
@@ -59,6 +60,9 @@ interface AdminDashboardProps {
   acquisitionItems: AcquisitionItem[];
   onRegisterCleaningLog: (log: Omit<CleaningLog, 'id'>) => Promise<{ success: boolean; message: string }>;
   onDeleteCleaningLog: (id: string) => Promise<void | { success: boolean; message: string }>;
+  epiLogs: EpiLog[];
+  onRegisterEpi: (log: Omit<EpiLog, 'id'>) => Promise<{ success: boolean; message: string }>;
+  onDeleteEpi: (id: string) => Promise<any>;
   onRegisterDirectorWithdrawal: (log: Omit<DirectorPerCapitaLog, 'id'>) => Promise<{ success: boolean; message: string }>;
   onDeleteDirectorWithdrawal: (id: string) => Promise<void | { success: boolean; message: string }>;
   standardMenu: StandardMenu;
@@ -164,7 +168,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     onUpdateInvoiceItems,
     onDeleteInvoice,
     onReopenInvoice,
-    onSaveInvoice
+    onSaveInvoice,
+    epiLogs = [],
+    onRegisterEpi,
+    onDeleteEpi
   } = props;
   const [activeTab, setActiveTab] = useState<AdminTab>('directorPerCapita');
   const [supplierSubTab, setSupplierSubTab] = useState<'list' | 'new'>('list'); 
@@ -442,6 +449,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       case 'menu': return <AdminStandardMenu suppliers={suppliers} template={props.standardMenu} dailyMenus={props.dailyMenus} onUpdateDailyMenus={props.onUpdateDailyMenu} inmateCount={perCapitaConfig.inmateCount || 0} />;
       case 'publicInfo': return <AdminPublicInfo infoList={props.publicInfo} onSave={props.onSavePublicInfo} onDelete={props.onDeletePublicInfo} />;
       case 'almoxarifado': return <WarehouseMovementForm suppliers={suppliers} warehouseLog={warehouseLog} onRegisterEntry={props.onRegisterEntry} onRegisterWithdrawal={props.onRegisterWithdrawal} perCapitaConfig={perCapitaConfig} />;
+      case 'epiControl': return <AdminEPIControl logs={epiLogs} acquisitionItems={acquisitionItems} onRegister={onRegisterEpi} onDelete={onDeleteEpi} />;
       case 'info': 
         return (
             <div className="max-w-4xl mx-auto space-y-6 animate-fade-in p-4 md:p-0 pb-16">
