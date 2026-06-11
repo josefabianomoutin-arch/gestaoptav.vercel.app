@@ -433,6 +433,7 @@ export interface EpiLog {
     date: string;
     time: string;
     responsible: string;
+    registration?: string;
     itemName: string;
     quantity: number;
     value: number;
