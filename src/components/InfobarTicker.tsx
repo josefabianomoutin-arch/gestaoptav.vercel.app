@@ -52,7 +52,7 @@ const InfobarTicker: React.FC<InfobarTickerProps> = ({
     );
 
     return (
-        <div className={`${isDark ? 'bg-indigo-600/10 border-b border-indigo-500/20' : 'bg-blue-50 border-b border-blue-100'} overflow-hidden py-2 backdrop-blur-sm`}>
+        <div className={`${isDark ? 'bg-indigo-600/10 border-b border-indigo-500/20' : 'bg-blue-50 border-b border-blue-100'} overflow-hidden py-2 backdrop-blur-sm print:hidden no-print`}>
             <div className="max-w-7xl mx-auto px-4 flex items-center gap-6">
                 <span className={`text-[9px] whitespace-nowrap font-black uppercase px-3 py-1 rounded-full border ${
                     isDark 
