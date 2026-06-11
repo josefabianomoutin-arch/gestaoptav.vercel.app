@@ -625,26 +625,26 @@ const App: React.FC = () => {
       setUser({ name: 'SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA', cpf: '431385464', role: 'julio' });
       return true;
     }
-    const ppaisProducer = ensureArray(perCapitaConfig.ppaisProducers).find(p => p.cpfCnpj.replace(/\D/g, '') === numericPass);
+    const ppaisProducer = ensureArray(perCapitaConfig.ppaisProducers).find(p => p?.cpfCnpj && String(p.cpfCnpj).replace(/\D/g, '') === numericPass);
     console.log('--- Debug: Login ---', { numericPass, found: !!ppaisProducer, all: perCapitaConfig.ppaisProducers?.map(p => p.cpfCnpj) });
     if (ppaisProducer) {
       setUser({ name: ppaisProducer.name, cpf: ppaisProducer.cpfCnpj, role: 'producer' });
       return true;
     }
 
-    const pereciveisSupplier = ensureArray(perCapitaConfig.pereciveisSuppliers).find(p => p.cpfCnpj.replace(/\D/g, '') === numericPass);
+    const pereciveisSupplier = ensureArray(perCapitaConfig.pereciveisSuppliers).find(p => p?.cpfCnpj && String(p.cpfCnpj).replace(/\D/g, '') === numericPass);
     if (pereciveisSupplier) {
       setUser({ name: pereciveisSupplier.name, cpf: pereciveisSupplier.cpfCnpj, role: 'pereciveis_supplier' });
       return true;
     }
 
-    const estocaveisSupplier = ensureArray(perCapitaConfig.estocaveisSuppliers).find(p => p.cpfCnpj.replace(/\D/g, '') === numericPass);
+    const estocaveisSupplier = ensureArray(perCapitaConfig.estocaveisSuppliers).find(p => p?.cpfCnpj && String(p.cpfCnpj).replace(/\D/g, '') === numericPass);
     if (estocaveisSupplier) {
       setUser({ name: estocaveisSupplier.name, cpf: estocaveisSupplier.cpfCnpj, role: 'estocaveis_supplier' });
       return true;
     }
 
-    const supplier = suppliers.find(s => s.cpf.replace(/\D/g, '') === numericPass);
+    const supplier = suppliers.find(s => s?.cpf && String(s.cpf).replace(/\D/g, '') === numericPass);
     if (supplier) {
       setUser({ name: supplier.name, cpf: supplier.cpf, role: 'supplier' });
       return true;
