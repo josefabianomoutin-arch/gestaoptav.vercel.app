@@ -137,7 +137,7 @@ export function safeLocalStorageSetItem(key: string, value: string): boolean {
 }
 
 export function roundToTwoDecimalPlaces(value: number) {
-  return Math.floor(value * 100) / 100;
+  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 export function ensureArray<T>(data: T[] | Record<string, T> | undefined | null): T[] {
