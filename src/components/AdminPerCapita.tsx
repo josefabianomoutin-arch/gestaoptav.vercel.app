@@ -61,7 +61,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     onDeleteDelivery
 }) => {
     const [selectedProducer, setSelectedProducer] = useState<PerCapitaSupplier | null>(null);
-    const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'ADIANTAMENTOS' | 'CONTROLE' | 'AUDIT'>('CALCULO');
+    const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'EPI' | 'ADIANTAMENTOS' | 'CONTROLE' | 'AUDIT'>('CALCULO');
     const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS' | 'CONTRACT' | 'ATA' | 'SCHEDULE'>('ITEMS');
     const [pereciveisSubTab, setPereciveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
     const [estocaveisSubTab, setEstocaveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
@@ -477,7 +477,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         
         // Cálculo ponderado da média mensal de peso
         let totalMonthlyWeight = 0;
-        const categoriesToCalculate = ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS', 'KIT PPL', 'PRODUTOS DE LIMPEZA', 'AUTOMAÇÃO'];
+        const categoriesToCalculate = ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS', 'KIT PPL', 'PRODUTOS DE LIMPEZA', 'AUTOMAÇÃO', 'EPI'];
         
         categoriesToCalculate.forEach(cat => {
             // Tentar obter dados do planejamento (acquisitionItems) e do contrato (itemData)
@@ -529,7 +529,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         
         // Cálculo ponderado da média mensal de valor
         let totalMonthlyValue = 0;
-        const categoriesToCalculate = ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS', 'KIT PPL', 'PRODUTOS DE LIMPEZA', 'AUTOMAÇÃO'];
+        const categoriesToCalculate = ['PPAIS', 'ESTOCÁVEIS', 'PERECÍVEIS', 'KIT PPL', 'PRODUTOS DE LIMPEZA', 'AUTOMAÇÃO', 'EPI'];
 
         categoriesToCalculate.forEach(cat => {
             // Tentar obter dados do planejamento (acquisitionItems) e do contrato (itemData)
@@ -566,7 +566,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [itemData, perCapitaDenominator, acquisitionItems]);
 
     const activeCategories = useMemo(() => {
-        return ['PPAIS', 'KIT PPL', 'PERECÍVEIS', 'ESTOCÁVEIS', 'AUTOMAÇÃO', 'PRODUTOS DE LIMPEZA'].filter(cat => {
+        return ['PPAIS', 'KIT PPL', 'PERECÍVEIS', 'ESTOCÁVEIS', 'AUTOMAÇÃO', 'PRODUTOS DE LIMPEZA', 'EPI'].filter(cat => {
             return (seiProcessDefinitions[cat] && seiProcessDefinitions[cat].trim() !== '') || 
                    (seiProcessNumbers[cat] && seiProcessNumbers[cat].trim() !== '');
         });
@@ -581,7 +581,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 'ESTOCÁVEIS': 0,
                 'PERECÍVEIS': 0,
                 'AUTOMAÇÃO': 0,
-                'PRODUTOS DE LIMPEZA': 0
+                'PRODUTOS DE LIMPEZA': 0,
+                'EPI': 0
             };
         });
 
@@ -985,6 +986,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                     { id: 'PERECÍVEIS', label: 'Perecíveis' },
                     { id: 'AUTOMAÇÃO', label: 'Automação' },
                     { id: 'PRODUTOS DE LIMPEZA', label: 'Limpeza' },
+                    { id: 'EPI', label: 'EPIs' },
                     { id: 'ADIANTAMENTOS', label: 'Adiantamentos' },
                     { id: 'CONTROLE', label: 'Controle' },
                     { id: 'AUDIT', label: 'Auditoria' }
@@ -1487,7 +1489,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 Processos SEI por Categoria
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                                {['PPAIS', 'KIT PPL', 'ESTOCÁVEIS', 'PERECÍVEIS', 'AUTOMAÇÃO', 'PRODUTOS DE LIMPEZA'].map(cat => (
+                                {['PPAIS', 'KIT PPL', 'ESTOCÁVEIS', 'PERECÍVEIS', 'AUTOMAÇÃO', 'PRODUTOS DE LIMPEZA', 'EPI'].map(cat => (
                                     <div key={cat} className="flex flex-col gap-2 p-4 rounded-2xl bg-zinc-50 border border-zinc-100 hover:border-indigo-200 transition-colors">
                                         <div className="flex justify-between items-center mb-1">
                                             <span className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">{cat}</span>

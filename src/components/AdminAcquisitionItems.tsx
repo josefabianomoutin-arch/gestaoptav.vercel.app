@@ -7,7 +7,7 @@ import { roundToTwoDecimalPlaces } from '../lib/utils';
 
 interface AdminAcquisitionItemsProps {
     items: AcquisitionItem[];
-    category: 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA';
+    category: 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'EPI';
     onUpdate: (item: AcquisitionItem) => Promise<{ success: boolean; message: string }>;
     onDelete: (id: string) => Promise<{ success: boolean; message: string }>;
     contractItems?: string[]; // Lista de nomes de itens do contrato para vinculação
