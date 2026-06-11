@@ -731,7 +731,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                         <body>
                                             <div class="label">
                                                 <div>
-                                                    <h1>${String(it.item || it.itemName || '').split(';')[0].split(' ').slice(0, 2).join(' ')}</h1>
+                                                    <h1>${String(it.item || it.itemName || '').split(';')[0].split(' ').slice(0, 4).join(' ')}</h1>
                                                     <h2>Fornecedor: ${inv.supplierName}</h2>
                                                     <p>NF: ${inv.invoiceNumber} | Data: ${new Date(inv.date).toLocaleDateString()}</p>
                                                     <p>Lote: ${it.lotNumber || 'N/A'} | Validade: ${it.expirationDate ? it.expirationDate.split('-').reverse().join('/') : 'N/A'}</p>

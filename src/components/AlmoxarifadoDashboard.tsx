@@ -924,7 +924,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             <body>
                 ${receiptData.items.map((item, idx) => `
                     <div class="label-card">
-                        <h1>${item.name.split(' ').slice(0, 2).join(' ')}</h1>
+                        <h1>${item.name.split(' ').slice(0, 4).join(' ')}</h1>
                         <h2>${receiptData!.supplierName}</h2>
                         <div class="info">
                             <p><strong>LOTE:</strong> <span>${(receiptData as any).items[idx].lotNumber || 'UNICO'}</span></p>
