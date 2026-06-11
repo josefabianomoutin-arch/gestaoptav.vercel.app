@@ -214,6 +214,27 @@ const App: React.FC = () => {
     });
     unsubscribes.push(unsubPasswords);
 
+    // Carregamento de Fornecedores e PerCapitaConfig ANTES do usuário autenticar, pois são necessários para o login dos produtores
+    const unsubSuppliers = onValue(suppliersRef, (snapshot) => {
+      const data = snapshot.val();
+      const list = data ? Object.entries(data).map(([key, value]: [string, any]) => ({
+        ...value,
+        id: value.id || key,
+        cpf: value.cpf || key
+      })) : [];
+      setSuppliers(list as Supplier[]);
+      safeLocalStorageSetItem('cached_suppliers', JSON.stringify(list));
+    });
+    unsubscribes.push(unsubSuppliers);
+
+    const unsubPerCapita = onValue(perCapitaConfigRef, (snapshot) => {
+      const data = snapshot.val();
+      const config = data || {};
+      setPerCapitaConfig(config);
+      safeLocalStorageSetItem('cached_perCapitaConfig', JSON.stringify(config));
+    });
+    unsubscribes.push(unsubPerCapita);
+
     return () => {
       unsubscribes.forEach((unsub) => unsub());
     };
@@ -224,20 +245,6 @@ const App: React.FC = () => {
     if (!database || !user) return;
 
     const unsubscribes: (() => void)[] = [];
-
-    // Carregamento de Fornecedores
-    const unsubSuppliers = onValue(suppliersRef, (snapshot) => {
-      const data = snapshot.val();
-      console.log("Firebase Suppliers Data:", data);
-      const list = data ? Object.entries(data).map(([key, value]: [string, any]) => ({
-        ...value,
-        id: value.id || key,
-        cpf: value.cpf || key
-      })) : [];
-      setSuppliers(list as Supplier[]);
-      safeLocalStorageSetItem('cached_suppliers', JSON.stringify(list));
-    });
-    unsubscribes.push(unsubSuppliers);
 
     // Logs de Movimentação do Almoxarifado (Altamente pesado)
     const unsubWarehouseLog = onValue(warehouseLogRef, (snapshot) => {
@@ -250,16 +257,6 @@ const App: React.FC = () => {
       safeLocalStorageSetItem('cached_warehouseLog', JSON.stringify(list));
     });
     unsubscribes.push(unsubWarehouseLog);
-
-    // Configurações Per Capita
-    const unsubPerCapita = onValue(perCapitaConfigRef, (snapshot) => {
-      const data = snapshot.val();
-      console.log("Firebase PerCapitaConfig Data:", data);
-      const config = data || {};
-      setPerCapitaConfig(config);
-      safeLocalStorageSetItem('cached_perCapitaConfig', JSON.stringify(config));
-    });
-    unsubscribes.push(unsubPerCapita);
 
     // Registros de Limpeza
     const unsubCleaningLogs = onValue(cleaningLogsRef, (snapshot) => {
