@@ -528,7 +528,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             <body>
                 <div class="label-card">
                     <div class="header-row">
-                        <h1 title="${itemText}">${itemText.split(' ').slice(0, 3).join(' ')}</h1>
+                        <h1 title="${itemText}">${itemText.split(' ').slice(0, 4).join(' ')}</h1>
                         <span class="tag-saldo-label">SALDO RESTANTE</span>
                     </div>
                     <h2>${supplierName}</h2>

@@ -804,7 +804,16 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 const existing = groupedItemsMap.get(itemName);
                 existing.quantity += quantity;
                 existing.totalValue += unitPrice;
+                if (!existing.lotNumber && (itemMovement?.lotNumber || d.lotNumber)) {
+                    existing.lotNumber = itemMovement?.lotNumber || d.lotNumber;
+                }
+                const expVal = itemMovement?.expirationDate || d.expirationDate || '';
+                if (!existing.expiration && expVal) {
+                    existing.expiration = expVal;
+                    existing.expirationDate = expVal;
+                }
             } else {
+                const expVal = itemMovement?.expirationDate || d.expirationDate || '';
                 groupedItemsMap.set(itemName, {
                     name: itemName,
                     quantity,
@@ -812,7 +821,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     unitPrice,
                     totalValue: unitPrice,
                     category: contractItem?.category,
-                    barcode: itemMovement?.barcode || d.barcode || ''
+                    barcode: itemMovement?.barcode || d.barcode || '',
+                    lotNumber: itemMovement?.lotNumber || d.lotNumber || 'UNICO',
+                    expiration: expVal,
+                    expirationDate: expVal
                 });
             }
         });
@@ -1079,7 +1091,15 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     <td class="text-center">${String(idx + 1).padStart(2, '0')}</td>
                                     <td class="text-right">${(it.quantity || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                     <td class="text-center">${it.unit || 'N/A'}</td>
-                                    <td>${it.name || 'N/A'}</td>
+                                    <td>
+                                        <div style="font-weight: bold;">${it.name || 'N/A'}</div>
+                                        ${(it.lotNumber || it.expirationDate) ? `
+                                            <div style="font-size: 8px; color: #555; font-family: monospace; margin-top: 2px;">
+                                                ${it.lotNumber ? `LOTE: ${it.lotNumber}` : ''}
+                                                ${it.expirationDate ? ` | VAL: ${it.expirationDate.split('-').reverse().join('/')}` : ''}
+                                            </div>
+                                        ` : ''}
+                                    </td>
                                     <td class="text-right">${formatCurrency(it.totalValue)}</td>
                                 </tr>
                             `).join('')}
@@ -2076,7 +2096,15 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                     <td className="border border-black p-1 text-center">{idx + 1}</td>
                                                     <td className="border border-black p-1 text-right">{(it.quantity || 0).toFixed(2)}</td>
                                                     <td className="border border-black p-1 text-center">{it.unit || 'N/A'}</td>
-                                                    <td className="border border-black p-1">{it.name || 'N/A'}</td>
+                                                    <td className="border border-black p-1">
+                                                        <div className="font-bold">{it.name || 'N/A'}</div>
+                                                        {(it.lotNumber || it.expirationDate) && (
+                                                            <div className="text-[8px] text-gray-500 font-mono mt-0.5">
+                                                                {it.lotNumber && `LOTE: ${it.lotNumber}`}
+                                                                {it.expirationDate && ` | VAL: ${it.expirationDate.split('-').reverse().join('/')}`}
+                                                            </div>
+                                                        )}
+                                                    </td>
                                                     <td className="border border-black p-1 text-right">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(it.totalValue || 0)}</td>
                                                 </tr>
                                             ))}
