@@ -79,8 +79,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   const isDouglas = currentUser?.cpf === '29099022859' || currentUser?.name?.toUpperCase().includes('DOUGLAS');
   const isAlfredo = currentUser?.cpf === '36554895876' || currentUser?.name?.toUpperCase().includes('ALFREDO');
 
-  const showChefeDep = isReadOnly || isDouglas || currentUser?.role === 'admin';
-  const showChefeSeg = isReadOnly || isAlfredo || currentUser?.role === 'admin';
+  const showChefeDep = isReadOnly || isDouglas || currentUser?.role === 'admin' || currentUser?.role === 'almoxarifado';
+  const showChefeSeg = isReadOnly || isAlfredo || currentUser?.role === 'admin' || currentUser?.role === 'almoxarifado';
 
   // Top level tabs: 'chefeDep' (Douglas Galdino) and 'chefeSeg' (Alfredo Lopes)
   const [activeSubTab, setActiveSubTab] = useState<'chefeDep' | 'chefeSeg'>(() => {
@@ -1004,14 +1004,25 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       return null;
     }
 
+    // Filtrar apenas pelos registros de entrada (Nota Fiscal que deu entrada no sistema)
+    const entradas = candidates.filter(c => c.log.type === 'entrada');
+
+    if (entradas.length > 0) {
+      // Ordena de forma a priorizar o score alto (melhor correspondência) e o timestamp decrescente (última nota a entrar)
+      entradas.sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        // Se a diferença de score for sutil (p. ex., até 15 pontos), prioriza o que for mais recente (último que entrou)
+        if (Math.abs(scoreDiff) > 15) {
+          return scoreDiff;
+        }
+        return (b.log.timestamp || 0) - (a.log.timestamp || 0);
+      });
+      return entradas[0].log;
+    }
+
+    // Fallback: se não houver nenhum registro do tipo 'entrada', ordena todos os candidatos por score e data de registro decrescente
     candidates.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
-      
-      const typeA = a.log.type || '';
-      const typeB = b.log.type || '';
-      if ((typeA === 'entrada' || typeA === 'saída') && typeB !== 'entrada' && typeB !== 'saída') return -1;
-      if ((typeB === 'entrada' || typeB !== 'saída') && typeA !== 'entrada' && typeA !== 'saída') return 1;
-
       return (b.log.timestamp || 0) - (a.log.timestamp || 0);
     });
 
