@@ -329,7 +329,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     const hasEditPermission = (activeSubTab === 'chefeDep' && isDouglas) || 
                               (activeSubTab === 'chefeSeg' && isAlfredo) ||
                               currentUser?.role === 'admin' ||
-                              (currentUser?.role === 'financeiro' && !isReadOnly);
+                              (currentUser?.role === 'financeiro' && !isReadOnly) ||
+                              (currentUser?.role === 'almoxarifado' && !isReadOnly);
 
     if (!hasEditPermission) return;
 
@@ -354,7 +355,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     const hasEditPermission = (activeSubTab === 'chefeDep' && isDouglas) || 
                               (activeSubTab === 'chefeSeg' && isAlfredo) ||
                               currentUser?.role === 'admin' ||
-                              (currentUser?.role === 'financeiro' && !isReadOnly);
+                              (currentUser?.role === 'financeiro' && !isReadOnly) ||
+                              (currentUser?.role === 'almoxarifado' && !isReadOnly);
 
     if (!hasEditPermission) return;
 
@@ -393,7 +395,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     const hasEditPermission = (activeSubTab === 'chefeDep' && isDouglas) || 
                               (activeSubTab === 'chefeSeg' && isAlfredo) ||
                               currentUser?.role === 'admin' ||
-                              (currentUser?.role === 'financeiro' && !isReadOnly);
+                              (currentUser?.role === 'financeiro' && !isReadOnly) ||
+                              (currentUser?.role === 'almoxarifado' && !isReadOnly);
 
     if (!hasEditPermission) return;
 
@@ -924,6 +927,159 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     printWindow.document.close();
   };
 
+  const getPrintableLotDetails = (itemName: string) => {
+    const cleanName = (n: string) => (n || '').trim().toUpperCase();
+    const itemKey = cleanName(itemName).split(' ').slice(0, 2).join(' ');
+    
+    if (!itemKey) return null;
+
+    // 1. Calculate current balance for each lot in stock
+    const lotBalances: Record<string, { 
+      balance: number; 
+      log: any;
+    }> = {};
+
+    (warehouseLog || []).forEach((log: any) => {
+      if (!log) return;
+      const name = log.itemName || log.item || '';
+      if (!name) return;
+      
+      const entryKey = cleanName(name).split(' ').slice(0, 2).join(' ');
+      if (entryKey !== itemKey) return;
+
+      const lot = log.lotNumber || log.lot || log.lote || 'UNICO';
+      const expiration = log.expirationDate || log.expiration || log.val || log.validade || 'N/A';
+      const key = `${lot}|${expiration}`;
+
+      if (!lotBalances[key]) {
+        lotBalances[key] = {
+          balance: 0,
+          log: log
+        };
+      }
+
+      const qty = Number(log.quantity || log.kg || 0);
+      const isEntrada = log.type === 'entrada';
+      if (isEntrada) {
+        lotBalances[key].balance += qty;
+        if (log.supplierName || !lotBalances[key].log.supplierName) {
+          lotBalances[key].log = log;
+        }
+      } else {
+        lotBalances[key].balance -= qty;
+      }
+    });
+
+    const activeLots = Object.values(lotBalances)
+      .filter(x => x.balance > 0.001)
+      .sort((a, b) => (b.log.timestamp || 0) - (a.log.timestamp || 0));
+
+    if (activeLots.length > 0) {
+      return activeLots[0].log;
+    }
+
+    const allEntradas = (warehouseLog || [])
+      .filter((log: any) => {
+        if (!log || log.type !== 'entrada') return false;
+        const name = log.itemName || log.item || '';
+        const entryKey = cleanName(name).split(' ').slice(0, 2).join(' ');
+        return entryKey === itemKey;
+      })
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    if (allEntradas.length > 0) {
+      return allEntradas[0];
+    }
+
+    return null;
+  };
+
+  const handlePrintItemLabel = (item: RowItem) => {
+    const lotDetails = getPrintableLotDetails(item.itemName);
+    if (!lotDetails) {
+      alert(`Aviso: Nenhum lote/entrada registrado no almoxarifado foi encontrado para "${item.itemName}". Para imprimir a etiqueta necessita-se de um lote válido.`);
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Por favor, permita popups para imprimir.');
+      return;
+    }
+
+    const itemNameFormatted = (lotDetails.itemName || lotDetails.item || item.itemName).split(' ').slice(0, 4).join(' ');
+    const supplierNameFormatted = lotDetails.supplierName || 'SEM FORNECEDOR';
+    const lotNumberFormatted = lotDetails.lotNumber || lotDetails.lot || 'UNICO';
+    const expirationFormatted = lotDetails.expirationDate || lotDetails.expiration || '';
+    const formattedExpiration = expirationFormatted && expirationFormatted !== 'N/A' && expirationFormatted.includes('-')
+      ? expirationFormatted.split('-').reverse().join('/')
+      : (expirationFormatted || 'N/A');
+    
+    const reqQty = parseFloat(String(item.quantity).replace(',', '.')) || 0;
+    const qtyText = reqQty > 0 ? reqQty.toFixed(2) : parseFloat(String(lotDetails.quantity || 0)).toFixed(2);
+    const unitFormatted = lotDetails.unit || 'UN';
+    const invoiceNumberFormatted = lotDetails.invoiceNumber || lotDetails.inboundInvoice || 'S/N';
+    const barcodeFormatted = lotDetails.barcode || 'N/A';
+    const dateFormatted = lotDetails.date ? lotDetails.date.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
+
+    const htmlContent = `
+        <html>
+        <head>
+            <title>Etiqueta de Cota - ${itemNameFormatted}</title>
+            <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+            <style>
+                @page { size: 100mm 50mm; margin: 0; }
+                body { margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: white; }
+                .label-card {
+                    width: 100mm; height: 50mm;
+                    padding: 2mm 4mm; box-sizing: border-box;
+                    display: flex; flex-direction: column;
+                    border: 0.1mm solid #eee;
+                }
+                h1 { font-size: 11pt; margin: 0 0 1mm 0; font-weight: 950; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 0.3mm solid #000; padding-bottom: 0.5mm; }
+                h2 { font-size: 7.5pt; margin: 0.5mm 0 1.5mm 0; font-weight: bold; text-transform: uppercase; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                .info { font-size: 7.5pt; line-height: 1.1; flex-grow: 1; }
+                .info p { margin: 0.2mm 0; display: flex; justify-content: space-between; }
+                .info strong { font-weight: 900; text-transform: uppercase; margin-right: 1mm; }
+                .barcode-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+                .barcode-svg { max-width: 90%; height: 14mm !important; }
+                .tag-cota { background-color: #000; color: #fff; padding: 0.2mm 1.2mm; font-size: 6.5pt; font-weight: 900; border-radius: 0.5mm; text-transform: uppercase; }
+            </style>
+        </head>
+        <body>
+            <div class="label-card">
+                <h1 style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 1px 0;">
+                   <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%;">${itemNameFormatted}</span>
+                   <span class="tag-cota">COTA DIRETOR</span>
+                </h1>
+                <h2>${supplierNameFormatted}</h2>
+                <div class="info">
+                    <p><strong>LOTE:</strong> <span>${lotNumberFormatted}</span></p>
+                    <p><strong>VAL:</strong> <span>${formattedExpiration}</span></p>
+                    <p><strong>QUANT:</strong> <span>${qtyText} ${unitFormatted}</span> / <strong>DOC:</strong> <span>${invoiceNumberFormatted}</span></p>
+                    <p><strong>DATA:</strong> <span>${dateFormatted}</span></p>
+                </div>
+                <div class="barcode-container">
+                    <svg id="barcode-item" class="barcode-svg"></svg>
+                </div>
+            </div>
+            <script>
+                window.onload = function() {
+                    try {
+                        JsBarcode("#barcode-item", "${barcodeFormatted}", {
+                            format: "CODE128", width: 1.2, height: 40, displayValue: true, margin: 0
+                         });
+                    } catch (e) { console.error(e); }
+                    setTimeout(() => { window.print(); window.close(); }, 500);
+                }
+            </script>
+        </body>
+        </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   const handlePrintHistoryReport = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -1333,18 +1489,19 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
             <div className="overflow-x-auto">
               <div className="min-w-[650px]">
-                <div className="grid grid-cols-[60px_1fr_120px_2fr] gap-2 md:gap-3 mb-2 bg-slate-100 p-3 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                <div className="grid grid-cols-[60px_1fr_100px_2fr_130px] gap-2 md:gap-3 mb-2 bg-slate-100 p-3 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
                   <div>Item</div>
                   <div className="text-left">Nome do Item</div>
                   <div>Quantidade</div>
                   <div className="text-left">Observações / Destinar</div>
+                  <div>Ações</div>
                 </div>
 
                 <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
                   {(viewingPastOrder.items || []).map((item) => (
                     <div
                       key={item.index}
-                      className={`grid grid-cols-[60px_1fr_120px_2fr] gap-2 md:gap-3 items-center p-2 rounded-2xl border ${
+                      className={`grid grid-cols-[60px_1fr_100px_2fr_130px] gap-2 md:gap-3 items-center p-2 rounded-2xl border ${
                         item.itemName.trim() !== '' ? 'bg-slate-50 border-slate-200 shadow-sm' : 'bg-white border-slate-100'
                       }`}
                     >
@@ -1361,6 +1518,19 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                       </div>
                       <div className="px-3 py-2 text-xs text-slate-500 bg-slate-100/40 rounded-xl">
                         {item.observation || <span className="text-slate-300">-</span>}
+                      </div>
+                      <div className="flex justify-center">
+                        {item.itemName && item.itemName.trim() !== '' ? (
+                          <button
+                            onClick={() => handlePrintItemLabel(item)}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[9px] uppercase px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm active:scale-95 transition-all w-full justify-center"
+                            title="Imprimir Etiqueta do Item"
+                          >
+                            <Printer className="h-3 w-3" /> Etiqueta
+                          </button>
+                        ) : (
+                          <span className="text-slate-300">-</span>
+                        )}
                       </div>
                     </div>
                   ))}

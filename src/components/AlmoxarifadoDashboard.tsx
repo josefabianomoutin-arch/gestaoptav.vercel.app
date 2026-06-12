@@ -16,6 +16,7 @@ import { getWeekNumber } from '../lib/supplierUtils';
 import { ensureArray } from '../lib/utils';
 
 interface AlmoxarifadoDashboardProps {
+    currentUser: { name: string; cpf: string; role: string };
     suppliers: Supplier[];
     warehouseLog: WarehouseMovement[];
     onLogout: () => void;
@@ -88,6 +89,7 @@ const getFirstBusinessDayOfMonth = (monthIndex: number, year: number) => {
 };
 
 const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({ 
+    currentUser,
     suppliers, 
     warehouseLog, 
     onLogout, 
@@ -1784,16 +1786,29 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         </div>
                     </div>
                 ) : activeTab === 'directors_percapita' ? (
-                    <DirectorPerCapitaTable 
-                      data={directorPerCapita} 
-                      onUpdate={onUpdateDirectorPerCapita} 
-                      currentUser={{ name: 'ALMOXARIFADO', cpf: 'almoxarifado', role: 'almoxarifado' }}
-                      isReadOnly={true}
-                      warehouseLog={warehouseLog}
-                      suppliers={suppliers}
-                      standardMenu={standardMenu}
-                      perCapitaConfig={perCapitaConfig}
-                    />
+                    <div className="p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold">Cota dos Diretores</h3>
+                            <button 
+                                onClick={async () => {
+                                    alert("Funcionalidade de impressão de etiqueta em desenvolvimento.");
+                                }}
+                                className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-indigo-700"
+                            >
+                                <Printer className="h-4 w-4" /> Imprimir Etiquetas
+                            </button>
+                        </div>
+                        <DirectorPerCapitaTable 
+                          data={directorPerCapita} 
+                          onUpdate={onUpdateDirectorPerCapita} 
+                          currentUser={currentUser}
+                          isReadOnly={false}
+                          warehouseLog={warehouseLog}
+                          suppliers={suppliers}
+                          standardMenu={standardMenu}
+                          perCapitaConfig={perCapitaConfig}
+                        />
+                    </div>
                 ) : activeTab === 'sync' ? (
                     <SynchronizationModule onSyncWithFirebase={async (data) => {
                         for (const entry of data) {

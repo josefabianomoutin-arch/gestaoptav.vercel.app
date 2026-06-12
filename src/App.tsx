@@ -2964,6 +2964,7 @@ const App: React.FC = () => {
 
     if (user.role === 'almoxarifado') {
       return <AlmoxarifadoDashboard 
+               currentUser={user}
                suppliers={combinedSuppliers || []} 
                warehouseLog={warehouseLog || []} 
                onLogout={handleLogout} 
