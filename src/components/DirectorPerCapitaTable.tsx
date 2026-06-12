@@ -51,6 +51,20 @@ interface DirectorPerCapitaTableProps {
   perCapitaConfig?: PerCapitaConfig;
 }
 
+const generateFallbackDetails = (itemName: string, quantity: string) => {
+  return {
+    itemName: itemName,
+    supplierName: 'ESTOQUE GERAL / DIRETORIA',
+    lotNumber: 'GERAL',
+    expirationDate: 'N/A',
+    invoiceNumber: 'S/N',
+    barcode: 'COTA' + String(Date.now()).slice(-8),
+    unit: 'UN',
+    quantity: parseFloat(String(quantity).replace(',', '.')) || 0,
+    date: new Date().toISOString().split('T')[0]
+  };
+};
+
 export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   data,
   onUpdate,
@@ -927,78 +941,89 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     printWindow.document.close();
   };
 
-  const getPrintableLotDetails = (itemName: string) => {
-    const cleanName = (n: string) => (n || '').trim().toUpperCase();
-    const itemKey = cleanName(itemName).split(' ').slice(0, 2).join(' ');
-    
-    if (!itemKey) return null;
+  const normalizeText = (text: string): string => {
+    if (!text) return '';
+    return text
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // remove accents
+      .replace(/[;,\-."']/g, ' ')      // replace punctuation
+      .replace(/\s+/g, ' ')            // single spaces
+      .trim()
+      .toUpperCase();
+  };
 
-    // 1. Calculate current balance for each lot in stock
-    const lotBalances: Record<string, { 
-      balance: number; 
-      log: any;
-    }> = {};
+  const getMatchScore = (requestedName: string, logName: string): number => {
+    const reqNorm = normalizeText(requestedName);
+    const logNorm = normalizeText(logName);
+    if (!reqNorm || !logNorm) return 0;
+    if (reqNorm === logNorm) return 100;
+
+    const reqWords = reqNorm.split(' ').filter(Boolean);
+    const logWords = logNorm.split(' ').filter(Boolean);
+
+    if (reqWords.length === 0 || logWords.length === 0) return 0;
+
+    const reqFirstTwo = reqWords.slice(0, 2).join(' ');
+    const logFirstTwo = logWords.slice(0, 2).join(' ');
+    if (reqFirstTwo && logFirstTwo && reqFirstTwo === logFirstTwo) return 90;
+
+    if (logNorm.includes(reqNorm)) return 80;
+    if (reqNorm.includes(logNorm)) return 70;
+
+    if (reqWords[0] === logWords[0]) return 50;
+
+    const reqFirstWordChars = reqWords[0].slice(0, 4);
+    const logFirstWordChars = logWords[0].slice(0, 4);
+    if (reqFirstWordChars && logFirstWordChars && reqFirstWordChars === logFirstWordChars) return 40;
+
+    const sharedWords = reqWords.filter(w => logWords.includes(w));
+    if (sharedWords.length > 0) {
+      return 20 + sharedWords.length;
+    }
+
+    return 0;
+  };
+
+  const getPrintableLotDetails = (itemName: string) => {
+    if (!itemName || !itemName.trim()) return null;
+
+    const candidates: Array<{ log: any; score: number }> = [];
 
     (warehouseLog || []).forEach((log: any) => {
       if (!log) return;
-      const name = log.itemName || log.item || '';
-      if (!name) return;
-      
-      const entryKey = cleanName(name).split(' ').slice(0, 2).join(' ');
-      if (entryKey !== itemKey) return;
+      const logItemName = log.itemName || log.item || '';
+      if (!logItemName) return;
 
-      const lot = log.lotNumber || log.lot || log.lote || 'UNICO';
-      const expiration = log.expirationDate || log.expiration || log.val || log.validade || 'N/A';
-      const key = `${lot}|${expiration}`;
-
-      if (!lotBalances[key]) {
-        lotBalances[key] = {
-          balance: 0,
-          log: log
-        };
-      }
-
-      const qty = Number(log.quantity || log.kg || 0);
-      const isEntrada = log.type === 'entrada';
-      if (isEntrada) {
-        lotBalances[key].balance += qty;
-        if (log.supplierName || !lotBalances[key].log.supplierName) {
-          lotBalances[key].log = log;
-        }
-      } else {
-        lotBalances[key].balance -= qty;
+      const score = getMatchScore(itemName, logItemName);
+      if (score >= 35) { // broad matching threshold
+        candidates.push({ log, score });
       }
     });
 
-    const activeLots = Object.values(lotBalances)
-      .filter(x => x.balance > 0.001)
-      .sort((a, b) => (b.log.timestamp || 0) - (a.log.timestamp || 0));
-
-    if (activeLots.length > 0) {
-      return activeLots[0].log;
+    if (candidates.length === 0) {
+      return null;
     }
 
-    const allEntradas = (warehouseLog || [])
-      .filter((log: any) => {
-        if (!log || log.type !== 'entrada') return false;
-        const name = log.itemName || log.item || '';
-        const entryKey = cleanName(name).split(' ').slice(0, 2).join(' ');
-        return entryKey === itemKey;
-      })
-      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    candidates.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      
+      const typeA = a.log.type || '';
+      const typeB = b.log.type || '';
+      if ((typeA === 'entrada' || typeA === 'saída') && typeB !== 'entrada' && typeB !== 'saída') return -1;
+      if ((typeB === 'entrada' || typeB !== 'saída') && typeA !== 'entrada' && typeA !== 'saída') return 1;
 
-    if (allEntradas.length > 0) {
-      return allEntradas[0];
-    }
+      return (b.log.timestamp || 0) - (a.log.timestamp || 0);
+    });
 
-    return null;
+    return candidates[0].log;
   };
 
   const handlePrintItemLabel = (item: RowItem) => {
-    const lotDetails = getPrintableLotDetails(item.itemName);
+    let lotDetails = getPrintableLotDetails(item.itemName);
+    
+    // Fallback descriptor if no item lot was logged in warehouseLog
     if (!lotDetails) {
-      alert(`Aviso: Nenhum lote/entrada registrado no almoxarifado foi encontrado para "${item.itemName}". Para imprimir a etiqueta necessita-se de um lote válido.`);
-      return;
+      lotDetails = generateFallbackDetails(item.itemName, item.quantity);
     }
 
     const printWindow = window.open('', '_blank');
