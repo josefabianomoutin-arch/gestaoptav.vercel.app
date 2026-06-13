@@ -10,7 +10,9 @@ import {
   History, 
   FileCheck, 
   ArrowLeft, 
-  Trash
+  Trash,
+  Barcode as BarcodeIcon,
+  Search
 } from 'lucide-react';
 
 interface RowItem {
@@ -94,8 +96,9 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   // Category sub-tab of the active manager: 'alimentacao' or 'limpeza'
   const [categoryTab, setCategoryTab] = useState<'alimentacao' | 'limpeza'>('alimentacao');
 
-  // Currently focused row input index for suggestions
-  const [focusedRowIndex, setFocusedRowIndex] = useState<number | null>(null);
+  // Selector Overlay or popup states
+  const [activeSelectRowIndex, setActiveSelectRowIndex] = useState<number | null>(null);
+  const [selectSearchTerm, setSelectSearchTerm] = useState('');
 
   // Current view mode inside active tab: 'form' or 'history'
   const [viewMode, setViewMode] = useState<'form' | 'history'>(isReadOnly ? 'history' : 'form');
@@ -114,7 +117,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   const orderKey = categoryTab === 'alimentacao' ? 'activeOrder' : 'limpezaActiveOrder';
   const historyKey = categoryTab === 'alimentacao' ? 'history' : 'limpezaHistory';
 
-  // Get all unique items in perCapitaConfig (PPAIS, Estocáveis, and Perecíveis)
+  // Get all unique items in perCapitaConfig (PPAIS, Estocáveis, and Perecíveis) and suppliers
   const percapitaSearchItems = React.useMemo(() => {
     const list: string[] = [];
     
@@ -136,11 +139,31 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       });
     }
 
+    // 2. Also from the regular suppliers list (if provided) to ensure cleaning/limpeza items or others are searchable!
+    if (suppliers && Array.isArray(suppliers)) {
+      suppliers.forEach(supplier => {
+        const cItems = supplier.contractItems || [];
+        const itemsArray = Array.isArray(cItems) 
+          ? cItems 
+          : typeof cItems === 'object' 
+            ? Object.values(cItems) 
+            : [];
+        itemsArray.forEach((item: any) => {
+          if (item && item.name && item.name.trim()) {
+            const fullName = item.name.trim().toUpperCase();
+            if (!list.includes(fullName)) {
+              list.push(fullName);
+            }
+          }
+        });
+      });
+    }
+
     return list.sort((a, b) => a.localeCompare(b)).map(item => ({
       original: item,
       normalized: item.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase()
     }));
-  }, [perCapitaConfig]);
+  }, [perCapitaConfig, suppliers]);
 
   // Memoized map for item units
   const itemUnitsMap = React.useMemo(() => {
@@ -1029,6 +1052,122 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     return candidates[0].log;
   };
 
+  const handlePrintAllItemLabels = (itemsList: RowItem[]) => {
+    const validItems = (itemsList || []).filter(item => item && item.itemName && item.itemName.trim() !== '');
+    if (validItems.length === 0) {
+      alert('Aviso: Não há itens preenchidos nesta cota do diretor para imprimir etiquetas.');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Por favor, permita popups para imprimir.');
+      return;
+    }
+
+    const cardsHtml = validItems.map((item, idx) => {
+      let lotDetails = getPrintableLotDetails(item.itemName);
+      if (!lotDetails) {
+        lotDetails = generateFallbackDetails(item.itemName, item.quantity);
+      }
+
+      const itemNameFormatted = (lotDetails.itemName || lotDetails.item || item.itemName).split(' ').slice(0, 4).join(' ');
+      const supplierNameFormatted = lotDetails.supplierName || 'SEM FORNECEDOR';
+      const lotNumberFormatted = lotDetails.lotNumber || lotDetails.lot || 'UNICO';
+      const expirationFormatted = lotDetails.expirationDate || lotDetails.expiration || '';
+      const formattedExpiration = expirationFormatted && expirationFormatted !== 'N/A' && expirationFormatted.includes('-')
+        ? expirationFormatted.split('-').reverse().join('/')
+        : (expirationFormatted || 'N/A');
+      
+      const reqQty = parseFloat(String(item.quantity).replace(',', '.')) || 0;
+      const qtyText = reqQty > 0 ? reqQty.toFixed(2) : parseFloat(String(lotDetails.quantity || 0)).toFixed(2);
+      const unitFormatted = lotDetails.unit || 'UN';
+      const invoiceNumberFormatted = lotDetails.invoiceNumber || lotDetails.inboundInvoice || 'S/N';
+      const barcodeFormatted = lotDetails.barcode || 'N/A';
+      const dateFormatted = lotDetails.date ? lotDetails.date.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
+
+      return {
+        html: `
+            <div class="label-card">
+                <h1 style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 1px 0;">
+                   <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%;">${itemNameFormatted}</span>
+                   <span class="tag-cota">COTA DIRETOR</span>
+                </h1>
+                <h2>${supplierNameFormatted}</h2>
+                <div class="info">
+                    <p><strong>LOTE:</strong> <span>${lotNumberFormatted}</span></p>
+                    <p><strong>VAL:</strong> <span>${formattedExpiration}</span></p>
+                    <p><strong>QUANT:</strong> <span>${qtyText} ${unitFormatted}</span> / <strong>DOC:</strong> <span>${invoiceNumberFormatted}</span></p>
+                    <p><strong>DATA:</strong> <span>${dateFormatted}</span></p>
+                </div>
+                <div class="barcode-container">
+                    <svg id="barcode-item-${idx}" class="barcode-svg"></svg>
+                </div>
+            </div>
+        `,
+        barcodeId: `#barcode-item-${idx}`,
+        barcodeValue: barcodeFormatted
+      };
+    });
+
+    const isAlim = categoryTab === 'alimentacao';
+    const subTabTitle = activeSubTab === 'chefeDep' ? 'Douglas' : 'Alfredo';
+    const title = `Etiquetas Cota ${subTabTitle} - ${isAlim ? 'ALIMENTAÇÃO' : 'LIMPEZA'}`;
+
+    const barcodesScripts = cardsHtml.map(card => `
+        try {
+            JsBarcode("${card.barcodeId}", "${card.barcodeValue}", {
+                format: "CODE128", width: 1.2, height: 40, displayValue: true, margin: 0
+            });
+        } catch (e) {
+            console.error("Erro ao gerar código de barras ${card.barcodeId}:", e);
+        }
+    `).join('\n');
+
+    const combinedHtml = `
+        <html>
+        <head>
+            <title>${title}</title>
+            <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+            <style>
+                @page { size: 100mm 50mm; margin: 0; }
+                body { margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: white; }
+                .label-card {
+                    width: 100mm; height: 50mm;
+                    padding: 2mm 4mm; box-sizing: border-box;
+                    display: flex; flex-direction: column;
+                    border: 0.1mm solid #eee;
+                    page-break-after: always;
+                }
+                .label-card:last-child {
+                    page-break-after: avoid;
+                }
+                h1 { font-size: 11pt; margin: 0 0 1mm 0; font-weight: 950; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 0.3mm solid #000; padding-bottom: 0.5mm; }
+                h2 { font-size: 7.5pt; margin: 0.5mm 0 1.5mm 0; font-weight: bold; text-transform: uppercase; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                .info { font-size: 7.5pt; line-height: 1.1; flex-grow: 1; }
+                .info p { margin: 0.2mm 0; display: flex; justify-content: space-between; }
+                .info strong { font-weight: 900; text-transform: uppercase; margin-right: 1mm; }
+                .barcode-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+                .barcode-svg { max-width: 90%; height: 14mm !important; }
+                .tag-cota { background-color: #000; color: #fff; padding: 0.2mm 1.2mm; font-size: 6.5pt; font-weight: 900; border-radius: 0.5mm; text-transform: uppercase; }
+            </style>
+        </head>
+        <body>
+            ${cardsHtml.map(c => c.html).join('\n')}
+            <script>
+                window.onload = function() {
+                    ${barcodesScripts}
+                    setTimeout(() => { window.print(); window.close(); }, 500);
+                }
+            </script>
+        </body>
+        </html>
+    `;
+
+    printWindow.document.write(combinedHtml);
+    printWindow.document.close();
+  };
+
   const handlePrintItemLabel = (item: RowItem) => {
     let lotDetails = getPrintableLotDetails(item.itemName);
     
@@ -1501,12 +1640,20 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => handlePrintOrder(viewingPastOrder)}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-2.5 px-4 rounded-xl text-[10px] uppercase tracking-wider flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
-              >
-                <Printer className="h-3.5 w-3.5" /> Imprimir
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handlePrintAllItemLabels(viewingPastOrder.items)}
+                  className="bg-zinc-800 hover:bg-zinc-700 text-white font-black py-2.5 px-4 rounded-xl text-[10px] uppercase tracking-wider flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+                >
+                  <BarcodeIcon className="h-3.5 w-3.5 text-indigo-400" /> Imprimir Etiquetas
+                </button>
+                <button
+                  onClick={() => handlePrintOrder(viewingPastOrder)}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-2.5 px-4 rounded-xl text-[10px] uppercase tracking-wider flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+                >
+                  <Printer className="h-3.5 w-3.5" /> Imprimir Pedido
+                </button>
+              </div>
             </div>
 
             <div className="bg-emerald-50 border border-emerald-200 px-5 py-3 rounded-2xl flex items-center gap-3.5">
@@ -1525,51 +1672,95 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
             <div className="overflow-x-auto">
               <div className="min-w-[650px]">
-                <div className="grid grid-cols-[60px_1fr_100px_2fr_130px] gap-2 md:gap-3 mb-2 bg-slate-100 p-3 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                <div className="grid grid-cols-[60px_2fr_100px_90px_110px_110px_1.5fr_130px] gap-2 md:gap-3 mb-2 bg-slate-100 p-3 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
                   <div>Item</div>
                   <div className="text-left">Nome do Item</div>
                   <div>Quantidade</div>
+                  <div>Unid.</div>
+                  <div>Lote</div>
+                  <div>Validade</div>
                   <div className="text-left">Observações / Destinar</div>
                   <div>Ações</div>
                 </div>
 
                 <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
-                  {(viewingPastOrder.items || []).map((item) => (
-                    <div
-                      key={item.index}
-                      className={`grid grid-cols-[60px_1fr_100px_2fr_130px] gap-2 md:gap-3 items-center p-2 rounded-2xl border ${
-                        item.itemName.trim() !== '' ? 'bg-slate-50 border-slate-200 shadow-sm' : 'bg-white border-slate-100'
-                      }`}
-                    >
-                      <div className="flex justify-center">
-                        <span className="h-7 w-7 rounded-lg bg-slate-100 text-slate-400 font-black text-xs flex items-center justify-center border border-slate-200">
-                          {item.index}
-                        </span>
+                  {(viewingPastOrder.items || []).map((item) => {
+                    const lotDetails = getPrintableLotDetails(item.itemName);
+                    const lotNumberText = lotDetails ? (lotDetails.lotNumber || lotDetails.lot || 'UNICO') : '-';
+                    const expRaw = lotDetails ? (lotDetails.expirationDate || lotDetails.expiration || '') : '';
+                    const expirationText = expRaw && expRaw !== 'N/A'
+                      ? (expRaw.includes('-') ? expRaw.split('-').reverse().join('/') : expRaw)
+                      : (lotDetails ? 'N/A' : '-');
+
+                    return (
+                      <div
+                        key={item.index}
+                        className={`grid grid-cols-[60px_2fr_100px_90px_110px_110px_1.5fr_130px] gap-2 md:gap-3 items-center p-2 rounded-2xl border ${
+                          item.itemName.trim() !== '' ? 'bg-slate-50 border-slate-200 shadow-sm' : 'bg-white border-slate-100'
+                        }`}
+                      >
+                        <div className="flex justify-center">
+                          <span className="h-7 w-7 rounded-lg bg-slate-100 text-slate-400 font-black text-xs flex items-center justify-center border border-slate-200">
+                            {item.index}
+                          </span>
+                        </div>
+                        <div className="px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100/40 rounded-xl truncate">
+                          {item.itemName || <span className="text-slate-300">-</span>}
+                        </div>
+                        <div className="px-3 py-2 text-center text-xs font-black text-indigo-600 bg-slate-100/40 rounded-xl">
+                          {item.quantity || <span className="text-slate-300">-</span>}
+                        </div>
+                        <div className="flex justify-center">
+                          {item.itemName.trim() !== '' ? (
+                            <span className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-white font-black text-[9px] uppercase tracking-wider select-none shadow-sm shadow-slate-900/10">
+                              {getItemUnit(item.itemName) || 'KG'}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-bold text-[10px]">-</span>
+                          )}
+                        </div>
+
+                        {/* Lote (Lot) Badge */}
+                        <div className="flex justify-center">
+                          {item.itemName.trim() !== '' ? (
+                            <span className="px-2 py-1 rounded bg-zinc-100 border border-zinc-200 text-zinc-700 font-extrabold text-[9px] uppercase tracking-wider select-none shadow-sm truncate max-w-full">
+                              {lotNumberText}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-bold text-[10px]">-</span>
+                          )}
+                        </div>
+
+                        {/* Validade (Expiration) Badge */}
+                        <div className="flex justify-center">
+                          {item.itemName.trim() !== '' ? (
+                            <span className="px-2 py-1 rounded bg-zinc-100 border border-zinc-200 text-zinc-700 font-extrabold text-[9px] uppercase tracking-wider select-none shadow-sm truncate max-w-full">
+                              {expirationText}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-bold text-[10px]">-</span>
+                          )}
+                        </div>
+
+                        <div className="px-3 py-2 text-xs text-slate-500 bg-slate-100/40 rounded-xl truncate">
+                          {item.observation || <span className="text-slate-300">-</span>}
+                        </div>
+                        <div className="flex justify-center">
+                          {item.itemName && item.itemName.trim() !== '' ? (
+                            <button
+                              onClick={() => handlePrintItemLabel(item)}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[9px] uppercase px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm active:scale-95 transition-all w-full justify-center"
+                              title="Imprimir Etiqueta do Item"
+                            >
+                              <Printer className="h-3 w-3" /> Etiqueta
+                            </button>
+                          ) : (
+                            <span className="text-slate-300">-</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100/40 rounded-xl">
-                        {item.itemName || <span className="text-slate-300">-</span>}
-                      </div>
-                      <div className="px-3 py-2 text-center text-xs font-black text-indigo-600 bg-slate-100/40 rounded-xl">
-                        {item.quantity || <span className="text-slate-300">-</span>}
-                      </div>
-                      <div className="px-3 py-2 text-xs text-slate-500 bg-slate-100/40 rounded-xl">
-                        {item.observation || <span className="text-slate-300">-</span>}
-                      </div>
-                      <div className="flex justify-center">
-                        {item.itemName && item.itemName.trim() !== '' ? (
-                          <button
-                            onClick={() => handlePrintItemLabel(item)}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[9px] uppercase px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm active:scale-95 transition-all w-full justify-center"
-                            title="Imprimir Etiqueta do Item"
-                          >
-                            <Printer className="h-3 w-3" /> Etiqueta
-                          </button>
-                        ) : (
-                          <span className="text-slate-300">-</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -1639,6 +1830,13 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
               
               <div className="flex items-center gap-2 w-full md:w-auto">
                 <button
+                  onClick={() => handlePrintAllItemLabels(currentActiveOrderToPrint.items)}
+                  className="flex-1 md:flex-none justify-center bg-zinc-800 hover:bg-zinc-700 text-white font-black py-2.5 px-5 rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all"
+                >
+                  <BarcodeIcon className="h-4 w-4 text-indigo-400" />
+                  Imprimir Etiquetas
+                </button>
+                <button
                   onClick={() => handlePrintOrder(currentActiveOrderToPrint)}
                   className="flex-1 md:flex-none justify-center bg-indigo-600 hover:bg-slate-800 text-white font-black py-2.5 px-5 rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all"
                 >
@@ -1697,11 +1895,13 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
             {/* Main Interactive Table Grid */}
             <div className="overflow-x-auto">
               <div className="min-w-[650px]">
-                <div className="grid grid-cols-[60px_1fr_100px_90px_2fr_40px] gap-2 md:gap-3 mb-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                <div className="grid grid-cols-[60px_2fr_100px_90px_110px_110px_1.5fr_40px] gap-2 md:gap-3 mb-2 bg-slate-50 p-2.5 rounded-2xl border border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
                   <div>Ref</div>
                   <div className="text-left">Nome do Item</div>
                   <div>Quantidade</div>
                   <div>Unid.</div>
+                  <div>Lote</div>
+                  <div>Validade</div>
                   <div className="text-left">Observações / Destinação</div>
                   <div></div>
                 </div>
@@ -1716,10 +1916,17 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                       (currentUser?.role === 'financeiro' && !isReadOnly)
                     );
 
+                    const lotDetails = getPrintableLotDetails(item.itemName);
+                    const lotNumberText = lotDetails ? (lotDetails.lotNumber || lotDetails.lot || 'UNICO') : '-';
+                    const expRaw = lotDetails ? (lotDetails.expirationDate || lotDetails.expiration || '') : '';
+                    const expirationText = expRaw && expRaw !== 'N/A'
+                      ? (expRaw.includes('-') ? expRaw.split('-').reverse().join('/') : expRaw)
+                      : (lotDetails ? 'N/A' : '-');
+
                     return (
                       <div
                         key={item.index}
-                        className={`grid grid-cols-[60px_1fr_100px_90px_2fr_40px] gap-2 md:gap-3 items-center p-2 rounded-2xl border transition-all ${
+                        className={`grid grid-cols-[60px_2fr_100px_90px_110px_110px_1.5fr_40px] gap-2 md:gap-3 items-center p-2 rounded-2xl border transition-all ${
                           item.itemName.trim() !== '' ? 'bg-slate-50 border-zinc-200' : 'bg-white border-slate-100'
                         } hover:border-slate-300`}
                       >
@@ -1732,62 +1939,88 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
                         {/* Name Column */}
                         <div className="relative">
-                          <input
-                            type="text"
-                            disabled={!isEditable}
-                            placeholder={isEditable ? (categoryTab === 'alimentacao' ? "Escreva para buscar..." : "Nome do produto...") : "(Vazio)"}
-                            value={item.itemName}
-                            onFocus={() => {
-                              if (categoryTab === 'alimentacao') {
-                                setFocusedRowIndex(item.index);
+                          <div 
+                            className={`w-full bg-transparent px-3 py-2 rounded-xl text-xs font-bold text-slate-800 border border-transparent hover:bg-slate-50 cursor-pointer flex items-center justify-between transition-all ${
+                              !isEditable ? 'pointer-events-none' : ''
+                            }`}
+                            onClick={() => {
+                              if (isEditable) {
+                                setActiveSelectRowIndex(item.index);
+                                setSelectSearchTerm('');
                               }
                             }}
-                            onBlur={() => {
-                              // Brief delay to allow clicking on the dropdown candidates list
-                              setTimeout(() => {
-                                setFocusedRowIndex(prev => prev === item.index ? null : prev);
-                              }, 250);
-                            }}
-                            onChange={(e) => handleFieldChange(item.index, 'itemName', e.target.value)}
-                            className="w-full bg-transparent px-3 py-2 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
-                          />
-                          {categoryTab === 'alimentacao' && focusedRowIndex === item.index && isEditable && (
-                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 max-h-48 overflow-y-auto font-sans" style={{ minWidth: '220px' }}>
-                              {(() => {
-                                const normalizeText = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                                const q = normalizeText(item.itemName.trim());
-                                if (q === '') {
-                                  return (
-                                    <div className="p-2.5 text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-center col-span-1">
-                                      Digite para buscar...
-                                    </div>
-                                  );
-                                }
-                                const suggestions = percapitaSearchItems.filter(p => p.normalized.includes(q)).map(p => p.original);
-                                if (suggestions.length === 0) {
-                                  return (
-                                    <div className="p-2.5 text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-center col-span-1">
-                                      Nenhum item cadastrado
-                                    </div>
-                                  );
-                                }
-                                return suggestions.slice(0, 30).map((sugg, idx) => (
-                                  <button
-                                    key={idx}
-                                    type="button"
-                                    onMouseDown={() => {
-                                      const words = sugg.trim().split(/\s+/);
-                                      const formatted = words.length > 3 ? words.slice(0, 3).join(' ') : sugg;
-                                      handleFieldChange(item.index, 'itemName', formatted);
-                                      setFocusedRowIndex(null);
-                                    }}
-                                    className="w-full text-left px-3.5 py-2 text-[10.5px] uppercase font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors border-b border-slate-100 last:border-b-0"
-                                  >
-                                    {sugg}
-                                  </button>
-                                ));
-                              })()}
-                            </div>
+                          >
+                            <span className={item.itemName ? "text-slate-800 font-bold truncate pr-2" : "text-slate-300 font-medium"}>
+                              {item.itemName || "Selecionar item..."}
+                            </span>
+                            {isEditable && (
+                              <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                            )}
+                          </div>
+
+                          {activeSelectRowIndex === item.index && isEditable && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-40 bg-transparent" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveSelectRowIndex(null);
+                                  setSelectSearchTerm('');
+                                }} 
+                              />
+                              <div 
+                                className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-3xl shadow-2xl z-50 p-3 max-h-72 overflow-y-auto font-sans flex flex-col gap-2" 
+                                style={{ minWidth: '320px' }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="p-1 border-b border-slate-100 flex items-center gap-2">
+                                  <Search className="h-4 w-4 text-indigo-500 shrink-0" />
+                                  <input
+                                    type="text"
+                                    placeholder="Digite para filtrar o item cadastrado..."
+                                    value={selectSearchTerm}
+                                    onChange={(e) => setSelectSearchTerm(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-150 rounded-xl px-3 py-1.5 text-xs font-semibold focus:bg-white focus:outline-none focus:border-indigo-500"
+                                    autoFocus
+                                  />
+                                </div>
+                                <div className="space-y-0.5 overflow-y-auto max-h-48 pr-1">
+                                  {(() => {
+                                    const normalizeText = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                                    const q = normalizeText(selectSearchTerm.trim());
+                                    const suggestions = percapitaSearchItems.filter(p => {
+                                      if (q === '') return true;
+                                      return p.normalized.includes(q);
+                                    }).map(p => p.original);
+
+                                    if (suggestions.length === 0) {
+                                      return (
+                                        <div className="p-3 text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-center">
+                                          Nenhum cadastrado encontrado
+                                        </div>
+                                      );
+                                    }
+
+                                    return suggestions.slice(0, 100).map((sugg, idx) => (
+                                      <button
+                                        key={idx}
+                                        type="button"
+                                        onClick={() => {
+                                          // Keep complete registered name so unit match and scoring is exact
+                                          handleFieldChange(item.index, 'itemName', sugg);
+                                          setActiveSelectRowIndex(null);
+                                          setSelectSearchTerm('');
+                                        }}
+                                        className="w-full text-left px-3 py-1.5 text-[10.5px] uppercase font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg transition-colors border-b border-slate-50 last:border-b-0 flex items-center justify-between"
+                                      >
+                                        <span className="truncate max-w-[85%]">{sugg}</span>
+                                        <span className="text-[8px] px-1.5 py-0.5 bg-indigo-100 rounded text-indigo-600 font-extrabold shrink-0 uppercase tracking-widest leading-none"> escolher </span>
+                                      </button>
+                                    ));
+                                  })()}
+                                </div>
+                              </div>
+                            </>
                           )}
                         </div>
 
@@ -1796,7 +2029,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                           <input
                             type="text"
                             disabled={!isEditable}
-                            placeholder={isEditable ? "Ex: 10 Sacos" : "-"}
+                            placeholder={isEditable ? "Ex: 10" : "-"}
                             value={item.quantity}
                             onChange={(e) => handleFieldChange(item.index, 'quantity', e.target.value)}
                             className="w-full bg-transparent px-3 py-2 text-center rounded-xl text-xs font-extrabold text-indigo-700 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
@@ -1808,6 +2041,28 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                           {item.itemName.trim() !== '' ? (
                             <span className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-white font-black text-[9px] uppercase tracking-wider select-none shadow-sm shadow-slate-900/10">
                               {getItemUnit(item.itemName) || 'KG'}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-bold text-[10px]">-</span>
+                          )}
+                        </div>
+
+                        {/* Lote (Lot) Badge */}
+                        <div className="flex justify-center">
+                          {item.itemName.trim() !== '' ? (
+                            <span className="px-2 py-1 rounded bg-zinc-100 border border-zinc-200 text-zinc-700 font-extrabold text-[9px] uppercase tracking-wider select-none shadow-sm truncate max-w-full">
+                              {lotNumberText}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-bold text-[10px]">-</span>
+                          )}
+                        </div>
+
+                        {/* Validade (Expiration) Badge */}
+                        <div className="flex justify-center">
+                          {item.itemName.trim() !== '' ? (
+                            <span className="px-2 py-1 rounded bg-zinc-100 border border-zinc-200 text-zinc-700 font-extrabold text-[9px] uppercase tracking-wider select-none shadow-sm truncate max-w-full">
+                              {expirationText}
                             </span>
                           ) : (
                             <span className="text-slate-300 font-bold text-[10px]">-</span>
