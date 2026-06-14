@@ -1,14 +1,22 @@
 
 import React, { useState, useMemo } from 'react';
-import type { Supplier, ThirdPartyEntryLog } from '../types';
+import type { Supplier, ThirdPartyEntryLog, Delivery, PerCapitaConfig } from '../types';
 import WeeklyScheduleControl from './WeeklyScheduleControl';
 import ConfirmModal from './ConfirmModal';
+import AgendaChegadas from './AgendaChegadas';
+import { Plus } from 'lucide-react';
 
 interface AdminScheduleViewProps {
   suppliers: Supplier[];
   thirdPartyEntries: ThirdPartyEntryLog[];
   onCancelDeliveries: (supplierCpf: string, deliveryIds: string[]) => void;
   onDeleteThirdPartyEntry: (id: string) => Promise<any>;
+  perCapitaConfig?: PerCapitaConfig;
+  onDeleteDelivery?: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean; message?: string }>;
+  onUpdateDelivery?: (supplierCpf: string, deliveryId: string, updates: Partial<Delivery>) => Promise<{ success: boolean; message?: string }>;
+  onSaveInvoice?: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => Promise<void>;
+  onRegisterThirdPartyEntry?: (log: Omit<ThirdPartyEntryLog, 'id'>) => Promise<{ success: boolean; message: string }>;
+  onUpdateThirdPartyEntry?: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message: string }>;
 }
 
 const formatDate = (dateString: string) => {
@@ -25,7 +33,8 @@ const getWeekNumber = (d: Date): number => {
     return weekNo;
 };
 
-const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdPartyEntries, onCancelDeliveries, onDeleteThirdPartyEntry }) => {
+const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
+    const { suppliers, thirdPartyEntries, onCancelDeliveries, onDeleteThirdPartyEntry, perCapitaConfig, onDeleteDelivery, onUpdateDelivery, onSaveInvoice, onRegisterThirdPartyEntry } = props;
     const [activeSubTab, setActiveSubTab] = useState<'daily' | 'weekly' | 'report' | 'late'>('daily');
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState('');
@@ -36,6 +45,10 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
     const [reportSeiNumber, setReportSeiNumber] = useState('');
     const [reportSupplierAddress, setReportSupplierAddress] = useState('');
     const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+
+    // Continuation of AdminScheduleView states
+    const [isAddThirdPartyModalOpen, setIsAddThirdPartyModalOpen] = useState(false);
+    const [newThirdParty, setNewThirdParty] = useState({ date: '', time: '', companyName: '', companyCnpj: '', driverName: '', vehiclePlate: '' });
 
     // Confirmation Modal State
     const [confirmConfig, setConfirmConfig] = useState<{
@@ -153,6 +166,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
         const supplier = suppliers.find(s => s.cpf === reportSupplierCpf);
         if (!supplier || !reportSelectedMonth || selectedReportItems.length === 0) return;
 
+        // ... existing handleGenerateReport logic
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
@@ -356,6 +370,20 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
         });
     }
 
+    const handleSaveNewThirdParty = async () => {
+        if (!onRegisterThirdPartyEntry) return;
+        if (!newThirdParty.date || !newThirdParty.time || !newThirdParty.companyName || !newThirdParty.companyCnpj) {
+            alert('Preencha os campos obrigatórios: Data, Horário, Nome e CNPJ/CPF.');
+            return;
+        }
+        await onRegisterThirdPartyEntry({
+            ...newThirdParty,
+            status: 'agendado'
+        });
+        setIsAddThirdPartyModalOpen(false);
+        setNewThirdParty({ date: '', time: '', companyName: '', companyCnpj: '', driverName: '', vehiclePlate: '' });
+    };
+
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="flex bg-white p-1 rounded-2xl shadow-md border border-purple-100 max-w-md mx-auto">
@@ -386,6 +414,114 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({ suppliers, thirdP
             </div>
 
             {activeSubTab === 'daily' ? (
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-xl border-t-8 border-purple-600">
+                        <div>
+                            <h2 className="text-3xl font-black text-purple-900 uppercase tracking-tighter">Agenda de Entregas</h2>
+                            <p className="text-gray-400 font-medium">Controle unificado da agenda de portaria e estoque.</p>
+                        </div>
+                        {onRegisterThirdPartyEntry && (
+                            <button 
+                                onClick={() => setIsAddThirdPartyModalOpen(true)} 
+                                className="bg-indigo-600 px-5 py-3 text-white font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-indigo-700 transition-all shadow-lg flex items-center justify-center gap-2"
+                            >
+                                <Plus className="w-5 h-5" /> Adicionar Agendamento Manual
+                            </button>
+                        )}
+                    </div>
+                    
+                    <div className="bg-slate-50 p-2 md:p-6 rounded-3xl animate-scale-in">
+                        <AgendaChegadas 
+                            suppliers={suppliers} 
+                            thirdPartyEntries={thirdPartyEntries}
+                            perCapitaConfig={perCapitaConfig}
+                            onDeleteDelivery={onDeleteDelivery}
+                            onUpdateDelivery={onUpdateDelivery}
+                            onSaveInvoice={onSaveInvoice}
+                            embedded={true}
+                        />
+                    </div>
+
+                    {/* Modal Add Third Party / Manual */}
+                    {isAddThirdPartyModalOpen && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden border border-indigo-100 animate-scale-in">
+                                <div className="p-8 border-b bg-indigo-50">
+                                    <h3 className="text-xl font-black text-indigo-950 uppercase tracking-tighter">Registrar Agendamento Manual</h3>
+                                </div>
+                                <div className="p-8 space-y-6">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Data</label>
+                                            <input 
+                                                type="date"
+                                                value={newThirdParty.date}
+                                                onChange={e => setNewThirdParty(prev => ({ ...prev, date: e.target.value }))}
+                                                className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-bold outline-none focus:ring-4 focus:ring-indigo-100 uppercase text-gray-600"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Horário</label>
+                                            <input 
+                                                type="time"
+                                                value={newThirdParty.time}
+                                                onChange={e => setNewThirdParty(prev => ({ ...prev, time: e.target.value }))}
+                                                className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-bold outline-none focus:ring-4 focus:ring-indigo-100 uppercase text-gray-600"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Empresa/Fornecedor</label>
+                                            <input 
+                                                type="text"
+                                                placeholder="Ex: Refregeração Silva"
+                                                value={newThirdParty.companyName}
+                                                onChange={e => setNewThirdParty(prev => ({ ...prev, companyName: e.target.value }))}
+                                                className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-bold outline-none focus:ring-4 focus:ring-indigo-100 uppercase text-gray-600"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">CNPJ ou CPF (Opcional)</label>
+                                            <input 
+                                                type="text"
+                                                placeholder="00.000.000/0000-00"
+                                                value={newThirdParty.companyCnpj}
+                                                onChange={e => setNewThirdParty(prev => ({ ...prev, companyCnpj: e.target.value }))}
+                                                className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-bold outline-none focus:ring-4 focus:ring-indigo-100 uppercase text-gray-600"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Motorista (Opcional)</label>
+                                            <input 
+                                                type="text"
+                                                value={newThirdParty.driverName}
+                                                onChange={e => setNewThirdParty(prev => ({ ...prev, driverName: e.target.value }))}
+                                                className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-bold outline-none focus:ring-4 focus:ring-indigo-100 uppercase text-gray-600"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Placa (Opcional)</label>
+                                            <input 
+                                                type="text"
+                                                value={newThirdParty.vehiclePlate}
+                                                onChange={e => setNewThirdParty(prev => ({ ...prev, vehiclePlate: e.target.value }))}
+                                                className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-bold outline-none focus:ring-4 focus:ring-indigo-100 uppercase text-gray-600"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-4 pt-4 border-t">
+                                        <button onClick={() => setIsAddThirdPartyModalOpen(false)} className="flex-1 py-4 rounded-2xl bg-gray-100 text-gray-500 font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all">Cancelar</button>
+                                        <button onClick={handleSaveNewThirdParty} className="flex-1 py-4 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">Salvar Agendamento</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ) : activeSubTab === '___REMOVED_OLD___' ? (
                 <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-7xl mx-auto border-t-8 border-purple-600">
                     {/* ... existing daily content ... */}
                     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4 border-b pb-6">
