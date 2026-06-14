@@ -2880,7 +2880,23 @@ const App: React.FC = () => {
                await set(newRef, { ...log, id: newRef.key });
                return { success: true, message: 'Ok' };
           }}
-          onDeleteDirectorWithdrawal={async (id) => remove(child(directorWithdrawalsRef, id))}
+          onDeleteDirectorWithdrawal={async (id) => {
+            if (id.startsWith('pedido_') && directorPerCapita) {
+              const paths = [
+                ['chefeDep', 'history'],
+                ['chefeDep', 'limpezaHistory'],
+                ['chefeSeg', 'history'],
+                ['chefeSeg', 'limpezaHistory'],
+              ];
+              for (const [dep, hKey] of paths) {
+                if (directorPerCapita[dep] && directorPerCapita[dep][hKey] && directorPerCapita[dep][hKey][id]) {
+                  await remove(child(directorPerCapitaRef, `${dep}/${hKey}/${id}`));
+                  return;
+                }
+              }
+            }
+            await remove(child(directorWithdrawalsRef, id));
+          }}
           standardMenu={standardMenu}
           dailyMenus={dailyMenus}
           serviceOrders={serviceOrders}

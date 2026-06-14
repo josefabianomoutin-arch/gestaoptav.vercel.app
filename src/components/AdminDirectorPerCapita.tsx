@@ -120,10 +120,31 @@ const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ supplie
         if (!historyObj) return;
         Object.values(historyObj).forEach((order: any) => {
           if (!order.items || order.items.length === 0) return;
-          const dDate = new Date(order.createdAt || Date.now());
+          
+          let dDate = new Date();
+          if (order.createdAt) {
+             const parts = order.createdAt.split(/[\s,/:]+/);
+             // parts might be ['14', '06', '2026', '12', '30', '45']
+             if (parts.length >= 3) {
+                const day = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const year = parseInt(parts[2], 10);
+                const h = parseInt(parts[3] || '0', 10);
+                const m = parseInt(parts[4] || '0', 10);
+                const s = parseInt(parts[5] || '0', 10);
+                dDate = new Date(year, month, day, h, m, s);
+             } else {
+                dDate = new Date(order.createdAt);
+             }
+          }
+          
+          if (isNaN(dDate.getTime())) dDate = new Date(); // fallback if invalid
+
+          const localDateStr = `${dDate.getFullYear()}-${String(dDate.getMonth() + 1).padStart(2, '0')}-${String(dDate.getDate()).padStart(2, '0')}`;
+
           combinedLogs.push({
             id: order.id,
-            date: dDate.toISOString().split('T')[0],
+            date: localDateStr,
             month: dDate.toLocaleString('pt-BR', { month: 'long' }),
             week: order.periodType === 'semanal' ? 'S' + Math.ceil(dDate.getDate() / 7) : 'MENSAL',
             recipient: recipient,
