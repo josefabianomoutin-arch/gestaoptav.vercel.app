@@ -112,8 +112,8 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeek
           <span className="text-xs md:text-sm font-mono z-10">{day}</span>
           
           {isHoliday && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30 select-none rotate-12">
-               <span className="text-[10px] font-black uppercase text-gray-500 border border-gray-400 px-1 rounded">{holidayName}</span>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-1 opacity-40 select-none hover:opacity-100 transition-opacity z-20">
+               <span className="text-[9px] md:text-[10px] leading-tight text-center font-black uppercase text-rose-500 bg-white/80 border border-rose-200 px-1 py-0.5 rounded shadow-sm">{holidayName}</span>
             </div>
           )}
 
