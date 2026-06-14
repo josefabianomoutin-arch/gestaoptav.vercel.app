@@ -98,7 +98,7 @@ const getPrintableLotDetails = (itemName: string, warehouseLog?: any[]) => {
   }
 };
 
-const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ suppliers, logs = [], directorPerCapita, warehouseLog, onDelete }) => {
+const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ suppliers, directorPerCapita, warehouseLog, onDelete }) => {
   const [confirmConfig, setConfirmConfig] = useState<{
       isOpen: boolean;
       title: string;
@@ -113,7 +113,7 @@ const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ supplie
   });
 
   const displayLogs = useMemo(() => {
-    const combinedLogs = [...(logs || [])];
+    const combinedLogs: (DirectorPerCapitaLog & { isNewModel: boolean })[] = [];
 
     if (directorPerCapita) {
       const parseHistory = (historyObj: any, recipient: string) => {
@@ -122,17 +122,26 @@ const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ supplie
           if (!order.items || order.items.length === 0) return;
           
           let dDate = new Date();
-          if (order.createdAt) {
-             const parts = order.createdAt.split(/[\s,/:]+/);
-             // parts might be ['14', '06', '2026', '12', '30', '45']
-             if (parts.length >= 3) {
+          // Extract reliable date from id (format: pedido_1718000000000)
+          if (order.id && order.id.startsWith('pedido_')) {
+            const ts = parseInt(order.id.replace('pedido_', ''), 10);
+            if (!isNaN(ts)) {
+              dDate = new Date(ts);
+            }
+          } else if (order.createdAt) {
+             const parts = order.createdAt.split(/[\s,/:-T]+/);
+             if (order.createdAt.includes('-') && parts[0].length === 4) {
+                // ISO format: 2026-06-12
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const day = parseInt(parts[2], 10);
+                dDate = new Date(year, month, day);
+             } else if (parts.length >= 3) {
+                // assume DD/MM/YYYY
                 const day = parseInt(parts[0], 10);
                 const month = parseInt(parts[1], 10) - 1;
                 const year = parseInt(parts[2], 10);
-                const h = parseInt(parts[3] || '0', 10);
-                const m = parseInt(parts[4] || '0', 10);
-                const s = parseInt(parts[5] || '0', 10);
-                dDate = new Date(year, month, day, h, m, s);
+                dDate = new Date(year, month, day);
              } else {
                 dDate = new Date(order.createdAt);
              }
@@ -173,7 +182,7 @@ const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ supplie
     // Sort by date descending
     combinedLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return combinedLogs;
-  }, [logs, directorPerCapita]);
+  }, [directorPerCapita]);
 
   // Compile a map of item name -> unit
   const itemUnitsMap = useMemo(() => {
