@@ -36,6 +36,7 @@ interface AdminDashboardProps {
   warehouseLog: WarehouseMovement[];
   cleaningLogs: CleaningLog[];
   directorWithdrawals: DirectorPerCapitaLog[];
+  directorPerCapita?: any;
   onResetData: () => void;
   onRestoreData: (backupSuppliers: Supplier[]) => Promise<boolean>;
   onRestoreFullBackup: (fullData: any) => Promise<boolean>;
@@ -401,7 +402,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           </div>
         );
       case 'schedule': return <AdminScheduleView suppliers={suppliers} thirdPartyEntries={thirdPartyEntries} onCancelDeliveries={onCancelDeliveries} onDeleteThirdPartyEntry={onDeleteThirdPartyEntry} />;
-      case 'directorPerCapita': return <AdminDirectorPerCapita suppliers={suppliers} logs={props.directorWithdrawals} onRegister={props.onRegisterDirectorWithdrawal} onDelete={props.onDeleteDirectorWithdrawal} />;
+      case 'directorPerCapita': return <AdminDirectorPerCapita suppliers={suppliers} logs={props.directorWithdrawals} directorPerCapita={props.directorPerCapita} warehouseLog={warehouseLog} onRegister={props.onRegisterDirectorWithdrawal} onDelete={props.onDeleteDirectorWithdrawal} />;
       case 'perCapita': return <AdminPerCapita suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} onUpdatePerCapitaConfig={onUpdatePerCapitaConfig} onUpdateContractForItem={onUpdateContractForItem} onUpdateAcquisitionItem={props.onUpdateAcquisitionItem} onDeleteAcquisitionItem={props.onDeleteAcquisitionItem} acquisitionItems={acquisitionItems} onUpdateSupplierObservations={props.onUpdateSupplierObservations} onSyncPPAISToAgenda={props.onSyncPPAISToAgenda} onSaveInvoice={onSaveInvoice} onDeleteDelivery={props.onDeleteDelivery} />;
       case 'cleaning': return <AdminCleaningLog logs={cleaningLogs} financialRecords={financialRecords} onRegister={props.onRegisterCleaningLog} onDelete={props.onDeleteCleaningLog} />;
       case 'thirdPartyEntry': return <AdminThirdPartyEntry logs={thirdPartyEntries} onRegister={onRegisterThirdPartyEntry} onUpdate={onUpdateThirdPartyEntry} onDelete={onDeleteThirdPartyEntry} />;

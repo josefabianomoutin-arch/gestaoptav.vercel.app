@@ -5,6 +5,8 @@ import ConfirmModal from './ConfirmModal';
 interface AdminDirectorPerCapitaProps {
   suppliers: Supplier[];
   logs: DirectorPerCapitaLog[];
+  directorPerCapita?: any;
+  warehouseLog?: any[];
   onRegister: (log: Omit<DirectorPerCapitaLog, 'id'>) => Promise<{ success: boolean; message: string }>;
   onDelete: (id: string) => Promise<void>;
 }
@@ -14,16 +16,89 @@ const formatCurrency = (value?: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-const formatDateBr = (dateString?: string) => {
-    if (!dateString) return '-';
-    try {
-        return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR');
-    } catch (_e) {
-        return '-';
-    }
+const normalizeText = (t: string) => {
+  if (!t) return '';
+  return t
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[;,\-."']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
 };
 
-const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ suppliers, logs = [], onDelete }) => {
+const getMatchScore = (requestedName: string, logName: string): number => {
+  const reqNorm = normalizeText(requestedName);
+  const logNorm = normalizeText(logName);
+  if (!reqNorm || !logNorm) return 0;
+  if (reqNorm === logNorm) return 100;
+
+  const reqWords = reqNorm.split(' ').filter(Boolean);
+  const logWords = logNorm.split(' ').filter(Boolean);
+
+  if (reqWords.length === 0 || logWords.length === 0) return 0;
+
+  const reqFirstTwo = reqWords.slice(0, 2).join(' ');
+  const logFirstTwo = logWords.slice(0, 2).join(' ');
+  if (reqFirstTwo && logFirstTwo && reqFirstTwo === logFirstTwo) return 90;
+
+  if (logNorm.includes(reqNorm)) return 80;
+  if (reqNorm.includes(logNorm)) return 70;
+
+  if (reqWords[0] === logWords[0]) return 50;
+
+  const reqFirstWordChars = reqWords[0].slice(0, 4);
+  const logFirstWordChars = logWords[0].slice(0, 4);
+  if (reqFirstWordChars && logFirstWordChars && reqFirstWordChars === logFirstWordChars) return 40;
+
+  const sharedWords = reqWords.filter(w => logWords.includes(w));
+  if (sharedWords.length > 0) {
+    return 20 + sharedWords.length;
+  }
+
+  return 0;
+};
+
+const getPrintableLotDetails = (itemName: string, warehouseLog?: any[]) => {
+  if (!itemName || !itemName.trim() || !warehouseLog) return null;
+
+  const candidates: Array<{ log: any; score: number }> = [];
+
+  warehouseLog.forEach((log: any) => {
+    if (!log) return;
+    const logItemName = log.itemName || log.item || '';
+    if (!logItemName) return;
+
+    const score = getMatchScore(itemName, logItemName);
+    if (score >= 35) { // broad matching threshold
+      candidates.push({ log, score });
+    }
+  });
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  const entradas = candidates.filter(c => c.log.type === 'entrada');
+
+  if (entradas.length > 0) {
+    entradas.sort((a, b) => {
+      const scoreDiff = b.score - a.score;
+      if (Math.abs(scoreDiff) > 15) {
+        return scoreDiff;
+      }
+      const dateA = a.log.timestamp || a.log.date || 0;
+      const dateB = b.log.timestamp || b.log.date || 0;
+      return dateB > dateA ? 1 : -1;
+    });
+    return entradas[0].log;
+  } else {
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates[0].log;
+  }
+};
+
+const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ suppliers, logs = [], directorPerCapita, warehouseLog, onDelete }) => {
   const [confirmConfig, setConfirmConfig] = useState<{
       isOpen: boolean;
       title: string;
@@ -36,6 +111,48 @@ const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ supplie
       message: '',
       onConfirm: () => {},
   });
+
+  const displayLogs = useMemo(() => {
+    const combinedLogs = [...(logs || [])];
+
+    if (directorPerCapita) {
+      const parseHistory = (historyObj: any, recipient: string) => {
+        if (!historyObj) return;
+        Object.values(historyObj).forEach((order: any) => {
+          if (!order.items || order.items.length === 0) return;
+          const dDate = new Date(order.createdAt || Date.now());
+          combinedLogs.push({
+            id: order.id,
+            date: dDate.toISOString().split('T')[0],
+            month: dDate.toLocaleString('pt-BR', { month: 'long' }),
+            week: order.periodType === 'semanal' ? 'S' + Math.ceil(dDate.getDate() / 7) : 'MENSAL',
+            recipient: recipient,
+            items: order.items.map((it: any) => ({
+              name: it.itemName,
+              quantity: parseFloat(String(it.quantity).replace(',', '.')) || 0,
+              expirationDate: '', // Will populate below
+              totalValue: 0
+            })),
+            totalValue: 0,
+            isNewModel: true // Flag to distinguish
+          } as DirectorPerCapitaLog & { isNewModel: boolean });
+        });
+      };
+
+      if (directorPerCapita.chefeDep) {
+        parseHistory(directorPerCapita.chefeDep.history, 'Diretor de Disciplina - Alimentação');
+        parseHistory(directorPerCapita.chefeDep.limpezaHistory, 'Diretor de Disciplina - Limpeza');
+      }
+      if (directorPerCapita.chefeSeg) {
+        parseHistory(directorPerCapita.chefeSeg.history, 'Diretor de Segurança - Alimentação');
+        parseHistory(directorPerCapita.chefeSeg.limpezaHistory, 'Diretor de Segurança - Limpeza');
+      }
+    }
+
+    // Sort by date descending
+    combinedLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return combinedLogs;
+  }, [logs, directorPerCapita]);
 
   // Compile a map of item name -> unit
   const itemUnitsMap = useMemo(() => {
@@ -118,21 +235,28 @@ const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ supplie
                   </tr>
                 </thead>
                 <tbody>
-                  ${logs.flatMap((l, logIdx) => l.items.map((item, index) => `
+                  ${displayLogs.flatMap((l, logIdx) => l.items.map((item, index) => {
+                      const lotDetails = warehouseLog && (l as any).isNewModel ? getPrintableLotDetails(item.name, warehouseLog) : null;
+                      const expirationFormatted = lotDetails ? (lotDetails.expirationDate || lotDetails.expiration || '') : item.expirationDate;
+                      const formattedExp = expirationFormatted && expirationFormatted !== 'N/A' && expirationFormatted.includes('-')
+                        ? expirationFormatted.split('-').reverse().join('/')
+                        : (expirationFormatted || (lotDetails ? 'N/A' : '-'));
+                      return `
                     <tr>
                       <td style="text-align: center; color: #64748b;">${logIdx + 1}.${index + 1}</td>
                       <td>${new Date(l.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
-                      <td>${l.month} / S${l.week}</td>
+                      <td>${l.month} / ${l.week !== 'MENSAL' ? (l.week.includes('S') ? l.week : 'S' + l.week) : l.week}</td>
                       <td>${l.recipient}</td>
-                      <td><strong>${item.name || ''}</strong> (${(item.quantity || 0).toLocaleString('pt-BR')} ${getItemUnit(item.name)}) - Val: ${formatDateBr(item.expirationDate)}</td>
+                      <td><strong>${item.name || ''}</strong> (${(item.quantity || 0).toLocaleString('pt-BR')} ${getItemUnit(item.name)}) - Val: ${formattedExp}</td>
                       <td style="text-align: right; font-weight: bold; color: #1e3a8a;">${formatCurrency(item.totalValue || 0)}</td>
                     </tr>
-                  `)).join('')}
+                  `;
+                  })).join('')}
                 </tbody>
                 <tfoot>
                    <tr style="font-weight: bold; background-color: #f8fafc;">
                       <td colspan="5" style="text-align: right; text-transform: uppercase; color: #475569; font-size: 10px;">TOTAL GERAL DO HISTÓRICO:</td>
-                      <td style="text-align: right; color: #1e3a8a; font-size: 12px;">${formatCurrency(logs.reduce((acc, curr) => acc + (curr.totalValue || 0), 0))}</td>
+                      <td style="text-align: right; color: #1e3a8a; font-size: 12px;">${formatCurrency(displayLogs.reduce((acc, curr) => acc + (curr.totalValue || 0), 0))}</td>
                    </tr>
                 </tfoot>
               </table>
@@ -211,7 +335,7 @@ const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ supplie
               <div class="meta-item"><strong>Data do Envio:</strong> ${new Date(log.date + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
               <div class="meta-item"><strong>Destinatário:</strong> ${log.recipient}</div>
               <div class="meta-item"><strong>Mês de Referência:</strong> ${log.month}</div>
-              <div class="meta-item"><strong>Semana de Consumo:</strong> Semana ${log.week}</div>
+              <div class="meta-item"><strong>Semana de Consumo:</strong> ${log.week !== 'MENSAL' ? (log.week.includes('S') ? log.week : 'Semana ' + log.week) : log.week}</div>
             </div>
             
             <table>
@@ -219,6 +343,7 @@ const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ supplie
                 <tr>
                   <th style="width: 40px; text-align: center;">#</th>
                   <th>Descrição do Item Entregue</th>
+                  <th style="width: 80px; text-align: center;">Lote</th>
                   <th style="width: 80px; text-align: center;">Qtd. Solicitada</th>
                   <th style="width: 70px; text-align: center;">Unid.</th>
                   <th style="width: 100px; text-align: center;">Validade</th>
@@ -227,13 +352,20 @@ const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ supplie
               <tbody>
                 ${log.items.map((item, index) => {
                   const unitVal = getItemUnit(item.name) || 'KG';
+                  const lotDetails = warehouseLog && (log as any).isNewModel ? getPrintableLotDetails(item.name, warehouseLog) : null;
+                  const lotText = lotDetails ? (lotDetails.lotNumber || lotDetails.lot || 'UNICO') : '-';
+                  const expirationFormatted = lotDetails ? (lotDetails.expirationDate || lotDetails.expiration || '') : item.expirationDate;
+                  const formattedExp = expirationFormatted && expirationFormatted !== 'N/A' && expirationFormatted.includes('-')
+                        ? expirationFormatted.split('-').reverse().join('/')
+                        : (expirationFormatted || (lotDetails ? 'N/A' : '-'));
                   return `
                     <tr>
                       <td style="text-align: center; color: #64748b;">${index + 1}</td>
                       <td style="font-weight: bold; color: #0f172a;">${item.name}</td>
+                      <td style="text-align: center; font-weight: bold; color: #475569;">${lotText}</td>
                       <td style="text-align: center; font-weight: bold; color: #1e3a8a;">${item.quantity.toLocaleString('pt-BR')}</td>
                       <td style="text-align: center; font-weight: bold; color: #475569;">${unitVal}</td>
-                      <td style="text-align: center;">${formatDateBr(item.expirationDate)}</td>
+                      <td style="text-align: center;">${formattedExp}</td>
                     </tr>
                   `;
                 }).join('')}
@@ -284,7 +416,7 @@ const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ supplie
           </div>
           <button 
             onClick={handlePrintReport} 
-            disabled={logs.length === 0}
+            disabled={displayLogs.length === 0}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95 disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
@@ -307,26 +439,43 @@ const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ supplie
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
-                {logs.length > 0 ? logs.map((log, idx) => (
+                {displayLogs.length > 0 ? displayLogs.map((log, idx) => (
                   <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="p-4 text-center font-bold text-gray-400">{idx + 1}</td>
                     <td className="p-4 font-mono font-bold text-gray-700">{new Date(log.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
                     <td className="p-4">
                       <span className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase border border-indigo-100">
-                          {log.month} (S{log.week})
+                          {log.month} {log.week !== 'MENSAL' ? `(${log.week})` : ''}
                       </span>
                     </td>
                     <td className="p-4 font-bold text-gray-600">{log.recipient}</td>
-                    <td className="p-4 text-xs text-gray-500 max-w-sm">
+                    <td className="p-4 text-xs text-gray-500 max-w-[450px]">
                       <ul className="space-y-1">
-                          {log.items.map((item, i) => (
-                              <li key={i} className="flex justify-between items-center bg-gray-50 border border-gray-100 rounded-md px-2 py-1">
-                                <span className="font-semibold text-gray-700">{item.name}</span>
-                                <span className="bg-slate-950 text-white font-mono text-[9px] px-1.5 py-0.5 rounded uppercase font-black">
-                                  {item.quantity.toLocaleString('pt-BR')} {getItemUnit(item.name)}
-                                </span>
-                              </li>
-                          ))}
+                          {log.items.map((item, i) => {
+                              const lotDetails = warehouseLog && log.isNewModel ? getPrintableLotDetails(item.name, warehouseLog) : null;
+                              const lotText = lotDetails ? (lotDetails.lotNumber || lotDetails.lot || 'UNICO') : '-';
+                              const expRaw = lotDetails ? (lotDetails.expirationDate || lotDetails.expiration || '') : item.expirationDate;
+                              const expirationText = expRaw && expRaw !== 'N/A' 
+                                ? (expRaw.includes('-') ? expRaw.split('-').reverse().join('/') : expRaw) 
+                                : (lotDetails ? 'N/A' : '-');
+
+                              return (
+                                <li key={i} className="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-gray-50 border border-gray-100 rounded-md px-2 py-1 gap-2">
+                                  <span className="font-bold text-gray-700 truncate">{item.name}</span>
+                                  <div className="flex gap-2 items-center flex-wrap shrink-0">
+                                    <span className="bg-zinc-100 text-zinc-600 border border-zinc-200 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase">
+                                      LT: {lotText}
+                                    </span>
+                                    <span className="bg-zinc-100 text-zinc-600 border border-zinc-200 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase">
+                                      VAL: {expirationText}
+                                    </span>
+                                    <span className="bg-slate-950 text-white font-mono text-[10px] px-2 py-0.5 rounded uppercase font-black">
+                                      {item.quantity.toLocaleString('pt-BR')} {getItemUnit(item.name)}
+                                    </span>
+                                  </div>
+                                </li>
+                              )
+                          })}
                       </ul>
                     </td>
                     <td className="p-4 text-right font-black text-indigo-700">{formatCurrency(log.totalValue)}</td>

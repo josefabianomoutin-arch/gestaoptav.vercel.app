@@ -2873,6 +2873,7 @@ const App: React.FC = () => {
           onUpdateAcquisitionItem={handleUpdateAcquisitionItem}
           onDeleteAcquisitionItem={handleDeleteAcquisitionItem}
           acquisitionItems={acquisitionItems}
+          directorPerCapita={directorPerCapita}
           directorWithdrawals={directorWithdrawals}
           onRegisterDirectorWithdrawal={async (log) => {
                const newRef = push(directorWithdrawalsRef);
