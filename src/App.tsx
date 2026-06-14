@@ -1197,7 +1197,8 @@ const App: React.FC = () => {
         ...d,
         invoiceNumber,
         invoiceUrl,
-        invoiceDate: invoiceDate || d.invoiceDate || d.date,
+        invoiceDate: invoiceDate || d.invoiceDate || d.date || new Date().toISOString().split('T')[0],
+        date: d.date || invoiceDate || new Date().toISOString().split('T')[0],
         invoiceUploaded: true,
         status: 'CONCLUÍDO',
         updatedAt: new Date().toISOString()
@@ -1810,7 +1811,7 @@ const App: React.FC = () => {
               const item = items[idx];
               const newDelivery: any = {
                 id: `manual-${Date.now()}-${idx}`,
-                date,
+                date: entryDate,
                 time: '08:00',
                 item: item.name,
                 kg: item.kg,
@@ -1858,7 +1859,7 @@ const App: React.FC = () => {
                   const item = items[idx];
                   const newDelivery: any = {
                     id: `manual-${Date.now()}-${idx}`,
-                    date,
+                    date: entryDate,
                     time: '08:00',
                     item: item.name,
                     kg: item.kg,
@@ -2798,6 +2799,7 @@ const App: React.FC = () => {
           onUpdateSupplier={handleUpdateSupplier}
           onUpdateSupplierObservations={handleUpdateSupplierObservations}
           onDeleteDelivery={handleDeleteDelivery}
+          onUpdateDelivery={handleUpdateDelivery}
           onSaveInvoice={handleSaveInvoice}
           onLogout={handleLogout}
           warehouseLog={warehouseLog}

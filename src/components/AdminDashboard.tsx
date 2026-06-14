@@ -52,6 +52,7 @@ interface AdminDashboardProps {
   onUpdatePerCapitaConfig: (config: Partial<PerCapitaConfig>) => Promise<{ success: boolean; message?: string }>;
   onDeleteWarehouseEntry: (logEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
   onDeleteDelivery: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean }>;
+  onUpdateDelivery?: (supplierCpf: string, deliveryId: string, updates: Partial<Delivery>) => Promise<{ success: boolean; message?: string }>;
   onUpdateWarehouseEntry: (updatedEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
   onRegisterEntry: (payload: any) => Promise<{ success: boolean; message: string; invoiceUrl?: string }>;
   onRegisterWithdrawal: (payload: any) => Promise<{ success: boolean; message: string }>;

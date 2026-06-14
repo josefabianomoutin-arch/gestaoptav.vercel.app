@@ -168,7 +168,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 acc[delivery.invoiceNumber] = {
                     invoiceNumber: delivery.invoiceNumber,
                     invoiceUrl: delivery.invoiceUrl,
-                    date: delivery.date,
+                    date: delivery.invoiceDate || delivery.date || new Date().toISOString().split('T')[0],
                     items: [],
                     isUploaded: true
                 };
@@ -177,14 +177,15 @@ const Dashboard: React.FC<DashboardProps> = ({
         } else {
             // Delivery without invoice number - show it as a pending entry
             // only if it's in the past
-            const deliveryDate = new Date(delivery.date + 'T00:00:00');
+            const dDateStr = delivery.date || delivery.invoiceDate || new Date().toISOString().split('T')[0];
+            const deliveryDate = new Date(dDateStr + 'T00:00:00');
             if (deliveryDate <= SIMULATED_TODAY) {
-                const key = `pending-${delivery.date}`;
+                const key = `pending-${dDateStr}`;
                 if (!acc[key]) {
                     acc[key] = {
                         invoiceNumber: 'PENDENTE',
                         invoiceUrl: null,
-                        date: delivery.date,
+                        date: dDateStr,
                         items: [],
                         isUploaded: false,
                         isPending: true
@@ -195,7 +196,11 @@ const Dashboard: React.FC<DashboardProps> = ({
         }
         return acc;
     }, {} as Record<string, any>);
-    return Object.values(groupedByNf).sort((a: any, b: any) => b.date.localeCompare(a.date));
+    return Object.values(groupedByNf).sort((a: any, b: any) => {
+        const dateA = a.date || '';
+        const dateB = b.date || '';
+        return dateB.localeCompare(dateA);
+    });
   }, [supplier.deliveries]);
 
   const monthlyQuotas = useMemo((): MonthlyQuota[] => {
@@ -791,7 +796,16 @@ const Dashboard: React.FC<DashboardProps> = ({
                                   {uploadedInvoices.map((invoice, idx) => (
                                       <tr key={idx} className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${invoice.isPending ? 'bg-rose-50/30' : ''}`}>
                                           <td className="p-4 font-mono text-sm text-gray-600">
-                                              {new Date(invoice.date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                              {(() => {
+                                                  if (!invoice.date || invoice.date === 'undefined') return 'Sem Data';
+                                                  try {
+                                                      const cleanDate = invoice.date.split('T')[0];
+                                                      const d = new Date(cleanDate + 'T00:00:00');
+                                                      return isNaN(d.getTime()) ? invoice.date : d.toLocaleDateString('pt-BR');
+                                                  } catch (_) {
+                                                      return invoice.date;
+                                                  }
+                                              })()}
                                           </td>
                                           <td className={`p-4 font-black font-mono ${invoice.isPending ? 'text-rose-500' : 'text-indigo-600'}`}>
                                               {invoice.invoiceNumber}
