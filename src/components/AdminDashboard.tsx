@@ -426,6 +426,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           onUpdateInspection={onUpdateVehicleInspection}
           onDeleteInspection={onDeleteVehicleInspection}
           userRole={props.user.role}
+          allowDelete={true}
       />;
       case 'serviceOrder': return <AdminServiceOrder
           orders={serviceOrders}

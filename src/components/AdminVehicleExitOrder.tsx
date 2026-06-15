@@ -1316,7 +1316,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                 <div className="text-[9px] text-gray-400 uppercase mt-1">{order.responsibleServer}</div>
                                             </div>
                                             <div className="flex gap-2">
-                                                {onDelete && !readOnly && (
+                                                {onDelete && !readOnly && allowDelete && (
                                                     <button 
                                                         onClick={() => {
                                                             setConfirmConfig({
@@ -1364,7 +1364,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                 <div className="text-[9px] text-gray-400 uppercase mt-1">Saída: {order.exitTime}</div>
                                             </div>
                                             <div className="flex gap-2">
-                                                {onDelete && !readOnly && (
+                                                {onDelete && !readOnly && allowDelete && (
                                                     <button 
                                                         onClick={() => {
                                                             setConfirmConfig({
