@@ -13,6 +13,21 @@ interface ServiceOrderDashboardProps {
   onLogout: () => void;
 }
 
+const formatDateSafe = (dateVal: any, fallback = '---'): string => {
+  if (!dateVal || dateVal === 'undefined') return fallback;
+  try {
+    const cleanDate = typeof dateVal === 'string' ? dateVal.split('T')[0] : dateVal;
+    if (typeof cleanDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+      const parts = cleanDate.split('-');
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    const d = new Date(dateVal);
+    return isNaN(d.getTime()) ? String(dateVal) : d.toLocaleDateString('pt-BR');
+  } catch (_) {
+    return String(dateVal);
+  }
+};
+
 const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
   serviceOrders = [],
   maintenanceSchedules = [],
@@ -298,7 +313,7 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
                         <div className="flex items-center gap-2">
                           <Clock className="h-3 w-3 text-emerald-400" />
                           <p className="text-[10px] text-emerald-900 font-bold uppercase tracking-tight">
-                            Data: <span className="text-emerald-600">{new Date(ms.date).toLocaleDateString('pt-BR')} às {ms.time}</span>
+                            Data: <span className="text-emerald-600">{formatDateSafe(ms.date)} às {ms.time}</span>
                           </p>
                         </div>
                         

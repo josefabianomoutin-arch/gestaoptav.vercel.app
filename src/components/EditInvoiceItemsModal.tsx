@@ -32,6 +32,8 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
   onSave,
 }) => {
   const [saving, setSaving] = useState(false);
+  const [invoiceNumber, setInvoiceNumber] = useState(() => invoice?.invoiceNumber || '');
+  const [invoiceDate, setInvoiceDate] = useState(() => invoice?.date || '');
   const [deliveries, setDeliveries] = useState<any[]>(() => {
     if (!invoice) return [];
     return invoice.items.map((d) => {
@@ -62,7 +64,7 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
         value: 0,
         date: invoice.date,
         time: '12:00',
-        invoiceNumber: invoice.invoiceNumber,
+        invoiceNumber: invoiceNumber,
         invoiceUrl: invoice.invoiceUrl || '',
         invoiceUploaded: true,
         status: 'CONCLUÍDO',
@@ -104,7 +106,25 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
     );
   };
 
+  const handleUseScheduledDate = () => {
+    const firstDeliveryDate = deliveries.find(d => d.date)?.date;
+    if (firstDeliveryDate) {
+      setInvoiceDate(firstDeliveryDate);
+      toast.success('Data preenchida com a data do agendamento!');
+    } else {
+      toast.error('Nenhum agendamento com data encontrado.');
+    }
+  };
+
   const handleSave = async () => {
+    if (!invoiceNumber.trim()) {
+      toast.error('O número da nota é obrigatório.');
+      return;
+    }
+    if (!invoiceDate) {
+      toast.error('A data da nota é obrigatória.');
+      return;
+    }
     const invalid = deliveries.some((d) => !d.item || d.kg <= 0);
     if (invalid) {
       toast.error('Por favor, selecione o item e informe o peso (Kg) para todos os lançamentos.');
@@ -114,11 +134,17 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
     setSaving(true);
     try {
       const originalDeliveryIds = invoice.items.map((d) => d.id);
+      const enrichedDeliveries = deliveries.map(d => ({
+        ...d,
+        invoiceNumber: invoiceNumber.trim(),
+        invoiceDate: invoiceDate
+      }));
+
       await onSave(
-        invoice.invoiceNumber,
+        invoiceNumber.trim(),
         invoice.invoiceUrl || '',
-        deliveries,
-        invoice.date,
+        enrichedDeliveries,
+        invoiceDate,
         originalDeliveryIds
       );
       onClose();
@@ -144,7 +170,7 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
               Editar Itens da Nota Fiscal
             </h2>
             <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">
-              Nota Número: <span className="text-indigo-600 font-mono">{invoice.invoiceNumber}</span>
+              Nota Número: <span className="text-indigo-600 font-mono">{invoiceNumber || invoice.invoiceNumber}</span>
             </p>
           </div>
           <button
@@ -156,6 +182,36 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
         </div>
 
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-indigo-50/40 p-4 rounded-2xl border border-indigo-100/50">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Número da Nota</label>
+              <input 
+                type="text" 
+                value={invoiceNumber}
+                onChange={(e) => setInvoiceNumber(e.target.value)}
+                className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-bold text-gray-800"
+              />
+            </div>
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Data da Nota</label>
+                <button
+                  type="button"
+                  onClick={handleUseScheduledDate}
+                  className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider transition-colors"
+                >
+                  Usar data do agendamento
+                </button>
+              </div>
+              <input 
+                type="date" 
+                value={invoiceDate}
+                onChange={(e) => setInvoiceDate(e.target.value)}
+                className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-bold text-gray-800"
+              />
+            </div>
+          </div>
+
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">
               Lançamentos vinculados à nota

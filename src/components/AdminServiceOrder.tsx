@@ -15,6 +15,21 @@ interface AdminServiceOrderProps {
   systemPasswords?: Record<string, string>;
 }
 
+const formatDateSafe = (dateVal: any, fallback = '---'): string => {
+  if (!dateVal || dateVal === 'undefined') return fallback;
+  try {
+    const cleanDate = typeof dateVal === 'string' ? dateVal.split('T')[0] : dateVal;
+    if (typeof cleanDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+      const parts = cleanDate.split('-');
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    const d = new Date(dateVal);
+    return isNaN(d.getTime()) ? String(dateVal) : d.toLocaleDateString('pt-BR');
+  } catch (_) {
+    return String(dateVal);
+  }
+};
+
 const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({ 
   orders = [], 
   onUpdate, 
@@ -132,15 +147,8 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
       ? schedule.tools.filter((t: any) => t && t.trim() !== '').map((t: any) => `<li>${t}</li>`).join('')
       : '<li>Nenhuma ferramenta cadastrada</li>';
 
-    const formattedDate = order.createdAt 
-      ? new Date(order.createdAt).toLocaleDateString('pt-BR') 
-      : order.date
-        ? new Date(order.date + 'T00:00:00').toLocaleDateString('pt-BR')
-        : new Date().toLocaleDateString('pt-BR');
-
-    const formattedUpdatedDate = order.updatedAt
-      ? new Date(order.updatedAt).toLocaleDateString('pt-BR')
-      : new Date().toLocaleDateString('pt-BR');
+    const formattedDate = formatDateSafe(order.createdAt || order.date || new Date().toISOString());
+    const formattedUpdatedDate = formatDateSafe(order.updatedAt || new Date().toISOString());
 
     printWindow.document.write(`
       <html>
@@ -406,7 +414,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
             <div class="grid-info">
               <div class="info-block">
                 <div class="label">Data de Execução</div>
-                <div class="value">${schedule.date ? new Date(schedule.date + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</div>
+                <div class="value">${formatDateSafe(schedule.date, '-')}</div>
               </div>
               <div class="info-block">
                 <div class="label">Horário de Saída</div>
@@ -537,13 +545,20 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
     if (!printWindow) return;
 
     const pplsList = (schedule.ppls || []).filter(p => p.trim() !== '').map(p => `<li>${p}</li>`).join('');
-    const validationDate = schedule.validatedByDirectorAt ? new Date(schedule.validatedByDirectorAt) : new Date();
+    const validationDate = schedule.validatedByDirectorAt && !isNaN(new Date(schedule.validatedByDirectorAt).getTime())
+      ? new Date(schedule.validatedByDirectorAt) 
+      : new Date();
     const dateOptions: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
     const dateInFull = validationDate.toLocaleDateString('pt-BR', dateOptions);
 
     const formatTimestamp = (ts?: string) => {
       if (!ts) return '';
-      return new Date(ts).toLocaleString('pt-BR');
+      try {
+        const d = new Date(ts);
+        return isNaN(d.getTime()) ? String(ts) : d.toLocaleString('pt-BR');
+      } catch (_) {
+        return String(ts);
+      }
     };
 
     const html = `
@@ -598,7 +613,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
           
           <div class="content">
             <p>Senhores Chefes;</p>
-            <p>Ficam os PPL’s abaixo qualificados, AUTORIZADOS a trabalhar no setor de MANUTENÇÃO EXTERNA – horário das <strong>${schedule.time}</strong>, no dia <strong>${new Date(schedule.date).toLocaleDateString('pt-BR')}</strong>, devidamente acompanhado por Policial Penal.</p>
+            <p>Ficam os PPL’s abaixo qualificados, AUTORIZADOS a trabalhar no setor de MANUTENÇÃO EXTERNA – horário das <strong>${schedule.time}</strong>, no dia <strong>${formatDateSafe(schedule.date)}</strong>, devidamente acompanhado por Policial Penal.</p>
             
             <div class="date-centered">Taiúva, ${dateInFull}.</div>
             
@@ -979,7 +994,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                         ${pplsCount === 0 && toolsCount === 0 ? '---' : ''}
                       </div>
                     </td>
-                    <td>${schedule ? new Date(schedule.date).toLocaleDateString('pt-BR') : '---'}</td>
+                    <td>${schedule ? formatDateSafe(schedule.date) : '---'}</td>
                   </tr>
                 `;
               }).join('') : '<tr><td colspan="8" style="text-align: center; padding: 40px; font-weight: 900; color: #94a3b8; text-transform: uppercase;">Nenhum registro localizado para este filtro</td></tr>'}
@@ -1182,7 +1197,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                           <div className="h-6 w-6 bg-indigo-100 rounded-full flex items-center justify-center">
                               <Clock className="h-3 w-3 text-indigo-600" />
                           </div>
-                          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Solicitado por <span className="text-indigo-600">{order.requester}</span> em {new Date(order.createdAt).toLocaleDateString('pt-BR')}</p>
+                          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Solicitado por <span className="text-indigo-600">{order.requester}</span> em {formatDateSafe(order.createdAt)}</p>
                         </div>
                       </div>
                       <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">

@@ -63,14 +63,36 @@ const getFirstTwoWords = (text: string | undefined): string => {
 };
 
 
+const formatMonthBR = (monthStr: string) => {
+  if (!monthStr || !monthStr.includes('-')) return '';
+  const [year, month] = monthStr.split('-');
+  const monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+  const idx = parseInt(month, 10) - 1;
+  return `${monthNames[idx] || ''} de ${year}`;
+};
+
+
 const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMenus, onUpdateDailyMenus, inmateCount, suppliers }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'cardapio' | 'pesos'>('cardapio');
+  const [activeSubTab, setActiveSubTab] = useState<'cardapio' | 'pesos' | 'relatorio'>('cardapio');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [currentMenu, setCurrentMenu] = useState<MenuRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadedFromSaved, setIsLoadedFromSaved] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState<number>(getWeekNumber(new Date(new Date().toISOString().split('T')[0] + 'T00:00:00')));
   const [weightSearch, setWeightSearch] = useState('');
+
+  // Estados para o Relatório Mensal
+  const [reportMonth, setReportMonth] = useState(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  });
+  const [reportViewMode, setReportViewMode] = useState<'date' | 'item'>('date');
+  const [reportSearch, setReportSearch] = useState('');
   const [labelModalOpen, setLabelModalOpen] = useState(false);
   const [availableLots, setAvailableLots] = useState<{
       supplierName: string;
@@ -808,23 +830,212 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
     return result.sort((a,b) => a.supplierName.localeCompare(b.supplierName));
   }, [selectedWeek, dailyMenus, suppliers]);
 
+  const monthlyReportData = useMemo(() => {
+    const dates = Object.keys(dailyMenus || {})
+      .filter(date => date.startsWith(reportMonth))
+      .sort((a, b) => a.localeCompare(b));
+
+    // Agrupa itens listados por data
+    const byDate = dates.map(date => {
+      const rows = ensureArray<MenuRow>(dailyMenus[date]).filter(row => row && row.contractedItem);
+      
+      // Agrupa essas linhas por período
+      const byPeriod: Record<string, MenuRow[]> = {};
+      MEAL_PERIODS.forEach(p => { byPeriod[p] = []; });
+      
+      rows.forEach(row => {
+        const p = row.period || 'OUTROS';
+        if (!byPeriod[p]) byPeriod[p] = [];
+        byPeriod[p].push(row);
+      });
+
+      const filteredPeriods = Object.entries(byPeriod).filter(([_, items]) => items.length > 0);
+
+      return {
+        date,
+        periods: filteredPeriods,
+        rawRows: rows
+      };
+    }).filter(d => d.rawRows.length > 0);
+
+    // Agrupa itens por nome de item
+    const itemsMap: Record<string, { name: string; dates: { date: string; period: string; unitWeight: string; totalWeight: string }[] }> = {};
+    dates.forEach(date => {
+      const rows = ensureArray<MenuRow>(dailyMenus[date]).filter(row => row && row.contractedItem);
+      rows.forEach(row => {
+        const item = row.contractedItem!.trim().toUpperCase();
+        if (!itemsMap[item]) {
+          itemsMap[item] = { name: item, dates: [] };
+        }
+        itemsMap[item].dates.push({
+          date,
+          period: row.period || 'OUTROS',
+          unitWeight: row.unitWeight || '',
+          totalWeight: row.totalWeight || ''
+        });
+      });
+    });
+
+    const byItem = Object.values(itemsMap).sort((a, b) => a.name.localeCompare(b.name));
+
+    return { byDate, byItem };
+  }, [dailyMenus, reportMonth]);
+
+  const filteredReportData = useMemo(() => {
+    const { byDate, byItem } = monthlyReportData;
+    const searchLower = reportSearch.toLowerCase().trim();
+
+    if (!searchLower) return { byDate, byItem };
+
+    // Filtrar byDate: mantém se a data coincide ou algum item/período contém o termo
+    const filteredByDate = byDate.map(d => {
+      const matchingRows = d.rawRows.filter(row => 
+        (row.contractedItem || '').toLowerCase().includes(searchLower) ||
+        (row.period || '').toLowerCase().includes(searchLower)
+      );
+
+      const byPeriod: Record<string, MenuRow[]> = {};
+      matchingRows.forEach(row => {
+        const p = row.period || 'OUTROS';
+        if (!byPeriod[p]) byPeriod[p] = [];
+        byPeriod[p].push(row);
+      });
+
+      return {
+        date: d.date,
+        periods: Object.entries(byPeriod).filter(([_, items]) => items.length > 0),
+        rawRows: matchingRows
+      };
+    }).filter(d => d.rawRows.length > 0);
+
+    // Filtrar byItem: mantém itens que contêm o termo de pesquisa ou o têm em suas datas/períodos
+    const filteredByItem = byItem.filter(it => 
+      it.name.toLowerCase().includes(searchLower) ||
+      it.dates.some(d => d.date.includes(searchLower) || d.period.toLowerCase().includes(searchLower))
+    );
+
+    return { byDate: filteredByDate, byItem: filteredByItem };
+  }, [monthlyReportData, reportSearch]);
+
+  const handlePrintMonthlyReport = () => {
+    const printWindow = window.open('', '_blank', 'width=1000,height=800');
+    if (!printWindow) return;
+
+    const formattedMonth = formatMonthBR(reportMonth).toUpperCase();
+    const records = monthlyReportData.byDate;
+
+    let tableRowsHtml = '';
+
+    if (records.length === 0) {
+      tableRowsHtml = '<tr><td colspan="4" style="text-align: center; padding: 20px; font-weight: bold; color: #94a3b8; text-transform: uppercase;">Nenhum item disponibilizado neste mês.</td></tr>';
+    } else {
+      records.forEach(d => {
+        const dateFormatted = new Date(d.date + 'T12:00:00').toLocaleDateString('pt-BR');
+        const dayOfWeek = WEEK_DAYS_BR[new Date(d.date + 'T12:00:00').getDay()];
+
+        let isFirstRowOfDate = true;
+
+        d.periods.forEach(([period, items]) => {
+          items.forEach((item, idx) => {
+            const unitString = contractItemUnitMap.get(item.contractedItem || '');
+            const unitLabel = getUnitLabel(unitString, item.contractedItem);
+            
+            tableRowsHtml += `
+              <tr>
+                ${isFirstRowOfDate && idx === 0 ? `<td rowspan="${d.rawRows.length}" style="font-weight: bold; font-family: monospace; white-space: nowrap; text-align: center; vertical-align: middle;">${dateFormatted}<br><span style="font-size: 8px; color: #666;">${dayOfWeek}</span></td>` : ''}
+                ${idx === 0 ? `<td rowspan="${items.length}" style="font-weight: bold; text-align: center; vertical-align: middle; background-color: #fafafa; text-transform: uppercase;">${period}</td>` : ''}
+                <td style="font-weight: bold; text-transform: uppercase;">${item.contractedItem}</td>
+                <td style="text-align: center; font-family: monospace; font-weight: bold;">${item.unitWeight ? `${item.unitWeight} ${unitLabel}` : '---'}</td>
+              </tr>
+            `;
+            isFirstRowOfDate = false;
+          });
+        });
+      });
+    }
+
+    const printContent = `
+      <html>
+        <head>
+          <title>Relatório Mensal de Cardápio - ${formattedMonth}</title>
+          <style>
+            @page { 
+                size: A4; 
+                margin: 15mm; 
+            }
+            body { 
+                font-family: Arial, sans-serif; 
+                padding: 0; 
+                color: #333; 
+                line-height: 1.4; 
+                margin: 0;
+                background: white;
+            }
+            .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+            .header-sap { font-size: 14px; margin-bottom: 2px; }
+            .header-unit { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
+            .header-address { font-size: 11px; color: #666; }
+            .report-title { text-align: center; font-size: 16px; font-weight: bold; margin: 20px 0; text-transform: uppercase; letter-spacing: 0.5px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            th, td { border: 1px solid #777; padding: 8px; text-align: left; font-size: 11px; }
+            th { background-color: #ededed; font-weight: bold; text-transform: uppercase; text-align: center; }
+            .footer-info { margin-top: 30px; font-size: 10px; text-align: right; color: #666; font-family: monospace; }
+          </style>
+        </head>
+        <body onload="window.print()">
+          <div class="header">
+            <div class="header-sap">Secretaria da Administração Penitenciária</div>
+            <div class="header-unit">Polícia Penal - Penitenciária de Taiúva</div>
+            <div class="header-address">Rodovia Brigadeiro Faria Lima, SP 326, KM 359,6 Taiúva/SP</div>
+          </div>
+          <div class="report-title">Relatório de Itens Disponibilizados no Cardápio Diário<br>Mês de Referência: ${formattedMonth}</div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 15%;">Data</th>
+                <th style="width: 25%;">Período</th>
+                <th style="width: 45%;">Item Contratado</th>
+                <th style="width: 15%;">Qtd./Peso Unit.</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRowsHtml}
+            </tbody>
+          </table>
+
+          <div class="footer-info">Relatório gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+  };
+
 
   return (
     <div className="bg-white p-6 rounded-2xl shadow-xl max-w-full mx-auto border-t-8 border-amber-500 animate-fade-in">
       
       {/* SELETOR DE ABAS INTERNAS */}
-      <div className="flex bg-gray-100 p-1 rounded-2xl mb-8 w-full md:w-fit">
+      <div className="flex flex-wrap bg-gray-100 p-1 rounded-2xl mb-8 w-full md:w-fit gap-1 md:gap-0">
           <button 
               onClick={() => setActiveSubTab('cardapio')}
-              className={`flex-1 md:flex-none px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeSubTab === 'cardapio' ? 'bg-white text-amber-600 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`flex-1 md:flex-none px-6 md:px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeSubTab === 'cardapio' ? 'bg-white text-amber-600 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
           >
               Montagem do Cardápio
           </button>
           <button 
               onClick={() => setActiveSubTab('pesos')}
-              className={`flex-1 md:flex-none px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeSubTab === 'pesos' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`flex-1 md:flex-none px-6 md:px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeSubTab === 'pesos' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
           >
               Tabela de Pesos Unitários
+          </button>
+          <button 
+              onClick={() => setActiveSubTab('relatorio')}
+              className={`flex-1 md:flex-none px-6 md:px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeSubTab === 'relatorio' ? 'bg-white text-rose-600 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+              Relatório Mensal
           </button>
       </div>
 
@@ -1116,7 +1327,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
                 )}
             </div>
         </>
-      ) : (
+      ) : activeSubTab === 'pesos' ? (
         /* ABA DE PESOS UNITÁRIOS */
         <div className="animate-fade-in-up space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-6">
@@ -1158,6 +1369,167 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
                     </div>
                 )}
             </div>
+        </div>
+      ) : (
+        /* ABA DE RELATÓRIO MENSAL */
+        <div className="animate-fade-in-up space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-6">
+                <div>
+                    <h2 className="text-3xl font-black text-rose-900 uppercase tracking-tighter italic">Relatório Mensal de Cardápio</h2>
+                    <p className="text-gray-400 font-medium">Itens disponibilizados no cardápio diário por mês de referência.</p>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    <div className="flex bg-gray-100 p-1 rounded-xl">
+                        <button
+                            type="button"
+                            onClick={() => setReportViewMode('date')}
+                            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${reportViewMode === 'date' ? 'bg-white text-rose-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            Ver por Data
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setReportViewMode('item')}
+                            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${reportViewMode === 'item' ? 'bg-white text-rose-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            Ver por Item
+                        </button>
+                    </div>
+
+                    <input 
+                        type="month" 
+                        value={reportMonth}
+                        onChange={(e) => setReportMonth(e.target.value)}
+                        className="h-10 px-4 border border-gray-300 rounded-xl bg-white shadow-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-rose-500 text-xs text-center animate-fade-in"
+                    />
+
+                    <button
+                        type="button"
+                        onClick={handlePrintMonthlyReport}
+                        className="h-10 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95 text-xs uppercase flex items-center gap-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                        Imprimir Relatório
+                    </button>
+                </div>
+            </div>
+
+            {/* FILTRO DE PESQUISA */}
+            <div className="relative w-full">
+                <input 
+                    type="text" 
+                    placeholder="Pesquisar por item contratado, período ou data..." 
+                    value={reportSearch}
+                    onChange={(e) => setReportSearch(e.target.value)}
+                    className="w-full h-12 border-2 border-rose-50 bg-gray-50 rounded-2xl px-6 outline-none focus:border-rose-400 font-black text-rose-950 transition-all shadow-sm text-sm"
+                />
+                <svg className="h-5 w-5 absolute right-4 top-1/2 -translate-y-1/2 text-rose-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            </div>
+
+            {/* CONTEÚDO DO RELATÓRIO */}
+            {reportViewMode === 'date' ? (
+                /* VISÃO POR DATAS */
+                <div className="space-y-4">
+                    {filteredReportData.byDate.length > 0 ? (
+                        filteredReportData.byDate.map((d) => {
+                            const dateFormatted = new Date(d.date + 'T12:00:00').toLocaleDateString('pt-BR');
+                            const dayOfWeek = WEEK_DAYS_BR[new Date(d.date + 'T12:00:00').getDay()];
+
+                            return (
+                                <div key={d.date} className="bg-white border-2 border-gray-100 rounded-[2rem] shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                                    <div className="bg-rose-50/40 px-6 py-4 border-b border-gray-100 flex flex-wrap justify-between items-center gap-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className="bg-rose-600 text-white font-mono px-3 py-1.5 rounded-xl font-bold text-xs uppercase shadow-sm">
+                                                {dateFormatted}
+                                            </div>
+                                            <span className="text-xs font-black text-rose-900 tracking-wider uppercase">{dayOfWeek}</span>
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase text-gray-400">
+                                            {d.rawRows.length} {d.rawRows.length === 1 ? 'Lançamento' : 'Lançamentos'}
+                                        </span>
+                                    </div>
+
+                                    <div className="divide-y divide-gray-100 bg-white">
+                                        {d.periods.map(([period, items]) => (
+                                            <div key={period} className="px-6 py-4 flex flex-col md:flex-row md:items-center gap-4 hover:bg-gray-50/40 transition-colors">
+                                                <div className="md:w-48 flex-shrink-0">
+                                                    <span className="text-[10px] font-black text-rose-700 bg-rose-100/50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                                                        {period}
+                                                    </span>
+                                                </div>
+                                                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                    {items.map((item, idx) => {
+                                                        const unitString = contractItemUnitMap.get(item.contractedItem || '');
+                                                        const unitLabel = getUnitLabel(unitString, item.contractedItem);
+                                                        return (
+                                                            <div key={idx} className="bg-gray-50 px-4 py-2.5 rounded-xl border border-gray-100 flex justify-between items-center hover:border-rose-200 transition-colors">
+                                                                <span className="font-extrabold text-xs text-gray-800 uppercase truncate" title={item.contractedItem}>
+                                                                    {item.contractedItem}
+                                                                </span>
+                                                                {item.unitWeight && (
+                                                                    <span className="font-mono text-[10px] font-black text-rose-900 bg-white px-2 py-0.5 rounded border border-gray-200/60 ml-2">
+                                                                        {item.unitWeight} {unitLabel}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div className="py-20 text-center bg-gray-50 rounded-[3rem] border-4 border-dashed border-gray-200">
+                            <p className="text-gray-400 font-black uppercase tracking-widest italic text-xs">Nenhum item disponibilizado encontrado para a pesquisa nas datas de {formatMonthBR(reportMonth)}.</p>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                /* VISÃO POR ITENS CONTRATADOS */
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredReportData.byItem.length > 0 ? (
+                        filteredReportData.byItem.map(item => (
+                            <div key={item.name} className="bg-white p-5 rounded-[2rem] border-2 border-gray-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4">
+                                <div>
+                                    <span className="text-[9px] font-black text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full uppercase tracking-widest mb-2 inline-block">
+                                        Item Contratado ({item.dates.length} {item.dates.length === 1 ? 'dia' : 'dias'})
+                                    </span>
+                                    <h4 className="font-black text-gray-900 uppercase text-xs leading-tight mb-3">
+                                        {item.name}
+                                    </h4>
+                                    
+                                    <div className="max-h-40 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                                        {item.dates.map((d, index) => {
+                                            const formattedItemDate = new Date(d.date + 'T12:00:00').toLocaleDateString('pt-BR');
+                                            const unitString = contractItemUnitMap.get(item.name);
+                                            const unitLabel = getUnitLabel(unitString, item.name);
+                                            return (
+                                                <div key={index} className="flex items-center justify-between bg-gray-50 hover:bg-gray-100/50 p-2 rounded-xl border border-gray-200/40 text-[10px] font-semibold text-gray-600 transition-colors">
+                                                    <span className="font-mono text-gray-800">{formattedItemDate}</span>
+                                                    <span className="font-bold text-gray-400 uppercase tracking-widest text-[8px]">{d.period}</span>
+                                                    {d.unitWeight && (
+                                                        <span className="font-mono font-black text-rose-700 bg-white border border-gray-200 px-1.5 py-0.5 rounded text-[9px]">
+                                                            {d.unitWeight} {unitLabel}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="col-span-full py-20 text-center bg-gray-50 rounded-[3rem] border-4 border-dashed border-gray-200">
+                            <p className="text-gray-400 font-black uppercase tracking-widest italic text-xs">Nenhum item disponibilizado encontrado para a pesquisa por item em {formatMonthBR(reportMonth)}.</p>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
       )}
 
