@@ -159,11 +159,15 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         };
         console.log("Saving new configuration:", newConfig);
         try {
-            await onUpdatePerCapitaConfig(newConfig);
-            setIsDirty(false); // Only reset if successful
-            setSaveSuccess(true);
-            localStorage.removeItem('perCapita_staffCount');
-            localStorage.removeItem('perCapita_inmateCount');
+            const result = await onUpdatePerCapitaConfig(newConfig);
+            if (result && result.success) {
+                setIsDirty(false); // Only reset if successful
+                setSaveSuccess(true);
+                localStorage.removeItem('perCapita_staffCount');
+                localStorage.removeItem('perCapita_inmateCount');
+            } else {
+                toast.error("Erro ao salvar alterações no banco de dados.");
+            }
             setTimeout(() => setSaveSuccess(false), 3000);
         } catch (error) {
             console.error("Failed to save per capita config:", error);
@@ -226,8 +230,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             monthlyAdvances,
         };
         try {
-            await onUpdatePerCapitaConfig(newConfig);
-            setIsDirty(false);
+            const result = await onUpdatePerCapitaConfig(newConfig);
+            if (result && result.success) {
+                setIsDirty(false);
+            } else {
+                toast.error("Erro ao salvar produtores.");
+            }
         } catch (error) {
             console.error("Failed to save producers:", error);
             toast.error("Erro ao salvar produtores.");
@@ -251,8 +259,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             monthlyAdvances,
         };
         try {
-            await onUpdatePerCapitaConfig(newConfig);
-            setIsDirty(false);
+            const result = await onUpdatePerCapitaConfig(newConfig);
+            if (result && result.success) {
+                setIsDirty(false);
+            } else {
+                toast.error("Erro ao salvar fornecedores.");
+            }
         } catch (error) {
             console.error("Failed to save suppliers:", error);
             toast.error("Erro ao salvar fornecedores.");
@@ -276,8 +288,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             monthlyAdvances,
         };
         try {
-            await onUpdatePerCapitaConfig(newConfig);
-            setIsDirty(false);
+            const result = await onUpdatePerCapitaConfig(newConfig);
+            if (result && result.success) {
+                setIsDirty(false);
+            } else {
+                toast.error("Erro ao salvar fornecedores.");
+            }
         } catch (error) {
             console.error("Failed to save suppliers:", error);
             toast.error("Erro ao salvar fornecedores.");
