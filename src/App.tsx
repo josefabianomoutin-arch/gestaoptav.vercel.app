@@ -1933,6 +1933,12 @@ const App: React.FC = () => {
       
       const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
       
+      // Checar se existem fornecedores afetados no perCapitaConfig
+      const ppaisAffected = ensureArray(perCapitaConfig.ppaisProducers).filter(p => assignments.some(a => cleanStr(a.supplierCpf) === cleanStr(p.cpfCnpj || p.cpf)));
+      const pereciveisAffected = ensureArray(perCapitaConfig.pereciveisSuppliers).filter(p => assignments.some(a => cleanStr(a.supplierCpf) === cleanStr(p.cpfCnpj || p.cpf)));
+      
+      console.log('Fornecedores afetados no PPAIS/Pereciveis:', { ppais: ppaisAffected.length, pereciveis: pereciveisAffected.length });
+      
       // Identificar fornecedores que PRECISAM ser atualizados:
       // 1. Fornecedores que estão nos novos assignments
       // 2. Fornecedores que atualmente possuem o item mas não estão nos novos assignments

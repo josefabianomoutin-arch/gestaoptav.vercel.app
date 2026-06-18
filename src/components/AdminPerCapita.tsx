@@ -125,6 +125,21 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         }
     }, [staffCount, inmateCount]);
 
+    // Sincronizar selectedProducer com as alterações da lista de fornecedores
+    useEffect(() => {
+        if (selectedProducer) {
+            const source = activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers);
+            const updated = source.find(p => p.id === selectedProducer.id);
+            if (updated) {
+                if (JSON.stringify(updated) !== JSON.stringify(selectedProducer)) {
+                    setSelectedProducer(updated);
+                }
+            } else {
+                setSelectedProducer(null);
+            }
+        }
+    }, [ppaisProducers, pereciveisSuppliers, estocaveisSuppliers, activeSubTab, selectedProducer]);
+
     const handleSave = async () => {
         setIsSaving(true);
         setSaveSuccess(false);
@@ -299,13 +314,15 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [estocaveisSuppliers]);
 
     const handleUpdateContractForPpais = async (itemName: string, assignments: any[]) => {
+        console.log("Updating PPAIS contract for:", itemName, "Assignments:", assignments);
         const normalizedNew = normalizeItemName(itemName);
         const updatedProducers = ppaisProducers.map(producer => {
             const assignment = assignments.find(a => matchCpfCnpj(a.supplierCpf, producer.cpfCnpj || producer.cpf));
+            console.log("Checking producer:", producer.name, "Found assignment:", !!assignment);
             const newContractItems = ensureArray(producer.contractItems).filter((ci: any) => {
                 const normalizedCi = normalizeItemName(ci.name);
-                // Remove if it's the same name or if the new name is a more detailed version of the old one
-                return normalizedCi !== normalizedNew && !normalizedNew.startsWith(normalizedCi);
+                // Remove if it's the same name
+                return normalizedCi !== normalizedNew;
             });
             if (assignment) {
                 newContractItems.push({
@@ -378,7 +395,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             const assignment = assignments.find(a => matchCpfCnpj(a.supplierCpf, supplier.cpfCnpj || supplier.cpf));
             const newContractItems = ensureArray(supplier.contractItems).filter((ci: any) => {
                 const normalizedCi = normalizeItemName(ci.name);
-                return normalizedCi !== normalizedNew && !normalizedNew.startsWith(normalizedCi);
+                return normalizedCi !== normalizedNew;
             });
             if (assignment) {
                 newContractItems.push({
@@ -437,7 +454,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             const assignment = assignments.find(a => matchCpfCnpj(a.supplierCpf, supplier.cpfCnpj || supplier.cpf));
             const newContractItems = ensureArray(supplier.contractItems).filter((ci: any) => {
                 const normalizedCi = normalizeItemName(ci.name);
-                return normalizedCi !== normalizedNew && !normalizedNew.startsWith(normalizedCi);
+                return normalizedCi !== normalizedNew;
             });
             if (assignment) {
                 newContractItems.push({
