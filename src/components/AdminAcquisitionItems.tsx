@@ -52,14 +52,17 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
         onConfirm: () => {},
     });
 
-    const normalizeCategory = (cat: string | undefined) => (cat || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+    const normalizeCategory = (cat: string | undefined) => (cat || '').trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
 
-    const filteredItems = items.filter(item => 
-        normalizeCategory(item.category) === normalizeCategory(category) &&
-        (item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-         item.comprasCode?.includes(searchTerm) ||
-         item.becCode?.includes(searchTerm))
-    );
+    const filteredItems = items.filter(item => {
+        const itemName = String(item.name || '').toLowerCase();
+        const compras = String(item.comprasCode || '');
+        const bec = String(item.becCode || '');
+        return normalizeCategory(item.category) === normalizeCategory(category) &&
+        (itemName.includes(searchTerm.toLowerCase()) ||
+         compras.includes(searchTerm) ||
+         bec.includes(searchTerm));
+    });
 
 
     const totalCategoryValue = useMemo(() => {
@@ -506,8 +509,10 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                 <div ref={topScrollRef} onScroll={handleTopScroll} className="overflow-x-auto custom-scrollbar bg-zinc-50/50 border-b border-zinc-100">
                     <div style={{ width: tableWidth, height: '4px' }}></div>
                 </div>
-                
                 {/* Main Table Container */}
+                <div style={{padding: '10px', background: '#333', color: '#0f0', fontFamily: 'monospace', fontSize: '10px'}}>
+                    DEBUG: RAW ITEMS={items?.length} | CAT={category} | NORM_CAT={normalizeCategory(category)} | FIRST_5={JSON.stringify(items.slice(0,5).map(i => i.category))}
+                </div>
                 <div ref={bottomScrollRef} onScroll={handleBottomScroll} className="overflow-x-auto custom-scrollbar">
                     <table ref={tableRef} className="w-full border-collapse">
                         <thead>
