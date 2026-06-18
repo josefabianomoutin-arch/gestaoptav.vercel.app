@@ -323,6 +323,32 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             }
             return { ...producer, contractItems: newContractItems };
         });
+
+        // Add any NEW producers that are in assignments but not in ppaisProducers
+        const existingCpfs = updatedProducers.map(s => String(s.cpfCnpj || s.cpf));
+        for (const a of assignments) {
+            if (!existingCpfs.some(c => matchCpfCnpj(c, a.supplierCpf))) {
+                const fullSupplier = suppliers.find(s => matchCpfCnpj(String(s.cpfCnpj || s.cpf), a.supplierCpf));
+                if (fullSupplier) {
+                    updatedProducers.push({
+                        ...fullSupplier as any,
+                        contractItems: [{
+                            name: itemName,
+                            totalKg: a.totalKg,
+                            valuePerKg: a.valuePerKg,
+                            monthlyWeight: a.monthlyWeight || 0,
+                            monthlyValue: a.monthlyValue || 0,
+                            unit: a.unit,
+                            category: a.category,
+                            comprasCode: a.comprasCode,
+                            becCode: a.becCode,
+                            period: '2_3_QUAD'
+                        }]
+                    });
+                }
+            }
+        }
+
         await handleUpdateProducers(updatedProducers);
         await updateAcquisitionItemPrice(itemName, assignments);
         return { success: true, message: 'Contratos de produtores atualizados' };
@@ -372,6 +398,34 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             }
             return { ...supplier, contractItems: newContractItems };
         });
+
+        // Add any NEW suppliers that are in assignments but not in pereciveisSuppliers
+        const existingCpfs = updatedSuppliers.map(s => String(s.cpfCnpj || s.cpf));
+        for (const a of assignments) {
+            if (!existingCpfs.some(c => matchCpfCnpj(c, a.supplierCpf))) {
+                const fullSupplier = suppliers.find(s => matchCpfCnpj(String(s.cpfCnpj || s.cpf), a.supplierCpf));
+                if (fullSupplier) {
+                    updatedSuppliers.push({
+                        ...fullSupplier as any,
+                        contractItems: [{
+                            name: itemName,
+                            totalKg: a.totalKg,
+                            valuePerKg: a.valuePerKg,
+                            monthlyWeight: a.monthlyWeight || 0,
+                            monthlyValue: a.monthlyValue || 0,
+                            unit: a.unit,
+                            category: a.category,
+                            comprasCode: a.comprasCode,
+                            becCode: a.becCode,
+                            commitmentNumber: a.commitmentNumber,
+                            commitmentValue: a.commitmentValue,
+                            period: '2_3_QUAD'
+                        }]
+                    });
+                }
+            }
+        }
+
         await handleUpdatePereciveisSuppliers(updatedSuppliers);
         await updateAcquisitionItemPrice(itemName, assignments);
         return { success: true, message: 'Contratos de fornecedores atualizados' };
@@ -403,6 +457,34 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             }
             return { ...supplier, contractItems: newContractItems };
         });
+
+        // Add any NEW suppliers that are in assignments but not in estocaveisSuppliers
+        const existingCpfs = updatedSuppliers.map(s => String(s.cpfCnpj || s.cpf));
+        for (const a of assignments) {
+            if (!existingCpfs.some(c => matchCpfCnpj(c, a.supplierCpf))) {
+                const fullSupplier = suppliers.find(s => matchCpfCnpj(String(s.cpfCnpj || s.cpf), a.supplierCpf));
+                if (fullSupplier) {
+                    updatedSuppliers.push({
+                        ...fullSupplier as any,
+                        contractItems: [{
+                            name: itemName,
+                            totalKg: a.totalKg,
+                            valuePerKg: a.valuePerKg,
+                            monthlyWeight: a.monthlyWeight || 0,
+                            monthlyValue: a.monthlyValue || 0,
+                            unit: a.unit,
+                            category: a.category,
+                            comprasCode: a.comprasCode,
+                            becCode: a.becCode,
+                            commitmentNumber: a.commitmentNumber,
+                            commitmentValue: a.commitmentValue,
+                            period: '2_3_QUAD'
+                        }]
+                    });
+                }
+            }
+        }
+
         await handleUpdateEstocaveisSuppliers(updatedSuppliers);
         await updateAcquisitionItemPrice(itemName, assignments);
         return { success: true, message: 'Contratos de fornecedores updated' };

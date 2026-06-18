@@ -983,10 +983,19 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                     acquiredQuantity={manageItem.acquiredQuantity + (manageItem.contractAddendum || 0)}
                     onClose={() => setManageItem(null)} 
                     onSave={async (assignments) => {
-                        const displayName = (category === 'PPAIS' || category === 'PERECÍVEIS') ? manageItem.name : (manageItem.contractItemName || manageItem.name);
-                        const res = await onUpdateContractForItem(displayName, assignments);
-                        if (res.success) setManageItem(null);
-                        else alert(res.message);
+                        try {
+                            const displayName = (category === 'PPAIS' || category === 'PERECÍVEIS') ? manageItem.name : (manageItem.contractItemName || manageItem.name);
+                            const res = await onUpdateContractForItem(displayName, assignments);
+                            if (res.success) {
+                                setManageItem(null);
+                            } else {
+                                alert(res.message);
+                            }
+                            return res;
+                        } catch (e: any) {
+                            alert(e.message);
+                            return { success: false, message: e.message };
+                        }
                     }}
                 />
             )}
