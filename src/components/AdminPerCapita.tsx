@@ -2250,6 +2250,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                     activeSubTab === 'PERECÍVEIS' ? pereciveisAsSuppliers : 
                                     (activeSubTab === 'ESTOCÁVEIS' ? estocaveisAsSuppliers : suppliers)
                                 }
+                                allSuppliers={suppliers}
                                 onUpdateContractForItem={
                                     activeSubTab === 'PPAIS' ? handleUpdateContractForPpais : 
                                     activeSubTab === 'PERECÍVEIS' ? handleUpdateContractForPereciveis : 

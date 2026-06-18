@@ -12,11 +12,12 @@ interface AdminAcquisitionItemsProps {
     onDelete: (id: string) => Promise<{ success: boolean; message: string }>;
     contractItems?: string[]; // Lista de nomes de itens do contrato para vinculação
     suppliers?: Supplier[];
+    allSuppliers?: Supplier[];
     onUpdateContractForItem?: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string, commitmentNumber?: string, commitmentValue?: number }[]) => Promise<{ success: boolean, message: string }>;
     perCapitaConfig?: any;
 }
 
-const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, category, onUpdate, onDelete, contractItems = [], suppliers = [], onUpdateContractForItem }) => {
+const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, category, onUpdate, onDelete, contractItems = [], suppliers = [], allSuppliers = [], onUpdateContractForItem }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -323,8 +324,12 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                 category
             };
 
-            await onUpdate(item);
-            resetForm();
+            const res = await onUpdate(item);
+            if (res && res.success === false) {
+                alert(res.message);
+            } else {
+                resetForm();
+            }
         } finally {
             setIsSaving(false);
         }
@@ -508,10 +513,6 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                 {/* Top Scrollbar Sync */}
                 <div ref={topScrollRef} onScroll={handleTopScroll} className="overflow-x-auto custom-scrollbar bg-zinc-50/50 border-b border-zinc-100">
                     <div style={{ width: tableWidth, height: '4px' }}></div>
-                </div>
-                {/* Main Table Container */}
-                <div style={{padding: '10px', background: '#333', color: '#0f0', fontFamily: 'monospace', fontSize: '10px'}}>
-                    DEBUG: RAW ITEMS={items?.length} | CAT={category} | NORM_CAT={normalizeCategory(category)} | FIRST_5={JSON.stringify(items.slice(0,5).map(i => i.category))}
                 </div>
                 <div ref={bottomScrollRef} onScroll={handleBottomScroll} className="overflow-x-auto custom-scrollbar">
                     <table ref={tableRef} className="w-full border-collapse">
@@ -975,7 +976,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                 commitmentValue: ci.commitmentValue
                             }))
                     )} 
-                    allSuppliers={suppliers} 
+                    allSuppliers={allSuppliers.length > 0 ? allSuppliers : suppliers} 
                     unit={`${manageItem.unit}-1`}
                     category={manageItem.category}
                     comprasCode={manageItem.comprasCode}
