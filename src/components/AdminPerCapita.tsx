@@ -234,7 +234,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             if (result && result.success) {
                 setIsDirty(false);
             } else {
-                toast.error("Erro ao salvar produtores.");
+                console.error("Erro ao salvar produtores:", result);
+                toast.error("Erro ao salvar produtores: " + (result?.message || 'Erro desconhecido'));
             }
         } catch (error) {
             console.error("Failed to save producers:", error);
@@ -263,11 +264,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             if (result && result.success) {
                 setIsDirty(false);
             } else {
-                toast.error("Erro ao salvar fornecedores.");
+                console.error("Erro ao salvar fornecedores (pereciveis):", result);
+                toast.error("Erro ao salvar fornecedores (pereciveis): " + (result?.message || 'Erro desconhecido'));
             }
         } catch (error) {
-            console.error("Failed to save suppliers:", error);
-            toast.error("Erro ao salvar fornecedores.");
+            console.error("Failed to save suppliers (pereciveis):", error);
+            toast.error("Erro ao salvar fornecedores (pereciveis).");
         }
     }, [staffCount, inmateCount, customPerCapita, seiProcessNumbers, seiProcessDefinitions, monthlyQuota, monthlyResource, ptresResources, ppaisProducers, estocaveisSuppliers, monthlyAdvances, onUpdatePerCapitaConfig]);
 
@@ -292,11 +294,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             if (result && result.success) {
                 setIsDirty(false);
             } else {
-                toast.error("Erro ao salvar fornecedores.");
+                console.error("Erro ao salvar fornecedores (estocaveis):", result);
+                toast.error("Erro ao salvar fornecedores (estocaveis): " + (result?.message || 'Erro desconhecido'));
             }
         } catch (error) {
-            console.error("Failed to save suppliers:", error);
-            toast.error("Erro ao salvar fornecedores.");
+            console.error("Failed to save suppliers (estocaveis):", error);
+            toast.error("Erro ao salvar fornecedores (estocaveis).");
         }
     }, [staffCount, inmateCount, customPerCapita, seiProcessNumbers, seiProcessDefinitions, monthlyQuota, monthlyResource, ptresResources, ppaisProducers, pereciveisSuppliers, monthlyAdvances, onUpdatePerCapitaConfig]);
 
