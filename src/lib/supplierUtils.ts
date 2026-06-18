@@ -67,11 +67,33 @@ export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any
     const uniqueMap = new Map<string, Supplier>();
     all.forEach(s => {
         if (s && s.cpf) {
-            const key = cleanCpf(s.cpf);
-            if (!key) return;
+            const rawKey = cleanCpf(s.cpf);
+            if (!rawKey) return;
+
+            // Find matching key (exact, or 11 vs 14 chars starting with same prefix to merge truncated legacy values)
+            let key = rawKey;
+            for (const existingKey of uniqueMap.keys()) {
+                if (existingKey === rawKey || 
+                    (existingKey.length === 11 && rawKey.length === 14 && rawKey.startsWith(existingKey)) ||
+                    (existingKey.length === 14 && rawKey.length === 11 && existingKey.startsWith(rawKey))) {
+                    key = existingKey;
+                    break;
+                }
+            }
+
+            // Prefer the longer/full key if rawKey has 14 and matched existingKey has 11
+            if (rawKey.length === 14 && key.length === 11) {
+                const existingVal = uniqueMap.get(key);
+                uniqueMap.delete(key);
+                key = rawKey;
+                if (existingVal) {
+                    uniqueMap.set(key, existingVal);
+                }
+            }
+
             const existing = uniqueMap.get(key);
             if (!existing) {
-                uniqueMap.set(key, { ...s });
+                uniqueMap.set(key, { ...s, cpf: key });
             } else {
                 const sDeliveriesRaw = ensureArray<any>(s.deliveries);
                 const extDeliveriesRaw = ensureArray<any>(existing.deliveries);
@@ -88,6 +110,7 @@ export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any
 
                 uniqueMap.set(key, {
                     ...existing,
+                    cpf: key,
                     deliveries: uniqueDeliveries,
                     allowedWeeks: mergedWeeks,
                     contractItems: uniqueItems as any[],

@@ -43,6 +43,12 @@ const normalizeItemName = (name: string): string => {
         .toUpperCase();
 };
 
+const matchCpfCnpj = (val1: any, val2: any): boolean => {
+    const c1 = String(val1 || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+    const c2 = String(val2 || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+    return c1 !== '' && c2 !== '' && (c1 === c2 || c1.startsWith(c2) || c2.startsWith(c1));
+};
+
 const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 const getSeiValue = (map: Record<string, string>, tab: string) => (map && tab) ? map[tab] || '' : '';
@@ -295,7 +301,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const handleUpdateContractForPpais = async (itemName: string, assignments: any[]) => {
         const normalizedNew = normalizeItemName(itemName);
         const updatedProducers = ppaisProducers.map(producer => {
-            const assignment = assignments.find(a => a.supplierCpf === producer.cpfCnpj);
+            const assignment = assignments.find(a => matchCpfCnpj(a.supplierCpf, producer.cpfCnpj || producer.cpf));
             const newContractItems = ensureArray(producer.contractItems).filter((ci: any) => {
                 const normalizedCi = normalizeItemName(ci.name);
                 // Remove if it's the same name or if the new name is a more detailed version of the old one
@@ -343,7 +349,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const handleUpdateContractForPereciveis = async (itemName: string, assignments: any[]) => {
         const normalizedNew = normalizeItemName(itemName);
         const updatedSuppliers = pereciveisSuppliers.map(supplier => {
-            const assignment = assignments.find(a => a.supplierCpf === supplier.cpfCnpj);
+            const assignment = assignments.find(a => matchCpfCnpj(a.supplierCpf, supplier.cpfCnpj || supplier.cpf));
             const newContractItems = ensureArray(supplier.contractItems).filter((ci: any) => {
                 const normalizedCi = normalizeItemName(ci.name);
                 return normalizedCi !== normalizedNew && !normalizedNew.startsWith(normalizedCi);
@@ -374,7 +380,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const handleUpdateContractForEstocaveis = async (itemName: string, assignments: any[]) => {
         const normalizedNew = normalizeItemName(itemName);
         const updatedSuppliers = estocaveisSuppliers.map(supplier => {
-            const assignment = assignments.find(a => a.supplierCpf === supplier.cpfCnpj);
+            const assignment = assignments.find(a => matchCpfCnpj(a.supplierCpf, supplier.cpfCnpj || supplier.cpf));
             const newContractItems = ensureArray(supplier.contractItems).filter((ci: any) => {
                 const normalizedCi = normalizeItemName(ci.name);
                 return normalizedCi !== normalizedNew && !normalizedNew.startsWith(normalizedCi);
@@ -399,7 +405,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         });
         await handleUpdateEstocaveisSuppliers(updatedSuppliers);
         await updateAcquisitionItemPrice(itemName, assignments);
-        return { success: true, message: 'Contratos de fornecedores atualizados' };
+        return { success: true, message: 'Contratos de fornecedores updated' };
     };
 
     const contractItemNamesByCategory = useMemo(() => {
@@ -1331,8 +1337,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                         .sort((a, b) => a.name.localeCompare(b.name))
                                         .map((s, idx) => {
                                             const items = Object.values(s.contractItems || {}) as any[];
-                                            const category = ppaisProducers.some(p => p.cpfCnpj === s.cpf) ? 'PPAIS' : 
-                                                             pereciveisSuppliers.some(p => p.cpfCnpj === s.cpf) ? 'PERECÍVEIS' : 'ESTOCÁVEIS';
+                                            const category = ppaisProducers.some(p => matchCpfCnpj(p.cpfCnpj, s.cpf)) ? 'PPAIS' : 
+                                                             pereciveisSuppliers.some(p => matchCpfCnpj(p.cpfCnpj, s.cpf)) ? 'PERECÍVEIS' : 'ESTOCÁVEIS';
                                             
                                             
                                             return (

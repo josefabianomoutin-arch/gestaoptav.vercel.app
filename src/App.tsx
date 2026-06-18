@@ -1101,6 +1101,12 @@ const App: React.FC = () => {
   const handleDeleteDelivery = async (supplierCpf: string, deliveryId: string) => {
     try {
       const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+      const match = (a: any, b: any) => {
+        const ca = clean(a);
+        const cb = clean(b);
+        if (!ca || !cb) return false;
+        return ca === cb || (ca.length === 11 && cb.length === 14 && cb.startsWith(ca)) || (cb.length === 11 && ca.length === 14 && ca.startsWith(cb));
+      };
       const targetCpf = clean(supplierCpf);
 
       // 1. Clean up warehouseLog first if there's a matching entry
@@ -1108,7 +1114,7 @@ const App: React.FC = () => {
       const allLogs = logSnapshot.val() || {};
       const logKeysToDelete = Object.keys(allLogs).filter(key => {
           const entry = allLogs[key];
-          return clean(entry.supplierCpf) === targetCpf && (entry.deliveryId === deliveryId || entry.id === deliveryId);
+          return match(entry.supplierCpf, targetCpf) && (entry.deliveryId === deliveryId || entry.id === deliveryId);
       });
 
       if (logKeysToDelete.length > 0) {
@@ -1119,7 +1125,7 @@ const App: React.FC = () => {
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const list = ensureArray(perCapitaConfig[listKey]);
-        const idx = list.findIndex((p: any) => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
+        const idx = list.findIndex((p: any) => p && match(p.cpfCnpj || p.cpf, targetCpf));
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
@@ -1131,7 +1137,7 @@ const App: React.FC = () => {
       }
 
       // 3. Try Main Suppliers
-      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      const mainSupplier = (suppliers || []).find(s => s && match(s.cpf, targetCpf));
       if (mainSupplier) {
         const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
         await runTransaction(deliveriesRef, (current) => {
@@ -1152,13 +1158,19 @@ const App: React.FC = () => {
   const handleUpdateDelivery = async (supplierCpf: string, deliveryId: string, updates: Partial<Delivery>) => {
     try {
       const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+      const match = (a: any, b: any) => {
+        const ca = clean(a);
+        const cb = clean(b);
+        if (!ca || !cb) return false;
+        return ca === cb || (ca.length === 11 && cb.length === 14 && cb.startsWith(ca)) || (cb.length === 11 && ca.length === 14 && ca.startsWith(cb));
+      };
       const targetCpf = clean(supplierCpf);
 
       // 1. Try Per Capita FIRST
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const list = ensureArray(perCapitaConfig[listKey]);
-        const idx = list.findIndex((p: any) => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
+        const idx = list.findIndex((p: any) => p && match(p.cpfCnpj || p.cpf, targetCpf));
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
@@ -1170,7 +1182,7 @@ const App: React.FC = () => {
       }
 
       // 2. Try Main Suppliers
-      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      const mainSupplier = (suppliers || []).find(s => s && match(s.cpf, targetCpf));
       if (mainSupplier) {
         const supRef = child(suppliersRef, mainSupplier.id || targetCpf);
         const deliveriesRef = child(supRef, `deliveries`);
@@ -1191,6 +1203,12 @@ const App: React.FC = () => {
   const handleSaveInvoice = async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string): Promise<void> => {
     try {
       const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+      const match = (a: any, b: any) => {
+        const ca = clean(a);
+        const cb = clean(b);
+        if (!ca || !cb) return false;
+        return ca === cb || (ca.length === 11 && cb.length === 14 && cb.startsWith(ca)) || (cb.length === 11 && ca.length === 14 && ca.startsWith(cb));
+      };
       const targetCpf = clean(supplierCpf);
 
       const enrichedDeliveries = updatedDeliveries.map(d => ({
@@ -1205,12 +1223,12 @@ const App: React.FC = () => {
       }));
 
       // Find Main Supplier or Per Capita Info
-      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      const mainSupplier = (suppliers || []).find(s => s && match(s.cpf, targetCpf));
       let pcSup = null;
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
-        const found = producers.find((p: any) => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
+        const found = producers.find((p: any) => p && (match(p.cpfCnpj, targetCpf) || match(p.cpf, targetCpf)));
         if (found) {
           pcSup = found;
           break;
@@ -1222,7 +1240,7 @@ const App: React.FC = () => {
       // 1. Try Per Capita FIRST to prioritize Per Capita mappings
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
-        const idx = producers.findIndex((p: any) => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
+        const idx = producers.findIndex((p: any) => p && (match(p.cpfCnpj, targetCpf) || match(p.cpf, targetCpf)));
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
