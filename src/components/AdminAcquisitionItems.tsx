@@ -55,6 +55,16 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
 
     const normalizeCategory = (cat: string | undefined) => (cat || '').trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
 
+    const normalizeItemName = (name: string | undefined): string => {
+        return (name || '')
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+            .replace(/[;,. -/]/g, " ")    // Troca separadores por espaço
+            .replace(/\s+/g, " ")           // Remove espaços duplos
+            .trim()
+            .toUpperCase();
+    };
+
     const filteredItems = items.filter(item => {
         const itemName = String(item.name || '').toLowerCase();
         const compras = String(item.comprasCode || '');
@@ -962,9 +972,14 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
             {manageItem && onUpdateContractForItem && (
                 <ManageContractSuppliersModal 
                     itemName={manageItem.name} 
-                    currentSuppliers={suppliers.flatMap(s => 
-                        (Object.values(s.contractItems || {}) as any[])
-                            .filter((ci: any) => ci.name === manageItem.name)
+                    currentSuppliers={suppliers.flatMap(s => {
+                        const targetNames = [
+                            normalizeItemName(manageItem.name),
+                            normalizeItemName(manageItem.contractItemName || '')
+                        ].filter(Boolean);
+
+                        return (Object.values(s.contractItems || {}) as any[])
+                            .filter((ci: any) => targetNames.includes(normalizeItemName(ci.name)))
                             .map((ci: any) => ({
                                 supplierName: s.name,
                                 supplierCpf: s.cpf,
@@ -974,8 +989,8 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                 monthlyValue: ci.monthlyValue,
                                 commitmentNumber: ci.commitmentNumber,
                                 commitmentValue: ci.commitmentValue
-                            }))
-                    )} 
+                            }));
+                    })} 
                     allSuppliers={allSuppliers.length > 0 ? allSuppliers : suppliers} 
                     unit={`${manageItem.unit}-1`}
                     category={manageItem.category}
