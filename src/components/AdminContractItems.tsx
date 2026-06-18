@@ -66,6 +66,17 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
                 existing.totalValueContracted += (Number(ci.totalKg) || 0) * (Number(ci.valuePerKg) || 0);
                 existing.totalCommitmentValue = (existing.totalCommitmentValue || 0) + (Number(ci.commitmentValue) || 0);
                 existing.suppliersCount += 1;
+                
+                if (ci.category && (!existing.category || existing.category === 'OUTROS')) {
+                    existing.category = ci.category;
+                }
+                if (ci.comprasCode && !existing.comprasCode) {
+                    existing.comprasCode = ci.comprasCode;
+                }
+                if (ci.becCode && !existing.becCode) {
+                    existing.becCode = ci.becCode;
+                }
+
                 existing.details.push({ 
                     supplierName: s.name, 
                     supplierCpf: s.cpf, 

@@ -1913,11 +1913,13 @@ const App: React.FC = () => {
     try {
       console.log('Tentando atualizar contratos para o item:', itemName, 'Assignments:', assignments);
       
+      const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+      
       // Identificar fornecedores que PRECISAM ser atualizados:
       // 1. Fornecedores que estão nos novos assignments
       // 2. Fornecedores que atualmente possuem o item mas não estão nos novos assignments
       const suppliersToUpdate = suppliers.filter(s => {
-        const isAssigned = assignments.some(a => a.supplierCpf === s.cpf);
+        const isAssigned = assignments.some(a => cleanStr(a.supplierCpf) === cleanStr(s.cpf));
         const hasItem = (s.contractItems || []).some(ci => ci.name === itemName);
         return isAssigned || hasItem;
       });
@@ -1928,10 +1930,10 @@ const App: React.FC = () => {
       // Processar em pequenos lotes ou sequencialmente mas apenas os afetados
       for (const supplier of suppliersToUpdate) {
         count++;
-        const assignment = assignments.find(a => a.supplierCpf === supplier.cpf);
-        const supplierRef = child(suppliersRef, supplier.cpf);
+        const assignment = assignments.find(a => cleanStr(a.supplierCpf) === cleanStr(supplier.cpf));
+        const supplierRef = child(suppliersRef, supplier.id || supplier.cpf);
         
-        console.log(`Processando fornecedor ${count}/${suppliersToUpdate.length}: ${supplier.name} (${supplier.cpf})`);
+        console.log(`Processando fornecedor ${count}/${suppliersToUpdate.length}: ${supplier.name} (${supplier.id || supplier.cpf})`);
         
         // Tenta a transação com retentativas manuais se necessário, mas o runTransaction já faz isso.
         // Removemos o Promise.race com timeout curto para evitar interromper transações legítimas
@@ -1974,9 +1976,9 @@ const App: React.FC = () => {
           const updatedPereciveis = Array.isArray(current.pereciveisSuppliers) ? [...current.pereciveisSuppliers] : Object.values(current.pereciveisSuppliers || {});
           const updatedEstocaveis = Array.isArray(current.estocaveisSuppliers) ? [...current.estocaveisSuppliers] : Object.values(current.estocaveisSuppliers || {});
 
-          const ppaisIndex = updatedPpais.findIndex(p => (p.cpfCnpj === supplier.cpf || p.cpf === supplier.cpf));
-          const pereciveisIndex = updatedPereciveis.findIndex(p => (p.cpfCnpj === supplier.cpf || p.cpf === supplier.cpf));
-          const estocaveisIndex = updatedEstocaveis.findIndex(p => (p.cpfCnpj === supplier.cpf || p.cpf === supplier.cpf));
+          const ppaisIndex = updatedPpais.findIndex(p => cleanStr(p.cpfCnpj || p.cpf) === cleanStr(supplier.cpf));
+          const pereciveisIndex = updatedPereciveis.findIndex(p => cleanStr(p.cpfCnpj || p.cpf) === cleanStr(supplier.cpf));
+          const estocaveisIndex = updatedEstocaveis.findIndex(p => cleanStr(p.cpfCnpj || p.cpf) === cleanStr(supplier.cpf));
 
           if (ppaisIndex !== -1) {
             const p = updatedPpais[ppaisIndex];
