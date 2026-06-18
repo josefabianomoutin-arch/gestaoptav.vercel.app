@@ -269,7 +269,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [staffCount, inmateCount, customPerCapita, seiProcessNumbers, seiProcessDefinitions, monthlyQuota, monthlyResource, ptresResources, ppaisProducers, pereciveisSuppliers, monthlyAdvances, onUpdatePerCapitaConfig]);
 
     const ppaisAsSuppliers = useMemo(() => {
-        return ppaisProducers.map(p => ({
+        return ppaisProducers.filter(Boolean).map(p => ({
             ...p,
             cpf: p.cpfCnpj || p.cpf,
             deliveries: ensureArray(p.deliveries),
@@ -279,7 +279,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [ppaisProducers]);
 
     const pereciveisAsSuppliers = useMemo(() => {
-        return pereciveisSuppliers.map(p => ({
+        return pereciveisSuppliers.filter(Boolean).map(p => ({
             ...p,
             cpf: p.cpfCnpj || p.cpf,
             deliveries: ensureArray(p.deliveries),
@@ -289,7 +289,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [pereciveisSuppliers]);
 
     const estocaveisAsSuppliers = useMemo(() => {
-        return estocaveisSuppliers.map(p => ({
+        return estocaveisSuppliers.filter(Boolean).map(p => ({
             ...p,
             cpf: p.cpfCnpj || p.cpf,
             deliveries: ensureArray(p.deliveries),

@@ -61,6 +61,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
          item.becCode?.includes(searchTerm))
     );
 
+
     const totalCategoryValue = useMemo(() => {
         return filteredItems.reduce((sum, item) => {
             const quantity = item.acquiredQuantity + (item.contractAddendum || 0);
