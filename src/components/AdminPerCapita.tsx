@@ -157,6 +157,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             estocaveisSuppliers,
             monthlyAdvances,
         };
+        console.log("Saving new configuration:", newConfig);
         try {
             await onUpdatePerCapitaConfig(newConfig);
             setIsDirty(false); // Only reset if successful
