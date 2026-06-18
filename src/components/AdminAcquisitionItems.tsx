@@ -52,8 +52,10 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
         onConfirm: () => {},
     });
 
+    const normalizeCategory = (cat: string | undefined) => (cat || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+
     const filteredItems = items.filter(item => 
-        item.category === category &&
+        normalizeCategory(item.category) === normalizeCategory(category) &&
         (item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
          item.comprasCode?.includes(searchTerm) ||
          item.becCode?.includes(searchTerm))

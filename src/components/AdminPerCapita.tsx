@@ -271,7 +271,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const ppaisAsSuppliers = useMemo(() => {
         return ppaisProducers.map(p => ({
             ...p,
-            cpf: p.cpfCnpj,
+            cpf: p.cpfCnpj || p.cpf,
             deliveries: ensureArray(p.deliveries),
             allowedWeeks: [],
             initialValue: ensureArray(p.contractItems).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
@@ -281,7 +281,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const pereciveisAsSuppliers = useMemo(() => {
         return pereciveisSuppliers.map(p => ({
             ...p,
-            cpf: p.cpfCnpj,
+            cpf: p.cpfCnpj || p.cpf,
             deliveries: ensureArray(p.deliveries),
             allowedWeeks: [],
             initialValue: ensureArray(p.contractItems).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
@@ -291,7 +291,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const estocaveisAsSuppliers = useMemo(() => {
         return estocaveisSuppliers.map(p => ({
             ...p,
-            cpf: p.cpfCnpj,
+            cpf: p.cpfCnpj || p.cpf,
             deliveries: ensureArray(p.deliveries),
             allowedWeeks: [],
             initialValue: ensureArray(p.contractItems).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
@@ -1337,8 +1337,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                         .sort((a, b) => a.name.localeCompare(b.name))
                                         .map((s, idx) => {
                                             const items = Object.values(s.contractItems || {}) as any[];
-                                            const category = ppaisProducers.some(p => matchCpfCnpj(p.cpfCnpj, s.cpf)) ? 'PPAIS' : 
-                                                             pereciveisSuppliers.some(p => matchCpfCnpj(p.cpfCnpj, s.cpf)) ? 'PERECÍVEIS' : 'ESTOCÁVEIS';
+                                            const category = ppaisProducers.some(p => matchCpfCnpj(p.cpfCnpj || p.cpf, s.cpf)) ? 'PPAIS' : 
+                                                             pereciveisSuppliers.some(p => matchCpfCnpj(p.cpfCnpj || p.cpf, s.cpf)) ? 'PERECÍVEIS' : 'ESTOCÁVEIS';
                                             
                                             
                                             return (
