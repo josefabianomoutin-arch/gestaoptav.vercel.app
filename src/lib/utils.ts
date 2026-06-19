@@ -36,7 +36,11 @@ export function safeLocalStorageSetItem(key: string, value: string): boolean {
       try {
         const parsed = JSON.parse(value);
         if (Array.isArray(parsed)) {
-          const trimmed = parsed.map((sup: any) => {
+          // 1. First, limit the number of suppliers themselves to 200 to prevent quota issues
+          const limitedSuppliers = parsed.slice(0, 200);
+
+          // 2. Then, prune deliveries for each of these suppliers
+          const trimmed = limitedSuppliers.map((sup: any) => {
             if (sup && Array.isArray(sup.deliveries)) {
               const sortedDeliveries = [...sup.deliveries].sort((a: any, b: any) => {
                 const dA = String(a.date || '');
