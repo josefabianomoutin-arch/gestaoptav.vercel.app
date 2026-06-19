@@ -17,7 +17,7 @@ interface AdminPerCapitaProps {
   suppliers: Supplier[];
   warehouseLog: WarehouseMovement[];
   perCapitaConfig: PerCapitaConfig;
-  onUpdatePerCapitaConfig: (config: PerCapitaConfig) => Promise<any>;
+  onUpdatePerCapitaConfig: (config: Partial<PerCapitaConfig>) => Promise<any>;
   onUpdateContractForItem: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string, commitmentNumber?: string, commitmentValue?: number }[]) => Promise<{ success: boolean, message: string }>;
   onUpdateAcquisitionItem: (item: AcquisitionItem) => Promise<{ success: boolean, message: string }>;
   onDeleteAcquisitionItem: (id: string) => Promise<{ success: boolean, message: string }>;
@@ -215,19 +215,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
     const handleUpdateProducers = useCallback(async (newProducers: PerCapitaSupplier[]) => {
         setPpaisProducers(newProducers);
-        const newConfig: PerCapitaConfig = {
-            staffCount,
-            inmateCount,
-            customValues: customPerCapita,
-            seiProcessNumbers,
-            seiProcessDefinitions,
-            monthlyQuota,
-            monthlyResource,
-            ptresResources,
+        const newConfig: Partial<PerCapitaConfig> = {
             ppaisProducers: newProducers,
-            pereciveisSuppliers,
-            estocaveisSuppliers,
-            monthlyAdvances,
         };
         try {
             const result = await onUpdatePerCapitaConfig(newConfig);
@@ -241,23 +230,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             console.error("Failed to save producers:", error);
             toast.error("Erro ao salvar produtores.");
         }
-    }, [staffCount, inmateCount, customPerCapita, seiProcessNumbers, seiProcessDefinitions, monthlyQuota, monthlyResource, ptresResources, pereciveisSuppliers, estocaveisSuppliers, monthlyAdvances, onUpdatePerCapitaConfig]);
+    }, [onUpdatePerCapitaConfig]);
 
     const handleUpdatePereciveisSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
         setPereciveisSuppliers(newSuppliers);
-        const newConfig: PerCapitaConfig = {
-            staffCount,
-            inmateCount,
-            customValues: customPerCapita,
-            seiProcessNumbers,
-            seiProcessDefinitions,
-            monthlyQuota,
-            monthlyResource,
-            ptresResources,
-            ppaisProducers,
+        const newConfig: Partial<PerCapitaConfig> = {
             pereciveisSuppliers: newSuppliers,
-            estocaveisSuppliers,
-            monthlyAdvances,
         };
         try {
             const result = await onUpdatePerCapitaConfig(newConfig);
@@ -271,23 +249,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             console.error("Failed to save suppliers (pereciveis):", error);
             toast.error("Erro ao salvar fornecedores (pereciveis).");
         }
-    }, [staffCount, inmateCount, customPerCapita, seiProcessNumbers, seiProcessDefinitions, monthlyQuota, monthlyResource, ptresResources, ppaisProducers, estocaveisSuppliers, monthlyAdvances, onUpdatePerCapitaConfig]);
+    }, [onUpdatePerCapitaConfig]);
 
     const handleUpdateEstocaveisSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
         setEstocaveisSuppliers(newSuppliers);
-        const newConfig: PerCapitaConfig = {
-            staffCount,
-            inmateCount,
-            customValues: customPerCapita,
-            seiProcessNumbers,
-            seiProcessDefinitions,
-            monthlyQuota,
-            monthlyResource,
-            ptresResources,
-            ppaisProducers,
-            pereciveisSuppliers,
+        const newConfig: Partial<PerCapitaConfig> = {
             estocaveisSuppliers: newSuppliers,
-            monthlyAdvances,
         };
         try {
             const result = await onUpdatePerCapitaConfig(newConfig);
@@ -301,7 +268,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             console.error("Failed to save suppliers (estocaveis):", error);
             toast.error("Erro ao salvar fornecedores (estocaveis).");
         }
-    }, [staffCount, inmateCount, customPerCapita, seiProcessNumbers, seiProcessDefinitions, monthlyQuota, monthlyResource, ptresResources, ppaisProducers, pereciveisSuppliers, monthlyAdvances, onUpdatePerCapitaConfig]);
+    }, [onUpdatePerCapitaConfig]);
 
     const ppaisAsSuppliers = useMemo(() => {
         return ppaisProducers.filter(Boolean).map(p => ({
