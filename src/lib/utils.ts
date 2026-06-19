@@ -70,7 +70,11 @@ export function safeLocalStorageSetItem(key: string, value: string): boolean {
           ];
           lists.forEach((listKey) => {
             if (Array.isArray(parsed[listKey])) {
-              parsed[listKey] = parsed[listKey].map((sup: any) => {
+              // 1. Limit the number of suppliers themselves to 100 to prevent quota issues
+              const limitedSuppliers = parsed[listKey].slice(0, 100);
+
+              // 2. Prune deliveries for each of these suppliers
+              parsed[listKey] = limitedSuppliers.map((sup: any) => {
                 if (sup && Array.isArray(sup.deliveries)) {
                   const sortedDeliveries = [...sup.deliveries].sort((a: any, b: any) => {
                     const dA = String(a.date || '');

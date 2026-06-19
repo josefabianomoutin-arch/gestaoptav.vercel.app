@@ -833,14 +833,7 @@ const App: React.FC = () => {
   const handleUpdatePerCapitaConfig = async (newConfig: Partial<PerCapitaConfig>) => {
     try {
       console.log('Tentando atualizar PerCapitaConfig...');
-      // Using runTransaction to be safer than simple update
-      await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig | null) => {
-        if (!currentData) return newConfig as PerCapitaConfig;
-        return {
-          ...currentData,
-          ...newConfig
-        } as PerCapitaConfig;
-      });
+      await update(perCapitaConfigRef, newConfig);
       return { success: true };
     } catch (e) {
       console.error('Erro ao atualizar PerCapitaConfig:', e);
