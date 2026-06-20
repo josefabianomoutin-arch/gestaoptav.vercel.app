@@ -945,38 +945,77 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
                                             Solicitamos as devidas providências de Vossa Senhoria, no sentido de fornecer a esta Unidade Prisional, os itens relacionados abaixo, conforme especificações constantes no Folheto Descritivo, durante o período de {getMonthName(reportSelectedMonth)}.
                                         </div>
 
-                                        <table className="w-full border-collapse border border-black">
-                                            <thead>
-                                                <tr className="bg-gray-100 uppercase font-bold">
-                                                    <th className="border border-black p-2">Item</th>
-                                                    <th className="border border-black p-2 text-center">Peso do Mês (Kg)</th>
-                                                    <th className="border border-black p-2 text-center">Dias Disponíveis para Agendamento</th>
-                                                    <th className="border border-black p-2 text-center">Peso Entregue</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {Array.from(new Set(selectedReportItems.map(i => i.item))).sort().map((itemName, idx) => {
-                                                    const itemsOfThis = selectedReportItems.filter(i => i.item === itemName);
-                                                    const weight = itemsOfThis.reduce((s, i) => s + (i.kg || 0), 0);
-                                                    const dates = Array.from(new Set(itemsOfThis.map(i => formatDate(i.date)))).sort().join(', ');
-                                                    return (
-                                                        <tr key={idx}>
-                                                            <td className="border border-black p-2 font-bold">{itemName}</td>
-                                                            <td className="border border-black p-2 text-center">{weight.toFixed(3)}</td>
-                                                            <td className="border border-black p-2 text-center">{dates}</td>
-                                                            <td className="border border-black p-2"></td>
-                                                        </tr>
-                                                    )
-                                                })}
-                                            </tbody>
-                                            <tfoot className="font-bold bg-gray-50">
-                                                <tr>
-                                                    <td className="border border-black p-2 text-right uppercase">Totais</td>
-                                                    <td className="border border-black p-2 text-center">{reportTotals.totalWeight.toFixed(3)} Kg</td>
-                                                    <td colSpan={2} className="border border-black p-2"></td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
+                                         {(() => {
+                                             const activeSupplier = suppliers.find(s => s.cpf === reportSupplierCpf);
+                                             const sortedNames = Array.from(new Set(selectedReportItems.map(i => i.item))).sort();
+                                             
+                                             let overallValCombined = 0;
+                                             const compData = sortedNames.map(itemName => {
+                                                 const itemsOfThis = selectedReportItems.filter(i => i.item === itemName);
+                                                 const weight = itemsOfThis.reduce((s, i) => s + (i.kg || 0), 0);
+                                                 const dates = Array.from(new Set(itemsOfThis.map(i => formatDate(i.date)))).sort().join(', ');
+
+                                                 const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+                                                 const normName = normalize(itemName);
+                                                 const itemsSource = activeSupplier?.contractItems || {};
+                                                 const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                                                 const contractItem = supplierItems.find(ci => normalize(ci.name) === normName);
+
+                                                 let valPerKg = contractItem?.valuePerKg || 0;
+                                                 if (!valPerKg) {
+                                                     const withValueAndKg = itemsOfThis.find(i => i.kg && i.value);
+                                                     if (withValueAndKg) {
+                                                         valPerKg = withValueAndKg.value / withValueAndKg.kg;
+                                                     }
+                                                 }
+                                                 const totalVal = weight * valPerKg;
+                                                 overallValCombined += totalVal;
+
+                                                 return {
+                                                     itemName,
+                                                     weight,
+                                                     valPerKg,
+                                                     totalVal,
+                                                     dates
+                                                 };
+                                             });
+
+                                             return (
+                                                 <table className="w-full border-collapse border border-black">
+                                                     <thead>
+                                                         <tr className="bg-gray-100 uppercase font-bold">
+                                                             <th className="border border-black p-2 text-left">Item</th>
+                                                             <th className="border border-black p-2 text-center" style={{ width: '100px' }}>Peso do Mês (Kg)</th>
+                                                             <th className="border border-black p-2 text-center" style={{ width: '100px' }}>Val. Unitário (R$)</th>
+                                                             <th className="border border-black p-2 text-center" style={{ width: '100px' }}>Val. Total (R$)</th>
+                                                             <th className="border border-black p-2 text-center">Dias Disponíveis para Agendamento</th>
+                                                             <th className="border border-black p-2 text-center" style={{ width: '120px' }}>Peso Entregue</th>
+                                                         </tr>
+                                                     </thead>
+                                                     <tbody>
+                                                         {compData.map((data, idx) => (
+                                                             <tr key={idx}>
+                                                                 <td className="border border-black p-2 font-bold">{data.itemName}</td>
+                                                                 <td className="border border-black p-2 text-center font-bold">{data.weight.toFixed(3).replace('.', ',')}</td>
+                                                                 <td className="border border-black p-2 text-center font-mono">R$ {data.valPerKg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                 <td className="border border-black p-2 text-center font-bold font-mono">R$ {data.totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                 <td className="border border-black p-2 text-center">{data.dates}</td>
+                                                                 <td className="border border-black p-2"></td>
+                                                             </tr>
+                                                         ))}
+                                                     </tbody>
+                                                     <tfoot className="font-bold bg-gray-50 text-[11px]">
+                                                         <tr>
+                                                             <td className="border border-black p-2 text-right uppercase">Totais do Período</td>
+                                                             <td className="border border-black p-2 text-center font-bold">{reportTotals.totalWeight.toFixed(3).replace('.', ',')} Kg</td>
+                                                             <td className="border border-black p-2 text-center">---</td>
+                                                             <td className="border border-black p-2 text-center font-mono font-bold text-purple-950">R$ {overallValCombined.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                             <td colSpan={2} className="border border-black p-2"></td>
+                                                         </tr>
+                                                     </tfoot>
+                                                 </table>
+                                             );
+                                         })()}
 
                                         {/* Invoices List for Conference */}
                                         <div className="mt-8 border-t pt-6">
