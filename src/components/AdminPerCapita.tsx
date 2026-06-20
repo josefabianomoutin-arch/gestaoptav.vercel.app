@@ -222,6 +222,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             const result = await onUpdatePerCapitaConfig(newConfig);
             if (result && result.success) {
                 setIsDirty(false);
+                if (onSyncPPAISToAgenda) {
+                    await onSyncPPAISToAgenda();
+                }
             } else {
                 console.error("Erro ao salvar produtores:", result);
                 toast.error("Erro ao salvar produtores: " + (result?.message || 'Erro desconhecido'));
@@ -230,7 +233,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             console.error("Failed to save producers:", error);
             toast.error("Erro ao salvar produtores.");
         }
-    }, [onUpdatePerCapitaConfig]);
+    }, [onUpdatePerCapitaConfig, onSyncPPAISToAgenda]);
 
     const handleUpdatePereciveisSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
         setPereciveisSuppliers(newSuppliers);
@@ -241,6 +244,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             const result = await onUpdatePerCapitaConfig(newConfig);
             if (result && result.success) {
                 setIsDirty(false);
+                if (onSyncPPAISToAgenda) {
+                    await onSyncPPAISToAgenda();
+                }
             } else {
                 console.error("Erro ao salvar fornecedores (pereciveis):", result);
                 toast.error("Erro ao salvar fornecedores (pereciveis): " + (result?.message || 'Erro desconhecido'));
@@ -249,7 +255,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             console.error("Failed to save suppliers (pereciveis):", error);
             toast.error("Erro ao salvar fornecedores (pereciveis).");
         }
-    }, [onUpdatePerCapitaConfig]);
+    }, [onUpdatePerCapitaConfig, onSyncPPAISToAgenda]);
 
     const handleUpdateEstocaveisSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
         setEstocaveisSuppliers(newSuppliers);
@@ -260,6 +266,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             const result = await onUpdatePerCapitaConfig(newConfig);
             if (result && result.success) {
                 setIsDirty(false);
+                if (onSyncPPAISToAgenda) {
+                    await onSyncPPAISToAgenda();
+                }
             } else {
                 console.error("Erro ao salvar fornecedores (estocaveis):", result);
                 toast.error("Erro ao salvar fornecedores (estocaveis): " + (result?.message || 'Erro desconhecido'));
@@ -268,7 +277,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             console.error("Failed to save suppliers (estocaveis):", error);
             toast.error("Erro ao salvar fornecedores (estocaveis).");
         }
-    }, [onUpdatePerCapitaConfig]);
+    }, [onUpdatePerCapitaConfig, onSyncPPAISToAgenda]);
 
     const ppaisAsSuppliers = useMemo(() => {
         return ppaisProducers.filter(Boolean).map(p => ({

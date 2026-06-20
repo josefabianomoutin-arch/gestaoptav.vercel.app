@@ -253,29 +253,75 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
                         <tr>
                             <th>ITEM</th>
                             <th style="width: 100px;">PESO DO MÊS (KG)</th>
+                            <th style="width: 100px;">VALOR UNITÁRIO (R$)</th>
+                            <th style="width: 100px;">VALOR TOTAL (R$)</th>
                             <th>DIAS DISPONÍVEIS PARA AGENDAMENTO</th>
                             <th style="width: 120px;">PESO ENTREGUE</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${sortedItemNames.map(itemName => {
-                            const items = groupedByItem.get(itemName)!;
-                            const itemWeight = items.reduce((sum, i) => sum + (i.kg || 0), 0);
-                            const datesScheduled = Array.from(new Set(items.map(i => formatDate(i.date)))).sort().join(', ');
-                            return `
-                                <tr>
-                                    <td><strong>${itemName}</strong></td>
-                                    <td class="text-center font-bold">${itemWeight.toFixed(3).replace('.',',')}</td>
-                                    <td class="text-center">${datesScheduled}</td>
-                                    <td></td>
-                                </tr>
-                            `;
-                        }).join('')}
+                        ${(() => {
+                            const rows = sortedItemNames.map(itemName => {
+                                const items = groupedByItem.get(itemName)!;
+                                const itemWeight = items.reduce((sum, i) => sum + (i.kg || 0), 0);
+                                const datesScheduled = Array.from(new Set(items.map(i => formatDate(i.date)))).sort().join(', ');
+                                
+                                const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+                                const normName = normalize(itemName);
+                                const itemsSource = supplier.contractItems || {};
+                                const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                                const contractItem = supplierItems.find(ci => normalize(ci.name) === normName);
+                                
+                                let valPerKg = contractItem?.valuePerKg || 0;
+                                if (!valPerKg) {
+                                    const withValueAndKg = items.find(i => i.kg && i.value);
+                                    if (withValueAndKg) {
+                                        valPerKg = withValueAndKg.value / withValueAndKg.kg;
+                                    }
+                                }
+                                const totalVal = itemWeight * valPerKg;
+
+                                return `
+                                    <tr>
+                                        <td><strong>${itemName}</strong></td>
+                                        <td class="text-center font-bold">${itemWeight.toFixed(3).replace('.',',')}</td>
+                                        <td class="text-center font-mono">R$ ${valPerKg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        <td class="text-center font-bold font-mono">R$ ${totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        <td class="text-center">${datesScheduled}</td>
+                                        <td></td>
+                                    </tr>
+                                `;
+                            }).join('');
+
+                            return rows;
+                        })()}
                     </tbody>
                     <tfoot>
                         <tr style="background-color: #f2f2f2; font-weight: bold; font-size: 11pt;">
                             <td class="text-right">TOTAIS DO PERÍODO</td>
                             <td class="text-center">${reportTotals.totalWeight.toFixed(3).replace('.',',')} Kg</td>
+                            <td class="text-center">---</td>
+                            <td class="text-center font-mono">R$ ${(() => {
+                                let totalValue = 0;
+                                sortedItemNames.forEach(itemName => {
+                                    const items = groupedByItem.get(itemName)!;
+                                    const itemWeight = items.reduce((sum, i) => sum + (i.kg || 0), 0);
+                                    const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+                                    const normName = normalize(itemName);
+                                    const itemsSource = supplier.contractItems || {};
+                                    const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                                    const contractItem = supplierItems.find(ci => normalize(ci.name) === normName);
+                                    let valPerKg = contractItem?.valuePerKg || 0;
+                                    if (!valPerKg) {
+                                        const withValueAndKg = items.find(i => i.kg && i.value);
+                                        if (withValueAndKg) {
+                                            valPerKg = withValueAndKg.value / withValueAndKg.kg;
+                                        }
+                                    }
+                                    totalValue += itemWeight * valPerKg;
+                                });
+                                return totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            })()}</td>
                             <td colspan="2"></td>
                         </tr>
                     </tfoot>

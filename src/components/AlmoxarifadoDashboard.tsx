@@ -500,7 +500,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             return {
                 item: item.name,
                 totalKg: quota,
-                datesScheduled: datesScheduled
+                datesScheduled: datesScheduled,
+                valuePerKg: item.valuePerKg || 0
             };
         }).sort((a, b) => a.item.localeCompare(b.item));
 
@@ -575,28 +576,36 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         <tr>
                             <th>ITEM</th>
                             <th style="width: 100px;">PESO DO MÊS (KG)</th>
+                            <th style="width: 100px;">VALOR UNITÁRIO (R$)</th>
+                            <th style="width: 100px;">VALOR TOTAL (R$)</th>
                             <th>DIAS DISPONÍVEIS PARA AGENDAMENTO</th>
                             <th style="width: 120px;">PESO ENTREGUE</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${printItems.length > 0 ? printItems.map((itemGroup: any) => {
+                            const valPerKg = itemGroup.valuePerKg || 0;
+                            const totalVal = (itemGroup.totalKg || 0) * valPerKg;
                             return `
                             <tr>
                                 <td><strong>${itemGroup.item || itemGroup.itemName || ''}</strong></td>
                                 <td class="text-center font-bold">${(itemGroup.totalKg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</td>
+                                <td class="text-center font-mono">R$ ${valPerKg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td class="text-center font-mono font-bold">R$ ${totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                 <td class="text-center text-xs">${itemGroup.datesScheduled}</td>
                                 <td></td>
                             </tr>
                             `;
                         }).join('') : `
                             <tr>
-                                <td colspan="4" class="text-center italic" style="padding: 20px;">Nenhum item contratual cadastrado para este fornecedor</td>
+                                <td colspan="6" class="text-center italic" style="padding: 20px;">Nenhum item contratual cadastrado para este fornecedor</td>
                             </tr>
                         `}
                         <tr class="font-bold uppercase" style="background-color: #f2f2f2;">
                             <td class="text-right">TOTAIS DO PERÍODO</td>
                             <td class="text-center">${printItems.reduce((acc: number, curr: any) => acc + (curr.totalKg || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
+                            <td class="text-center">---</td>
+                            <td class="text-center font-mono">R$ ${printItems.reduce((acc: number, curr: any) => acc + ((curr.totalKg || 0) * (curr.valuePerKg || 0)), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                             <td colspan="2"></td>
                         </tr>
                     </tbody>
