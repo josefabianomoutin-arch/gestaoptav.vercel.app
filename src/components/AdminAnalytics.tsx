@@ -107,7 +107,10 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], perCapi
             // Caso contrário, assumimos o ano todo (12 meses)
             let activeMonths = months;
             if (producerData?.monthlySchedule) {
-                activeMonths = months.filter(m => (producerData?.monthlySchedule?.[m] || []).length > 0);
+                activeMonths = months.filter(m => {
+                    const sch = producerData?.monthlySchedule;
+                    return (sch?.[m] || sch?.[m.toUpperCase()] || sch?.[m.toLowerCase()] || sch?.[m.charAt(0).toUpperCase() + m.slice(1).toLowerCase()] || []).length > 0;
+                });
             } else if (isItesp) {
                 activeMonths = months.slice(0, 4);
             }

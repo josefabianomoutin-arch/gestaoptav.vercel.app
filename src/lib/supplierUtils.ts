@@ -54,6 +54,7 @@ export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any
             cpf: p.cpfCnpj || p.cpf,
             deliveries: deliveries,
             allowedWeeks: Array.from(new Set(weeks)),
+            contractItems: contractItems,
             initialValue: contractItems.reduce((acc: any, curr: any) => acc + (parseNum(curr.totalKg) * parseNum(curr.valuePerKg || 0)), 0)
         } as Supplier;
     };

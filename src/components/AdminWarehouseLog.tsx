@@ -216,7 +216,12 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
 
         allPCSupers.forEach((s: any) => {
             const schedule = s?.monthlySchedule || {};
-            const monthsNamesMatch = [monthName, monthName.toLowerCase()];
+            const monthsNamesMatch = [
+                monthName, 
+                monthName.toLowerCase(), 
+                monthName.toUpperCase(), 
+                monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase()
+            ];
             const weeks = monthsNamesMatch.reduce((acc, m) => acc.length > 0 ? acc : (schedule[m] || []), [] as number[]);
             
             if (weeks.length > 0) {

@@ -51,6 +51,12 @@ const matchCpfCnpj = (val1: any, val2: any): boolean => {
 
 const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
+const getSafeScheduleWeeks = (monthlySchedule: any, monthName: string): number[] => {
+    if (!monthlySchedule) return [];
+    const foundKey = Object.keys(monthlySchedule).find(k => k.toLowerCase() === monthName.toLowerCase());
+    return foundKey ? (monthlySchedule[foundKey] || []) : [];
+};
+
 const getSeiValue = (map: Record<string, string>, tab: string) => (map && tab) ? map[tab] || '' : '';
 
 const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({ 
@@ -2128,7 +2134,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                             {months.map(month => {
                                                 const currentSuppliers = activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers);
-                                                const suppliersInMonth = currentSuppliers.filter(s => (s.monthlySchedule?.[month] || []).length > 0);
+                                                const suppliersInMonth = currentSuppliers.filter(s => getSafeScheduleWeeks(s.monthlySchedule, month).length > 0);
                                                 if (suppliersInMonth.length === 0) return null;
 
                                                 return (
@@ -2136,7 +2142,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                                         <h4 className="text-sm font-black text-indigo-600 uppercase mb-4 border-b border-indigo-100 pb-2">{month}</h4>
                                                         <div className="space-y-4">
                                                             {[1, 2, 3, 4, 5].map(week => {
-                                                                const suppliersInWeek = suppliersInMonth.filter(s => (s.monthlySchedule?.[month] || []).includes(week));
+                                                                const suppliersInWeek = suppliersInMonth.filter(s => getSafeScheduleWeeks(s.monthlySchedule, month).includes(week));
                                                                 if (suppliersInWeek.length === 0) return null;
 
                                                                 return (
@@ -2175,7 +2181,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                     ) : (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                             {(activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers)).sort((a, b) => a.name.localeCompare(b.name)).map(s => {
-                                                const scheduledMonths = months.filter(m => (s.monthlySchedule?.[m] || []).length > 0);
+                                                const scheduledMonths = months.filter(m => getSafeScheduleWeeks(s.monthlySchedule, m).length > 0);
                                                 
                                                 const items = (s.contractItems || []) as any[];
 
@@ -2218,7 +2224,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                                                             <span className="text-[11px] font-black text-zinc-800 uppercase w-20">{m}</span>
                                                                             <div className="flex gap-1">
                                                                                 {[1, 2, 3, 4, 5].map(w => {
-                                                                                    const isScheduled = (s.monthlySchedule?.[m] || []).includes(w);
+                                                                                    const isScheduled = getSafeScheduleWeeks(s.monthlySchedule, m).includes(w);
                                                                                     return (
                                                                                         <div 
                                                                                             key={w} 

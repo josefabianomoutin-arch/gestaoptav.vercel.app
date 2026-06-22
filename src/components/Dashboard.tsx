@@ -295,7 +295,11 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const availableDatesList: string[] = [];
     const daysInMonthObj = new Date(selectedYear, monthIndex + 1, 0).getDate();
-    const validWeeksForPC = supplier?.monthlySchedule?.[targetMonthName.split(' ')[0].toLowerCase()];
+    const targetMonthNameKey = targetMonthName.split(' ')[0];
+    const validWeeksForPC = supplier?.monthlySchedule?.[targetMonthNameKey] || 
+                            supplier?.monthlySchedule?.[targetMonthNameKey.toUpperCase()] || 
+                            supplier?.monthlySchedule?.[targetMonthNameKey.toLowerCase()] ||
+                            supplier?.monthlySchedule?.[targetMonthNameKey.charAt(0).toUpperCase() + targetMonthNameKey.slice(1).toLowerCase()];
     const allowedWeeksArray = supplier.allowedWeeks || [];
 
     const getWeekNumberLocal = (d: Date): number => {
@@ -336,7 +340,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     const printItems = contractItems.map(item => {
         const quota = (item.totalKg || 0) / divisor;
         return {
-            item: item.name,
+            item: item.name || item.itemName || item.item || '',
             totalKg: quota,
             datesScheduled: datesScheduled,
             valuePerKg: item.valuePerKg || 0
@@ -344,7 +348,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     }).sort((a, b) => a.item.localeCompare(b.item));
 
     const commitmentNumbers = [...new Set(printItems.map(d => {
-        const contractItem = contractItems.find((ci: any) => ci.name === d.item);
+        const contractItem = contractItems.find((ci: any) => (ci.name || ci.itemName || ci.item || '') === d.item);
         return contractItem?.commitmentNumber;
     }).filter(Boolean))];
     const commitmentStr = commitmentNumbers.length > 0 ? commitmentNumbers.join(' / ') : 'NÃO INFORMADO';
@@ -487,7 +491,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   const isWeekInArrivedMonth = (w: number): boolean => {
     if (supplier?.monthlySchedule && Object.keys(supplier.monthlySchedule).length > 0) {
       return arrivedMonths.some(mName => {
-        const weeksForMonth = supplier?.monthlySchedule?.[mName] || supplier?.monthlySchedule?.[mName.toUpperCase()] || [];
+        const weeksForMonth = supplier?.monthlySchedule?.[mName] || 
+                              supplier?.monthlySchedule?.[mName.toUpperCase()] || 
+                              supplier?.monthlySchedule?.[mName.toLowerCase()] || 
+                              supplier?.monthlySchedule?.[mName.charAt(0).toUpperCase() + mName.slice(1).toLowerCase()] || [];
         return weeksForMonth.includes(w);
       });
     } else {
@@ -561,7 +568,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   const currentMonthName = monthsList[currentMonthIdx]; // "maio"
   const isWeekInCurrentMonth = (w: number): boolean => {
     if (supplier?.monthlySchedule && Object.keys(supplier.monthlySchedule).length > 0) {
-      const weeksForMonth = supplier?.monthlySchedule?.[currentMonthName] || supplier?.monthlySchedule?.[currentMonthName.toUpperCase()] || [];
+      const weeksForMonth = supplier?.monthlySchedule?.[currentMonthName] || 
+                            supplier?.monthlySchedule?.[currentMonthName.toUpperCase()] || 
+                            supplier?.monthlySchedule?.[currentMonthName.toLowerCase()] || 
+                            supplier?.monthlySchedule?.[currentMonthName.charAt(0).toUpperCase() + currentMonthName.slice(1).toLowerCase()] || [];
       return weeksForMonth.includes(w);
     } else {
       const wMonthIdx = getWeekMonth(w);

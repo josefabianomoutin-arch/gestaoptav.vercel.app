@@ -156,7 +156,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
             const itemsSource = supplier.contractItems || {};
             const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
             const normalizedItemName = normalize(it.item || it.itemName || '');
-            const contractItem = supplierItems.find(ci => normalize(ci.name) === normalizedItemName);
+            const contractItem = supplierItems.find(ci => normalize(ci.name || ci.itemName || ci.item || '') === normalizedItemName);
             return contractItem?.commitmentNumber;
         }).filter(Boolean))];
         return commitmentNumbers.length > 0 ? commitmentNumbers.join(' / ') : 'NÃO INFORMADO';
@@ -270,7 +270,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
                                 const normName = normalize(itemName);
                                 const itemsSource = supplier.contractItems || {};
                                 const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
-                                const contractItem = supplierItems.find(ci => normalize(ci.name) === normName);
+                                const contractItem = supplierItems.find(ci => normalize(ci.name || ci.itemName || ci.item || '') === normName);
                                 
                                 let valPerKg = contractItem?.valuePerKg || 0;
                                 if (!valPerKg) {
@@ -310,7 +310,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
                                     const normName = normalize(itemName);
                                     const itemsSource = supplier.contractItems || {};
                                     const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
-                                    const contractItem = supplierItems.find(ci => normalize(ci.name) === normName);
+                                    const contractItem = supplierItems.find(ci => normalize(ci.name || ci.itemName || ci.item || '') === normName);
                                     let valPerKg = contractItem?.valuePerKg || 0;
                                     if (!valPerKg) {
                                         const withValueAndKg = items.find(i => i.kg && i.value);
@@ -959,7 +959,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
                                                  const normName = normalize(itemName);
                                                  const itemsSource = activeSupplier?.contractItems || {};
                                                  const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
-                                                 const contractItem = supplierItems.find(ci => normalize(ci.name) === normName);
+                                                 const contractItem = supplierItems.find(ci => normalize(ci.name || ci.itemName || ci.item || '') === normName);
 
                                                  let valPerKg = contractItem?.valuePerKg || 0;
                                                  if (!valPerKg) {

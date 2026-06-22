@@ -464,7 +464,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
         const availableDatesList: string[] = [];
         const daysInMonthObj = new Date(selectedYear, monthIndex + 1, 0).getDate();
-        const validWeeksForPC = supplier.monthlySchedule?.[selectedMonth.toLowerCase()];
+        const validWeeksForPC = supplier.monthlySchedule?.[selectedMonth] || 
+                                supplier.monthlySchedule?.[selectedMonth.toUpperCase()] || 
+                                supplier.monthlySchedule?.[selectedMonth.toLowerCase()] ||
+                                supplier.monthlySchedule?.[selectedMonth.charAt(0).toUpperCase() + selectedMonth.slice(1).toLowerCase()];
         const allowedWeeksArray = supplier.allowedWeeks || [];
 
         for (let d = 1; d <= daysInMonthObj; d++) {
@@ -1943,7 +1946,11 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                              (perCapitaConfig?.estocaveisSuppliers || [])).find((s: any) => (matchCpf(s.cpfCnpj, selectedCronogramaSupplier) || matchCpf(s.cpf, selectedCronogramaSupplier))) || 
                                                              suppliers.find(s => matchCpf(s.cpf, selectedCronogramaSupplier));
                                             
-                                            const isScheduled = supplier?.monthlySchedule?.[selectedMonth]?.includes(week);
+                                            const safeMonthSchedule = supplier?.monthlySchedule?.[selectedMonth] || 
+                                                                      supplier?.monthlySchedule?.[selectedMonth.toUpperCase()] || 
+                                                                      supplier?.monthlySchedule?.[selectedMonth.toLowerCase()] ||
+                                                                      supplier?.monthlySchedule?.[selectedMonth.charAt(0).toUpperCase() + selectedMonth.slice(1).toLowerCase()] || [];
+                                            const isScheduled = safeMonthSchedule.includes(week);
                                             
                                             return (
                                                 <div key={week} className={`p-4 rounded-2xl border-2 transition-all ${isScheduled ? 'bg-white border-indigo-500 shadow-md' : 'bg-gray-50 border-gray-100 opacity-50'}`}>

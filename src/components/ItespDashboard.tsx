@@ -103,7 +103,10 @@ const ItespDashboard: React.FC<ItespDashboardProps> = ({ suppliers = [], perCapi
             // Se houver cronograma, usamos apenas os meses com semanas agendadas
             // Caso contrário, usamos o fallback de 4 meses (Jan-Abr) que era o padrão anterior para ITESP
             const activeMonths = ppaisProducer?.monthlySchedule 
-                ? months.filter(m => (ppaisProducer.monthlySchedule[m] || []).length > 0)
+                ? months.filter(m => {
+                    const sch = ppaisProducer.monthlySchedule;
+                    return (sch[m] || sch[m.toUpperCase()] || sch[m.toLowerCase()] || sch[m.charAt(0).toUpperCase() + m.slice(1).toLowerCase()] || []).length > 0;
+                })
                 : months.slice(0, 4); 
             
             const monthsCount = activeMonths.length || 4;
