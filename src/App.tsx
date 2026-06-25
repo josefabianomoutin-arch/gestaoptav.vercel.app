@@ -108,6 +108,9 @@ const App: React.FC = () => {
   const [_staff, setStaff] = useState<any[]>([]);
   const [publicInfo, setPublicInfo] = useState<PublicInfo[]>([]);
   const [directorPerCapita, setDirectorPerCapita] = useState<any>(null);
+  const [isPasswordsLoaded, setIsPasswordsLoaded] = useState(false);
+  const [isSuppliersLoaded, setIsSuppliersLoaded] = useState(false);
+  const [isPerCapitaConfigLoaded, setIsPerCapitaConfigLoaded] = useState(false);
 
   console.log("App mounted, user:", user);
 
@@ -175,7 +178,12 @@ const App: React.FC = () => {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (parsed) setter(parsed);
+          if (parsed) {
+            setter(parsed);
+            if (key === 'systemPasswords') setIsPasswordsLoaded(true);
+            if (key === 'suppliers') setIsSuppliersLoaded(true);
+            if (key === 'perCapitaConfig') setIsPerCapitaConfigLoaded(true);
+          }
         } catch (e) {
           console.error(`Error loading cached ${key}:`, e);
         }
@@ -210,6 +218,7 @@ const App: React.FC = () => {
     const unsubPasswords = onValue(systemPasswordsRef, (snapshot) => {
       const data = snapshot.val() || {};
       setSystemPasswords(data);
+      setIsPasswordsLoaded(true);
       safeLocalStorageSetItem('cached_systemPasswords', JSON.stringify(data));
     });
     unsubscribes.push(unsubPasswords);
@@ -223,6 +232,7 @@ const App: React.FC = () => {
         cpf: value.cpf || key
       })) : [];
       setSuppliers(list as Supplier[]);
+      setIsSuppliersLoaded(true);
       safeLocalStorageSetItem('cached_suppliers', JSON.stringify(list));
     });
     unsubscribes.push(unsubSuppliers);
@@ -231,6 +241,7 @@ const App: React.FC = () => {
       const data = snapshot.val();
       const config = data || {};
       setPerCapitaConfig(config);
+      setIsPerCapitaConfigLoaded(true);
       safeLocalStorageSetItem('cached_perCapitaConfig', JSON.stringify(config));
     });
     unsubscribes.push(unsubPerCapita);
@@ -2810,7 +2821,8 @@ const App: React.FC = () => {
 
     try {
       if (!user) {
-        return <LoginScreen onLogin={handleLogin} publicInfoList={publicInfo} />;
+        const isLoadingEssential = !isPasswordsLoaded || !isSuppliersLoaded || !isPerCapitaConfigLoaded;
+        return <LoginScreen onLogin={handleLogin} publicInfoList={publicInfo} isLoading={isLoadingEssential} />;
       }
 
     if (user.role === 'admin') {
