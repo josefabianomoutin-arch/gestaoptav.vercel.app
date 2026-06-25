@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Toaster, toast } from 'sonner';
 import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, VehicleInspection, ServiceOrder, MaintenanceSchedule, PublicInfo, ValidationRole, EpiLog } from './types';
 import LoginScreen from './components/LoginScreen';
@@ -250,6 +250,149 @@ const App: React.FC = () => {
       unsubscribes.forEach((unsub) => unsub());
     };
   }, []);
+
+  const hasRunCleanup = useRef(false);
+
+  const runDatabaseCleanup = useCallback(async () => {
+    try {
+      console.log("Iniciando a limpeza automática de agendamentos duplicados na mesma semana...");
+      let totalCleanedCount = 0;
+
+      // 1. Limpeza de entregas dos Fornecedores Principais (Main Suppliers)
+      if (suppliers && suppliers.length > 0) {
+        for (const sup of suppliers) {
+          if (!sup) continue;
+          const deliveries = Array.isArray(sup.deliveries) 
+            ? sup.deliveries 
+            : Object.values(sup.deliveries || {});
+          if (deliveries.length === 0) continue;
+
+          // Agrupa as entregas por número da semana
+          const weekGroups = new Map<number, any[]>();
+          deliveries.forEach(d => {
+            if (!d || !d.date) return;
+            const parts = d.date.split('-');
+            if (parts.length === 3) {
+              const dDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+              const wNum = getWeekNumber(dDate);
+              const group = weekGroups.get(wNum) || [];
+              group.push(d);
+              weekGroups.set(wNum, group);
+            }
+          });
+
+          let needsUpdate = false;
+          const cleanedDeliveries: any[] = [];
+
+          weekGroups.forEach((group) => {
+            if (group.length <= 1) {
+              cleanedDeliveries.push(...group);
+              return;
+            }
+
+            // Múltiplos agendamentos na mesma semana. Escolhemos APENAS um para manter.
+            // Priorizamos entregas com nota fiscal enviada ou concluídas, e desempatamos pela data mais antiga
+            group.sort((a, b) => {
+              const aInvoiced = a.invoiceUploaded || a.status === 'CONCLUÍDO';
+              const bInvoiced = b.invoiceUploaded || b.status === 'CONCLUÍDO';
+              if (aInvoiced && !bInvoiced) return -1;
+              if (!aInvoiced && bInvoiced) return 1;
+              return a.date.localeCompare(b.date);
+            });
+
+            cleanedDeliveries.push(group[0]);
+            totalCleanedCount += (group.length - 1);
+            needsUpdate = true;
+          });
+
+          if (needsUpdate) {
+            console.log(`Limpando duplicados para o fornecedor CPF ${sup.cpf}: mantendo ${cleanedDeliveries.length} de ${deliveries.length} agendamentos.`);
+            const deliveriesRef = child(suppliersRef, `${sup.id || sup.cpf}/deliveries`);
+            await set(deliveriesRef, cleanedDeliveries);
+          }
+        }
+      }
+
+      // 2. Limpeza de listas de Per Capita Config
+      if (perCapitaConfig) {
+        const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+        for (const listKey of lists) {
+          const list = ensureArray(perCapitaConfig[listKey]);
+          let listNeedsUpdate = false;
+          const updatedList = [...list];
+
+          for (let idx = 0; idx < updatedList.length; idx++) {
+            const p = updatedList[idx];
+            if (!p) continue;
+            const deliveries = Array.isArray(p.deliveries) 
+              ? p.deliveries 
+              : Object.values(p.deliveries || {});
+            if (deliveries.length === 0) continue;
+
+            const weekGroups = new Map<number, any[]>();
+            deliveries.forEach(d => {
+              if (!d || !d.date) return;
+              const parts = d.date.split('-');
+              if (parts.length === 3) {
+                const dDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                const wNum = getWeekNumber(dDate);
+                const group = weekGroups.get(wNum) || [];
+                group.push(d);
+                weekGroups.set(wNum, group);
+              }
+            });
+
+            let needsUpdate = false;
+            const cleanedDeliveries: any[] = [];
+
+            weekGroups.forEach((group) => {
+              if (group.length <= 1) {
+                cleanedDeliveries.push(...group);
+                return;
+              }
+
+              group.sort((a, b) => {
+                const aInvoiced = a.invoiceUploaded || a.status === 'CONCLUÍDO';
+                const bInvoiced = b.invoiceUploaded || b.status === 'CONCLUÍDO';
+                if (aInvoiced && !bInvoiced) return -1;
+                if (!aInvoiced && bInvoiced) return 1;
+                return a.date.localeCompare(b.date);
+              });
+
+              cleanedDeliveries.push(group[0]);
+              totalCleanedCount += (group.length - 1);
+              needsUpdate = true;
+            });
+
+            if (needsUpdate) {
+              updatedList[idx] = { ...p, deliveries: cleanedDeliveries };
+              listNeedsUpdate = true;
+            }
+          }
+
+          if (listNeedsUpdate) {
+            console.log(`Limpando duplicados na lista PerCapita ${listKey}.`);
+            await set(child(perCapitaConfigRef, listKey), updatedList);
+          }
+        }
+      }
+
+      if (totalCleanedCount > 0) {
+        toast.info(`Limpeza concluída: ${totalCleanedCount} agendamentos duplicados na mesma semana foram removidos.`);
+      } else {
+        console.log("Nenhum agendamento duplicado encontrado para limpar.");
+      }
+    } catch (err) {
+      console.error("Erro durante a limpeza automática de agendamentos:", err);
+    }
+  }, [suppliers, perCapitaConfig]);
+
+  useEffect(() => {
+    if (!database || !user || user.role !== 'admin' || hasRunCleanup.current || !isSuppliersLoaded || !isPerCapitaConfigLoaded) return;
+
+    hasRunCleanup.current = true;
+    runDatabaseCleanup();
+  }, [user, isSuppliersLoaded, isPerCapitaConfigLoaded, runDatabaseCleanup]);
 
   // 3. Conecta aos dados pesados dinamicamente e APENAS quando o usuário estiver autenticado
   useEffect(() => {
@@ -924,6 +1067,51 @@ const App: React.FC = () => {
       const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
       const targetCpf = clean(supplierCpf);
 
+      // Verify if there is already a delivery in the same week
+      const dateParts = date.split('-');
+      if (dateParts.length === 3) {
+        const targetDateObj = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+        const targetWeekNum = getWeekNumber(targetDateObj);
+
+        // Get all existing deliveries for this CPF across both main suppliers list and perCapita lists
+        let existingDeliveries: any[] = [];
+        
+        // 1. Standard supplier
+        const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+        if (mainSupplier && mainSupplier.deliveries) {
+          existingDeliveries = Array.isArray(mainSupplier.deliveries) 
+            ? mainSupplier.deliveries 
+            : Object.values(mainSupplier.deliveries);
+        }
+
+        // 2. Per Capita lists
+        if (perCapitaConfig) {
+          const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+          for (const listKey of lists) {
+            const list = ensureArray(perCapitaConfig[listKey]);
+            const p = list.find((item: any) => item && clean(item.cpfCnpj || item.cpf) === targetCpf);
+            if (p && p.deliveries) {
+              const pDeliveries = Array.isArray(p.deliveries) ? p.deliveries : Object.values(p.deliveries);
+              existingDeliveries = [...existingDeliveries, ...pDeliveries];
+            }
+          }
+        }
+
+        // 3. Check if any delivery is in the same week
+        const alreadyHasInWeek = existingDeliveries.some((d: any) => {
+          if (!d || !d.date) return false;
+          const dParts = d.date.split('-');
+          if (dParts.length !== 3) return false;
+          const dDateObj = new Date(parseInt(dParts[0]), parseInt(dParts[1]) - 1, parseInt(dParts[2]));
+          return getWeekNumber(dDateObj) === targetWeekNum;
+        });
+
+        if (alreadyHasInWeek) {
+          toast.error(`Agendamento bloqueado: Você já possui uma entrega agendada para a semana ${targetWeekNum}.`);
+          return;
+        }
+      }
+
       // If not in per capita lists, schedule inside the Main Suppliers list
       const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
       if (mainSupplier) {
@@ -952,7 +1140,7 @@ const App: React.FC = () => {
       console.error('Erro ao agendar entrega:', error);
       toast.error(`Erro ao agendar entrega: ${error instanceof Error ? error.message : String(error)}`);
     }
-  }, [suppliers]);
+  }, [suppliers, perCapitaConfig]);
 
   const handleUpdateInvoiceUrl = useCallback(async (supplierCpf: string, invoiceNumber: string, finalInvoiceUrl: string) => {
     try {

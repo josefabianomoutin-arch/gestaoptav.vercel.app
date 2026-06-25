@@ -24,11 +24,32 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeek
   const deliveriesByDate = useMemo(() => {
     const map = new Map<string, Delivery[]>();
     deliveries.forEach(delivery => {
-      const existing = map.get(delivery.date) || [];
-      map.set(delivery.date, [...existing, delivery]);
+      if (delivery && delivery.date) {
+        const existing = map.get(delivery.date) || [];
+        map.set(delivery.date, [...existing, delivery]);
+      }
     });
     return map;
   }, [deliveries]);
+
+  // Calculate weeks that already have a scheduled delivery
+  const deliveryWeekNums = useMemo(() => {
+    const map = new Map<string, number>(); // date -> weekNumber
+    deliveries.forEach(d => {
+      if (d && d.date && !map.has(d.date)) {
+        const parts = d.date.split('-');
+        if (parts.length === 3) {
+          const dDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+          map.set(d.date, getWeekNumber(dDate));
+        }
+      }
+    });
+    return map;
+  }, [deliveries]);
+
+  const scheduledWeeksSet = useMemo(() => {
+    return new Set(deliveryWeekNums.values());
+  }, [deliveryWeekNums]);
 
   const isDateAllowed = (date: Date) => {
     const monthIndex = date.getMonth();
@@ -74,14 +95,21 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeek
       
       const isAllowed = isDateAllowed(currentDate);
       
+      const currentWeekNum = getWeekNumber(currentDate);
+      const hasDeliveryInSameWeekOnOtherDate = scheduledWeeksSet.has(currentWeekNum) && deliveriesOnThisDate.length === 0;
+      
       const hasDeliveries = deliveriesOnThisDate.length > 0;
       // Não permite agendar em feriados nem finais de semana, a menos que já existam entregas registradas (por admin)
-      const isClickable = ((isAllowed && !isWeekend && !isHoliday) || hasDeliveries);
+      const isClickable = ((isAllowed && !isWeekend && !isHoliday && !hasDeliveryInSameWeekOnOtherDate) || hasDeliveries);
       
       let dayClasses = "p-2 text-center border-r border-b border-gray-200 h-20 flex flex-col justify-center items-center relative transition-all";
 
+      let tooltipTitle = undefined;
       if (isHoliday) {
         dayClasses += " bg-gray-200 text-gray-400 cursor-not-allowed overflow-hidden";
+      } else if (hasDeliveryInSameWeekOnOtherDate) {
+        dayClasses += " bg-gray-100 text-gray-300 cursor-not-allowed opacity-60";
+        tooltipTitle = "Limite de 1 entrega por semana excedido";
       } else if (!isClickable) {
         dayClasses += " bg-gray-100 text-gray-300 cursor-not-allowed";
       } else {
@@ -108,7 +136,7 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeek
       }
 
       grid.push(
-        <div key={day} className={dayClasses} onClick={() => isClickable && !isHoliday && onDayClick(currentDate)}>
+        <div key={day} className={dayClasses} title={tooltipTitle} onClick={() => isClickable && !isHoliday && onDayClick(currentDate)}>
           <span className="text-xs md:text-sm font-mono z-10">{day}</span>
           
           {isHoliday && (
