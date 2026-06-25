@@ -33,6 +33,7 @@ export const HOLIDAYS_2026: Record<string, string> = {
   '2026-06-04': 'Corpus Christi',
   '2026-06-15': 'Auditoria do cardápio padrão na UP',
   '2026-06-16': 'Auditoria do cardápio padrão na UP',
+  '2026-06-29': 'Jogo da Copa',
   '2026-07-09': 'Rev. Constitucionalista (SP)',
   '2026-09-07': 'Independência do Brasil',
   '2026-10-12': 'Nsa. Sra. Aparecida',
