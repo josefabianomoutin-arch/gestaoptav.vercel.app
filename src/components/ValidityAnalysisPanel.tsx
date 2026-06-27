@@ -15,8 +15,15 @@ const ValidityAnalysisPanel: React.FC<ValidityAnalysisPanelProps> = ({ warehouse
         const exits = movements.filter(m => m.type === 'saida' || m.type === 'saída');
 
         return entries.map(entry => {
-            const consumed = exits.filter(exit => exit.itemName === entry.itemName && exit.invoiceNumber === entry.invoiceNumber)
-                                 .reduce((acc, curr) => acc + (curr.quantity || curr.kg || 0), 0);
+            const entryInv = (entry.invoiceNumber || entry.inboundInvoice || '').trim().toUpperCase();
+            const entryName = (entry.itemName || entry.item || '').trim().toUpperCase();
+            
+            const consumed = exits.filter(exit => {
+                const exitInv = (exit.invoiceNumber || exit.inboundInvoice || '').trim().toUpperCase();
+                const exitName = (exit.itemName || exit.item || '').trim().toUpperCase();
+                return exitName === entryName && exitInv === entryInv;
+            }).reduce((acc, curr) => acc + (curr.quantity || curr.kg || 0), 0);
+            
             const remaining = (entry.quantity || entry.kg || 0) - consumed;
             return { ...entry, remaining };
         }).filter(item => item.remaining > 0);
