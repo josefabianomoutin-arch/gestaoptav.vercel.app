@@ -769,19 +769,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                   />
               </div>
               <div className="space-y-6">
-                <button 
-                  onClick={() => handleOpenSendInvoiceModal({ date: new Date().toISOString().split('T')[0], deliveries: [] })}
-                  className="w-full flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-700 text-white p-5 rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-200 transition-all active:scale-95 group"
-                >
-                  <div className="bg-white/20 p-2 rounded-xl group-hover:scale-110 transition-transform">
-                    <Upload className="w-5 h-5" />
-                  </div>
-                  <div className="text-left">
-                    <p className="leading-none">Cadastrar Nota PDF</p>
-                    <p className="text-[9px] font-bold opacity-70 mt-1">Vincular arquivos aos agendamentos</p>
-                  </div>
-                </button>
-
                 <SummaryCard 
                   supplier={supplier} 
                   activeContractPeriod={activeContractPeriod} 

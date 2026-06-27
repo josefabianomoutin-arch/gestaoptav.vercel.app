@@ -1480,61 +1480,61 @@ const App: React.FC = () => {
               }
             });
 
-            if (Object.keys(existingLogsForKey).length > 0) {
-              const logUpdates: any = {};
-              const usedLogKeys = new Set<string>();
+            const logUpdates: any = {};
+            const usedLogKeys = new Set<string>();
 
-              for (const item of updatedDeliveries) {
-                const itName = clean(item.item || item.itemName || '');
-                const logKey = Object.keys(existingLogsForKey).find(k => {
-                  if (usedLogKeys.has(k)) return false;
-                  const logEntry = existingLogsForKey[k];
-                  const logName = clean(logEntry.itemName || logEntry.item || '');
-                  if (item.id && logEntry.id && item.id === logEntry.id) return true;
-                  if (item.id && logEntry.deliveryId && item.id === logEntry.deliveryId) return true;
-                  return itName === logName;
-                });
+            for (const item of updatedDeliveries) {
+              const itName = clean(item.item || item.itemName || '');
+              const logKey = Object.keys(existingLogsForKey).length > 0 ? Object.keys(existingLogsForKey).find(k => {
+                if (usedLogKeys.has(k)) return false;
+                const logEntry = existingLogsForKey[k];
+                const logName = clean(logEntry.itemName || logEntry.item || '');
+                if (item.id && logEntry.id && item.id === logEntry.id) return true;
+                if (item.id && logEntry.deliveryId && item.id === logEntry.deliveryId) return true;
+                return itName === logName;
+              }) : null;
 
-                if (logKey) {
-                  usedLogKeys.add(logKey);
-                  logUpdates[`${logKey}/itemName`] = item.item || item.itemName;
-                  logUpdates[`${logKey}/item`] = item.item || item.itemName;
-                  logUpdates[`${logKey}/quantity`] = Number(item.kg) || 0;
-                  logUpdates[`${logKey}/kg`] = Number(item.kg) || 0;
-                  logUpdates[`${logKey}/value`] = Number(item.value) || 0;
-                } else {
-                  const newRef = push(warehouseLogRef);
-                  const newId = newRef.key || `it-${Date.now()}`;
-                  logUpdates[newId] = {
-                    id: newId,
-                    type: 'entrada',
-                    timestamp: new Date().toISOString(),
-                    date: invoiceDate || new Date().toISOString().split('T')[0],
-                    itemName: item.item || item.itemName,
-                    supplierName: mainSupplier?.name || pcSup?.name || 'FORNECEDOR',
-                    supplierCpf: supplierCpf,
-                    invoiceNumber: invoiceNumber,
-                    inboundInvoice: invoiceNumber,
-                    quantity: Number(item.kg) || 0,
-                    kg: Number(item.kg) || 0,
-                    value: Number(item.value) || 0,
-                    lotNumber: 'UNICO',
-                    expirationDate: item.expirationDate || '',
-                    barcode: item.barcode || ''
-                  };
-                }
+              if (logKey) {
+                usedLogKeys.add(logKey);
+                logUpdates[`${logKey}/itemName`] = item.item || item.itemName;
+                logUpdates[`${logKey}/item`] = item.item || item.itemName;
+                logUpdates[`${logKey}/quantity`] = Number(item.kg) || 0;
+                logUpdates[`${logKey}/kg`] = Number(item.kg) || 0;
+                logUpdates[`${logKey}/value`] = Number(item.value) || 0;
+              } else {
+                const newRef = push(warehouseLogRef);
+                const newId = newRef.key || `it-${Date.now()}`;
+                logUpdates[newId] = {
+                  id: newId,
+                  type: 'entrada',
+                  timestamp: new Date().toISOString(),
+                  date: invoiceDate || new Date().toISOString().split('T')[0],
+                  itemName: item.item || item.itemName,
+                  supplierName: mainSupplier?.name || pcSup?.name || 'FORNECEDOR',
+                  supplierCpf: supplierCpf,
+                  invoiceNumber: invoiceNumber,
+                  inboundInvoice: invoiceNumber,
+                  quantity: Number(item.kg) || 0,
+                  kg: Number(item.kg) || 0,
+                  value: Number(item.value) || 0,
+                  lotNumber: 'UNICO',
+                  expirationDate: item.expirationDate || '',
+                  barcode: item.barcode || ''
+                };
               }
+            }
 
-              // Remove logs that are no longer present in the updated deliveries
+            // Remove logs that are no longer present in the updated deliveries (only if we had existing logs)
+            if (Object.keys(existingLogsForKey).length > 0) {
               Object.keys(existingLogsForKey).forEach(k => {
                 if (!usedLogKeys.has(k)) {
                   logUpdates[k] = null;
                 }
               });
+            }
 
-              if (Object.keys(logUpdates).length > 0) {
-                await update(warehouseLogRef, logUpdates);
-              }
+            if (Object.keys(logUpdates).length > 0) {
+              await update(warehouseLogRef, logUpdates);
             }
           } catch (err) {
             console.warn("Error synchronizing warehouseLog:", err);

@@ -23,7 +23,7 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({
   onClose, 
   onAddNew, 
   onCancel, 
-  onFulfill, 
+  onFulfill: _onFulfill, 
   simulatedToday,
   supplierCpf,
   supplierName
@@ -34,13 +34,8 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({
   const formattedDate = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
   const invoiceNumber = deliveries.find(d => d.invoiceNumber)?.invoiceNumber;
   
-  const placeholderDeliveries = deliveries.filter(d => !d.invoiceNumber);
   const isPastStrict = date < simulatedToday;
   const isToday = date.toISOString().split('T')[0] === simulatedToday.toISOString().split('T')[0];
-  const isPastOrToday = isPastStrict || isToday;
-  
-  const canCancel = !invoiceNumber && deliveries.some(d => d.item === 'AGENDAMENTO PENDENTE');
-  const needsInvoice = placeholderDeliveries.length > 0;
 
 
   const formatCurrency = (value: number) => {
@@ -195,12 +190,6 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({
                                                 >
                                                     Excluir
                                                 </button>
-                                                <button 
-                                                    onClick={() => onFulfill({ date: dateString, deliveries: [delivery] })}
-                                                    className="bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-xl shadow-lg active:scale-95 transition-all"
-                                                >
-                                                    Faturar
-                                                </button>
                                             </div>
                                         )}
                                     </div>
@@ -216,12 +205,6 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({
                                                 className="bg-red-50 hover:bg-red-100 text-red-600 text-[8px] font-black uppercase px-2 py-1 rounded-lg border border-red-100 shadow-sm transition-all"
                                             >
                                                 Excluir
-                                            </button>
-                                            <button 
-                                                onClick={() => onFulfill({ date: dateString, deliveries: [delivery] })}
-                                                className="bg-rose-600 hover:bg-rose-700 text-white text-[8px] font-black uppercase px-2 py-1 rounded-lg shadow-sm transition-all"
-                                            >
-                                                Faturar
                                             </button>
                                         </div>
                                     )}
@@ -257,37 +240,16 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({
                 </div>
             )}
 
-            {needsInvoice && (
-                <div className="mt-6 bg-red-50 p-4 rounded-2xl border-2 border-dashed border-red-200 animate-pulse">
-                    <p className="text-red-700 text-[10px] font-black text-center uppercase tracking-widest flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                        Ação Necessária: Faturar Entrega
-                    </p>
-                </div>
-            )}
         </div>
 
         {/* Footer Fixo */}
         <div className="p-6 md:p-8 border-t border-gray-100 bg-white flex-shrink-0">
             <div className="flex flex-col gap-3">
-                {needsInvoice && (
-                    <button 
-                        type="button" 
-                        onClick={() => onFulfill({ date: dateString, deliveries: placeholderDeliveries })}
-                        className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-2xl transition-all shadow-xl uppercase tracking-widest text-sm active:scale-95"
-                    >
-                        Faturar Todo o Dia
-                    </button>
-                )}
-                
                 <div className="grid grid-cols-2 gap-3">
                     {(!isPastStrict || isToday) && (
-                        <button type="button" onClick={onAddNew} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-2xl text-[10px] uppercase tracking-widest shadow-md">Novo Horário</button>
+                        <button type="button" onClick={onAddNew} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-2xl text-[10px] uppercase tracking-widest shadow-md col-span-1">Novo Horário</button>
                     )}
-                    {canCancel && (
-                        <button type="button" onClick={() => onCancel(placeholderDeliveries.map(d => d.id))} className="bg-red-50 hover:bg-red-100 text-red-600 font-black py-3 rounded-2xl text-[10px] uppercase tracking-widest border border-red-100">Excluir Tudo</button>
-                    )}
-                    <button type="button" onClick={onClose} className={`bg-gray-100 hover:bg-gray-200 text-gray-500 font-black py-3 rounded-2xl text-[10px] uppercase tracking-widest ${!canCancel && isPastOrToday ? 'col-span-2' : ''}`}>Fechar</button>
+                    <button type="button" onClick={onClose} className={`bg-gray-100 hover:bg-gray-200 text-gray-500 font-black py-3 rounded-2xl text-[10px] uppercase tracking-widest ${(!isPastStrict || isToday) ? 'col-span-1' : 'col-span-2'}`}>Fechar</button>
                 </div>
             </div>
         </div>

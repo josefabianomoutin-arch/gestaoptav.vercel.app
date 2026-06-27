@@ -1,6 +1,5 @@
 
 import React, { useMemo } from 'react';
-import { Upload } from 'lucide-react';
 import { ensureArray } from '../lib/utils';
 import type { Supplier } from '../types';
 import { MONTHS_2026 } from '../constants';
@@ -46,7 +45,7 @@ const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 };
 
-const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, onOpenSendInvoiceModal }) => {
+const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, onOpenSendInvoiceModal: _onOpenSendInvoiceModal }) => {
     const deliveries = ensureArray<any>(supplier.deliveries);
     const contractItems = ensureArray<any>(supplier.contractItems);
 
@@ -188,15 +187,6 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ supplier, onOpenSendInvoiceMo
                 <h2 className="text-xl font-bold text-gray-700 uppercase">
                     Contrato 2º e 3º Quadr. 2026
                 </h2>
-                {onOpenSendInvoiceModal && (
-                    <button 
-                        onClick={() => onOpenSendInvoiceModal({ date: new Date().toISOString().split('T')[0], deliveries: [] })}
-                        className={`text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-xl border flex items-center gap-2 active:scale-95 transition-all shadow-md ${hasPendingInvoices ? 'bg-red-600 text-white border-red-500 hover:bg-red-700 animate-bounce' : 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100'}`}
-                    >
-                        <Upload className="w-3.5 h-3.5" />
-                        {hasPendingInvoices ? 'PENDÊNCIA: Inserir Nota Fiscal (PDF)' : 'Inserir Nota Fiscal (PDF)'}
-                    </button>
-                )}
             </div>
             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                 {uniqueItemNames.map(itemName => {
