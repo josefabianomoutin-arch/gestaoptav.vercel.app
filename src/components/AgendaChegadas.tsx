@@ -4,7 +4,7 @@ import type { Supplier, ThirdPartyEntryLog, Delivery } from '../types';
 import { Calendar, Clock, Truck, UserCheck, AlertCircle, Search, Trash2, CheckCircle2, FilePlus, QrCode } from 'lucide-react';
 import { toast } from 'sonner';
 import SendInvoiceModal from './SendInvoiceModal';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 
 interface AgendaChegadasProps {
     suppliers: Supplier[];
@@ -53,9 +53,12 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
         const groups: Record<string, any> = {};
         
         const processDelivery = (s: Supplier, d: any) => {
-            if (!d || d.date !== targetDate || s.cpf !== cpf) return;
+            if (!d || d.date !== targetDate) return;
+            const sClean = (s.cpf || '').replace(/[^\d]/g, '');
+            const targetClean = (cpf || '').replace(/[^\d]/g, '');
+            if (sClean !== targetClean) return;
             
-            const groupKey = `${s.cpf}-${d.time}`;
+            const groupKey = `${s.cpf || ''}-${d.time}`;
             if (!groups[groupKey]) {
                 groups[groupKey] = {
                     id: d.id,
@@ -181,35 +184,73 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
 
     // Camera Scan effect
     useEffect(() => {
-        let scanner: Html5QrcodeScanner | null = null;
+        let html5QrCode: Html5Qrcode | null = null;
+        let isStopped = false;
+
         if (isScannerOpen && scannerMode === 'camera') {
             const timer = setTimeout(() => {
                 try {
-                    scanner = new Html5QrcodeScanner(
-                        "qr-reader",
-                        { fps: 10, qrbox: { width: 250, height: 250 }, rememberLastUsedCamera: true },
-                        /* verbose= */ false
-                    );
-                    scanner.render(
+                    const element = document.getElementById("qr-reader");
+                    if (!element) return;
+
+                    html5QrCode = new Html5Qrcode("qr-reader");
+                    
+                    html5QrCode.start(
+                        { facingMode: "environment" },
+                        {
+                            fps: 10,
+                            qrbox: { width: 250, height: 250 }
+                        },
                         (decodedText) => {
                             handleScanSuccess(decodedText);
-                            if (scanner) {
-                                scanner.clear().catch(err => console.warn(err));
+                            if (html5QrCode && html5QrCode.isScanning && !isStopped) {
+                                isStopped = true;
+                                html5QrCode.stop().catch(err => console.warn("Erro ao parar camera após leitura:", err));
                             }
                         },
-                        (_err) => {
-                            // normal scanning frame error
+                        (_errorMessage) => {
+                            // normal scanning frame analysis error, ignore
                         }
-                    );
+                    ).catch(err => {
+                        console.warn("Failed to start scanner with facingMode: environment. Trying fallback...", err);
+                        if (isStopped) return;
+                        
+                        // Fallback to any available camera or standard user-facing
+                        html5QrCode?.start(
+                            { facingMode: "user" },
+                            {
+                                fps: 10,
+                                qrbox: { width: 250, height: 250 }
+                            },
+                            (decodedText) => {
+                                handleScanSuccess(decodedText);
+                                if (html5QrCode && html5QrCode.isScanning && !isStopped) {
+                                    isStopped = true;
+                                    html5QrCode.stop().catch(stopErr => console.warn("Erro ao parar camera fallback:", stopErr));
+                                }
+                            },
+                            (_errorMessage) => {}
+                        ).catch(fallbackErr => {
+                            console.error("Fallback camera start also failed:", fallbackErr);
+                            toast.error("Não foi possível acessar a câmera do dispositivo. Verifique as permissões.");
+                        });
+                    });
                 } catch (e) {
-                    console.error("Camera scanner error:", e);
+                    console.error("Camera scanner instance error:", e);
                 }
             }, 300);
 
             return () => {
                 clearTimeout(timer);
-                if (scanner) {
-                    scanner.clear().catch(err => console.warn(err));
+                isStopped = true;
+                if (html5QrCode) {
+                    try {
+                        if (html5QrCode.isScanning) {
+                            html5QrCode.stop().catch(err => console.warn("Erro ao parar camera no clean-up:", err));
+                        }
+                    } catch (cleanupErr) {
+                        console.warn("Clean-up exception:", cleanupErr);
+                    }
                 }
             };
         }
@@ -439,7 +480,11 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                             {scannerMode === 'camera' ? (
                                 <div className="space-y-4">
                                     <div className="bg-slate-50 p-2 rounded-3xl border-2 border-dashed border-slate-200 overflow-hidden relative">
-                                        <div id="qr-reader" className="w-full max-w-md mx-auto rounded-2xl overflow-hidden shadow-inner bg-black"></div>
+                                        <div id="qr-reader" className="w-full max-w-md mx-auto rounded-2xl overflow-hidden shadow-inner bg-slate-950 min-h-[280px] flex flex-col items-center justify-center p-6 text-center text-slate-400">
+                                             <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                                             <span className="text-xs font-black uppercase tracking-widest text-slate-300">Ativando Câmera...</span>
+                                             <span className="text-[10px] text-slate-500 mt-1">Por favor, conceda permissão de câmera ao navegador</span>
+                                         </div>
                                     </div>
                                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider text-center max-w-sm mx-auto leading-relaxed">
                                         Posicione o QR Code impresso ou na tela do celular em frente à câmera para leitura.

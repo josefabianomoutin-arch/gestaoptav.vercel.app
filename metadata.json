@@ -1,5 +1,10 @@
 {
   "name": "Gestão de Dados P Taiuva",
   "description": "Sistema Profissional de Gestão de Dados, Estoque, Almoxarifado e Infraestrutura P Taiuva.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
