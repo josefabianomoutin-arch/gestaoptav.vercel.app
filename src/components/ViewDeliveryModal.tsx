@@ -1,8 +1,9 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import type { Delivery } from '../types';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app } from '../firebaseConfig';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface ViewDeliveryModalProps {
   date: Date;
@@ -12,9 +13,22 @@ interface ViewDeliveryModalProps {
   onCancel: (deliveryIds: string[]) => void;
   onFulfill: (invoiceInfo: { date: string; deliveries: Delivery[] }) => void;
   simulatedToday: Date;
+  supplierCpf?: string;
+  supplierName?: string;
 }
 
-const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({ date, deliveries, onClose, onAddNew, onCancel, onFulfill, simulatedToday }) => {
+const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({ 
+  date, 
+  deliveries, 
+  onClose, 
+  onAddNew, 
+  onCancel, 
+  onFulfill, 
+  simulatedToday,
+  supplierCpf,
+  supplierName
+}) => {
+  const [showQrCode, setShowQrCode] = useState(false);
   
   const dateString = date.toISOString().split('T')[0];
   const formattedDate = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -89,7 +103,12 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({ date, deliveries,
                 <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter italic">Detalhes do Dia</h2>
                 <button onClick={onClose} className="text-gray-400 hover:text-gray-800 text-3xl font-light">&times;</button>
             </div>
-            <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+            {supplierName && (
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">
+                    Fornecedor: <span className="text-indigo-600">{supplierName}</span>
+                </p>
+            )}
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
                 Data: <span className="text-green-700">{formattedDate}</span>
             </p>
             {invoiceNumber && (
@@ -113,6 +132,45 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({ date, deliveries,
         {/* Conteúdo com Rolagem */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
             <div className="space-y-4">
+                {/* QR Code Section */}
+                {supplierCpf && deliveries.length > 0 && (
+                  <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/80 flex flex-col items-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowQrCode(!showQrCode)}
+                      className="flex items-center justify-between w-full font-black text-indigo-950 uppercase tracking-tighter text-xs"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="bg-indigo-100 text-indigo-700 p-2 rounded-xl">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                          </svg>
+                        </span>
+                        QR Code de Entrada (Portaria)
+                      </span>
+                      <span className="text-indigo-600 font-black uppercase text-[10px] tracking-widest hover:text-indigo-800 transition-colors">
+                        {showQrCode ? 'Ocultar' : 'Visualizar'}
+                      </span>
+                    </button>
+
+                    {showQrCode && (
+                      <div className="mt-4 flex flex-col items-center justify-center p-6 bg-white rounded-3xl border border-indigo-100/50 shadow-md animate-scale-in w-full text-center">
+                        <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-inner inline-block">
+                          <QRCodeSVG 
+                            value={`CHECKIN_DELIVERY:${supplierCpf}:${dateString}`} 
+                            size={180}
+                            level={"H"}
+                            includeMargin={true}
+                          />
+                        </div>
+                        <p className="text-[10px] text-indigo-950 font-black uppercase tracking-wider mt-4 max-w-xs leading-relaxed">
+                          Apresente este QR Code na portaria externa para liberação imediata e registro de chegada!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {deliveries.length > 0 ? (
                     deliveries.map(delivery => {
                         const hasInvoice = delivery.invoiceNumber;

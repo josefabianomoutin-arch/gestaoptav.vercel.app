@@ -1,9 +1,10 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { Supplier, ThirdPartyEntryLog, Delivery } from '../types';
-import { Calendar, Clock, Truck, UserCheck, AlertCircle, Search, Trash2, CheckCircle2, FilePlus } from 'lucide-react';
+import { Calendar, Clock, Truck, UserCheck, AlertCircle, Search, Trash2, CheckCircle2, FilePlus, QrCode } from 'lucide-react';
 import { toast } from 'sonner';
 import SendInvoiceModal from './SendInvoiceModal';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 interface AgendaChegadasProps {
     suppliers: Supplier[];
@@ -31,6 +32,189 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
     const [arrivalData, setArrivalData] = useState({ arrivalTime: '', invoiceNumber: '' });
     const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
     const [invoiceInfo, setInvoiceInfo] = useState<{ date: string; deliveries: Delivery[]; supplierCpf: string } | null>(null);
+
+    // QR Code Scanner States
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const [scannerMode, setScannerMode] = useState<'camera' | 'manual'>('camera');
+    const [manualInputValue, setManualInputValue] = useState('');
+    const manualInputRef = useRef<HTMLInputElement>(null);
+
+    // Auto focus manual scan input
+    useEffect(() => {
+        if (isScannerOpen && scannerMode === 'manual') {
+            const timer = setTimeout(() => {
+                manualInputRef.current?.focus();
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [isScannerOpen, scannerMode]);
+
+    const locateDeliveryForCpfAndDate = (cpf: string, targetDate: string) => {
+        const groups: Record<string, any> = {};
+        
+        const processDelivery = (s: Supplier, d: any) => {
+            if (!d || d.date !== targetDate || s.cpf !== cpf) return;
+            
+            const groupKey = `${s.cpf}-${d.time}`;
+            if (!groups[groupKey]) {
+                groups[groupKey] = {
+                    id: d.id,
+                    allIds: [d.id],
+                    supplierName: s.name,
+                    supplierCpf: s.cpf,
+                    time: d.time,
+                    arrivalTime: d.arrivalTime,
+                    deliveries: [d]
+                };
+            } else {
+                groups[groupKey].allIds.push(d.id);
+                groups[groupKey].deliveries.push(d);
+            }
+        };
+
+        suppliers.forEach(s => {
+            if (!s) return;
+            const deliveries = (Array.isArray(s.deliveries) ? s.deliveries : Object.values(s.deliveries || {}));
+            deliveries.forEach(d => processDelivery(s as any, d));
+        });
+
+        if (perCapitaConfig) {
+            ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'].forEach(key => {
+                const producers = perCapitaConfig[key] || [];
+                producers.forEach((p: any) => {
+                    const deliveries = Array.isArray(p.deliveries) ? p.deliveries : Object.values(p.deliveries || {});
+                    deliveries.forEach(d => processDelivery({ name: p.name, cpf: p.cpfCnpj || p.cpf } as any, d));
+                });
+            });
+        }
+
+        const list = Object.values(groups);
+        return list.length > 0 ? list[0] : null;
+    };
+
+    const handleScanSuccess = async (text: string) => {
+        if (!text) return;
+        
+        if (text.startsWith('CHECKIN_DELIVERY:')) {
+            const parts = text.split(':');
+            if (parts.length >= 3) {
+                const cpf = parts[1];
+                const date = parts[2];
+                
+                if (date !== selectedAgendaDate) {
+                    toast.info(`Alterando visualização para a data do agendamento: ${date}`);
+                    setSelectedAgendaDate(date);
+                }
+                
+                const foundGroup = locateDeliveryForCpfAndDate(cpf, date);
+                
+                if (foundGroup) {
+                    if (foundGroup.arrivalTime) {
+                        toast.info(`Chegada de ${foundGroup.supplierName} já foi registrada às ${foundGroup.arrivalTime}`);
+                        setIsScannerOpen(false);
+                        return;
+                    }
+                    
+                    const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    if (onUpdateDelivery) {
+                        let success = true;
+                        for (const id of foundGroup.allIds) {
+                            const res = await onUpdateDelivery(foundGroup.supplierCpf, id, {
+                                arrivalTime: nowTime
+                            });
+                            if (!res.success) success = false;
+                        }
+                        if (success) {
+                            toast.success(`Check-In Realizado! ${foundGroup.supplierName} confirmado às ${nowTime}`);
+                        } else {
+                            toast.error(`Falha ao registrar a chegada no servidor.`);
+                        }
+                    }
+                    setIsScannerOpen(false);
+                } else {
+                    toast.error(`Nenhum agendamento pendente encontrado para o CPF ${cpf} no dia ${date}.`);
+                }
+            } else {
+                toast.error("Formato do código QR inválido.");
+            }
+        } else {
+            // Tenta buscar por CPF bruto ou CNPJ
+            const cleanInput = text.replace(/[^\d]/g, '');
+            if (cleanInput.length >= 11) {
+                const foundGroup = locateDeliveryForCpfAndDate(cleanInput, selectedAgendaDate);
+                if (foundGroup) {
+                    if (foundGroup.arrivalTime) {
+                        toast.info(`Chegada de ${foundGroup.supplierName} já foi registrada às ${foundGroup.arrivalTime}`);
+                        setIsScannerOpen(false);
+                        return;
+                    }
+                    const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    if (onUpdateDelivery) {
+                        let success = true;
+                        for (const id of foundGroup.allIds) {
+                            const res = await onUpdateDelivery(foundGroup.supplierCpf, id, {
+                                arrivalTime: nowTime
+                            });
+                            if (!res.success) success = false;
+                        }
+                        if (success) {
+                            toast.success(`Check-In Realizado! ${foundGroup.supplierName} confirmado às ${nowTime}`);
+                        } else {
+                            toast.error(`Falha ao registrar a chegada.`);
+                        }
+                    }
+                    setIsScannerOpen(false);
+                    return;
+                }
+            }
+            toast.error("Código QR não reconhecido ou sem agendamentos ativos na data.");
+        }
+    };
+
+    const handleManualSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (manualInputValue.trim()) {
+            handleScanSuccess(manualInputValue.trim());
+            setManualInputValue('');
+        }
+    };
+
+    // Camera Scan effect
+    useEffect(() => {
+        let scanner: Html5QrcodeScanner | null = null;
+        if (isScannerOpen && scannerMode === 'camera') {
+            const timer = setTimeout(() => {
+                try {
+                    scanner = new Html5QrcodeScanner(
+                        "qr-reader",
+                        { fps: 10, qrbox: { width: 250, height: 250 }, rememberLastUsedCamera: true },
+                        /* verbose= */ false
+                    );
+                    scanner.render(
+                        (decodedText) => {
+                            handleScanSuccess(decodedText);
+                            if (scanner) {
+                                scanner.clear().catch(err => console.warn(err));
+                            }
+                        },
+                        (_err) => {
+                            // normal scanning frame error
+                        }
+                    );
+                } catch (e) {
+                    console.error("Camera scanner error:", e);
+                }
+            }, 300);
+
+            return () => {
+                clearTimeout(timer);
+                if (scanner) {
+                    scanner.clear().catch(err => console.warn(err));
+                }
+            };
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isScannerOpen, scannerMode, selectedAgendaDate]);
 
     const dailyDeliveries = useMemo(() => {
         const groups: Record<string, any> = {};
@@ -209,6 +393,99 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                     onSave={handleSaveInvoiceWithItems}
                 />
             )}
+            {/* Scanner Modal */}
+            {isScannerOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden border border-indigo-100 animate-scale-in">
+                        <div className="p-6 md:p-8 border-b bg-indigo-50 flex justify-between items-center">
+                            <div>
+                                <h3 className="text-xl font-black text-indigo-950 uppercase italic tracking-tighter">Leitor de Check-In (Portaria)</h3>
+                                <p className="text-indigo-400 font-bold text-[10px] uppercase tracking-widest">Escanear ou Digitar Entrada</p>
+                            </div>
+                            <button 
+                                onClick={() => setIsScannerOpen(false)} 
+                                className="text-gray-400 hover:text-gray-800 text-3xl font-light leading-none"
+                            >
+                                &times;
+                            </button>
+                        </div>
+                        <div className="p-6 md:p-8 space-y-6">
+                            {/* Mode Toggle */}
+                            <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl">
+                                <button
+                                    type="button"
+                                    onClick={() => setScannerMode('camera')}
+                                    className={`flex-1 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all ${
+                                        scannerMode === 'camera' 
+                                            ? 'bg-white text-indigo-600 shadow-sm' 
+                                            : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                                >
+                                    Câmera Integrada
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setScannerMode('manual')}
+                                    className={`flex-1 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all ${
+                                        scannerMode === 'manual' 
+                                            ? 'bg-white text-indigo-600 shadow-sm' 
+                                            : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                                >
+                                    Leitor de Mão / Código
+                                </button>
+                            </div>
+
+                            {scannerMode === 'camera' ? (
+                                <div className="space-y-4">
+                                    <div className="bg-slate-50 p-2 rounded-3xl border-2 border-dashed border-slate-200 overflow-hidden relative">
+                                        <div id="qr-reader" className="w-full max-w-md mx-auto rounded-2xl overflow-hidden shadow-inner bg-black"></div>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider text-center max-w-sm mx-auto leading-relaxed">
+                                        Posicione o QR Code impresso ou na tela do celular em frente à câmera para leitura.
+                                    </p>
+                                </div>
+                            ) : (
+                                <form onSubmit={handleManualSubmit} className="space-y-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                            Leitor de Código ou CPF
+                                        </label>
+                                        <input
+                                            ref={manualInputRef}
+                                            type="text"
+                                            value={manualInputValue}
+                                            onChange={(e) => setManualInputValue(e.target.value)}
+                                            placeholder="Escaneie com leitor de mão ou digite o CPF..."
+                                            className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-gray-700 outline-none focus:ring-4 focus:ring-indigo-100 transition-all placeholder:text-gray-300"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider text-center max-w-sm mx-auto leading-relaxed">
+                                        Aponte o leitor de mão para o QR Code para preencher e validar a entrada automaticamente.
+                                    </p>
+                                    <div className="flex gap-4 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setManualInputValue('')}
+                                            className="flex-1 py-4 rounded-2xl bg-gray-100 text-gray-500 font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all"
+                                        >
+                                            Limpar
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="flex-1 py-4 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100"
+                                        >
+                                            Confirmar Entrada
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Arrival Modal */}
             {isArrivalModalOpen && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -273,6 +550,14 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                             onChange={e => setSelectedAgendaDate(e.target.value)}
                             className="p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-100 font-black text-indigo-900 transition-all text-sm"
                         />
+                        <button
+                            type="button"
+                            onClick={() => setIsScannerOpen(true)}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 px-4 rounded-2xl text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg hover:shadow-indigo-100 transition-all active:scale-95 cursor-pointer"
+                        >
+                            <QrCode className="h-4 w-4" />
+                            Escanear Entrada
+                        </button>
                     </div>
                 </div>
             </div>

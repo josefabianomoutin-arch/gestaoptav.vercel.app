@@ -984,6 +984,8 @@ const Dashboard: React.FC<DashboardProps> = ({
             }} 
             onFulfill={handleOpenSendInvoiceModal} 
             simulatedToday={SIMULATED_TODAY} 
+            supplierCpf={supplier.cpf}
+            supplierName={supplier.name}
         />
       )}
       
