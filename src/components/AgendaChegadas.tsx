@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { Supplier, ThirdPartyEntryLog, Delivery } from '../types';
-import { Calendar, Clock, Truck, UserCheck, AlertCircle, Search, Trash2, CheckCircle2, FilePlus, QrCode } from 'lucide-react';
+import { Calendar, Clock, Truck, UserCheck, AlertCircle, Search, Trash2, CheckCircle2, FilePlus, QrCode, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import SendInvoiceModal from './SendInvoiceModal';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -38,6 +38,9 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
     // QR Code Scanner States
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [scannerMode, setScannerMode] = useState<'camera' | 'manual'>('camera');
+    const [scanAction, setScanAction] = useState<'entrada' | 'saida'>('entrada');
+    const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+    const [exitTimeInput, setExitTimeInput] = useState('');
     const [manualInputValue, setManualInputValue] = useState('');
     const manualInputRef = useRef<HTMLInputElement>(null);
 
@@ -100,87 +103,136 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
     const handleScanSuccess = async (text: string) => {
         if (!text) return;
         
+        let cpf = '';
+        let date = selectedAgendaDate;
+        
         if (text.startsWith('CHECKIN_DELIVERY:')) {
             const parts = text.split(':');
             if (parts.length >= 3) {
-                const cpf = parts[1];
-                const date = parts[2];
-                
-                if (date !== selectedAgendaDate) {
-                    toast.error(`Entrada NÃO liberada! Este agendamento é para o dia ${date}, mas a data selecionada na portaria é ${selectedAgendaDate}.`);
-                    setIsScannerOpen(false);
-                    return;
-                }
-                
-                const foundGroup = locateDeliveryForCpfAndDate(cpf, date);
-                
-                if (foundGroup) {
-                    if (foundGroup.arrivalTime) {
-                        toast.info(`Chegada de ${foundGroup.supplierName} já foi registrada às ${foundGroup.arrivalTime}`);
-                        setIsScannerOpen(false);
-                        return;
-                    }
-                    
-                    const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                    if (onUpdateDelivery) {
-                        let success = true;
-                        for (const id of foundGroup.allIds) {
-                            const res = await onUpdateDelivery(foundGroup.supplierCpf, id, {
-                                arrivalTime: nowTime
-                            });
-                            if (!res.success) success = false;
-                        }
-                        if (success) {
-                            toast.success(`Check-In Realizado! Entrada de ${foundGroup.supplierName} liberada às ${nowTime}`);
-                        } else {
-                            toast.error(`Falha ao registrar a chegada no servidor.`);
-                        }
-                    } else {
-                        toast.success(`QR Code validado com sucesso para ${foundGroup.supplierName}!`);
-                    }
-                    setIsScannerOpen(false);
-                } else {
-                    toast.error(`Nenhum agendamento pendente encontrado para o CPF ${cpf} no dia ${date}. Entrada NÃO autorizada!`);
-                    setIsScannerOpen(false);
-                }
-            } else {
-                toast.error("Formato do código QR inválido.");
-                setIsScannerOpen(false);
+                cpf = parts[1];
+                date = parts[2];
             }
         } else {
             // Tenta buscar por CPF bruto ou CNPJ
-            const cleanInput = text.replace(/[^\d]/g, '');
-            if (cleanInput.length >= 11) {
-                const foundGroup = locateDeliveryForCpfAndDate(cleanInput, selectedAgendaDate);
-                if (foundGroup) {
-                    if (foundGroup.arrivalTime) {
-                        toast.info(`Chegada de ${foundGroup.supplierName} já foi registrada às ${foundGroup.arrivalTime}`);
-                        setIsScannerOpen(false);
-                        return;
-                    }
-                    const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                    if (onUpdateDelivery) {
-                        let success = true;
-                        for (const id of foundGroup.allIds) {
-                            const res = await onUpdateDelivery(foundGroup.supplierCpf, id, {
-                                arrivalTime: nowTime
-                            });
-                            if (!res.success) success = false;
-                        }
-                        if (success) {
-                            toast.success(`Check-In Realizado! Entrada de ${foundGroup.supplierName} liberada às ${nowTime}`);
-                        } else {
-                            toast.error(`Falha ao registrar a chegada.`);
-                        }
-                    } else {
-                        toast.success(`Check-In Realizado! Entrada de ${foundGroup.supplierName} liberada às ${nowTime}`);
-                    }
+            cpf = text.replace(/[^\d]/g, '');
+        }
+
+        if (!cpf) {
+            toast.error("Código QR ou CPF inválido.");
+            setIsScannerOpen(false);
+            return;
+        }
+        
+        if (date !== selectedAgendaDate) {
+            toast.error(`Ação NÃO liberada! Este agendamento é para o dia ${date}, mas a data selecionada na portaria é ${selectedAgendaDate}.`);
+            setIsScannerOpen(false);
+            return;
+        }
+        
+        const foundGroup = locateDeliveryForCpfAndDate(cpf, date);
+        const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        if (foundGroup) {
+            if (scanAction === 'entrada') {
+                if (foundGroup.arrivalTime) {
+                    toast.info(`Chegada de ${foundGroup.supplierName} já foi registrada às ${foundGroup.arrivalTime}`);
                     setIsScannerOpen(false);
                     return;
                 }
+                
+                if (onUpdateDelivery) {
+                    let success = true;
+                    for (const id of foundGroup.allIds) {
+                        const res = await onUpdateDelivery(foundGroup.supplierCpf, id, {
+                            arrivalTime: nowTime
+                        });
+                        if (!res.success) success = false;
+                    }
+                    if (success) {
+                        toast.success(`Check-In Realizado! Entrada de ${foundGroup.supplierName} liberada às ${nowTime}`);
+                    } else {
+                        toast.error(`Falha ao registrar a chegada no servidor.`);
+                    }
+                } else {
+                    toast.success(`QR Code validado com sucesso para ${foundGroup.supplierName}!`);
+                }
+            } else {
+                // scanAction === 'saida'
+                if (foundGroup.exitTime) {
+                    toast.info(`Saída de ${foundGroup.supplierName} já foi registrada às ${foundGroup.exitTime}`);
+                    setIsScannerOpen(false);
+                    return;
+                }
+                
+                if (onUpdateDelivery) {
+                    let success = true;
+                    for (const id of foundGroup.allIds) {
+                        const res = await onUpdateDelivery(foundGroup.supplierCpf, id, {
+                            exitTime: nowTime
+                        });
+                        if (!res.success) success = false;
+                    }
+                    if (success) {
+                        toast.success(`Check-Out Realizado! Saída de ${foundGroup.supplierName} confirmada às ${nowTime}`);
+                    } else {
+                        toast.error(`Falha ao registrar a saída no servidor.`);
+                    }
+                } else {
+                    toast.success(`Saída validada com sucesso para ${foundGroup.supplierName}!`);
+                }
             }
-            toast.error("Código QR não reconhecido ou sem agendamentos ativos para hoje.");
             setIsScannerOpen(false);
+        } else {
+            // Tenta localizar nos Terceiros
+            const log = (thirdPartyEntries || []).find(l => 
+                l.date === date && 
+                l.companyCnpj.replace(/[^\d]/g, '') === cpf
+            );
+
+            if (log) {
+                if (scanAction === 'entrada') {
+                    if (log.arrivalTime) {
+                        toast.info(`Chegada de ${log.companyName} já foi registrada às ${log.arrivalTime}`);
+                        setIsScannerOpen(false);
+                        return;
+                    }
+                    if (onUpdateThirdPartyEntry) {
+                        const res = await onUpdateThirdPartyEntry({
+                            ...log,
+                            arrivalTime: nowTime,
+                            status: 'concluido'
+                        });
+                        if (res.success) {
+                            toast.success(`Check-In Realizado! Entrada de ${log.companyName} confirmada às ${nowTime}`);
+                        } else {
+                            toast.error("Erro ao registrar entrada.");
+                        }
+                    }
+                } else {
+                    // scanAction === 'saida'
+                    if (log.exitTime) {
+                        toast.info(`Saída de ${log.companyName} já foi registrada às ${log.exitTime}`);
+                        setIsScannerOpen(false);
+                        return;
+                    }
+                    if (onUpdateThirdPartyEntry) {
+                        const res = await onUpdateThirdPartyEntry({
+                            ...log,
+                            exitTime: nowTime,
+                            status: 'concluido'
+                        });
+                        if (res.success) {
+                            toast.success(`Check-Out Realizado! Saída de ${log.companyName} confirmada às ${nowTime}`);
+                        } else {
+                            toast.error("Erro ao registrar saída.");
+                        }
+                    }
+                }
+                setIsScannerOpen(false);
+            } else {
+                toast.error(`Nenhum agendamento pendente encontrado para o CPF/CNPJ ${cpf} no dia ${date}.`);
+                setIsScannerOpen(false);
+            }
         }
     };
 
@@ -311,6 +363,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                     supplierCpf: s.cpf,
                     time: d.time,
                     arrivalTime: d.arrivalTime,
+                    exitTime: d.exitTime,
                     status: isFaturado ? 'CONCLUÍDO' : 'AGENDADO',
                     type: type,
                     items: [d],
@@ -321,6 +374,9 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                 groups[groupKey].allIds.push(d.id);
                 groups[groupKey].items.push(d);
                 groups[groupKey].deliveries.push(d);
+                if (d.exitTime && !groups[groupKey].exitTime) {
+                    groups[groupKey].exitTime = d.exitTime;
+                }
                 if (d.observations && !groups[groupKey].observations.includes(d.observations)) {
                     groups[groupKey].observations = groups[groupKey].observations 
                         ? `${groups[groupKey].observations}; ${d.observations}`
@@ -440,6 +496,160 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
         }
     };
 
+    const handleRegisterExit = (item: any) => {
+        setSelectedItem(item);
+        setExitTimeInput(item.exitTime || new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+        setIsExitModalOpen(true);
+    };
+
+    const saveExit = async () => {
+        if (!selectedItem || !onUpdateDelivery) return;
+        
+        try {
+            if (selectedItem.type === 'FORNECEDOR') {
+                for (const id of selectedItem.allIds) {
+                    await onUpdateDelivery(selectedItem.supplierCpf, id, { 
+                        exitTime: exitTimeInput
+                    });
+                }
+                toast.success("Saída registrada!");
+            }
+            setIsExitModalOpen(false);
+        } catch (_e) {
+            toast.error("Erro ao salvar saída.");
+        }
+    };
+
+    const handleGenerateReport = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            toast.error("Por favor, permita popups para imprimir o relatório.");
+            return;
+        }
+
+        const dateParts = selectedAgendaDate.split('-');
+        const formattedDateReport = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : selectedAgendaDate;
+
+        const totalActive = dailyDeliveries.filter(d => d.status !== 'CANCELADO').length;
+        const totalArrived = dailyDeliveries.filter(d => d.arrivalTime && d.status !== 'CANCELADO').length;
+        const totalExited = dailyDeliveries.filter(d => d.exitTime && d.status !== 'CANCELADO').length;
+        const totalPending = totalActive - totalArrived;
+
+        const rowsHtml = dailyDeliveries.map(item => {
+            const itemsList = (item.items || []).map((it: any) => `${it.item || it.itemName || ''} (${it.kg}kg)`).join(', ');
+            return `
+                <tr>
+                    <td class="text-center font-bold" style="font-size: 9px;">${item.time}</td>
+                    <td style="font-size: 9px; font-weight: bold;">${item.supplierName.toUpperCase()}</td>
+                    <td class="text-center font-mono" style="font-size: 8px;">${item.supplierCpf}</td>
+                    <td class="text-center font-bold text-xs" style="font-size: 8px;">${item.type}</td>
+                    <td class="text-center ${item.arrivalTime ? 'font-bold' : 'italic text-red'}" style="font-size: 9px;">${item.arrivalTime || 'Aguardando...'}</td>
+                    <td class="text-center ${item.exitTime ? 'font-bold' : 'italic text-red'}" style="font-size: 9px;">${item.exitTime || 'Aguardando...'}</td>
+                    <td class="text-center font-bold text-xs" style="font-size: 8px;">${item.status}</td>
+                    <td style="font-size: 8px;">${itemsList || 'N/A'}</td>
+                    <td style="font-size: 8px; font-style: italic;">${item.observations || ''}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Relatório de Portaria (Controle de Entrada e Saída) - ${formattedDateReport}</title>
+                <style>
+                    @page { size: A4 landscape; margin: 10mm; }
+                    body { font-family: Arial, sans-serif; font-size: 8.5pt; line-height: 1.3; color: #000; margin: 0; padding: 0; }
+                    .header-title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin-bottom: 5px; }
+                    .header-subtitle { text-align: center; font-weight: bold; font-size: 9pt; text-transform: uppercase; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 5px; color: #333; }
+                    
+                    .summary-boxes { display: flex; gap: 10px; margin-bottom: 15px; }
+                    .summary-box { flex: 1; border: 1.5px solid #000; padding: 8px; border-radius: 4px; text-align: center; }
+                    .summary-val { font-size: 14pt; font-weight: bold; margin-top: 3px; }
+                    .label { font-weight: bold; text-transform: uppercase; font-size: 7.5pt; color: #555; }
+                    
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; text-transform: uppercase; }
+                    th, td { border: 1px solid #000; padding: 5px; text-align: left; vertical-align: middle; }
+                    th { font-weight: bold; text-transform: uppercase; background-color: #f2f2f2; text-align: center; font-size: 8pt; }
+                    
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .font-bold { font-weight: bold; }
+                    .text-red { color: #b91c1c; font-style: italic; font-weight: normal; }
+                    
+                    .signatures { display: flex; justify-content: space-between; margin-top: 50px; padding: 0 50px; }
+                    .signature-box { text-align: center; width: 250px; }
+                    .signature-line { border-top: 1px solid #000; margin-bottom: 5px; }
+                    .signature-title { font-weight: bold; text-transform: uppercase; font-size: 7.5pt; }
+                </style>
+            </head>
+            <body>
+                <div class="header-title">PENITENCIÁRIA DE TAÍUVA</div>
+                <div class="header-subtitle">Relatório de Controle de Portaria (Entradas e Saídas) - Data: ${formattedDateReport}</div>
+                
+                <div class="summary-boxes">
+                    <div class="summary-box">
+                        <div class="label">Total Agendado</div>
+                        <div class="summary-val">${totalActive}</div>
+                    </div>
+                    <div class="summary-box" style="border-color: #16a34a; background-color: #f0fdf4;">
+                        <div class="label" style="color: #16a34a;">Registraram Entrada</div>
+                        <div class="summary-val" style="color: #16a34a;">${totalArrived}</div>
+                    </div>
+                    <div class="summary-box" style="border-color: #dc2626; background-color: #fef2f2;">
+                        <div class="label" style="color: #dc2626;">Registraram Saída</div>
+                        <div class="summary-val" style="color: #dc2626;">${totalExited}</div>
+                    </div>
+                    <div class="summary-box" style="border-color: #ea580c; background-color: #fff7ed;">
+                        <div class="label" style="color: #ea580c;">Pendentes (Sem Entrada)</div>
+                        <div class="summary-val" style="color: #ea580c;">${totalPending}</div>
+                    </div>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 7%;">Hora Agendada</th>
+                            <th style="width: 22%;">Fornecedor / Empresa</th>
+                            <th style="width: 12%;">CPF / CNPJ</th>
+                            <th style="width: 8%;">Tipo</th>
+                            <th style="width: 10%;">Horário Entrada</th>
+                            <th style="width: 10%;">Horário Saída</th>
+                            <th style="width: 8%;">Status</th>
+                            <th style="width: 13%;">Itens / Peso</th>
+                            <th style="width: 10%;">Observações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || '<tr><td colspan="9" class="text-center italic font-bold">Nenhuma entrega agendada ou registrada para este dia.</td></tr>'}
+                    </tbody>
+                </table>
+                
+                <div class="signatures">
+                    <div class="signature-box">
+                        <div class="signature-line" style="margin-top: 30px;"></div>
+                        <div class="signature-title">Responsável pela Portaria</div>
+                        <div style="font-size: 7pt; color: #666; margin-top: 2px;">Assinatura e Carimbo</div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line" style="margin-top: 30px;"></div>
+                        <div class="signature-title">Responsável pelo Almoxarifado / Estoque</div>
+                        <div style="font-size: 7pt; color: #666; margin-top: 2px;">Assinatura e Carimbo</div>
+                    </div>
+                </div>
+
+                <script>
+                    window.onload = function() {
+                        window.print();
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
     const handleSaveInvoiceWithItems = async (invoiceNumber: string, invoiceUrl: string, deliveries: Delivery[], invoiceDate?: string) => {
         if (!onSaveInvoice || !invoiceInfo) return;
         try {
@@ -516,11 +726,15 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
             {/* Scanner Modal */}
             {isScannerOpen && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden border border-indigo-100 animate-scale-in">
-                        <div className="p-6 md:p-8 border-b bg-indigo-50 flex justify-between items-center">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 animate-scale-in">
+                        <div className={`p-6 md:p-8 border-b flex justify-between items-center ${scanAction === 'entrada' ? 'bg-emerald-50 border-b-emerald-100' : 'bg-rose-50 border-b-rose-100'}`}>
                             <div>
-                                <h3 className="text-xl font-black text-indigo-950 uppercase italic tracking-tighter">Leitor de Check-In (Portaria)</h3>
-                                <p className="text-indigo-400 font-bold text-[10px] uppercase tracking-widest">Escanear ou Digitar Entrada</p>
+                                <h3 className={`text-xl font-black uppercase italic tracking-tighter ${scanAction === 'entrada' ? 'text-emerald-950' : 'text-rose-950'}`}>
+                                    Leitor Portaria (${scanAction === 'entrada' ? 'Entrada' : 'Saída'})
+                                </h3>
+                                <p className={`font-bold text-[10px] uppercase tracking-widest ${scanAction === 'entrada' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                    Escanear ou Digitar para registrar {scanAction === 'entrada' ? 'Entrada (Check-In)' : 'Saída (Check-Out)'}
+                                </p>
                             </div>
                             <button 
                                 onClick={() => setIsScannerOpen(false)} 
@@ -537,7 +751,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                     onClick={() => setScannerMode('camera')}
                                     className={`flex-1 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all ${
                                         scannerMode === 'camera' 
-                                            ? 'bg-white text-indigo-600 shadow-sm' 
+                                            ? `bg-white ${scanAction === 'entrada' ? 'text-emerald-600' : 'text-rose-600'} shadow-sm` 
                                             : 'text-slate-500 hover:text-slate-700'
                                     }`}
                                 >
@@ -548,7 +762,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                     onClick={() => setScannerMode('manual')}
                                     className={`flex-1 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all ${
                                         scannerMode === 'manual' 
-                                            ? 'bg-white text-indigo-600 shadow-sm' 
+                                            ? `bg-white ${scanAction === 'entrada' ? 'text-emerald-600' : 'text-rose-600'} shadow-sm` 
                                             : 'text-slate-500 hover:text-slate-700'
                                     }`}
                                 >
@@ -560,7 +774,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                 <div className="space-y-4">
                                     <div className="bg-slate-50 p-2 rounded-3xl border-2 border-dashed border-slate-200 overflow-hidden relative">
                                         <div id="qr-reader" className="w-full max-w-md mx-auto rounded-2xl overflow-hidden shadow-inner bg-slate-950 min-h-[280px] flex flex-col items-center justify-center p-6 text-center text-slate-400">
-                                             <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                                             <div className={`w-8 h-8 border-4 ${scanAction === 'entrada' ? 'border-emerald-500' : 'border-rose-500'} border-t-transparent rounded-full animate-spin mb-4`}></div>
                                              <span className="text-xs font-black uppercase tracking-widest text-slate-300">Ativando Câmera...</span>
                                              <span className="text-[10px] text-slate-500 mt-1">Por favor, conceda permissão de câmera ao navegador</span>
                                          </div>
@@ -581,12 +795,12 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                             value={manualInputValue}
                                             onChange={(e) => setManualInputValue(e.target.value)}
                                             placeholder="Escaneie com leitor de mão ou digite o CPF..."
-                                            className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-gray-700 outline-none focus:ring-4 focus:ring-indigo-100 transition-all placeholder:text-gray-300"
+                                            className={`w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-gray-700 outline-none focus:ring-4 ${scanAction === 'entrada' ? 'focus:ring-emerald-100' : 'focus:ring-rose-100'} transition-all placeholder:text-gray-300`}
                                             autoFocus
                                         />
                                     </div>
                                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider text-center max-w-sm mx-auto leading-relaxed">
-                                        Aponte o leitor de mão para o QR Code para preencher e validar a entrada automaticamente.
+                                        Aponte o leitor de mão para o QR Code para preencher e validar a {scanAction === 'entrada' ? 'entrada' : 'saída'} automaticamente.
                                     </p>
                                     <div className="flex gap-4 pt-2">
                                         <button
@@ -598,13 +812,44 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                         </button>
                                         <button
                                             type="submit"
-                                            className="flex-1 py-4 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100"
+                                            className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white transition-all shadow-xl ${
+                                                scanAction === 'entrada' 
+                                                    ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100' 
+                                                    : 'bg-rose-600 hover:bg-rose-700 shadow-rose-100'
+                                            }`}
                                         >
-                                            Confirmar Entrada
+                                            Confirmar {scanAction === 'entrada' ? 'Entrada' : 'Saída'}
                                         </button>
                                     </div>
                                 </form>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Exit Modal */}
+            {isExitModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden border border-rose-100 animate-scale-in">
+                        <div className="p-8 border-b bg-rose-50">
+                            <h3 className="text-xl font-black text-rose-950 uppercase italic tracking-tighter">Registrar Saída</h3>
+                            <p className="text-rose-400 font-bold text-[10px] uppercase tracking-widest">{selectedItem?.supplierName}</p>
+                        </div>
+                        <div className="p-8 space-y-6">
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Horário Real de Saída</label>
+                                <input 
+                                    type="time" 
+                                    value={exitTimeInput}
+                                    onChange={e => setExitTimeInput(e.target.value)}
+                                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-black text-rose-900 outline-none focus:ring-4 focus:ring-rose-100 transition-all text-xl"
+                                />
+                            </div>
+                            <div className="flex gap-4">
+                                <button onClick={() => setIsExitModalOpen(false)} className="flex-1 py-4 rounded-2xl bg-gray-100 text-gray-500 font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all">Cancelar</button>
+                                <button onClick={saveExit} className="flex-1 py-4 rounded-2xl bg-rose-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-xl shadow-rose-100">Salvar Saída</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -677,18 +922,42 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                         />
                         <button
                             type="button"
-                            onClick={() => setIsScannerOpen(true)}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 px-4 rounded-2xl text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg hover:shadow-indigo-100 transition-all active:scale-95 cursor-pointer"
+                            onClick={() => {
+                                setScanAction('entrada');
+                                setScannerMode('camera');
+                                setIsScannerOpen(true);
+                            }}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 px-4 rounded-2xl text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg hover:shadow-emerald-100 transition-all active:scale-95 cursor-pointer"
                         >
                             <QrCode className="h-4 w-4" />
                             Escanear Entrada
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setScanAction('saida');
+                                setScannerMode('camera');
+                                setIsScannerOpen(true);
+                            }}
+                            className="bg-rose-600 hover:bg-rose-700 text-white font-black py-3 px-4 rounded-2xl text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg hover:shadow-rose-100 transition-all active:scale-95 cursor-pointer"
+                        >
+                            <QrCode className="h-4 w-4" />
+                            Escanear Saída
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleGenerateReport}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 px-4 rounded-2xl text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg hover:shadow-indigo-100 transition-all active:scale-95 cursor-pointer"
+                        >
+                            <FileText className="h-4 w-4" />
+                            Relatório Portaria
                         </button>
                     </div>
                 </div>
             </div>
 
             {/* Daily Summary Info */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-white p-6 rounded-3xl shadow-md border border-indigo-50 flex items-center gap-4">
                     <div className="bg-indigo-100 p-3 rounded-2xl text-indigo-600">
                         <Truck className="h-6 w-6" />
@@ -703,8 +972,17 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                         <UserCheck className="h-6 w-6" />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Já Chegaram</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest font-sans">Entradas Confirmadas</p>
                         <p className="text-xl font-black text-green-700">{dailyDeliveries.filter(d => d.arrivalTime && d.status !== 'CANCELADO').length}</p>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-3xl shadow-md border border-rose-50 flex items-center gap-4">
+                    <div className="bg-rose-100 p-3 rounded-2xl text-rose-600">
+                        <UserCheck className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Saídas Confirmadas</p>
+                        <p className="text-xl font-black text-rose-700">{dailyDeliveries.filter(d => d.exitTime && d.status !== 'CANCELADO').length}</p>
                     </div>
                 </div>
                 <div className="bg-white p-6 rounded-3xl shadow-md border border-red-50 flex items-center gap-4">
@@ -712,7 +990,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                         <AlertCircle className="h-6 w-6" />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pendentes</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest font-sans">Pendentes Chegada</p>
                         <p className="text-xl font-black text-red-700">{dailyDeliveries.filter(d => !d.arrivalTime && d.status !== 'CANCELADO').length}</p>
                     </div>
                 </div>
@@ -810,15 +1088,13 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                             {item.arrivalTime || 'Aguardando...'}
                                         </span>
                                     </div>
-                                    {item.type === 'TERCEIRO' && (
-                                        <div className="flex items-center gap-2">
-                                            <Clock className="h-3 w-3 text-slate-300" />
-                                            <span className="text-[10px] font-black text-slate-400 uppercase">Saída:</span>
-                                            <span className={`text-[11px] font-black ${item.exitTime ? 'text-rose-600' : 'text-red-600 italic'}`}>
-                                                {item.exitTime || 'Aguardando...'}
-                                            </span>
-                                        </div>
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                        <Clock className="h-3 w-3 text-slate-300" />
+                                        <span className="text-[10px] font-black text-slate-400 uppercase">Saída:</span>
+                                        <span className={`text-[11px] font-black ${item.exitTime ? 'text-rose-600' : 'text-red-600 italic'}`}>
+                                            {item.exitTime || 'Aguardando...'}
+                                        </span>
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {item.type === 'TERCEIRO' && onUpdateThirdPartyEntry && (
@@ -848,13 +1124,35 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                         </>
                                     )}
                                     {item.type === 'FORNECEDOR' && (
-                                        <button 
-                                            onClick={() => handleRegisterArrival(item)}
-                                            className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-md shadow-indigo-100"
-                                        >
-                                            <CheckCircle2 className="h-3 w-3" />
-                                            {item.status === 'CONCLUÍDO' ? 'Ver Horário' : 'Confirmar Chegada'}
-                                        </button>
+                                        <div className="flex gap-1.5">
+                                            {!item.arrivalTime ? (
+                                                <button 
+                                                    onClick={() => handleRegisterArrival(item)}
+                                                    className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-md shadow-indigo-100"
+                                                >
+                                                    <CheckCircle2 className="h-3 w-3" />
+                                                    Confirmar Chegada
+                                                </button>
+                                            ) : !item.exitTime ? (
+                                                <button 
+                                                    onClick={() => handleRegisterExit(item)}
+                                                    className="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all flex items-center gap-1.5 shadow-md shadow-rose-100"
+                                                >
+                                                    <CheckCircle2 className="h-3 w-3" />
+                                                    Confirmar Saída
+                                                </button>
+                                            ) : (
+                                                <button 
+                                                    onClick={() => {
+                                                        handleRegisterArrival(item);
+                                                    }}
+                                                    className="bg-slate-100 text-slate-500 hover:bg-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-[9px] font-black uppercase"
+                                                >
+                                                    <UserCheck className="h-3.5 w-3.5 text-emerald-500" />
+                                                    Registrado
+                                                </button>
+                                            )}
+                                        </div>
                                     )}
                                     {item.type === 'FORNECEDOR' && item.arrivalTime && (
                                         <button 
@@ -865,11 +1163,6 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                             <FilePlus className="h-3 w-3" />
                                             {item.status === 'CONCLUÍDO' ? 'Ver Nota' : 'Faturar'}
                                         </button>
-                                    )}
-                                    {item.type === 'FORNECEDOR' && item.arrivalTime && (
-                                        <div className="bg-green-100 text-green-700 p-1.5 rounded-lg">
-                                            <UserCheck className="h-4 w-4" />
-                                        </div>
                                     )}
                                 </div>
                             </div>
