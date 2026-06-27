@@ -28,11 +28,12 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({
   supplierCpf,
   supplierName
 }) => {
-  const [showQrCode, setShowQrCode] = useState(false);
+  const [showQrCode, setShowQrCode] = useState(true);
   
   const dateString = date.toISOString().split('T')[0];
   const formattedDate = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
   const invoiceNumber = deliveries.find(d => d.invoiceNumber)?.invoiceNumber;
+  const deliveryTime = deliveries.find(d => d.time)?.time || deliveries.find(d => d.arrivalTime)?.arrivalTime;
   
   const isPastStrict = date < simulatedToday;
   const isToday = date.toISOString().split('T')[0] === simulatedToday.toISOString().split('T')[0];
@@ -149,16 +150,51 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({
                     </button>
 
                     {showQrCode && (
-                      <div className="mt-4 flex flex-col items-center justify-center p-6 bg-white rounded-3xl border border-indigo-100/50 shadow-md animate-scale-in w-full text-center">
-                        <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-inner inline-block">
+                      <div className="mt-4 flex flex-col items-center justify-center p-6 bg-emerald-50/70 rounded-3xl border-2 border-emerald-500/80 shadow-xl shadow-emerald-500/5 animate-scale-in w-full text-center">
+                        <span className="mb-3 px-3 py-1 bg-emerald-500 text-white font-black text-[9px] uppercase tracking-widest rounded-full shadow-sm animate-pulse">
+                          ● CONFERÊNCIA DE ENTRADA (PORTARIA)
+                        </span>
+                        
+                        <div className="bg-white p-4 rounded-3xl border-4 border-emerald-500 shadow-xl inline-block transform hover:scale-105 transition-transform duration-200">
                           <QRCodeSVG 
                             value={`CHECKIN_DELIVERY:${supplierCpf}:${dateString}`} 
-                            size={180}
+                            size={240}
                             level={"H"}
                             includeMargin={true}
                           />
                         </div>
-                        <p className="text-[10px] text-indigo-950 font-black uppercase tracking-wider mt-4 max-w-xs leading-relaxed">
+                        
+                        {/* Detalhes do Fornecedor e Entrega logo abaixo da imagem */}
+                        <div className="w-full mt-4 bg-white border border-emerald-100 p-4 rounded-2xl text-left space-y-2 shadow-sm">
+                          <div className="border-b border-gray-100 pb-1.5 mb-1.5 flex justify-between items-center">
+                            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Dados do Agendamento</span>
+                            <span className="text-[8px] font-mono text-gray-400">CPF: {supplierCpf}</span>
+                          </div>
+                          
+                          <div>
+                            <span className="text-[8px] font-bold text-gray-400 block uppercase">Fornecedor</span>
+                            <p className="text-[12px] font-black text-slate-900 uppercase tracking-tight">
+                              {supplierName || 'Não Informado'}
+                            </p>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-gray-50">
+                            <div>
+                              <span className="text-[8px] font-bold text-gray-400 block uppercase">Data de Entrega</span>
+                              <p className="text-[11px] font-extrabold text-emerald-800 uppercase">
+                                {formattedDate}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-[8px] font-bold text-gray-400 block uppercase">Hora da Entrega</span>
+                              <p className="text-[11px] font-extrabold text-orange-600 uppercase">
+                                {deliveryTime ? `${deliveryTime}h` : 'Não definida'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <p className="text-[10px] text-emerald-950 font-bold uppercase tracking-wider mt-4 max-w-xs leading-relaxed">
                           Apresente este QR Code na portaria externa para liberação imediata e registro de chegada!
                         </p>
                       </div>
