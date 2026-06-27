@@ -1687,8 +1687,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
             </div>
 
             <div className="overflow-x-auto">
-              <div className="min-w-[650px]">
-                <div className="grid grid-cols-[60px_2fr_100px_90px_110px_110px_1.5fr_130px] gap-2 md:gap-3 mb-2 bg-slate-100 p-3 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+              <div className="min-w-[950px]">
+                <div className="grid grid-cols-[60px_minmax(180px,2fr)_80px_70px_100px_100px_minmax(180px,1.5fr)_130px] gap-2 md:gap-3 mb-2 bg-slate-100 p-3 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
                   <div>Item</div>
                   <div className="text-left">Nome do Item</div>
                   <div>Quantidade</div>
@@ -1711,7 +1711,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                     return (
                       <div
                         key={item.index}
-                        className={`grid grid-cols-[60px_2fr_100px_90px_110px_110px_1.5fr_130px] gap-2 md:gap-3 items-center p-2 rounded-2xl border ${
+                        className={`grid grid-cols-[60px_minmax(180px,2fr)_80px_70px_100px_100px_minmax(180px,1.5fr)_130px] gap-2 md:gap-3 items-center p-2 rounded-2xl border ${
                           item.itemName.trim() !== '' ? 'bg-slate-50 border-slate-200 shadow-sm' : 'bg-white border-slate-100'
                         }`}
                       >
@@ -1910,8 +1910,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
             {/* Main Interactive Table Grid */}
             <div className="overflow-x-auto">
-              <div className="min-w-[650px]">
-                <div className="grid grid-cols-[60px_2fr_100px_90px_110px_110px_1.5fr_40px] gap-2 md:gap-3 mb-2 bg-slate-50 p-2.5 rounded-2xl border border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+              <div className="min-w-[950px]">
+                <div className="grid grid-cols-[60px_minmax(180px,2fr)_80px_70px_100px_100px_minmax(180px,1.5fr)_40px] gap-2 md:gap-3 mb-2 bg-slate-50 p-2.5 rounded-2xl border border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
                   <div>Ref</div>
                   <div className="text-left">Nome do Item</div>
                   <div>Quantidade</div>
@@ -1942,7 +1942,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                     return (
                       <div
                         key={item.index}
-                        className={`grid grid-cols-[60px_2fr_100px_90px_110px_110px_1.5fr_40px] gap-2 md:gap-3 items-center p-2 rounded-2xl border transition-all ${
+                        className={`grid grid-cols-[60px_minmax(180px,2fr)_80px_70px_100px_100px_minmax(180px,1.5fr)_40px] gap-2 md:gap-3 items-center p-2 rounded-2xl border transition-all ${
                           item.itemName.trim() !== '' ? 'bg-slate-50 border-zinc-200' : 'bg-white border-slate-100'
                         } hover:border-slate-300`}
                       >
