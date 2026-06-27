@@ -1956,8 +1956,10 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                         {/* Name Column */}
                         <div className="relative">
                           <div 
-                            className={`w-full bg-transparent px-3 py-2 rounded-xl text-xs font-bold text-slate-800 border border-transparent hover:bg-slate-50 cursor-pointer flex items-center justify-between transition-all ${
-                              !isEditable ? 'pointer-events-none' : ''
+                            className={`w-full text-xs font-bold px-3 py-2 rounded-xl flex items-center justify-between cursor-pointer transition-all ${
+                              isEditable
+                                ? 'bg-white border border-slate-200 hover:border-slate-300 text-slate-800 shadow-sm'
+                                : 'bg-transparent border-transparent text-slate-600 pointer-events-none'
                             }`}
                             onClick={() => {
                               if (isEditable) {
@@ -2047,9 +2049,13 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                             type="text"
                             disabled={!isEditable}
                             placeholder={isEditable ? "Ex: 10" : "-"}
-                            value={item.quantity}
+                            value={item.quantity || ''}
                             onChange={(e) => handleFieldChange(item.index, 'quantity', e.target.value)}
-                            className="w-full bg-transparent px-3 py-2 text-center rounded-xl text-xs font-extrabold text-indigo-700 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
+                            className={`w-full text-xs text-center transition-all focus:outline-none focus:ring-1 focus:ring-indigo-100 ${
+                              isEditable
+                                ? 'bg-white border border-slate-200 focus:border-indigo-500 px-3 py-2 rounded-xl font-extrabold text-indigo-700 placeholder-slate-400 shadow-sm'
+                                : 'bg-transparent border-transparent font-extrabold text-indigo-700/80 px-3 py-2 rounded-xl'
+                            }`}
                           />
                         </div>
 
@@ -2091,10 +2097,14 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                           <input
                             type="text"
                             disabled={!isEditable}
-                            placeholder={isEditable ? "Observação do destino..." : "-"}
-                            value={item.observation}
+                            placeholder={isEditable ? "Ex: em bife, em cubos..." : "-"}
+                            value={item.observation || ''}
                             onChange={(e) => handleFieldChange(item.index, 'observation', e.target.value)}
-                            className="w-full bg-transparent px-3 py-2 rounded-xl text-xs text-slate-600 placeholder-slate-300 border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
+                            className={`w-full text-xs transition-all focus:outline-none focus:ring-1 focus:ring-indigo-100 ${
+                              isEditable
+                                ? 'bg-white border border-slate-200 focus:border-indigo-500 px-3 py-2 rounded-xl text-slate-800 placeholder-slate-400 shadow-sm'
+                                : 'bg-transparent border-transparent text-slate-500 px-3 py-2 rounded-xl'
+                            }`}
                           />
                         </div>
 
