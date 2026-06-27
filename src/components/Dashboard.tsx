@@ -26,7 +26,7 @@ interface DashboardProps {
   monthlySchedule?: Record<string, number[]>;
   isRegisteredForNextPeriod?: boolean;
   onLogout: () => void;
-  onScheduleDelivery: (supplierCpf: string, date: string, time: string, invoiceNumber?: string, invoiceUrl?: string) => void;
+  onScheduleDelivery: (supplierCpf: string, date: string, time: string, observations?: string, invoiceNumber?: string, invoiceUrl?: string) => void;
   onCancelDeliveries: (supplierCpf: string, deliveryIds: string[]) => void;
   onSaveInvoice: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => Promise<void>;
   onUpdateInvoiceUrl: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => Promise<{ success: boolean; message?: string }>;
@@ -135,10 +135,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleCloseViewModal = () => { setIsViewModalOpen(false); setDeliveriesToShow([]); setSelectedDate(null); };
   const handleAddNewFromView = () => { setIsViewModalOpen(false); setDeliveriesToShow([]); setIsModalOpen(true); };
 
-  const handleScheduleSave = (time: string) => {
+  const handleScheduleSave = (time: string, observations?: string) => {
     if (selectedDate) {
       const dateString = selectedDate.toISOString().split('T')[0];
-      onScheduleDelivery(supplier.cpf, dateString, time);
+      onScheduleDelivery(supplier.cpf, dateString, time, observations);
     }
     handleCloseModal();
   };

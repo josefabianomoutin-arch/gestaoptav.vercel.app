@@ -29,6 +29,7 @@ export interface Delivery {
     ne?: string;
     arrivalTime?: string;
     lots?: LotInfo[];
+    observations?: string;
 }
 
 export interface ContractItem {

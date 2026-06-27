@@ -181,6 +181,11 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({
                                         <div>
                                             <p className="font-black text-blue-900 text-sm uppercase">Agendado p/ {delivery.time}</p>
                                             <p className="text-[10px] text-blue-600 font-bold uppercase mt-1">{!hasInvoice ? 'Aguardando Lançamento NF' : 'Faturado'}</p>
+                                            {delivery.observations && (
+                                                <p className="text-[10px] text-slate-700 bg-white/70 p-2 rounded-lg mt-2 font-medium italic border border-blue-50 max-w-sm">
+                                                    Obs: {delivery.observations}
+                                                </p>
+                                            )}
                                         </div>
                                         {!hasInvoice && (
                                             <div className="flex gap-2">
@@ -227,6 +232,11 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({
                                     </div>
                                     <span className="font-black text-green-700 whitespace-nowrap pl-4">{formatCurrency(delivery.value || 0)}</span>
                                 </div>
+                                {delivery.observations && (
+                                    <p className="text-[10px] text-gray-600 bg-white p-2 rounded-lg border border-gray-100 font-medium italic mt-1">
+                                        Obs: {delivery.observations}
+                                    </p>
+                                )}
                                 {hasInvoice && (
                                     <div className="flex items-center gap-2 mt-1">
                                          <span className="text-[8px] font-black text-indigo-400 uppercase">NF: {delivery.invoiceNumber}</span>

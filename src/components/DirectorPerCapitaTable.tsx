@@ -503,31 +503,71 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       return;
     }
 
-    const timestamp = new Date().toLocaleString('pt-BR');
-    const signerName = subTab === 'chefeDep' ? 'DOUGLAS FERNANDO SEMENZIN GALDINO' : 'ALFREDO GUILHERME LOPES';
-
     const currentSubTabData = safeData[subTab] || {};
     const currentActiveOrderData = currentSubTabData[orderKey] || {};
+
+    const filledItems = (currentActiveOrderData.items || localActiveItems || []).filter(item => item.itemName.trim() !== '');
+    if (filledItems.length === 0) {
+      setSignatureError('Não é possível validar e enviar um pedido que não possui itens preenchidos.');
+      return;
+    }
+
+    const timestamp = new Date().toLocaleString('pt-BR');
+    const signerName = subTab === 'chefeDep' ? 'DOUGLAS FERNANDO SEMENZIN GALDINO' : 'ALFREDO GUILHERME LOPES';
+    const timestampId = `pedido_${Date.now()}`;
+    const formattedDate = new Date().toLocaleString('pt-BR');
+
+    // Create a copy of active order items to be saved as signed
+    const signedActiveOrderData: OrderData = {
+      ...currentActiveOrderData,
+      items: localActiveItems.length > 0 ? localActiveItems : (currentActiveOrderData.items || []),
+      signed: true,
+      signedAt: timestamp,
+      signerName: signerName,
+      periodType: currentActiveOrderData.periodType || 'semanal'
+    };
+
+    const currentHistory = currentSubTabData[historyKey] || {};
+    const newHistoricalOrder: OrderData = {
+      ...signedActiveOrderData,
+      id: timestampId,
+      createdAt: formattedDate,
+    };
+
+    const emptyItems = Array.from({ length: 25 }, (_, i) => ({
+      index: i + 1,
+      itemName: '',
+      quantity: '',
+      observation: '',
+    }));
 
     const updatedData = {
       ...safeData,
       [subTab]: {
         ...currentSubTabData,
         [orderKey]: {
-          ...currentActiveOrderData,
-          signed: true,
-          signedAt: timestamp,
-          signerName: signerName
+          items: emptyItems,
+          id: 'atual',
+          signed: false,
+          signedAt: null,
+          signerName: null,
+          periodType: currentActiveOrderData.periodType || 'semanal'
+        },
+        [historyKey]: {
+          ...currentHistory,
+          [timestampId]: newHistoricalOrder
         }
       }
     };
 
     const res = await onUpdate(updatedData);
     if (res.success) {
-      setSignatureSuccess('Assinatura digital autenticada com sucesso!');
+      setLocalActiveItems(emptyItems);
+      setSignatureSuccess('Solicitação validada, assinada e enviada para o Almoxarifado com sucesso!');
       setPasswordInput('');
+      setViewMode('history');
     } else {
-      setSignatureError(res.message || 'Erro ao registrar assinatura.');
+      setSignatureError(res.message || 'Erro ao registrar assinatura e enviar ao Almoxarifado.');
     }
   };
 
@@ -2144,7 +2184,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                       Validar Registro com Seu CPF
                     </h3>
                     <p className="text-[11px] text-slate-500 font-medium mb-4">
-                      Digite seu CPF de acesso abaixo. Sua senha eletrônica atesta a veracidade do preenchimento e autoriza a separação da cota per capita.
+                      Digite seu CPF de acesso abaixo. Sua assinatura digital validará o registro e enviará o pedido automaticamente para o Histórico Permanente e Almoxarifado para a separação da cota.
                     </p>
 
                     <div className="space-y-4">
@@ -2171,7 +2211,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-2xl text-[11px] uppercase tracking-wider flex justify-center items-center gap-2 shadow-lg shadow-indigo-600/10 active:scale-95 transition-all"
                       >
                         <CheckCircle2 className="h-4 w-4" />
-                        Gravar Minha Assinatura Digital
+                        Validar Registro e Enviar para Histórico / Almoxarifado
                       </button>
                     </div>
                   </form>

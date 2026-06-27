@@ -13,12 +13,13 @@ interface MonthlyQuota {
 interface DeliveryModalProps {
   date: Date;
   onClose: () => void;
-  onSave: (time: string) => void;
+  onSave: (time: string, observations: string) => void;
   monthlyQuotas: MonthlyQuota[];
 }
 
 const DeliveryModal: React.FC<DeliveryModalProps> = ({ date, onClose, onSave, monthlyQuotas }) => {
   const [time, setTime] = useState('08:00');
+  const [observations, setObservations] = useState('');
 
   const handlePlayGuide = async () => {
     const text = "Para agendar sua entrega, escolha um horário entre as 8 da manhã e as 4 da tarde no campo indicado. Depois de escolher o horário, clique no botão verde 'Salvar Agendamento' para confirmar.";
@@ -33,7 +34,7 @@ const DeliveryModal: React.FC<DeliveryModalProps> = ({ date, onClose, onSave, mo
       return;
     }
     
-    onSave(time);
+    onSave(time, observations);
   };
   
   const formattedDate = date.toLocaleString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -96,6 +97,18 @@ const DeliveryModal: React.FC<DeliveryModalProps> = ({ date, onClose, onSave, mo
               min="08:00"
               max="16:00"
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="observations" className="block text-sm font-medium text-gray-700">Observações (Ex: se a carne é em bife, em cubos, etc.)</label>
+            <textarea
+              id="observations"
+              value={observations}
+              onChange={e => setObservations(e.target.value)}
+              placeholder="Descreva detalhes sobre a preparação ou outras observações..."
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm resize-none"
+              rows={3}
             />
           </div>
           

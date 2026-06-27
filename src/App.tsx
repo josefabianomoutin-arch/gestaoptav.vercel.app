@@ -1061,9 +1061,9 @@ const App: React.FC = () => {
     }
   };
 
-  const handleScheduleDelivery = useCallback(async (supplierCpf: string, date: string, time: string) => {
+  const handleScheduleDelivery = useCallback(async (supplierCpf: string, date: string, time: string, observations?: string) => {
     try {
-      console.log('Agendando entrega:', { supplierCpf, date, time });
+      console.log('Agendando entrega:', { supplierCpf, date, time, observations });
       const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
       const targetCpf = clean(supplierCpf);
 
@@ -1129,7 +1129,8 @@ const App: React.FC = () => {
           date,
           time,
           item: 'AGENDAMENTO PENDENTE',
-          invoiceUploaded: false
+          invoiceUploaded: false,
+          observations: observations || ''
         });
         toast.success('Agendamento realizado!');
         return;
@@ -3383,6 +3384,7 @@ const App: React.FC = () => {
           suppliers={combinedSuppliers} 
           perCapitaConfig={perCapitaConfig}
           thirdPartyEntries={thirdPartyEntries}
+          onUpdateDelivery={handleUpdateDelivery}
           maintenanceSchedules={maintenanceSchedules}
           serviceOrders={serviceOrders}
           publicInfoList={publicInfo}

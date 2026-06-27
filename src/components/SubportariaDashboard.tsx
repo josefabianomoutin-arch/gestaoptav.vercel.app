@@ -38,7 +38,9 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     onUpdateVehicleExitOrder,
     onDeleteVehicleExitOrder,
     systemPasswords = {},
-    onUpdateSystemPassword = async () => {}
+    onUpdateSystemPassword = async () => {},
+    onUpdateDelivery,
+    onUpdateThirdPartyEntry
 }) => {
     const [activeTab, setActiveTab] = useState<'agenda' | 'vehicles' | 'seguranca' | 'rondas'>('agenda');
     const [activeSubTab, setActiveSubTab] = useState<'registro' | 'cadastro'>('registro');
@@ -155,6 +157,8 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                 suppliers={combinedSuppliers} 
                                 thirdPartyEntries={thirdPartyEntries}
                                 embedded
+                                onUpdateDelivery={onUpdateDelivery}
+                                onUpdateThirdPartyEntry={onUpdateThirdPartyEntry}
                             />
                         </motion.div>
                     ) : activeTab === 'vehicles' ? (

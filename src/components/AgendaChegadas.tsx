@@ -14,6 +14,7 @@ interface AgendaChegadasProps {
     onDeleteDelivery?: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean; message?: string }>;
     onUpdateDelivery?: (supplierCpf: string, deliveryId: string, updates: Partial<Delivery>) => Promise<{ success: boolean; message?: string }>;
     onSaveInvoice?: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => Promise<void>;
+    onUpdateThirdPartyEntry?: (log: ThirdPartyEntryLog) => Promise<{ success: boolean; message?: string }>;
 }
 
 const AgendaChegadas: React.FC<AgendaChegadasProps> = ({ 
@@ -23,7 +24,8 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
     perCapitaConfig,
     onDeleteDelivery,
     onUpdateDelivery,
-    onSaveInvoice 
+    onSaveInvoice,
+    onUpdateThirdPartyEntry
 }) => {
     const [selectedAgendaDate, setSelectedAgendaDate] = useState(new Date().toISOString().split('T')[0]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -105,8 +107,9 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                 const date = parts[2];
                 
                 if (date !== selectedAgendaDate) {
-                    toast.info(`Alterando visualização para a data do agendamento: ${date}`);
-                    setSelectedAgendaDate(date);
+                    toast.error(`Entrada NÃO liberada! Este agendamento é para o dia ${date}, mas a data selecionada na portaria é ${selectedAgendaDate}.`);
+                    setIsScannerOpen(false);
+                    return;
                 }
                 
                 const foundGroup = locateDeliveryForCpfAndDate(cpf, date);
@@ -128,17 +131,21 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                             if (!res.success) success = false;
                         }
                         if (success) {
-                            toast.success(`Check-In Realizado! ${foundGroup.supplierName} confirmado às ${nowTime}`);
+                            toast.success(`Check-In Realizado! Entrada de ${foundGroup.supplierName} liberada às ${nowTime}`);
                         } else {
                             toast.error(`Falha ao registrar a chegada no servidor.`);
                         }
+                    } else {
+                        toast.success(`QR Code validado com sucesso para ${foundGroup.supplierName}!`);
                     }
                     setIsScannerOpen(false);
                 } else {
-                    toast.error(`Nenhum agendamento pendente encontrado para o CPF ${cpf} no dia ${date}.`);
+                    toast.error(`Nenhum agendamento pendente encontrado para o CPF ${cpf} no dia ${date}. Entrada NÃO autorizada!`);
+                    setIsScannerOpen(false);
                 }
             } else {
                 toast.error("Formato do código QR inválido.");
+                setIsScannerOpen(false);
             }
         } else {
             // Tenta buscar por CPF bruto ou CNPJ
@@ -161,16 +168,19 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                             if (!res.success) success = false;
                         }
                         if (success) {
-                            toast.success(`Check-In Realizado! ${foundGroup.supplierName} confirmado às ${nowTime}`);
+                            toast.success(`Check-In Realizado! Entrada de ${foundGroup.supplierName} liberada às ${nowTime}`);
                         } else {
                             toast.error(`Falha ao registrar a chegada.`);
                         }
+                    } else {
+                        toast.success(`Check-In Realizado! Entrada de ${foundGroup.supplierName} liberada às ${nowTime}`);
                     }
                     setIsScannerOpen(false);
                     return;
                 }
             }
-            toast.error("Código QR não reconhecido ou sem agendamentos ativos na data.");
+            toast.error("Código QR não reconhecido ou sem agendamentos ativos para hoje.");
+            setIsScannerOpen(false);
         }
     };
 
@@ -195,46 +205,71 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
 
                     html5QrCode = new Html5Qrcode("qr-reader");
                     
-                    html5QrCode.start(
-                        { facingMode: "environment" },
-                        {
-                            fps: 10,
-                            qrbox: { width: 250, height: 250 }
-                        },
-                        (decodedText) => {
-                            handleScanSuccess(decodedText);
-                            if (html5QrCode && html5QrCode.isScanning && !isStopped) {
-                                isStopped = true;
-                                html5QrCode.stop().catch(err => console.warn("Erro ao parar camera após leitura:", err));
-                            }
-                        },
-                        (_errorMessage) => {
-                            // normal scanning frame analysis error, ignore
-                        }
-                    ).catch(err => {
-                        console.warn("Failed to start scanner with facingMode: environment. Trying fallback...", err);
-                        if (isStopped) return;
-                        
-                        // Fallback to any available camera or standard user-facing
-                        html5QrCode?.start(
-                            { facingMode: "user" },
-                            {
-                                fps: 10,
-                                qrbox: { width: 250, height: 250 }
-                            },
-                            (decodedText) => {
-                                handleScanSuccess(decodedText);
-                                if (html5QrCode && html5QrCode.isScanning && !isStopped) {
-                                    isStopped = true;
-                                    html5QrCode.stop().catch(stopErr => console.warn("Erro ao parar camera fallback:", stopErr));
+                    const startScanner = async () => {
+                        try {
+                            await html5QrCode?.start(
+                                { facingMode: "environment" },
+                                {
+                                    fps: 10,
+                                    qrbox: { width: 250, height: 250 }
+                                },
+                                (decodedText) => {
+                                    handleScanSuccess(decodedText);
+                                    if (html5QrCode && html5QrCode.isScanning && !isStopped) {
+                                        isStopped = true;
+                                        html5QrCode.stop().catch(err => console.warn("Erro ao parar camera:", err));
+                                    }
+                                },
+                                () => {}
+                            );
+                        } catch (err) {
+                            console.warn("Failed with environment camera, trying user camera...", err);
+                            if (isStopped) return;
+                            try {
+                                await html5QrCode?.start(
+                                    { facingMode: "user" },
+                                    {
+                                        fps: 10,
+                                        qrbox: { width: 250, height: 250 }
+                                    },
+                                    (decodedText) => {
+                                        handleScanSuccess(decodedText);
+                                        if (html5QrCode && html5QrCode.isScanning && !isStopped) {
+                                            isStopped = true;
+                                            html5QrCode.stop().catch(stopErr => console.warn("Erro:", stopErr));
+                                        }
+                                    },
+                                    () => {}
+                                );
+                            } catch (fallbackErr) {
+                                console.error("Camera fallback failed too:", fallbackErr);
+                                try {
+                                    const devices = await Html5Qrcode.getCameras();
+                                    if (devices && devices.length > 0 && !isStopped) {
+                                        const cameraId = devices[devices.length - 1].id;
+                                        await html5QrCode?.start(
+                                            cameraId,
+                                            { fps: 10, qrbox: { width: 250, height: 250 } },
+                                            (decodedText) => {
+                                                handleScanSuccess(decodedText);
+                                                if (html5QrCode && html5QrCode.isScanning && !isStopped) {
+                                                    isStopped = true;
+                                                    html5QrCode.stop().catch(() => {});
+                                                }
+                                            },
+                                            () => {}
+                                        );
+                                    } else {
+                                        toast.error("Nenhuma câmera encontrada no dispositivo.");
+                                    }
+                                } catch (_deviceErr) {
+                                    toast.error("Não foi possível acessar a câmera do dispositivo.");
                                 }
-                            },
-                            (_errorMessage) => {}
-                        ).catch(fallbackErr => {
-                            console.error("Fallback camera start also failed:", fallbackErr);
-                            toast.error("Não foi possível acessar a câmera do dispositivo. Verifique as permissões.");
-                        });
-                    });
+                            }
+                        }
+                    };
+
+                    startScanner();
                 } catch (e) {
                     console.error("Camera scanner instance error:", e);
                 }
@@ -244,13 +279,16 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                 clearTimeout(timer);
                 isStopped = true;
                 if (html5QrCode) {
-                    try {
-                        if (html5QrCode.isScanning) {
-                            html5QrCode.stop().catch(err => console.warn("Erro ao parar camera no clean-up:", err));
+                    const stopScanner = async () => {
+                        try {
+                            if (html5QrCode && html5QrCode.isScanning) {
+                                await html5QrCode.stop();
+                            }
+                        } catch (err) {
+                            console.warn("Erro ao parar camera no cleanup:", err);
                         }
-                    } catch (cleanupErr) {
-                        console.warn("Clean-up exception:", cleanupErr);
-                    }
+                    };
+                    stopScanner();
                 }
             };
         }
@@ -276,12 +314,18 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                     status: isFaturado ? 'CONCLUÍDO' : 'AGENDADO',
                     type: type,
                     items: [d],
-                    deliveries: [d]
+                    deliveries: [d],
+                    observations: d.observations || ''
                 };
             } else {
                 groups[groupKey].allIds.push(d.id);
                 groups[groupKey].items.push(d);
                 groups[groupKey].deliveries.push(d);
+                if (d.observations && !groups[groupKey].observations.includes(d.observations)) {
+                    groups[groupKey].observations = groups[groupKey].observations 
+                        ? `${groups[groupKey].observations}; ${d.observations}`
+                        : d.observations;
+                }
                 // If any item is NOT faturado, the group should probably be AGENDADO? 
                 // Usually they are all faturado together.
                 if (!(d.item !== 'AGENDAMENTO PENDENTE' && (d.invoiceNumber || d.invoiceUploaded))) {
@@ -323,6 +367,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                     supplierCpf: log.companyCnpj,
                     time: log.time || '00:00',
                     arrivalTime: log.arrivalTime,
+                    exitTime: log.exitTime,
                     status: status,
                     type: 'TERCEIRO',
                     items: [],
@@ -407,6 +452,40 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
         }
     };
 
+    const handleThirdPartyArrival = async (item: any) => {
+        const log = (thirdPartyEntries || []).find(l => l.id === item.id);
+        if (log && onUpdateThirdPartyEntry) {
+            const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const res = await onUpdateThirdPartyEntry({
+                ...log,
+                arrivalTime: nowTime,
+                status: 'concluido'
+            });
+            if (res.success) {
+                toast.success(`Check-In Realizado! Entrada de ${log.companyName} confirmada às ${nowTime}`);
+            } else {
+                toast.error("Erro ao registrar entrada.");
+            }
+        }
+    };
+
+    const handleThirdPartyExit = async (item: any) => {
+        const log = (thirdPartyEntries || []).find(l => l.id === item.id);
+        if (log && onUpdateThirdPartyEntry) {
+            const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const res = await onUpdateThirdPartyEntry({
+                ...log,
+                exitTime: nowTime,
+                status: 'concluido'
+            });
+            if (res.success) {
+                toast.success(`Check-Out Realizado! Saída de ${log.companyName} confirmada às ${nowTime}`);
+            } else {
+                toast.error("Erro ao registrar saída.");
+            }
+        }
+    };
+
     const currentSupplierItems = useMemo(() => {
         if (!invoiceInfo) return [];
         const mainSup = suppliers.find(s => s.cpf === invoiceInfo.supplierCpf);
@@ -425,7 +504,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
     }, [invoiceInfo, suppliers, perCapitaConfig]);
 
     return (
-        <div className={`space-y-6 animate-fade-in ${embedded ? '' : 'p-4 md:p-8 max-w-6xl mx-auto'}`}>
+        <>
             {isInvoiceModalOpen && invoiceInfo && (
                 <SendInvoiceModal
                     invoiceInfo={invoiceInfo}
@@ -436,7 +515,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
             )}
             {/* Scanner Modal */}
             {isScannerOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden border border-indigo-100 animate-scale-in">
                         <div className="p-6 md:p-8 border-b bg-indigo-50 flex justify-between items-center">
                             <div>
@@ -533,7 +612,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
 
             {/* Arrival Modal */}
             {isArrivalModalOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden border border-indigo-100 animate-scale-in">
                         <div className="p-8 border-b bg-indigo-50">
                             <h3 className="text-xl font-black text-indigo-950 uppercase italic tracking-tighter">Registrar Chegada</h3>
@@ -568,8 +647,9 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                 </div>
             )}
 
-            {/* Header / Selector */}
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-100">
+            <div className={`space-y-6 animate-fade-in ${embedded ? '' : 'p-4 md:p-8 max-w-6xl mx-auto'}`}>
+                {/* Header / Selector */}
+                <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-100">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                     <div>
                         <h2 className="text-2xl font-black text-indigo-950 uppercase tracking-tighter italic">Agenda de Chegadas</h2>
@@ -702,6 +782,12 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                     {item.supplierName}
                                 </h3>
                                 <p className="text-[10px] font-mono text-slate-400 mt-1">{item.supplierCpf}</p>
+                                {item.observations && (
+                                    <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200/50 rounded-xl text-[10px] text-amber-950 font-medium">
+                                        <span className="font-black uppercase text-[8px] text-amber-800 tracking-wider block mb-0.5">Observações da Carga / Preparação:</span>
+                                        {item.observations}
+                                    </div>
+                                )}
                             </div>
 
                                 {item.items && item.items.length > 0 && (
@@ -714,14 +800,53 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                     </div>
                                 )}
                                 <div className="mt-4 pt-4 border-t border-dashed border-slate-100 flex justify-between items-center">
-                                <div className="flex items-center gap-2">
-                                    <Clock className="h-3 w-3 text-slate-300" />
-                                    <span className="text-[10px] font-black text-slate-400 uppercase">Chegada:</span>
-                                    <span className={`text-[11px] font-black ${item.arrivalTime ? 'text-green-600' : 'text-red-600 italic'}`}>
-                                        {item.arrivalTime || 'Aguardando...'}
-                                    </span>
+                                <div className="flex flex-wrap items-center gap-4">
+                                    <div className="flex items-center gap-2">
+                                        <Clock className="h-3 w-3 text-slate-300" />
+                                        <span className="text-[10px] font-black text-slate-400 uppercase">
+                                            {item.type === 'TERCEIRO' ? 'Entrada:' : 'Chegada:'}
+                                        </span>
+                                        <span className={`text-[11px] font-black ${item.arrivalTime ? 'text-green-600' : 'text-red-600 italic'}`}>
+                                            {item.arrivalTime || 'Aguardando...'}
+                                        </span>
+                                    </div>
+                                    {item.type === 'TERCEIRO' && (
+                                        <div className="flex items-center gap-2">
+                                            <Clock className="h-3 w-3 text-slate-300" />
+                                            <span className="text-[10px] font-black text-slate-400 uppercase">Saída:</span>
+                                            <span className={`text-[11px] font-black ${item.exitTime ? 'text-rose-600' : 'text-red-600 italic'}`}>
+                                                {item.exitTime || 'Aguardando...'}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    {item.type === 'TERCEIRO' && onUpdateThirdPartyEntry && (
+                                        <>
+                                            {!item.arrivalTime ? (
+                                                <button 
+                                                    onClick={() => handleThirdPartyArrival(item)}
+                                                    className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-md shadow-indigo-100"
+                                                >
+                                                    <CheckCircle2 className="h-3 w-3" />
+                                                    Confirmar Entrada
+                                                </button>
+                                            ) : !item.exitTime ? (
+                                                <button 
+                                                    onClick={() => handleThirdPartyExit(item)}
+                                                    className="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all flex items-center gap-1.5 shadow-md shadow-rose-100"
+                                                >
+                                                    <CheckCircle2 className="h-3 w-3" />
+                                                    Confirmar Saída
+                                                </button>
+                                            ) : (
+                                                <div className="bg-slate-100 text-slate-500 p-1.5 rounded-lg flex items-center gap-1 text-[9px] font-black uppercase">
+                                                    <UserCheck className="h-4 w-4" />
+                                                    Concluído
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
                                     {item.type === 'FORNECEDOR' && (
                                         <button 
                                             onClick={() => handleRegisterArrival(item)}
@@ -731,7 +856,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                             {item.status === 'CONCLUÍDO' ? 'Ver Horário' : 'Confirmar Chegada'}
                                         </button>
                                     )}
-                                    {item.arrivalTime && (
+                                    {item.type === 'FORNECEDOR' && item.arrivalTime && (
                                         <button 
                                             onClick={() => handleOpenInvoiceModal(item)}
                                             className={`${item.status === 'CONCLUÍDO' ? 'bg-indigo-600' : 'bg-emerald-600'} text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-1.5 shadow-md`}
@@ -741,7 +866,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                             {item.status === 'CONCLUÍDO' ? 'Ver Nota' : 'Faturar'}
                                         </button>
                                     )}
-                                    {item.arrivalTime && (
+                                    {item.type === 'FORNECEDOR' && item.arrivalTime && (
                                         <div className="bg-green-100 text-green-700 p-1.5 rounded-lg">
                                             <UserCheck className="h-4 w-4" />
                                         </div>
@@ -758,6 +883,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                 )}
             </div>
         </div>
+        </>
     );
 };
 
