@@ -316,197 +316,15 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [estocaveisSuppliers]);
 
     const handleUpdateContractForPpais = async (itemName: string, assignments: any[]) => {
-        console.log("Updating PPAIS contract for:", itemName, "Assignments:", assignments);
-        const normalizedNew = normalizeItemName(itemName);
-        const updatedProducers = ppaisProducers.map(producer => {
-            const assignment = assignments.find(a => matchCpfCnpj(a.supplierCpf, producer.cpfCnpj || producer.cpf));
-            console.log("Checking producer:", producer.name, "Found assignment:", !!assignment);
-            const newContractItems = ensureArray(producer.contractItems).filter((ci: any) => {
-                const normalizedCi = normalizeItemName(ci.name);
-                // Remove if it's the same name
-                return normalizedCi !== normalizedNew;
-            });
-            if (assignment) {
-                newContractItems.push({
-                    name: itemName,
-                    totalKg: assignment.totalKg,
-                    valuePerKg: assignment.valuePerKg,
-                    monthlyWeight: assignment.monthlyWeight || 0,
-                    monthlyValue: assignment.monthlyValue || 0,
-                    unit: assignment.unit,
-                    category: assignment.category,
-                    comprasCode: assignment.comprasCode,
-                    becCode: assignment.becCode,
-                    period: '2_3_QUAD'
-                });
-            }
-            return { ...producer, contractItems: newContractItems };
-        });
-
-        // Add any NEW producers that are in assignments but not in ppaisProducers
-        const existingCpfs = updatedProducers.map(s => String(s.cpfCnpj || s.cpf));
-        for (const a of assignments) {
-            if (!existingCpfs.some(c => matchCpfCnpj(c, a.supplierCpf))) {
-                const fullSupplier = suppliers.find(s => matchCpfCnpj(String(s.cpfCnpj || s.cpf), a.supplierCpf));
-                if (fullSupplier) {
-                    updatedProducers.push({
-                        ...fullSupplier as any,
-                        contractItems: [{
-                            name: itemName,
-                            totalKg: a.totalKg,
-                            valuePerKg: a.valuePerKg,
-                            monthlyWeight: a.monthlyWeight || 0,
-                            monthlyValue: a.monthlyValue || 0,
-                            unit: a.unit,
-                            category: a.category,
-                            comprasCode: a.comprasCode,
-                            becCode: a.becCode,
-                            period: '2_3_QUAD'
-                        }]
-                    });
-                }
-            }
-        }
-
-        await handleUpdateProducers(updatedProducers);
-        await updateAcquisitionItemPrice(itemName, assignments);
-        return { success: true, message: 'Contratos de produtores atualizados' };
-    };
-
-    const updateAcquisitionItemPrice = async (itemName: string, assignments: any[]) => {
-        const totalKg = assignments.reduce((sum, a) => sum + parseFloat(String(a.totalKg || '0').replace(',', '.')), 0);
-        const totalValue = assignments.reduce((sum, a) => {
-            const kg = parseFloat(String(a.totalKg || '0').replace(',', '.'));
-            const price = parseFloat(String(a.valuePerKg || '0').replace(',', '.'));
-            const commitment = parseFloat(String(a.commitmentValue || '0').replace(',', '.'));
-            // Use commitment value if non-zero, otherwise kg * price
-            const val = (commitment > 0) ? commitment : (kg * price);
-            return sum + val;
-        }, 0);
-        const weightedAvg = totalKg > 0 ? totalValue / totalKg : 0;
-        
-        const itemToUpdate = acquisitionItems.find(i => normalizeItemName(i.name) === normalizeItemName(itemName));
-        if (itemToUpdate) {
-            await onUpdateAcquisitionItem({ ...itemToUpdate, unitValue: weightedAvg });
-        }
+        return await onUpdateContractForItem(itemName, assignments);
     };
 
     const handleUpdateContractForPereciveis = async (itemName: string, assignments: any[]) => {
-        const normalizedNew = normalizeItemName(itemName);
-        const updatedSuppliers = pereciveisSuppliers.map(supplier => {
-            const assignment = assignments.find(a => matchCpfCnpj(a.supplierCpf, supplier.cpfCnpj || supplier.cpf));
-            const newContractItems = ensureArray(supplier.contractItems).filter((ci: any) => {
-                const normalizedCi = normalizeItemName(ci.name);
-                return normalizedCi !== normalizedNew;
-            });
-            if (assignment) {
-                newContractItems.push({
-                    name: itemName,
-                    totalKg: assignment.totalKg,
-                    valuePerKg: assignment.valuePerKg,
-                    monthlyWeight: assignment.monthlyWeight || 0,
-                    monthlyValue: assignment.monthlyValue || 0,
-                    unit: assignment.unit,
-                    category: assignment.category,
-                    comprasCode: assignment.comprasCode,
-                    becCode: assignment.becCode,
-                    commitmentNumber: assignment.commitmentNumber,
-                    commitmentValue: assignment.commitmentValue,
-                    period: '2_3_QUAD'
-                });
-            }
-            return { ...supplier, contractItems: newContractItems };
-        });
-
-        // Add any NEW suppliers that are in assignments but not in pereciveisSuppliers
-        const existingCpfs = updatedSuppliers.map(s => String(s.cpfCnpj || s.cpf));
-        for (const a of assignments) {
-            if (!existingCpfs.some(c => matchCpfCnpj(c, a.supplierCpf))) {
-                const fullSupplier = suppliers.find(s => matchCpfCnpj(String(s.cpfCnpj || s.cpf), a.supplierCpf));
-                if (fullSupplier) {
-                    updatedSuppliers.push({
-                        ...fullSupplier as any,
-                        contractItems: [{
-                            name: itemName,
-                            totalKg: a.totalKg,
-                            valuePerKg: a.valuePerKg,
-                            monthlyWeight: a.monthlyWeight || 0,
-                            monthlyValue: a.monthlyValue || 0,
-                            unit: a.unit,
-                            category: a.category,
-                            comprasCode: a.comprasCode,
-                            becCode: a.becCode,
-                            commitmentNumber: a.commitmentNumber,
-                            commitmentValue: a.commitmentValue,
-                            period: '2_3_QUAD'
-                        }]
-                    });
-                }
-            }
-        }
-
-        await handleUpdatePereciveisSuppliers(updatedSuppliers);
-        await updateAcquisitionItemPrice(itemName, assignments);
-        return { success: true, message: 'Contratos de fornecedores atualizados' };
+        return await onUpdateContractForItem(itemName, assignments);
     };
 
     const handleUpdateContractForEstocaveis = async (itemName: string, assignments: any[]) => {
-        const normalizedNew = normalizeItemName(itemName);
-        const updatedSuppliers = estocaveisSuppliers.map(supplier => {
-            const assignment = assignments.find(a => matchCpfCnpj(a.supplierCpf, supplier.cpfCnpj || supplier.cpf));
-            const newContractItems = ensureArray(supplier.contractItems).filter((ci: any) => {
-                const normalizedCi = normalizeItemName(ci.name);
-                return normalizedCi !== normalizedNew;
-            });
-            if (assignment) {
-                newContractItems.push({
-                    name: itemName,
-                    totalKg: assignment.totalKg,
-                    valuePerKg: assignment.valuePerKg,
-                    monthlyWeight: assignment.monthlyWeight || 0,
-                    monthlyValue: assignment.monthlyValue || 0,
-                    unit: assignment.unit,
-                    category: assignment.category,
-                    comprasCode: assignment.comprasCode,
-                    becCode: assignment.becCode,
-                    commitmentNumber: assignment.commitmentNumber,
-                    commitmentValue: assignment.commitmentValue,
-                    period: '2_3_QUAD'
-                });
-            }
-            return { ...supplier, contractItems: newContractItems };
-        });
-
-        // Add any NEW suppliers that are in assignments but not in estocaveisSuppliers
-        const existingCpfs = updatedSuppliers.map(s => String(s.cpfCnpj || s.cpf));
-        for (const a of assignments) {
-            if (!existingCpfs.some(c => matchCpfCnpj(c, a.supplierCpf))) {
-                const fullSupplier = suppliers.find(s => matchCpfCnpj(String(s.cpfCnpj || s.cpf), a.supplierCpf));
-                if (fullSupplier) {
-                    updatedSuppliers.push({
-                        ...fullSupplier as any,
-                        contractItems: [{
-                            name: itemName,
-                            totalKg: a.totalKg,
-                            valuePerKg: a.valuePerKg,
-                            monthlyWeight: a.monthlyWeight || 0,
-                            monthlyValue: a.monthlyValue || 0,
-                            unit: a.unit,
-                            category: a.category,
-                            comprasCode: a.comprasCode,
-                            becCode: a.becCode,
-                            commitmentNumber: a.commitmentNumber,
-                            commitmentValue: a.commitmentValue,
-                            period: '2_3_QUAD'
-                        }]
-                    });
-                }
-            }
-        }
-
-        await handleUpdateEstocaveisSuppliers(updatedSuppliers);
-        await updateAcquisitionItemPrice(itemName, assignments);
-        return { success: true, message: 'Contratos de fornecedores updated' };
+        return await onUpdateContractForItem(itemName, assignments);
     };
 
     const contractItemNamesByCategory = useMemo(() => {
@@ -2270,11 +2088,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                     (activeSubTab === 'ESTOCÁVEIS' ? estocaveisAsSuppliers : suppliers)
                                 }
                                 allSuppliers={suppliers}
-                                onUpdateContractForItem={
-                                    activeSubTab === 'PPAIS' ? handleUpdateContractForPpais : 
-                                    activeSubTab === 'PERECÍVEIS' ? handleUpdateContractForPereciveis : 
-                                    (activeSubTab === 'ESTOCÁVEIS' ? handleUpdateContractForEstocaveis : onUpdateContractForItem)
-                                }
+                                onUpdateContractForItem={onUpdateContractForItem}
                             />
                         )}
                     </div>

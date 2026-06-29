@@ -2131,13 +2131,7 @@ const App: React.FC = () => {
       
       const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
       
-      // Checar se existem fornecedores afetados no perCapitaConfig
-      const ppaisAffected = ensureArray(perCapitaConfig.ppaisProducers).filter(p => assignments.some(a => cleanStr(a.supplierCpf) === cleanStr(p.cpfCnpj || p.cpf)));
-      const pereciveisAffected = ensureArray(perCapitaConfig.pereciveisSuppliers).filter(p => assignments.some(a => cleanStr(a.supplierCpf) === cleanStr(p.cpfCnpj || p.cpf)));
-      
-      console.log('Fornecedores afetados no PPAIS/Pereciveis:', { ppais: ppaisAffected.length, pereciveis: pereciveisAffected.length });
-      
-      // Identificar fornecedores que PRECISAM ser atualizados:
+      // Identificar fornecedores que PRECISAM ser atualizados no cadastro geral:
       // 1. Fornecedores que estão nos novos assignments
       // 2. Fornecedores que atualmente possuem o item mas não estão nos novos assignments
       const suppliersToUpdate = suppliers.filter(s => {
@@ -2146,10 +2140,10 @@ const App: React.FC = () => {
         return isAssigned || hasItem;
       });
 
-      console.log('Total de fornecedores afetados:', suppliersToUpdate.length);
+      console.log('Total de fornecedores afetados no cadastro geral:', suppliersToUpdate.length);
       
       let count = 0;
-      // Processar em pequenos lotes ou sequencialmente mas apenas os afetados
+      // Atualizar o cadastro de cada fornecedor individual no Realtime Database
       for (const supplier of suppliersToUpdate) {
         count++;
         const assignment = assignments.find(a => cleanStr(a.supplierCpf) === cleanStr(supplier.cpf));
@@ -2157,16 +2151,12 @@ const App: React.FC = () => {
         
         console.log(`Processando fornecedor ${count}/${suppliersToUpdate.length}: ${supplier.name} (${supplier.id || supplier.cpf})`);
         
-        // Tenta a transação com retentativas manuais se necessário, mas o runTransaction já faz isso.
-        // Removemos o Promise.race com timeout curto para evitar interromper transações legítimas
         await runTransaction(supplierRef, (data: Supplier) => {
-          if (!data) return data; // Se não existir, não faz nada
+          if (!data) return data;
           
-          // Remove o item atual (para atualizar ou deletar)
           const otherItems = (data.contractItems || []).filter(ci => ci.name !== itemName);
           
           if (assignment) {
-            // Adiciona o item atualizado
             otherItems.push({
               name: itemName,
               totalKg: assignment.totalKg,
@@ -2178,112 +2168,148 @@ const App: React.FC = () => {
               commitmentNumber: assignment.commitmentNumber || '',
               commitmentValue: assignment.commitmentValue || 0,
               monthlyWeight: assignment.monthlyWeight || 0,
-              monthlyValue: assignment.monthlyValue || 0
+              monthlyValue: assignment.monthlyValue || 0,
+              period: '2_3_QUAD'
             });
           }
           
           data.contractItems = otherItems;
-          // Recalcula o valor inicial do contrato
           data.initialValue = otherItems.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0);
           
           return data;
         });
+      }
 
-        // --- NOVO: Sincronizar com perCapitaConfig se for produtor ou perecível ---
-        await runTransaction(perCapitaConfigRef, (current: any) => {
-          if (!current) return current;
-          
-          let changed = false;
-          const updatedPpais = Array.isArray(current.ppaisProducers) ? [...current.ppaisProducers] : Object.values(current.ppaisProducers || {});
-          const updatedPereciveis = Array.isArray(current.pereciveisSuppliers) ? [...current.pereciveisSuppliers] : Object.values(current.pereciveisSuppliers || {});
-          const updatedEstocaveis = Array.isArray(current.estocaveisSuppliers) ? [...current.estocaveisSuppliers] : Object.values(current.estocaveisSuppliers || {});
+      // --- Sincronizar com perCapitaConfig em uma única transação limpa ---
+      console.log('Iniciando transação única de sincronização do perCapitaConfig...');
+      await runTransaction(perCapitaConfigRef, (current: any) => {
+        if (!current) return current;
 
-          const ppaisIndex = updatedPpais.findIndex(p => cleanStr(p.cpfCnpj || p.cpf) === cleanStr(supplier.cpf));
-          const pereciveisIndex = updatedPereciveis.findIndex(p => cleanStr(p.cpfCnpj || p.cpf) === cleanStr(supplier.cpf));
-          const estocaveisIndex = updatedEstocaveis.findIndex(p => cleanStr(p.cpfCnpj || p.cpf) === cleanStr(supplier.cpf));
+        const updatedPpais = Array.isArray(current.ppaisProducers) ? [...current.ppaisProducers] : Object.values(current.ppaisProducers || {});
+        const updatedPereciveis = Array.isArray(current.pereciveisSuppliers) ? [...current.pereciveisSuppliers] : Object.values(current.pereciveisSuppliers || {});
+        const updatedEstocaveis = Array.isArray(current.estocaveisSuppliers) ? [...current.estocaveisSuppliers] : Object.values(current.estocaveisSuppliers || {});
 
-          if (ppaisIndex !== -1) {
-            const p = updatedPpais[ppaisIndex];
-            const otherItems = (p.contractItems || []).filter(ci => ci.name !== itemName);
-            if (assignment) {
-              otherItems.push({
-                name: itemName,
-                totalKg: assignment.totalKg,
-                valuePerKg: assignment.valuePerKg,
-                unit: assignment.unit || 'kg-1',
-                category: assignment.category || 'PPAIS',
-                comprasCode: assignment.comprasCode || '',
-                becCode: assignment.becCode || '',
-                commitmentNumber: assignment.commitmentNumber || '',
-                commitmentValue: assignment.commitmentValue || 0,
-                monthlyWeight: assignment.monthlyWeight || 0,
-                monthlyValue: assignment.monthlyValue || 0,
-                period: '2_3_QUAD'
+        const cleanNormalize = (n: string) => String(n || '').trim().toUpperCase().replace(/\s+/g, ' ');
+        const normalizedItemName = cleanNormalize(itemName);
+
+        const removeContractItem = (list: any[]) => {
+          return list.map(p => {
+            const contractItems = (p.contractItems || []).filter((ci: any) => cleanNormalize(ci.name) !== normalizedItemName);
+            return { ...p, contractItems };
+          });
+        };
+
+        const tempPpais = removeContractItem(updatedPpais);
+        const tempPereciveis = removeContractItem(updatedPereciveis);
+        const tempEstocaveis = removeContractItem(updatedEstocaveis);
+
+        for (const a of assignments) {
+          const supplierCpf = cleanStr(a.supplierCpf);
+          const fullSupplier = suppliers.find(s => cleanStr(s.cpf) === supplierCpf);
+          const sName = a.supplierName || (fullSupplier ? fullSupplier.name : 'FORNECEDOR');
+
+          const newContractItem = {
+            name: itemName,
+            totalKg: a.totalKg,
+            valuePerKg: a.valuePerKg,
+            unit: a.unit || 'kg-1',
+            category: a.category || 'OUTROS',
+            comprasCode: a.comprasCode || '',
+            becCode: a.becCode || '',
+            commitmentNumber: a.commitmentNumber || '',
+            commitmentValue: a.commitmentValue || 0,
+            monthlyWeight: a.monthlyWeight || 0,
+            monthlyValue: a.monthlyValue || 0,
+            period: '2_3_QUAD'
+          };
+
+          if (a.category === 'PPAIS') {
+            const idx = tempPpais.findIndex(p => cleanStr(p.cpfCnpj || p.cpf) === supplierCpf);
+            if (idx !== -1) {
+              tempPpais[idx].contractItems.push(newContractItem);
+            } else {
+              tempPpais.push({
+                ...(fullSupplier || {}),
+                name: sName,
+                cpf: a.supplierCpf,
+                cpfCnpj: a.supplierCpf,
+                contractItems: [newContractItem],
+                deliveries: []
               });
             }
-            updatedPpais[ppaisIndex] = { ...p, contractItems: otherItems };
-            changed = true;
-          }
-
-          if (pereciveisIndex !== -1) {
-            const p = updatedPereciveis[pereciveisIndex];
-            const otherItems = (p.contractItems || []).filter(ci => ci.name !== itemName);
-            if (assignment) {
-              otherItems.push({
-                name: itemName,
-                totalKg: assignment.totalKg,
-                valuePerKg: assignment.valuePerKg,
-                unit: assignment.unit || 'kg-1',
-                category: assignment.category || 'PERECÍVEIS',
-                comprasCode: assignment.comprasCode || '',
-                becCode: assignment.becCode || '',
-                commitmentNumber: assignment.commitmentNumber || '',
-                commitmentValue: assignment.commitmentValue || 0,
-                monthlyWeight: assignment.monthlyWeight || 0,
-                monthlyValue: assignment.monthlyValue || 0,
-                period: '2_3_QUAD'
+          } else if (a.category === 'PERECÍVEIS') {
+            const idx = tempPereciveis.findIndex(p => cleanStr(p.cpfCnpj || p.cpf) === supplierCpf);
+            if (idx !== -1) {
+              tempPereciveis[idx].contractItems.push(newContractItem);
+            } else {
+              tempPereciveis.push({
+                ...(fullSupplier || {}),
+                name: sName,
+                cpf: a.supplierCpf,
+                cpfCnpj: a.supplierCpf,
+                contractItems: [newContractItem],
+                deliveries: []
               });
             }
-            updatedPereciveis[pereciveisIndex] = { ...p, contractItems: otherItems };
-            changed = true;
-          }
-
-          if (estocaveisIndex !== -1) {
-            const p = updatedEstocaveis[estocaveisIndex];
-            const otherItems = (p.contractItems || []).filter(ci => ci.name !== itemName);
-            if (assignment) {
-              otherItems.push({
-                name: itemName,
-                totalKg: assignment.totalKg,
-                valuePerKg: assignment.valuePerKg,
-                unit: assignment.unit || 'kg-1',
-                category: assignment.category || 'ESTOCÁVEIS',
-                comprasCode: assignment.comprasCode || '',
-                becCode: assignment.becCode || '',
-                commitmentNumber: assignment.commitmentNumber || '',
-                commitmentValue: assignment.commitmentValue || 0,
-                monthlyWeight: assignment.monthlyWeight || 0,
-                monthlyValue: assignment.monthlyValue || 0,
-                period: '2_3_QUAD'
+          } else if (a.category === 'ESTOCÁVEIS') {
+            const idx = tempEstocaveis.findIndex(p => cleanStr(p.cpfCnpj || p.cpf) === supplierCpf);
+            if (idx !== -1) {
+              tempEstocaveis[idx].contractItems.push(newContractItem);
+            } else {
+              tempEstocaveis.push({
+                ...(fullSupplier || {}),
+                name: sName,
+                cpf: a.supplierCpf,
+                cpfCnpj: a.supplierCpf,
+                contractItems: [newContractItem],
+                deliveries: []
               });
             }
-            updatedEstocaveis[estocaveisIndex] = { ...p, contractItems: otherItems };
-            changed = true;
           }
+        }
 
-          if (changed) {
-            return {
-              ...current,
-              ppaisProducers: updatedPpais,
-              pereciveisSuppliers: updatedPereciveis,
-              estocaveisSuppliers: updatedEstocaveis
-            };
-          }
-          return current;
-        });
+        return {
+          ...current,
+          ppaisProducers: tempPpais,
+          pereciveisSuppliers: tempPereciveis,
+          estocaveisSuppliers: tempEstocaveis
+        };
+      });
+
+      // --- Sincronizar com o item de aquisição correspondente (comprasCode, becCode, category, unitValue) ---
+      const cleanNormalize = (n: string) => String(n || '').trim().toUpperCase().replace(/\s+/g, ' ');
+      const normalizedItem = cleanNormalize(itemName);
+      const matchedItem = acquisitionItems.find(i => 
+        cleanNormalize(i.name) === normalizedItem || 
+        cleanNormalize(i.contractItemName || '') === normalizedItem
+      );
+
+      if (matchedItem) {
+        const totalKg = assignments.reduce((sum, a) => sum + parseFloat(String(a.totalKg || '0').replace(',', '.')), 0);
+        const totalValue = assignments.reduce((sum, a) => {
+            const kg = parseFloat(String(a.totalKg || '0').replace(',', '.'));
+            const price = parseFloat(String(a.valuePerKg || '0').replace(',', '.'));
+            const commitment = parseFloat(String(a.commitmentValue || '0').replace(',', '.'));
+            const val = (commitment > 0) ? commitment : (kg * price);
+            return sum + val;
+        }, 0);
+        const weightedAvg = totalKg > 0 ? totalValue / totalKg : 0;
+
+        const firstA = assignments[0];
+        const updatedItem = {
+          ...matchedItem,
+          unitValue: weightedAvg,
+          ...(firstA ? {
+            comprasCode: firstA.comprasCode !== undefined ? firstA.comprasCode : matchedItem.comprasCode,
+            becCode: firstA.becCode !== undefined ? firstA.becCode : matchedItem.becCode,
+            category: firstA.category || matchedItem.category
+          } : {})
+        };
+        await set(child(acquisitionItemsRef, matchedItem.id), updatedItem);
+        console.log('Item de aquisição correspondente atualizado com sucesso:', updatedItem);
       }
       
-      console.log('Contratos atualizados com sucesso!');
+      console.log('Contratos e Item de Aquisição atualizados com sucesso!');
       return { success: true, message: 'Contratos atualizados' };
     } catch (error) {
       console.error('Erro ao atualizar contratos:', error);

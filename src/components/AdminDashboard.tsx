@@ -371,7 +371,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
             )}
           </div>
         );
-      case 'contracts': return <AdminContractItems suppliers={suppliers} warehouseLog={warehouseLog} onUpdateContractForItem={onUpdateContractForItem} />;
+      case 'contracts': return <AdminContractItems suppliers={suppliers} warehouseLog={warehouseLog} onUpdateContractForItem={onUpdateContractForItem} acquisitionItems={acquisitionItems} />;
       case 'finance': return <AdminFinancialManager records={financialRecords} onSave={onSaveFinancialRecord} onDelete={onDeleteFinancialRecord} />;
       case 'invoices': 
         return (

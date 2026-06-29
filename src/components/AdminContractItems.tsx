@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import type { Supplier, WarehouseMovement, Delivery } from '../types';
+import type { Supplier, WarehouseMovement, Delivery, AcquisitionItem } from '../types';
 import ConfirmModal from './ConfirmModal';
 import { roundToTwoDecimalPlaces } from '../lib/utils';
 
@@ -8,6 +8,7 @@ interface AdminContractItemsProps {
   suppliers: Supplier[];
   warehouseLog: WarehouseMovement[];
   onUpdateContractForItem: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string, commitmentNumber?: string, commitmentValue?: number }[]) => Promise<{ success: boolean, message: string }>;
+  acquisitionItems?: AcquisitionItem[];
 }
 
 const superNormalize = (text: string) => {
@@ -20,7 +21,7 @@ const superNormalize = (text: string) => {
         .trim();
 };
 
-const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [], warehouseLog = [], onUpdateContractForItem }) => {
+const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [], warehouseLog = [], onUpdateContractForItem, acquisitionItems = [] }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [manageItem, setManageItem] = useState<any | null>(null);
     const [isAddingItem, setIsAddingItem] = useState(false);
@@ -44,7 +45,33 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
     const itemAggregation = useMemo(() => {
         const map = new Map<string, any>();
 
-        // 1. Agrega Metas de todos os Fornecedores
+        // 1. Inicializar o mapa com todos os Itens de Aquisição cadastrados
+        if (Array.isArray(acquisitionItems)) {
+            acquisitionItems.forEach(ai => {
+                const normName = superNormalize(ai.contractItemName || ai.name || '');
+                if (!normName) return;
+                
+                map.set(normName, {
+                    name: ai.contractItemName || ai.name,
+                    normName,
+                    totalContracted: 0,
+                    totalValueContracted: 0,
+                    totalDelivered: 0,
+                    totalValueDelivered: 0,
+                    totalExited: 0,
+                    totalValueExited: 0,
+                    unit: ai.unit || 'kg-1',
+                    suppliersCount: 0,
+                    details: [],
+                    category: ai.category || 'OUTROS',
+                    comprasCode: ai.comprasCode || '',
+                    becCode: ai.becCode || '',
+                    totalCommitmentValue: 0
+                });
+            });
+        }
+
+        // 2. Agrega Metas de todos os Fornecedores
         suppliers.forEach(s => {
             Object.values(s.contractItems || {}).forEach((ci: any) => {
                 const normName = superNormalize(ci.name);
@@ -59,7 +86,8 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
                     totalValueExited: 0,
                     unit: ci.unit || 'kg-1',
                     suppliersCount: 0,
-                    details: []
+                    details: [],
+                    totalCommitmentValue: 0
                 };
 
                 existing.totalContracted += Number(ci.totalKg) || 0;
@@ -91,7 +119,7 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
                 map.set(normName, existing);
             });
 
-            // 2. Agrega Entradas de Notas Fiscais (Deliveries)
+            // 3. Agrega Entradas de Notas Fiscais (Deliveries)
             (Object.values(s.deliveries || {}) as Delivery[]).forEach(del => {
                 if (del.item === 'AGENDAMENTO PENDENTE') return;
                 const delINorm = superNormalize(del.item || '');
@@ -105,7 +133,7 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
             });
         });
 
-        // 3. Agrega Saídas de Notas Fiscais (WarehouseLog com outboundInvoice)
+        // 4. Agrega Saídas de Notas Fiscais (WarehouseLog com outboundInvoice)
         warehouseLog.forEach(log => {
             if (log.type !== 'saída' || !log.outboundInvoice) return; // Somente saídas com NF
             
@@ -124,9 +152,9 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
         });
 
         return Array.from(map.values())
-            .filter(item => item.totalContracted > 0)
+            .filter(item => item.totalContracted > 0 || (acquisitionItems && acquisitionItems.some(ai => superNormalize(ai.contractItemName || ai.name || '') === item.normName)))
             .sort((a, b) => a.name.localeCompare(b.name));
-    }, [suppliers, warehouseLog]);
+    }, [suppliers, warehouseLog, acquisitionItems]);
 
     const filteredItems = useMemo(() => {
         return itemAggregation.filter(i => 
