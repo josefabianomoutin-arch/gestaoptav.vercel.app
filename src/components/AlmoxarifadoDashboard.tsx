@@ -253,10 +253,49 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             seenDeliveries.add(uniqueKey);
             
             const unitPrice = kg > 0 ? (value / kg) : 0;
+
+            // Resolve the week number for the date
+            let dateWithWeek = formattedDate;
+            if (formattedDate.includes('/')) {
+                const parts = formattedDate.split('/');
+                const dateObj = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]), 12, 0, 0);
+                if (!isNaN(dateObj.getTime())) {
+                    const weekNo = getWeekNumber(dateObj);
+                    dateWithWeek = `${formattedDate} (SEMANA ${weekNo})`;
+                }
+            }
+
+            // Resolve complete description of the item using contractItems and acquisitionItems
+            const nameUpper = item.toUpperCase().trim();
+            const contractItems = ensureArray(supplier?.contractItems);
+            const matchedContractItem = contractItems.find((ci: any) => ci && (ci.name || ci.itemName || '').toUpperCase().trim() === nameUpper);
+            const matchedAcquisitionItem = ensureArray(acquisitionItems).find((ai: any) => ai && (ai.name || '').toUpperCase().trim() === nameUpper);
+
+            let itemFull = nameUpper;
+            const comprasCode = matchedContractItem?.comprasCode || matchedAcquisitionItem?.comprasCode;
+            const becCode = matchedContractItem?.becCode || matchedAcquisitionItem?.becCode;
+            const category = matchedContractItem?.category || matchedAcquisitionItem?.category;
+
+            const codes: string[] = [];
+            if (comprasCode) {
+                codes.push(`CÓD. COMPRAS: ${comprasCode}`);
+            }
+            if (becCode) {
+                codes.push(`CÓD. BEC: ${becCode}`);
+            }
+            if (category && category !== 'OUTROS') {
+                codes.push(`CATEGORIA: ${category}`);
+            }
+
+            if (codes.length > 0) {
+                itemFull = `${nameUpper} (${codes.join(' - ')})`;
+            }
             
             monthlyItemsList.push({
                 date: formattedDate,
+                dateWithWeek: dateWithWeek,
                 item: item.toUpperCase(),
+                itemFull: itemFull,
                 kg: kg,
                 unitPrice: unitPrice,
                 totalValue: value,
@@ -659,8 +698,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         <tbody>
                             ${monthlyItemsList.length > 0 ? monthlyItemsList.map((item: any) => `
                             <tr>
-                                <td class="text-center font-mono">${item.date}</td>
-                                <td><strong>${item.item}</strong></td>
+                                <td class="text-center font-mono">${item.dateWithWeek || item.date}</td>
+                                <td><strong>${item.itemFull || item.item}</strong></td>
                                 <td class="text-center font-mono">${item.kg.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
                                 <td class="text-center font-mono">R$ ${item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                 <td class="text-center font-mono">R$ ${item.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -2094,8 +2133,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                     {cronogramaDetails.monthlyItemsList.length > 0 ? (
                                                         cronogramaDetails.monthlyItemsList.map((item: any, idx: number) => (
                                                             <tr key={idx} className="border-b border-black">
-                                                                <td className="border border-black p-2 text-center font-mono">{item.date}</td>
-                                                                <td className="border border-black p-2 font-bold">{item.item}</td>
+                                                                <td className="border border-black p-2 text-center font-mono">{item.dateWithWeek || item.date}</td>
+                                                                <td className="border border-black p-2 font-bold">{item.itemFull || item.item}</td>
                                                                 <td className="border border-black p-2 text-center font-mono">{item.kg.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
                                                                 <td className="border border-black p-2 text-center font-mono">R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                                                 <td className="border border-black p-2 text-center font-mono">R$ {item.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
