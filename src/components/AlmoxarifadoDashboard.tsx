@@ -537,17 +537,17 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             <head>
                 <title>Cronograma de Entrega (Manual) - ${manualCronMonth} de ${manualCronYear}</title>
                 <style>
-                    @page { size: A4 portrait; margin: 20mm 15mm 20mm 15mm; }
-                    body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #000; margin: 0; padding: 0; }
+                    @page { size: A4 portrait; margin: 8mm 12mm 8mm 12mm; }
+                    body { font-family: Arial, sans-serif; font-size: 9pt; line-height: 1.3; color: #000; margin: 0; padding: 0; }
                     .container { width: 100%; }
-                    .header-title { text-align: center; font-weight: bold; font-size: 15pt; text-transform: uppercase; margin-top: 20px; margin-bottom: 30px; letter-spacing: 1px; }
+                    .header-title { text-align: center; font-weight: bold; font-size: 11pt; text-transform: uppercase; margin-top: 0px; margin-bottom: 10px; letter-spacing: 0.5px; }
                     
-                    .paragraph { text-align: justify; margin-bottom: 20px; text-indent: 0px; font-size: 11pt; }
+                    .paragraph { text-align: justify; margin-bottom: 8px; text-indent: 0px; font-size: 8.5pt; line-height: 1.3; }
                     
-                    .section-title-box { border: 1.5px solid #000; text-align: center; font-weight: bold; font-size: 12pt; text-transform: uppercase; padding: 6px; margin-top: 30px; margin-bottom: 15px; background-color: #f2f2f2; }
+                    .section-title-box { border: 1.5px solid #000; text-align: center; font-weight: bold; font-size: 9.5pt; text-transform: uppercase; padding: 3px; margin-top: 10px; margin-bottom: 8px; background-color: #f2f2f2; }
                     
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 25px; text-transform: uppercase; font-size: 10pt; }
-                    th, td { border: 1.5px solid #000; padding: 8px; text-align: left; vertical-align: middle; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; text-transform: uppercase; font-size: 6.5pt; line-height: 1.15; }
+                    th, td { border: 1px solid #000; padding: 3px 5px; text-align: left; vertical-align: middle; }
                     th { font-weight: bold; text-transform: uppercase; background-color: #f2f2f2; text-align: center; }
                     
                     .text-center { text-align: center; }
@@ -555,11 +555,11 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     .font-bold { font-weight: bold; }
                     .font-mono { font-family: monospace; }
                     
-                    .footer-location { text-align: right; margin-top: 50px; font-weight: bold; font-size: 11pt; }
-                    .signature-section { margin-top: 80px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-                    .signature-line { border-top: 1.5px solid #000; width: 350px; margin-bottom: 5px; }
-                    .signature-name { font-weight: bold; text-transform: uppercase; font-size: 11pt; }
-                    .signature-role { font-size: 10pt; color: #444; text-transform: none; }
+                    .footer-location { text-align: right; margin-top: 10px; font-weight: bold; font-size: 8.5pt; }
+                    .signature-section { margin-top: 25px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; page-break-inside: avoid; }
+                    .signature-line { border-top: 1px solid #000; width: 280px; margin-bottom: 5px; }
+                    .signature-name { font-weight: bold; text-transform: uppercase; font-size: 9pt; }
+                    .signature-role { font-size: 8pt; color: #444; text-transform: none; }
                 </style>
             </head>
             <body>
@@ -939,17 +939,17 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             <head>
                 <title>Cronograma de Entrega - ${selectedMonth} de ${selectedYear}</title>
                 <style>
-                    @page { size: A4 portrait; margin: 20mm 15mm 20mm 15mm; }
-                    body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #000; margin: 0; padding: 0; }
+                    @page { size: A4 portrait; margin: 8mm 12mm 8mm 12mm; }
+                    body { font-family: Arial, sans-serif; font-size: 9pt; line-height: 1.3; color: #000; margin: 0; padding: 0; }
                     .container { width: 100%; }
-                    .header-title { text-align: center; font-weight: bold; font-size: 15pt; text-transform: uppercase; margin-top: 20px; margin-bottom: 30px; letter-spacing: 1px; }
+                    .header-title { text-align: center; font-weight: bold; font-size: 11pt; text-transform: uppercase; margin-top: 0px; margin-bottom: 10px; letter-spacing: 0.5px; }
                     
-                    .paragraph { text-align: justify; margin-bottom: 20px; text-indent: 0px; font-size: 11pt; }
+                    .paragraph { text-align: justify; margin-bottom: 8px; text-indent: 0px; font-size: 8.5pt; line-height: 1.3; }
                     
-                    .section-title-box { border: 1.5px solid #000; text-align: center; font-weight: bold; font-size: 12pt; text-transform: uppercase; padding: 6px; margin-top: 30px; margin-bottom: 15px; background-color: #f2f2f2; }
+                    .section-title-box { border: 1.5px solid #000; text-align: center; font-weight: bold; font-size: 9.5pt; text-transform: uppercase; padding: 3px; margin-top: 10px; margin-bottom: 8px; background-color: #f2f2f2; }
                     
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 25px; text-transform: uppercase; font-size: 10pt; }
-                    th, td { border: 1.5px solid #000; padding: 8px; text-align: left; vertical-align: middle; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; text-transform: uppercase; font-size: 6.5pt; line-height: 1.15; }
+                    th, td { border: 1px solid #000; padding: 3px 5px; text-align: left; vertical-align: middle; }
                     th { font-weight: bold; text-transform: uppercase; background-color: #f2f2f2; text-align: center; }
                     
                     .text-center { text-align: center; }
@@ -957,11 +957,11 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     .font-bold { font-weight: bold; }
                     .font-mono { font-family: monospace; }
                     
-                    .footer-location { text-align: right; margin-top: 50px; font-weight: bold; font-size: 11pt; }
-                    .signature-section { margin-top: 80px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-                    .signature-line { border-top: 1.5px solid #000; width: 350px; margin-bottom: 5px; }
-                    .signature-name { font-weight: bold; text-transform: uppercase; font-size: 11pt; }
-                    .signature-role { font-size: 10pt; color: #444; text-transform: none; }
+                    .footer-location { text-align: right; margin-top: 10px; font-weight: bold; font-size: 8.5pt; }
+                    .signature-section { margin-top: 25px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; page-break-inside: avoid; }
+                    .signature-line { border-top: 1px solid #000; width: 280px; margin-bottom: 5px; }
+                    .signature-name { font-weight: bold; text-transform: uppercase; font-size: 9pt; }
+                    .signature-role { font-size: 8pt; color: #444; text-transform: none; }
                 </style>
             </head>
             <body>
