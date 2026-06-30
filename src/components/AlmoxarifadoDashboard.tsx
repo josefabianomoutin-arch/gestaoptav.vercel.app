@@ -1,7 +1,9 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
-import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search } from 'lucide-react';
+import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Save, Database, Calendar, X } from 'lucide-react';
+import { getDatabase, ref, set, get } from 'firebase/database';
+import { app } from '../firebaseConfig';
 import { HOLIDAYS_2026 } from '../constants';
 import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus, Delivery } from '../types';
 import AdminInvoices from './AdminInvoices';
@@ -148,6 +150,18 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [selectedCronogramaSupplier, setSelectedCronogramaSupplier] = useState('');
     const [cronogramaSupplierSearch, setCronogramaSupplierSearch] = useState('');
     const [invoiceSearch, setInvoiceSearch] = useState('');
+
+    // --- Sub Aba de Cronograma Manual ---
+    const [cronogramaSubTab, setCronogramaSubTab] = useState<'auto' | 'manual'>('auto');
+    const [manualCronSupplierSearch, setManualCronSupplierSearch] = useState('');
+    const [manualCronSupplierName, setManualCronSupplierName] = useState('');
+    const [manualCronSupplierCpfCnpj, setManualCronSupplierCpfCnpj] = useState('');
+    const [manualCronSupplierAddress, setManualCronSupplierAddress] = useState('');
+    const [manualCronMonth, setManualCronMonth] = useState<string>(MONTHS_PT[new Date().getMonth()]);
+    const [manualCronYear, setManualCronYear] = useState<number>(new Date().getFullYear());
+    const [manualCronItems, setManualCronItems] = useState<any[]>([]);
+    const [isLoadingManualCron, setIsLoadingManualCron] = useState(false);
+    const [isSavingManualCron, setIsSavingManualCron] = useState(false);
 
     const filteredCronogramaSuppliers = useMemo(() => {
         const list = (cronogramaType === 'PPAIS' ? (perCapitaConfig?.ppaisProducers || []) : 
@@ -354,7 +368,286 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         };
     }, [selectedCronogramaSupplier, selectedMonth, selectedYear, cronogramaType, perCapitaConfig, suppliers, warehouseLog]);
 
+    // --- Manual Cronograma Handlers and Memos ---
+    const filteredManualCronSuppliers = useMemo(() => {
+        let combined: any[] = [...ensureArray(suppliers)];
+        const ppais = ensureArray(perCapitaConfig?.ppaisProducers || []);
+        const pereciveis = ensureArray(perCapitaConfig?.pereciveisSuppliers || []);
+        const estocaveis = ensureArray(perCapitaConfig?.estocaveisSuppliers || []);
+        
+        [...ppais, ...pereciveis, ...estocaveis].forEach((p: any) => {
+            if (p && p.name && !combined.some(s => matchCpf(s.cpf || s.cpfCnpj, p.cpfCnpj || p.cpf))) {
+                combined.push({
+                    name: p.name,
+                    cpf: p.cpf || p.cpfCnpj,
+                    address: p.address || '',
+                    contractItems: p.contractItems || []
+                });
+            }
+        });
 
+        if (!manualCronSupplierSearch) return combined;
+        const sLower = manualCronSupplierSearch.toLowerCase();
+        return combined.filter((s: any) => 
+            (s.name || '').toLowerCase().includes(sLower) || 
+            (s.cpf || s.cpfCnpj || '').replace(/\D/g, '').includes(sLower)
+        );
+    }, [suppliers, perCapitaConfig, manualCronSupplierSearch]);
+
+    useEffect(() => {
+        if (cronogramaSubTab !== 'manual') return;
+        const cleanedCpf = cleanCpf(manualCronSupplierCpfCnpj);
+        if (!cleanedCpf) {
+            setManualCronItems([]);
+            return;
+        }
+
+        const fetchManualCron = async () => {
+            setIsLoadingManualCron(true);
+            try {
+                const db = getDatabase(app);
+                const path = `manual_cronogramas/${cleanedCpf}/${manualCronYear}/${manualCronMonth}`;
+                const snapshot = await get(ref(db, path));
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    if (data.items) {
+                        setManualCronItems(data.items);
+                    } else {
+                        setManualCronItems([]);
+                    }
+                    if (data.supplierName) {
+                        setManualCronSupplierName(data.supplierName);
+                    }
+                    if (data.supplierAddress) {
+                        setManualCronSupplierAddress(data.supplierAddress);
+                    }
+                } else {
+                    setManualCronItems([]);
+                }
+            } catch (err) {
+                console.error("Error loading manual cronograma:", err);
+            } finally {
+                setIsLoadingManualCron(false);
+            }
+        };
+
+        fetchManualCron();
+    }, [cronogramaSubTab, manualCronSupplierCpfCnpj, manualCronMonth, manualCronYear]);
+
+    const addManualCronItem = () => {
+        setManualCronItems(prev => [
+            ...prev,
+            {
+                id: Math.random().toString(36).substring(2, 9),
+                date: '',
+                week: 'SEMANA 1',
+                item: '',
+                kg: 0,
+                unitPrice: 0,
+                totalValue: 0
+            }
+        ]);
+    };
+
+    const removeManualCronItem = (id: string) => {
+        setManualCronItems(prev => prev.filter(item => item.id !== id));
+    };
+
+    const updateManualCronItem = (id: string, field: string, value: any) => {
+        setManualCronItems(prev => prev.map(item => {
+            if (item.id === id) {
+                const updated = { ...item, [field]: value };
+                
+                if (field === 'date' && value) {
+                    try {
+                        const dateParts = value.split('-');
+                        const dObj = new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]), 12, 0, 0);
+                        if (!isNaN(dObj.getTime())) {
+                            const weekNo = getWeekNumber(dObj);
+                            updated.week = `SEMANA ${weekNo}`;
+                        }
+                    } catch (e) {
+                        console.error("Error parsing date for week calc:", e);
+                    }
+                }
+
+                if (field === 'kg' || field === 'unitPrice') {
+                    const kg = field === 'kg' ? parseFloat(value) || 0 : parseFloat(item.kg) || 0;
+                    const price = field === 'unitPrice' ? parseFloat(value) || 0 : parseFloat(item.unitPrice) || 0;
+                    updated.totalValue = Number((kg * price).toFixed(2));
+                }
+
+                return updated;
+            }
+            return item;
+        }));
+    };
+
+    const handleSaveManualCron = async () => {
+        const cleanedCpf = cleanCpf(manualCronSupplierCpfCnpj);
+        if (!manualCronSupplierName) {
+            alert('Por favor, informe o nome do fornecedor.');
+            return;
+        }
+        if (!cleanedCpf) {
+            alert('Por favor, informe o CPF/CNPJ.');
+            return;
+        }
+
+        setIsSavingManualCron(true);
+        try {
+            const db = getDatabase(app);
+            const path = `manual_cronogramas/${cleanedCpf}/${manualCronYear}/${manualCronMonth}`;
+            await set(ref(db, path), {
+                supplierName: manualCronSupplierName.toUpperCase().trim(),
+                supplierCpfCnpj: cleanedCpf,
+                supplierAddress: manualCronSupplierAddress.toUpperCase().trim() || 'NÃO INFORMADO',
+                periodMonth: manualCronMonth,
+                periodYear: manualCronYear,
+                items: manualCronItems,
+                updatedAt: new Date().toISOString()
+            });
+            alert('Cronograma manual salvo com sucesso!');
+        } catch (err) {
+            console.error("Error saving manual cronograma:", err);
+            alert('Erro ao salvar o cronograma manual. Tente novamente.');
+        } finally {
+            setIsSavingManualCron(false);
+        }
+    };
+
+    const handlePrintManualCronograma = () => {
+        if (!manualCronSupplierName) {
+            alert('Por favor, preencha o nome do fornecedor.');
+            return;
+        }
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const totalWeight = manualCronItems.reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
+        const totalValue = manualCronItems.reduce((sum, item) => sum + (parseFloat(item.totalValue) || 0), 0);
+        
+        const monthIndex = MONTHS_PT.indexOf(manualCronMonth);
+        const firstBusinessDay = getFirstBusinessDayOfMonth(monthIndex, manualCronYear);
+        const dateStrFirstBusinessDay = `${firstBusinessDay.getDate()} de ${firstBusinessDay.toLocaleDateString('pt-BR', { month: 'long' })} de ${manualCronYear}`;
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Cronograma de Entrega (Manual) - ${manualCronMonth} de ${manualCronYear}</title>
+                <style>
+                    @page { size: A4 portrait; margin: 20mm 15mm 20mm 15mm; }
+                    body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #000; margin: 0; padding: 0; }
+                    .container { width: 100%; }
+                    .header-title { text-align: center; font-weight: bold; font-size: 15pt; text-transform: uppercase; margin-top: 20px; margin-bottom: 30px; letter-spacing: 1px; }
+                    
+                    .paragraph { text-align: justify; margin-bottom: 20px; text-indent: 0px; font-size: 11pt; }
+                    
+                    .section-title-box { border: 1.5px solid #000; text-align: center; font-weight: bold; font-size: 12pt; text-transform: uppercase; padding: 6px; margin-top: 30px; margin-bottom: 15px; background-color: #f2f2f2; }
+                    
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 25px; text-transform: uppercase; font-size: 10pt; }
+                    th, td { border: 1.5px solid #000; padding: 8px; text-align: left; vertical-align: middle; }
+                    th { font-weight: bold; text-transform: uppercase; background-color: #f2f2f2; text-align: center; }
+                    
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .font-bold { font-weight: bold; }
+                    .font-mono { font-family: monospace; }
+                    
+                    .footer-location { text-align: right; margin-top: 50px; font-weight: bold; font-size: 11pt; }
+                    .signature-section { margin-top: 80px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+                    .signature-line { border-top: 1.5px solid #000; width: 350px; margin-bottom: 5px; }
+                    .signature-name { font-weight: bold; text-transform: uppercase; font-size: 11pt; }
+                    .signature-role { font-size: 10pt; color: #444; text-transform: none; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header-title">CRONOGRAMA DE ENTREGA</div>
+                    
+                    <div class="paragraph">
+                        <strong>Agricultor/fornecedor:</strong> ${manualCronSupplierName.toUpperCase()}, maior, capaz e residente na ${manualCronSupplierAddress.toUpperCase() || 'NÃO INFORMADO'}, inscrito no CPF/CNPJ: ${manualCronSupplierCpfCnpj || 'NÃO INFORMADO'} doravante designado Contratado.
+                    </div>
+                    
+                    <div class="paragraph">
+                        Solicitamos as devidas providências de Vossa Senhoria, no sentido de fornecer a esta Unidade Prisional, os itens relacionados abaixo, conforme especificações constantes no Folheto Descrito, durante o período de ${manualCronMonth.toUpperCase()} DE ${manualCronYear}. As entregas deverão ser efetuadas no endereço infra mencionado, impreterivelmente no dia e horário (das 08:00 às 11:00 horas e das 13:00 às 16:00horas) estipulado neste cronograma.
+                    </div>
+                    
+                    <div class="section-title-box">RELAÇÃO DE ITENS A SER ENTREGUE</div>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 25%; text-align: center;">DATA DO AGENDAMENTO</th>
+                                <th style="width: 35%; text-align: center;">ITEM</th>
+                                <th style="width: 15%; text-align: center;">PESO (KG)</th>
+                                <th style="width: 15%; text-align: center;">VALOR UNITÁRIO (R$)</th>
+                                <th style="width: 15%; text-align: center;">VALOR TOTAL (R$)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${manualCronItems.length > 0 ? manualCronItems.map((item: any) => {
+                                const kgVal = parseFloat(item.kg) || 0;
+                                const unitPriceVal = parseFloat(item.unitPrice) || 0;
+                                const totalVal = parseFloat(item.totalValue) || 0;
+                                
+                                let dateDisplay = item.date;
+                                if (item.date && item.date.includes('-')) {
+                                    const parts = item.date.split('-');
+                                    dateDisplay = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                                }
+                                if (item.week) {
+                                    dateDisplay = `${dateDisplay} (${item.week.toUpperCase()})`;
+                                }
+                                
+                                return `
+                                <tr>
+                                    <td class="text-center font-mono">${dateDisplay}</td>
+                                    <td><strong>${(item.item || '').toUpperCase()}</strong></td>
+                                    <td class="text-center font-mono">${kgVal.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
+                                    <td class="text-center font-mono">R$ ${unitPriceVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                    <td class="text-center font-mono">R$ ${totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                </tr>
+                                `;
+                            }).join('') : `
+                            <tr>
+                                <td colspan="5" class="text-center font-bold" style="padding: 20px;">NENHUM ITEM ADICIONADO.</td>
+                            </tr>
+                            `}
+                            <tr class="font-bold uppercase" style="background-color: #f2f2f2;">
+                                <td colspan="2" class="text-right">TOTAIS</td>
+                                <td class="text-center font-mono">${totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
+                                <td class="text-center">---</td>
+                                <td class="text-center font-mono">R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div class="paragraph" style="font-size: 10pt; line-height: 1.5; text-align: justify;">
+                        De acordo com a Cláusula Segunda do contrato no seu item 1º. O objeto da presente contratação será entregue parceladamente, nos prazos e locais determinados pela CONTRATANTE, conforme cronograma de fornecimento Anexo I do presente contrato;
+                    </div>
+                    
+                    <div class="footer-location">
+                        Taiuva, ${dateStrFirstBusinessDay}
+                    </div>
+                    
+                    <div class="signature-section">
+                        <div class="signature-line"></div>
+                        <div class="signature-name">JOSÉ FABIANO MOUTIN</div>
+                        <div class="signature-role">Chefe de Seção de Finanças e Suprimentos</div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        setTimeout(() => {
+            printWindow.print();
+        }, 500);
+    };
 
     const imageDeliveries = useMemo(() => {
         try {
@@ -676,7 +969,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     <div class="header-title">CRONOGRAMA DE ENTREGA</div>
                     
                     <div class="paragraph">
-                        <strong>Agricultor:</strong> ${supplier.name.toUpperCase()}, maior, capaz e residente na ${supplier.address || 'NÃO INFORMADO'}, inscrito no CPF/CNPJ: ${supplier.cpfCnpj || supplier.cpf || 'NÃO INFORMADO'} doravante designado Contratado.
+                        <strong>Agricultor/fornecedor:</strong> ${supplier.name.toUpperCase()}, maior, capaz e residente na ${supplier.address || 'NÃO INFORMADO'}, inscrito no CPF/CNPJ: ${supplier.cpfCnpj || supplier.cpf || 'NÃO INFORMADO'} doravante designado Contratado.
                     </div>
                     
                     <div class="paragraph">
@@ -1961,145 +2254,297 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <button 
-                                    type="button"
-                                    onClick={handlePrintCronograma}
-                                    disabled={!selectedCronogramaSupplier}
-                                    className="bg-white text-zinc-900 hover:bg-gray-100 font-black py-2 px-6 rounded-xl transition-all active:scale-95 disabled:opacity-50 uppercase tracking-widest text-[9px] flex items-center gap-2"
-                                >
-                                    <Printer className="h-3 w-3" />
-                                    Imprimir
-                                </button>
+                                {cronogramaSubTab === 'manual' ? (
+                                    <button 
+                                        type="button"
+                                        onClick={handlePrintManualCronograma}
+                                        disabled={!manualCronSupplierName || manualCronItems.length === 0}
+                                        className="bg-white text-zinc-900 hover:bg-gray-100 font-black py-2 px-6 rounded-xl transition-all active:scale-95 disabled:opacity-50 uppercase tracking-widest text-[9px] flex items-center gap-2"
+                                    >
+                                        <Printer className="h-3 w-3" />
+                                        Imprimir Manual
+                                    </button>
+                                ) : (
+                                    <button 
+                                        type="button"
+                                        onClick={handlePrintCronograma}
+                                        disabled={!selectedCronogramaSupplier}
+                                        className="bg-white text-zinc-900 hover:bg-gray-100 font-black py-2 px-6 rounded-xl transition-all active:scale-95 disabled:opacity-50 uppercase tracking-widest text-[9px] flex items-center gap-2"
+                                    >
+                                        <Printer className="h-3 w-3" />
+                                        Imprimir Automático
+                                    </button>
+                                )}
                             </div>
                         </div>
 
                         <div className="p-4 md:p-6 space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Processo</label>
-                                    <select 
-                                        value={cronogramaType} 
-                                        onChange={e => { setCronogramaType(e.target.value as any); setSelectedCronogramaSupplier(''); }}
-                                        className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase"
-                                    >
-                                        <option value="PPAIS">PPAIS</option>
-                                        <option value="ESTOCÁVEIS">ESTOCÁVEIS</option>
-                                        <option value="PERECÍVEIS">PERECÍVEIS</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Buscar Fornecedor</label>
-                                    <input 
-                                        type="text"
-                                        placeholder="Buscar..."
-                                        value={cronogramaSupplierSearch}
-                                        onChange={e => { setCronogramaSupplierSearch(e.target.value); setSelectedCronogramaSupplier(''); }}
-                                        className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase placeholder-gray-400"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Fornecedor / Produtor</label>
-                                    <select 
-                                        value={selectedCronogramaSupplier} 
-                                        onChange={e => setSelectedCronogramaSupplier(e.target.value)}
-                                        className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase"
-                                    >
-                                        <option value="">-- SELECIONE --</option>
-                                        {filteredCronogramaSuppliers.map((s: any) => (
-                                            <option key={s.cpfCnpj || s.cpf} value={s.cpfCnpj || s.cpf}>{s.name.toUpperCase()}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Mês Ref.</label>
-                                    <select 
-                                        value={selectedMonth} 
-                                        onChange={e => setSelectedMonth(e.target.value)}
-                                        className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase"
-                                    >
-                                        {MONTHS_PT.map(m => <option key={m} value={m}>{m}</option>)}
-                                    </select>
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Ano Ref.</label>
-                                    <select 
-                                        value={selectedYear} 
-                                        onChange={e => setSelectedYear(Number(e.target.value))}
-                                        className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase"
-                                    >
-                                        {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                                    </select>
-                                </div>
+                            {/* Sub-tab Switcher */}
+                            <div className="flex border-b border-gray-100 pb-2 gap-2">
+                                <button
+                                    onClick={() => setCronogramaSubTab('auto')}
+                                    className={`px-5 py-2 font-black uppercase text-[10px] tracking-wider transition-all border-b-2 ${
+                                        cronogramaSubTab === 'auto'
+                                            ? 'border-zinc-900 text-zinc-900 bg-zinc-50 rounded-t-xl'
+                                            : 'border-transparent text-gray-400 hover:text-gray-600'
+                                    }`}
+                                >
+                                    Gerar Automático (Entradas/NFs)
+                                </button>
+                                <button
+                                    onClick={() => setCronogramaSubTab('manual')}
+                                    className={`px-5 py-2 font-black uppercase text-[10px] tracking-wider transition-all border-b-2 ${
+                                        cronogramaSubTab === 'manual'
+                                            ? 'border-zinc-900 text-zinc-900 bg-zinc-50 rounded-t-xl'
+                                            : 'border-transparent text-gray-400 hover:text-gray-600'
+                                    }`}
+                                >
+                                    Cadastro Manual de Cronograma
+                                </button>
                             </div>
-                            
-                            {selectedCronogramaSupplier ? (
-                                <div className="animate-fade-in space-y-4">
-                                    <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex flex-col md:flex-row justify-between gap-4 italic font-bold text-[10px] uppercase">
-                                        <div>
-                                            <span className="text-indigo-400 mr-2">Processo SEI:</span>
-                                            <span className="text-zinc-900">{perCapitaConfig?.seiProcessNumbers?.[cronogramaType] || 'Indefinido'}</span>
-                                        </div>
-                                        <div>
-                                            <span className="text-indigo-400 mr-2">Data do Documento:</span>
-                                            <span className="text-zinc-900">{getFirstBusinessDayOfMonth(MONTHS_PT.indexOf(selectedMonth), selectedYear).toLocaleDateString('pt-BR')} (1º Dia Útil)</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                                        {/* Grade de visualização dos agendamentos do mês */}
-                                        {Array.from({ length: 4 }, (_, i) => i + 1).map(week => {
-                                            const supplier = (cronogramaType === 'PPAIS' ? (perCapitaConfig?.ppaisProducers || []) : 
-                                                             cronogramaType === 'PERECÍVEIS' ? (perCapitaConfig?.pereciveisSuppliers || []) : 
-                                                             (perCapitaConfig?.estocaveisSuppliers || [])).find((s: any) => (matchCpf(s.cpfCnpj, selectedCronogramaSupplier) || matchCpf(s.cpf, selectedCronogramaSupplier))) || 
-                                                             suppliers.find(s => matchCpf(s.cpf, selectedCronogramaSupplier));
-                                            
-                                            const safeMonthSchedule = supplier?.monthlySchedule?.[selectedMonth] || 
-                                                                      supplier?.monthlySchedule?.[selectedMonth.toUpperCase()] || 
-                                                                      supplier?.monthlySchedule?.[selectedMonth.toLowerCase()] ||
-                                                                      supplier?.monthlySchedule?.[selectedMonth.charAt(0).toUpperCase() + selectedMonth.slice(1).toLowerCase()] || [];
-                                            const isScheduled = safeMonthSchedule.includes(week);
-                                            
-                                            return (
-                                                <div key={week} className={`p-4 rounded-2xl border-2 transition-all ${isScheduled ? 'bg-white border-indigo-500 shadow-md' : 'bg-gray-50 border-gray-100 opacity-50'}`}>
-                                                    <div className="flex justify-between items-center mb-3">
-                                                        <h4 className="text-[10px] font-black uppercase text-zinc-900 tracking-tighter">Semana {week}</h4>
-                                                        {isScheduled ? (
-                                                            <span className="bg-indigo-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase">Agendado</span>
-                                                        ) : (
-                                                            <span className="bg-gray-200 text-gray-500 text-[8px] font-bold px-2 py-0.5 rounded-full uppercase">Livre</span>
-                                                        )}
-                                                    </div>
-                                                    <div className="space-y-2 text-[9px] font-bold uppercase italic">
-                                                        <p className="text-zinc-500 mb-1">Notas Fiscais:</p>
-                                                        {(() => {
-                                                            const deliveries = ensureArray(supplier?.deliveries) as any[];
-                                                            const monthIndex = MONTHS_PT.indexOf(selectedMonth);
-                                                            const invoices = new Set<string>();
-                                                            
-                                                            deliveries.forEach((d: any) => {
-                                                                const deliveryDate = new Date((d.invoiceDate || d.date) + 'T12:00:00');
-                                                                // Simple logic: mapping delivery weeks to 1-4. Real logic is complex, 
-                                                                // for now checking month and year:
-                                                                if (deliveryDate.getMonth() === monthIndex && deliveryDate.getFullYear() === selectedYear) {
-                                                                     // Here, to filter by week, would need more complex logic. 
-                                                                     // Showing all for the month for now.
-                                                                     if (d.invoiceNumber) invoices.add(String(d.invoiceNumber).trim());
-                                                                }
-                                                            });
-                                                            return Array.from(invoices).map(inv => (
-                                                                <span key={inv} className="block text-indigo-900 bg-indigo-100 p-1 rounded my-0.5">NF: {inv}</span>
-                                                            ));
-                                                        })()}
-                                                    </div>
+
+                            {cronogramaSubTab === 'manual' ? (
+                                <div className="space-y-6 animate-fade-in">
+                                    {/* Manual Form Header / Supplier Selector */}
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50 p-6 rounded-2xl border border-gray-100 relative">
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Buscar Fornecedor Existente</label>
+                                            <div className="relative">
+                                                <input 
+                                                    type="text"
+                                                    placeholder="Buscar fornecedor..."
+                                                    value={manualCronSupplierSearch}
+                                                    onChange={e => setManualCronSupplierSearch(e.target.value)}
+                                                    className="w-full h-9 pl-8 pr-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-zinc-400 transition-all text-[10px] uppercase placeholder-gray-400"
+                                                />
+                                                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400" />
+                                            </div>
+                                            {manualCronSupplierSearch && (
+                                                <div className="absolute z-10 mt-1 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg w-72 text-[10px] font-bold uppercase">
+                                                    {filteredManualCronSuppliers.length > 0 ? (
+                                                        filteredManualCronSuppliers.map((s: any) => (
+                                                            <div 
+                                                                key={s.cpf || s.cpfCnpj}
+                                                                onClick={() => {
+                                                                    setManualCronSupplierName(s.name.toUpperCase());
+                                                                    setManualCronSupplierCpfCnpj(s.cpf || s.cpfCnpj || '');
+                                                                    setManualCronSupplierAddress(s.address || '');
+                                                                    setManualCronSupplierSearch('');
+                                                                }}
+                                                                className="p-2.5 hover:bg-zinc-100 cursor-pointer border-b border-gray-100 text-zinc-800"
+                                                            >
+                                                                {s.name.toUpperCase()} ({s.cpf || s.cpfCnpj})
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="p-2 text-gray-500 italic">Nenhum fornecedor encontrado</div>
+                                                    )}
                                                 </div>
-                                            );
-                                        })}
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Nome do Agricultor/Fornecedor *</label>
+                                            <input 
+                                                type="text"
+                                                value={manualCronSupplierName}
+                                                onChange={e => setManualCronSupplierName(e.target.value.toUpperCase())}
+                                                placeholder="Nome Completo / Razão Social"
+                                                className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-zinc-400 transition-all text-[10px] uppercase"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Inscrito no CPF/CNPJ *</label>
+                                            <input 
+                                                type="text"
+                                                value={manualCronSupplierCpfCnpj}
+                                                onChange={e => setManualCronSupplierCpfCnpj(e.target.value)}
+                                                placeholder="CPF ou CNPJ"
+                                                className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-zinc-400 transition-all text-[10px]"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Residente na (Endereço)</label>
+                                            <input 
+                                                type="text"
+                                                value={manualCronSupplierAddress}
+                                                onChange={e => setManualCronSupplierAddress(e.target.value.toUpperCase())}
+                                                placeholder="Endereço Completo"
+                                                className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-zinc-400 transition-all text-[10px] uppercase"
+                                            />
+                                        </div>
                                     </div>
 
-                                    {/* Visual preview of the official printed document layout */}
+                                    {/* Period Selection & Quick Tools */}
+                                    <div className="flex flex-wrap items-center justify-between gap-4 bg-zinc-50 p-4 rounded-xl border border-gray-100">
+                                        <div className="flex flex-wrap gap-3 items-center">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Mês do Cronograma:</span>
+                                                <select 
+                                                    value={manualCronMonth}
+                                                    onChange={e => setManualCronMonth(e.target.value)}
+                                                    className="h-8 px-2 border border-gray-200 rounded-lg bg-white font-bold outline-none focus:ring-2 focus:ring-zinc-400 transition-all text-[10px] uppercase"
+                                                >
+                                                    {MONTHS_PT.map(m => <option key={m} value={m}>{m}</option>)}
+                                                </select>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Ano:</span>
+                                                <select 
+                                                    value={manualCronYear}
+                                                    onChange={e => setManualCronYear(Number(e.target.value))}
+                                                    className="h-8 px-2 border border-gray-200 rounded-lg bg-white font-bold outline-none focus:ring-2 focus:ring-zinc-400 transition-all text-[10px]"
+                                                >
+                                                    {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={addManualCronItem}
+                                                className="bg-zinc-900 text-white hover:bg-zinc-800 font-bold py-1.5 px-4 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all animate-none"
+                                            >
+                                                <Plus className="h-3.5 w-3.5" />
+                                                Adicionar Item
+                                            </button>
+                                            
+                                            <button
+                                                type="button"
+                                                onClick={handleSaveManualCron}
+                                                disabled={isSavingManualCron}
+                                                className="bg-emerald-600 text-white hover:bg-emerald-700 font-bold py-1.5 px-4 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all disabled:opacity-50"
+                                            >
+                                                <Save className="h-3.5 w-3.5" />
+                                                {isSavingManualCron ? 'Salvando...' : 'Salvar Cronograma'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Items Table */}
+                                    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left text-[10px] font-bold uppercase tracking-tight text-zinc-900">
+                                                <thead className="bg-zinc-100 text-zinc-600 text-[9px] border-b border-gray-200">
+                                                    <tr>
+                                                        <th className="p-3 w-[20%]">Data do Agendamento</th>
+                                                        <th className="p-3 w-[15%]">Semana</th>
+                                                        <th className="p-3 w-[30%]">Item (Procure na percapta)</th>
+                                                        <th className="p-3 w-[12%]">Peso (Kg)</th>
+                                                        <th className="p-3 w-[12%]">Val. Unitário (R$)</th>
+                                                        <th className="p-3 w-[12%]">Val. Total (R$)</th>
+                                                        <th className="p-3 text-center w-[5%]">Ação</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {isLoadingManualCron ? (
+                                                        <tr>
+                                                            <td colSpan={7} className="p-8 text-center text-zinc-400 italic">
+                                                                Carregando dados salvos...
+                                                            </td>
+                                                        </tr>
+                                                    ) : manualCronItems.length > 0 ? (
+                                                        manualCronItems.map((item, idx) => (
+                                                            <tr key={item.id || idx} className="border-b border-gray-100 hover:bg-zinc-50/50">
+                                                                <td className="p-2">
+                                                                    <input 
+                                                                        type="date"
+                                                                        value={item.date}
+                                                                        onChange={e => updateManualCronItem(item.id, 'date', e.target.value)}
+                                                                        className="w-full h-8 px-2 border border-gray-200 rounded-md font-bold text-[10px] outline-none focus:ring-1 focus:ring-zinc-400"
+                                                                    />
+                                                                </td>
+                                                                <td className="p-2">
+                                                                    <input 
+                                                                        type="text"
+                                                                        value={item.week}
+                                                                        onChange={e => updateManualCronItem(item.id, 'week', e.target.value)}
+                                                                        placeholder="Semana X"
+                                                                        className="w-full h-8 px-2 border border-gray-200 rounded-md font-bold text-[10px] outline-none focus:ring-1 focus:ring-zinc-400"
+                                                                    />
+                                                                </td>
+                                                                <td className="p-2">
+                                                                    <input 
+                                                                        type="text"
+                                                                        list="available-items-manual-cronograma"
+                                                                        value={item.item}
+                                                                        onChange={e => updateManualCronItem(item.id, 'item', e.target.value)}
+                                                                        placeholder="Nome do Item"
+                                                                        className="w-full h-8 px-2 border border-gray-200 rounded-md font-bold text-[10px] outline-none focus:ring-1 focus:ring-zinc-400 uppercase"
+                                                                    />
+                                                                </td>
+                                                                <td className="p-2">
+                                                                    <input 
+                                                                        type="number"
+                                                                        step="0.001"
+                                                                        value={item.kg || ''}
+                                                                        onChange={e => updateManualCronItem(item.id, 'kg', e.target.value)}
+                                                                        placeholder="0,000"
+                                                                        className="w-full h-8 px-2 border border-gray-200 rounded-md font-mono text-[10px] outline-none focus:ring-1 focus:ring-zinc-400"
+                                                                    />
+                                                                </td>
+                                                                <td className="p-2">
+                                                                    <input 
+                                                                        type="number"
+                                                                        step="0.01"
+                                                                        value={item.unitPrice || ''}
+                                                                        onChange={e => updateManualCronItem(item.id, 'unitPrice', e.target.value)}
+                                                                        placeholder="R$ 0,00"
+                                                                        className="w-full h-8 px-2 border border-gray-200 rounded-md font-mono text-[10px] outline-none focus:ring-1 focus:ring-zinc-400"
+                                                                    />
+                                                                </td>
+                                                                <td className="p-2">
+                                                                    <input 
+                                                                        type="number"
+                                                                        step="0.01"
+                                                                        value={item.totalValue || ''}
+                                                                        onChange={e => updateManualCronItem(item.id, 'totalValue', e.target.value)}
+                                                                        placeholder="R$ 0,00"
+                                                                        className="w-full h-8 px-2 border border-gray-200 rounded-md font-mono text-[10px] outline-none focus:ring-1 focus:ring-zinc-400 bg-zinc-50"
+                                                                    />
+                                                                </td>
+                                                                <td className="p-2 text-center">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => removeManualCronItem(item.id)}
+                                                                        className="p-1.5 hover:bg-red-50 text-red-500 rounded-lg transition-all"
+                                                                        title="Excluir item"
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    ) : (
+                                                        <tr>
+                                                            <td colSpan={7} className="p-8 text-center text-zinc-400 italic">
+                                                                Nenhum item adicionado ao cronograma manual. Clique em "Adicionar Item" para iniciar.
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    {/* Datalist for autocomplete */}
+                                    <datalist id="available-items-manual-cronograma">
+                                        {Array.from(new Set([
+                                            ...acquisitionItems.map(ai => ai.name),
+                                            ...suppliers.flatMap(s => (s.contractItems || []).map((ci: any) => ci.name || ci.itemName))
+                                        ])).filter(Boolean).sort().map(name => (
+                                            <option key={name} value={name} />
+                                        ))}
+                                    </datalist>
+
+                                    {/* Live Document Preview */}
                                     <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 md:p-8 shadow-inner space-y-6 max-w-4xl mx-auto text-black font-serif text-[12px] leading-relaxed relative">
-                                        <div className="absolute top-3 right-3 bg-zinc-900 text-white font-sans text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest shadow">
-                                            Pré-visualização do Documento
+                                        <div className="absolute top-3 right-3 bg-emerald-600 text-white font-sans text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest shadow">
+                                            Pré-visualização do Documento Manual
                                         </div>
                                         <div className="text-center font-bold text-lg border-b border-gray-200 pb-4 uppercase tracking-wider font-serif text-zinc-900">
                                             Cronograma de Entrega
@@ -2107,10 +2552,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                         
                                         <div className="text-justify indent-0 font-serif space-y-4 text-zinc-900">
                                             <p>
-                                                <strong>Agricultor/produtor:</strong> <span className="underline">{cronogramaDetails.supplier?.name?.toUpperCase() || 'DESCONHECIDO'}</span>, maior, capaz e residente na <span className="underline">{cronogramaDetails.supplier?.address || 'NÃO INFORMADO'}</span>, inscrito no CPF/CNPJ: <span className="underline">{cronogramaDetails.supplier?.cpfCnpj || cronogramaDetails.supplier?.cpf || 'NÃO INFORMADO'}</span>, doravante designado contratado.
+                                                <strong>Agricultor/fornecedor:</strong> <span className="underline">{manualCronSupplierName || 'DESCONHECIDO'}</span>, maior, capaz e residente na <span className="underline">{manualCronSupplierAddress || 'NÃO INFORMADO'}</span>, inscrito no CPF/CNPJ: <span className="underline">{manualCronSupplierCpfCnpj || 'NÃO INFORMADO'}</span>, doravante designado contratado.
                                             </p>
                                             <p>
-                                                Solicitamos as devidas providências de Vossa Senhoria, no sentido de fornecer a esta Unidade Prisional, os itens relacionados abaixo, conforme especificações constantes no Folheto Descrito, durante o período de <span className="underline font-bold">{selectedMonth.toUpperCase()} DE {selectedYear}</span>. As entregas deverão ser efetuadas no endereço infra mencionado, impreterivelmente no dia e horário (das 08:00 às 11:00 horas e das 13:00 às 16:00horas) estipulado neste cronograma.
+                                                Solicitamos as devidas providências de Vossa Senhoria, no sentido de fornecer a esta Unidade Prisional, os itens relacionados abaixo, conforme especificações constantes no Folheto Descrito, durante o período de <span className="underline font-bold">{manualCronMonth.toUpperCase()} DE {manualCronYear}</span>. As entregas deverão ser efetuadas no endereço infra mencionado, impreterivelmente no dia e horário (das 08:00 às 11:00 horas e das 13:00 às 16:00horas) estipulado neste cronograma.
                                             </p>
                                         </div>
 
@@ -2130,28 +2575,47 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {cronogramaDetails.monthlyItemsList.length > 0 ? (
-                                                        cronogramaDetails.monthlyItemsList.map((item: any, idx: number) => (
-                                                            <tr key={idx} className="border-b border-black">
-                                                                <td className="border border-black p-2 text-center font-mono">{item.dateWithWeek || item.date}</td>
-                                                                <td className="border border-black p-2 font-bold">{item.itemFull || item.item}</td>
-                                                                <td className="border border-black p-2 text-center font-mono">{item.kg.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
-                                                                <td className="border border-black p-2 text-center font-mono">R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                                                <td className="border border-black p-2 text-center font-mono">R$ {item.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                                            </tr>
-                                                        ))
+                                                    {manualCronItems.length > 0 ? (
+                                                        manualCronItems.map((item: any, idx: number) => {
+                                                            const kgVal = parseFloat(item.kg) || 0;
+                                                            const unitPriceVal = parseFloat(item.unitPrice) || 0;
+                                                            const totalVal = parseFloat(item.totalValue) || 0;
+                                                            
+                                                            let dateDisplay = item.date;
+                                                            if (item.date && item.date.includes('-')) {
+                                                                const parts = item.date.split('-');
+                                                                dateDisplay = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                                                            }
+                                                            if (item.week) {
+                                                                dateDisplay = `${dateDisplay} (${item.week.toUpperCase()})`;
+                                                            }
+
+                                                            return (
+                                                                <tr key={idx} className="border-b border-black">
+                                                                    <td className="border border-black p-2 text-center font-mono">{dateDisplay}</td>
+                                                                    <td className="border border-black p-2 font-bold">{(item.item || '').toUpperCase()}</td>
+                                                                    <td className="border border-black p-2 text-center font-mono">{kgVal.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
+                                                                    <td className="border border-black p-2 text-center font-mono">R$ {unitPriceVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                    <td className="border border-black p-2 text-center font-mono">R$ {totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                </tr>
+                                                            );
+                                                        })
                                                     ) : (
                                                         <tr>
                                                             <td colSpan={5} className="border border-black p-6 text-center font-bold text-gray-500 italic">
-                                                                Nenhum item constante na nota fiscal / entrada para este período e fornecedor.
+                                                                Nenhum item adicionado ao cronograma manual.
                                                             </td>
                                                         </tr>
                                                     )}
                                                     <tr className="bg-gray-100 font-bold border-t border-black">
                                                         <td colSpan={2} className="border border-black p-2 text-right">Totais:</td>
-                                                        <td className="border border-black p-2 text-center font-mono">{cronogramaDetails.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
+                                                        <td className="border border-black p-2 text-center font-mono">
+                                                            {manualCronItems.reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg
+                                                        </td>
                                                         <td className="border border-black p-2 text-center">---</td>
-                                                        <td className="border border-black p-2 text-center font-mono font-bold">R$ {cronogramaDetails.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                        <td className="border border-black p-2 text-center font-mono font-bold">
+                                                            R$ {manualCronItems.reduce((sum, item) => sum + (parseFloat(item.totalValue) || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
                                                     </tr>
                                                 </tbody>
                                             </table>
@@ -2163,7 +2627,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
                                         <div className="flex flex-col md:flex-row justify-between items-center pt-4 border-t border-gray-100 gap-4">
                                             <div className="text-[11px] font-bold font-serif text-zinc-900">
-                                                Taiuva, {cronogramaDetails.firstBusinessDay.getDate()} de {cronogramaDetails.firstBusinessDay.toLocaleDateString('pt-BR', { month: 'long' })} de {selectedYear}
+                                                Taiuva, {getFirstBusinessDayOfMonth(MONTHS_PT.indexOf(manualCronMonth), manualCronYear).getDate()} de {getFirstBusinessDayOfMonth(MONTHS_PT.indexOf(manualCronMonth), manualCronYear).toLocaleDateString('pt-BR', { month: 'long' })} de {manualCronYear}
                                             </div>
                                             <div className="text-center font-serif text-zinc-900">
                                                 <div className="w-48 border-t border-black mx-auto mb-1"></div>
@@ -2174,8 +2638,211 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     </div>
                                 </div>
                             ) : (
-                                <div className="py-20 text-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-200">
-                                    <p className="text-zinc-400 font-bold uppercase tracking-[0.2em] text-[10px]">Selecione um processo e fornecedor para visualizar o cronograma</p>
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Processo</label>
+                                            <select 
+                                                value={cronogramaType} 
+                                                onChange={e => { setCronogramaType(e.target.value as any); setSelectedCronogramaSupplier(''); }}
+                                                className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase"
+                                            >
+                                                <option value="PPAIS">PPAIS</option>
+                                                <option value="ESTOCÁVEIS">ESTOCÁVEIS</option>
+                                                <option value="PERECÍVEIS">PERECÍVEIS</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Buscar Fornecedor</label>
+                                            <input 
+                                                type="text"
+                                                placeholder="Buscar..."
+                                                value={cronogramaSupplierSearch}
+                                                onChange={e => { setCronogramaSupplierSearch(e.target.value); setSelectedCronogramaSupplier(''); }}
+                                                className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase placeholder-gray-400"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Fornecedor / Produtor</label>
+                                            <select 
+                                                value={selectedCronogramaSupplier} 
+                                                onChange={e => setSelectedCronogramaSupplier(e.target.value)}
+                                                className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase"
+                                            >
+                                                <option value="">-- SELECIONE --</option>
+                                                {filteredCronogramaSuppliers.map((s: any) => (
+                                                    <option key={s.cpfCnpj || s.cpf} value={s.cpfCnpj || s.cpf}>{s.name.toUpperCase()}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Mês Ref.</label>
+                                            <select 
+                                                value={selectedMonth} 
+                                                onChange={e => setSelectedMonth(e.target.value)}
+                                                className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase"
+                                            >
+                                                {MONTHS_PT.map(m => <option key={m} value={m}>{m}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Ano Ref.</label>
+                                            <select 
+                                                value={selectedYear} 
+                                                onChange={e => setSelectedYear(Number(e.target.value))}
+                                                className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase"
+                                            >
+                                                {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    {selectedCronogramaSupplier ? (
+                                        <div className="animate-fade-in space-y-4">
+                                            <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex flex-col md:flex-row justify-between gap-4 italic font-bold text-[10px] uppercase">
+                                                <div>
+                                                    <span className="text-indigo-400 mr-2">Processo SEI:</span>
+                                                    <span className="text-zinc-900">{perCapitaConfig?.seiProcessNumbers?.[cronogramaType] || 'Indefinido'}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-indigo-400 mr-2">Data do Documento:</span>
+                                                    <span className="text-zinc-900">{getFirstBusinessDayOfMonth(MONTHS_PT.indexOf(selectedMonth), selectedYear).toLocaleDateString('pt-BR')} (1º Dia Útil)</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                                {/* Grade de visualização dos agendamentos do mês */}
+                                                {Array.from({ length: 4 }, (_, i) => i + 1).map(week => {
+                                                    const supplier = (cronogramaType === 'PPAIS' ? (perCapitaConfig?.ppaisProducers || []) : 
+                                                                     cronogramaType === 'PERECÍVEIS' ? (perCapitaConfig?.pereciveisSuppliers || []) : 
+                                                                     (perCapitaConfig?.estocaveisSuppliers || [])).find((s: any) => (matchCpf(s.cpfCnpj, selectedCronogramaSupplier) || matchCpf(s.cpf, selectedCronogramaSupplier))) || 
+                                                                     suppliers.find(s => matchCpf(s.cpf, selectedCronogramaSupplier));
+                                                    
+                                                    const safeMonthSchedule = supplier?.monthlySchedule?.[selectedMonth] || 
+                                                                              supplier?.monthlySchedule?.[selectedMonth.toUpperCase()] || 
+                                                                              supplier?.monthlySchedule?.[selectedMonth.toLowerCase()] ||
+                                                                              supplier?.monthlySchedule?.[selectedMonth.charAt(0).toUpperCase() + selectedMonth.slice(1).toLowerCase()] || [];
+                                                    const isScheduled = safeMonthSchedule.includes(week);
+                                                    
+                                                    return (
+                                                        <div key={week} className={`p-4 rounded-2xl border-2 transition-all ${isScheduled ? 'bg-white border-indigo-500 shadow-md' : 'bg-gray-50 border-gray-100 opacity-50'}`}>
+                                                            <div className="flex justify-between items-center mb-3">
+                                                                <h4 className="text-[10px] font-black uppercase text-zinc-900 tracking-tighter">Semana {week}</h4>
+                                                                {isScheduled ? (
+                                                                    <span className="bg-indigo-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase">Agendado</span>
+                                                                ) : (
+                                                                    <span className="bg-gray-200 text-gray-500 text-[8px] font-bold px-2 py-0.5 rounded-full uppercase">Livre</span>
+                                                                )}
+                                                            </div>
+                                                            <div className="space-y-2 text-[9px] font-bold uppercase italic">
+                                                                <p className="text-zinc-500 mb-1">Notas Fiscais:</p>
+                                                                {(() => {
+                                                                    const deliveries = ensureArray(supplier?.deliveries) as any[];
+                                                                    const monthIndex = MONTHS_PT.indexOf(selectedMonth);
+                                                                    const invoices = new Set<string>();
+                                                                    
+                                                                    deliveries.forEach((d: any) => {
+                                                                        const deliveryDate = new Date((d.invoiceDate || d.date) + 'T12:00:00');
+                                                                        // Simple logic: mapping delivery weeks to 1-4. Real logic is complex, 
+                                                                        // for now checking month and year:
+                                                                        if (deliveryDate.getMonth() === monthIndex && deliveryDate.getFullYear() === selectedYear) {
+                                                                             // Here, to filter by week, would need more complex logic. 
+                                                                             // Showing all for the month for now.
+                                                                             if (d.invoiceNumber) invoices.add(String(d.invoiceNumber).trim());
+                                                                        }
+                                                                    });
+                                                                    return Array.from(invoices).map(inv => (
+                                                                        <span key={inv} className="block text-indigo-900 bg-indigo-100 p-1 rounded my-0.5">NF: {inv}</span>
+                                                                    ));
+                                                                })()}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {/* Visual preview of the official printed document layout */}
+                                            <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 md:p-8 shadow-inner space-y-6 max-w-4xl mx-auto text-black font-serif text-[12px] leading-relaxed relative">
+                                                <div className="absolute top-3 right-3 bg-zinc-900 text-white font-sans text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest shadow">
+                                                    Pré-visualização do Documento
+                                                </div>
+                                                <div className="text-center font-bold text-lg border-b border-gray-200 pb-4 uppercase tracking-wider font-serif text-zinc-900">
+                                                    Cronograma de Entrega
+                                                </div>
+                                                
+                                                <div className="text-justify indent-0 font-serif space-y-4 text-zinc-900">
+                                                    <p>
+                                                        <strong>Agricultor/fornecedor:</strong> <span className="underline">{cronogramaDetails.supplier?.name?.toUpperCase() || 'DESCONHECIDO'}</span>, maior, capaz e residente na <span className="underline">{cronogramaDetails.supplier?.address || 'NÃO INFORMADO'}</span>, inscrito no CPF/CNPJ: <span className="underline">{cronogramaDetails.supplier?.cpfCnpj || cronogramaDetails.supplier?.cpf || 'NÃO INFORMADO'}</span>, doravante designado contratado.
+                                                    </p>
+                                                    <p>
+                                                        Solicitamos as devidas providências de Vossa Senhoria, no sentido de fornecer a esta Unidade Prisional, os itens relacionados abaixo, conforme especificações constantes no Folheto Descrito, durante o período de <span className="underline font-bold">{selectedMonth.toUpperCase()} DE {selectedYear}</span>. As entregas deverão ser efetuadas no endereço infra mencionado, impreterivelmente no dia e horário (das 08:00 às 11:00 horas e das 13:00 às 16:00horas) estipulado neste cronograma.
+                                                    </p>
+                                                </div>
+
+                                                <div className="border border-black bg-gray-50 text-center font-bold text-[11px] py-1 uppercase font-serif text-zinc-950">
+                                                    Relação de itens a ser entregue
+                                                </div>
+
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full border-collapse border border-black text-left text-[11px] uppercase font-serif text-zinc-950">
+                                                        <thead>
+                                                            <tr className="bg-gray-100 font-bold border-b border-black text-center">
+                                                                <th className="border border-black p-2 w-[25%]">Data do Agendamento</th>
+                                                                <th className="border border-black p-2 w-[35%]">Item</th>
+                                                                <th className="border border-black p-2 w-[15%]">Peso (Kg)</th>
+                                                                <th className="border border-black p-2 w-[15%]">Valor Unitário</th>
+                                                                <th className="border border-black p-2 w-[15%]">Valor Total</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {cronogramaDetails.monthlyItemsList.length > 0 ? (
+                                                                cronogramaDetails.monthlyItemsList.map((item: any, idx: number) => (
+                                                                    <tr key={idx} className="border-b border-black">
+                                                                        <td className="border border-black p-2 text-center font-mono">{item.dateWithWeek || item.date}</td>
+                                                                        <td className="border border-black p-2 font-bold">{item.itemFull || item.item}</td>
+                                                                        <td className="border border-black p-2 text-center font-mono">{item.kg.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
+                                                                        <td className="border border-black p-2 text-center font-mono">R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                        <td className="border border-black p-2 text-center font-mono">R$ {item.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                    </tr>
+                                                                ))
+                                                            ) : (
+                                                                <tr>
+                                                                    <td colSpan={5} className="border border-black p-6 text-center font-bold text-gray-500 italic">
+                                                                        Nenhum item constante na nota fiscal / entrada para este período e fornecedor.
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+                                                            <tr className="bg-gray-100 font-bold border-t border-black">
+                                                                <td colSpan={2} className="border border-black p-2 text-right">Totais:</td>
+                                                                <td className="border border-black p-2 text-center font-mono">{cronogramaDetails.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
+                                                                <td className="border border-black p-2 text-center">---</td>
+                                                                <td className="border border-black p-2 text-center font-mono font-bold">R$ {cronogramaDetails.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+
+                                                <p className="text-[10px] text-justify text-gray-600 font-serif leading-normal">
+                                                    De acordo com a Cláusula Segunda do contrato no seu item 1º. O objeto da presente contratação será entregue parceladamente, nos prazos e locais determinados pela CONTRATANTE, conforme cronograma de fornecimento Anexo I do presente contrato.
+                                                </p>
+
+                                                <div className="flex flex-col md:flex-row justify-between items-center pt-4 border-t border-gray-100 gap-4">
+                                                    <div className="text-[11px] font-bold font-serif text-zinc-900">
+                                                        Taiuva, {cronogramaDetails.firstBusinessDay.getDate()} de {cronogramaDetails.firstBusinessDay.toLocaleDateString('pt-BR', { month: 'long' })} de {selectedYear}
+                                                    </div>
+                                                    <div className="text-center font-serif text-zinc-900">
+                                                        <div className="w-48 border-t border-black mx-auto mb-1"></div>
+                                                        <div className="font-bold text-[11px]">JOSÉ FABIANO MOUTIN</div>
+                                                        <div className="text-[9px] text-gray-500">Chefe de Seção de Finanças e Suprimentos</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="py-20 text-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-200">
+                                            <p className="text-zinc-400 font-bold uppercase tracking-[0.2em] text-[10px]">Selecione um processo e fornecedor para visualizar o cronograma</p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
