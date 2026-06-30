@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Printer, PenTool, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 interface RondaRegistroFormProps {

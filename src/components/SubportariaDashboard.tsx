@@ -5,7 +5,7 @@ import AgendaChegadas from './AgendaChegadas';
 import RondaRegistroForm from './RondaRegistroForm';
 import AdminPasswordManager from './AdminPasswordManager';
 import { ClipboardList, Wrench, Calendar, Car } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ensureArray } from '../lib/utils';
 
 interface SubportariaDashboardProps {

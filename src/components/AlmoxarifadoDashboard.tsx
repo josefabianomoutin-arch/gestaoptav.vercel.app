@@ -146,7 +146,174 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [cronogramaType, setCronogramaType] = useState<'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS'>('PPAIS');
     const [selectedCronogramaSupplier, setSelectedCronogramaSupplier] = useState('');
+    const [cronogramaSupplierSearch, setCronogramaSupplierSearch] = useState('');
     const [invoiceSearch, setInvoiceSearch] = useState('');
+
+    const filteredCronogramaSuppliers = useMemo(() => {
+        const list = (cronogramaType === 'PPAIS' ? (perCapitaConfig?.ppaisProducers || []) : 
+                      cronogramaType === 'PERECÍVEIS' ? (perCapitaConfig?.pereciveisSuppliers || []) : 
+                      (perCapitaConfig?.estocaveisSuppliers || []));
+                      
+        let combined = [...list];
+        if (cronogramaType === 'ESTOCÁVEIS') {
+            const extraSuppliers = ensureArray(suppliers).filter(s => !ensureArray(perCapitaConfig?.estocaveisSuppliers).some((p: any) => matchCpf(p.cpfCnpj || p.cpf, s.cpf)));
+            combined = [...combined, ...extraSuppliers];
+        }
+        
+        if (!cronogramaSupplierSearch) return combined;
+        const sLower = cronogramaSupplierSearch.toLowerCase();
+        return combined.filter((s: any) => 
+            (s.name || '').toLowerCase().includes(sLower) || 
+            (s.cpf || s.cpfCnpj || '').replace(/\D/g, '').includes(sLower)
+        );
+    }, [cronogramaType, perCapitaConfig, suppliers, cronogramaSupplierSearch]);
+
+    const cronogramaDetails = useMemo(() => {
+        if (!selectedCronogramaSupplier) {
+            return {
+                supplier: null,
+                monthlyItemsList: [],
+                totalWeight: 0,
+                totalValue: 0,
+                firstBusinessDay: new Date()
+            };
+        }
+
+        const monthIndex = MONTHS_PT.indexOf(selectedMonth);
+        const firstBusinessDay = getFirstBusinessDayOfMonth(monthIndex, selectedYear);
+        
+        const pcSupplier = ensureArray(perCapitaConfig?.ppaisProducers).find((p: any) => (matchCpf(p.cpfCnpj, selectedCronogramaSupplier) || matchCpf(p.cpf, selectedCronogramaSupplier))) ||
+                           ensureArray(perCapitaConfig?.pereciveisSuppliers).find((p: any) => (matchCpf(p.cpfCnpj, selectedCronogramaSupplier) || matchCpf(p.cpf, selectedCronogramaSupplier))) ||
+                           ensureArray(perCapitaConfig?.estocaveisSuppliers).find((p: any) => (matchCpf(p.cpfCnpj, selectedCronogramaSupplier) || matchCpf(p.cpf, selectedCronogramaSupplier)));
+
+        const mainSupplier = ensureArray(suppliers).find(s => matchCpf(s.cpf, selectedCronogramaSupplier));
+
+        const supplier: any = {
+            ...((mainSupplier as any) || {}),
+            ...((pcSupplier as any) || {}),
+            name: (pcSupplier as any)?.name || (mainSupplier as any)?.name || 'DESCONHECIDO',
+            cpfCnpj: (pcSupplier as any)?.cpfCnpj || (mainSupplier as any)?.cpf || selectedCronogramaSupplier,
+            address: (pcSupplier as any)?.address || (mainSupplier as any)?.address || ''
+        };
+
+        const getDeliveryMonthAndYear = (d: any) => {
+            const dateStr = d.date || d.invoiceDate;
+            if (!dateStr) return { month: -1, year: -1 };
+            
+            if (dateStr.includes('-')) {
+                const parts = dateStr.split('-');
+                if (parts[0].length === 4) {
+                    return { month: parseInt(parts[1], 10) - 1, year: parseInt(parts[0], 10) };
+                }
+            }
+            if (dateStr.includes('/')) {
+                const parts = dateStr.split('/');
+                if (parts[2] && parts[2].length === 4) {
+                    return { month: parseInt(parts[1], 10) - 1, year: parseInt(parts[2], 10) };
+                }
+            }
+            try {
+                const parsed = new Date(dateStr + 'T12:00:00');
+                return { month: parsed.getMonth(), year: parsed.getFullYear() };
+            } catch (e) {
+                return { month: -1, year: -1 };
+            }
+        };
+
+        const cleanCpfCnpj = (s: string) => String(s || '').replace(/\D/g, '');
+        const supplierCleanCpf = cleanCpfCnpj(selectedCronogramaSupplier);
+
+        // 1. Get deliveries from supplier.deliveries
+        const deliveriesFromSupplier = ensureArray(supplier.deliveries || []);
+
+        // 2. Get deliveries from warehouseLog (which is the direct log of entries)
+        const deliveriesFromLog = ensureArray(warehouseLog || []).filter((log: any) => {
+            if (!log || log.type !== 'entrada') return false;
+            const logCpf = cleanCpfCnpj(log.supplierCpf);
+            return (logCpf && logCpf === supplierCleanCpf) || 
+                   (log.supplierName && log.supplierName.toUpperCase() === supplier.name.toUpperCase());
+        });
+
+        const monthlyItemsList: any[] = [];
+        const seenDeliveries = new Set<string>();
+
+        const addUniqueDelivery = (date: string, item: string, kg: number, value: number, invoice: string) => {
+            if (!date || !item || kg <= 0) return;
+            
+            let formattedDate = date;
+            if (date.includes('-')) {
+                const parts = date.split('-');
+                if (parts[0].length === 4) {
+                    formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                }
+            }
+            
+            const uniqueKey = `${formattedDate}_${item.toUpperCase()}_${kg.toFixed(3)}`;
+            if (seenDeliveries.has(uniqueKey)) return;
+            seenDeliveries.add(uniqueKey);
+            
+            const unitPrice = kg > 0 ? (value / kg) : 0;
+            
+            monthlyItemsList.push({
+                date: formattedDate,
+                item: item.toUpperCase(),
+                kg: kg,
+                unitPrice: unitPrice,
+                totalValue: value,
+                invoiceNumber: invoice
+            });
+        };
+
+        // Add from supplier deliveries
+        deliveriesFromSupplier.forEach((d: any) => {
+            if (!d || d.item === 'AGENDAMENTO PENDENTE') return;
+            const { month, year } = getDeliveryMonthAndYear(d);
+            if (month === monthIndex && year === selectedYear) {
+                addUniqueDelivery(
+                    d.date || d.invoiceDate,
+                    d.item,
+                    Number(d.kg || d.quantity || 0),
+                    Number(d.value || 0),
+                    d.invoiceNumber || ''
+                );
+            }
+        });
+
+        // Add from warehouseLog
+        deliveriesFromLog.forEach((log: any) => {
+            if (!log) return;
+            const { month, year } = getDeliveryMonthAndYear(log);
+            if (month === monthIndex && year === selectedYear) {
+                addUniqueDelivery(
+                    log.date,
+                    log.itemName,
+                    Number(log.quantity || log.kg || 0),
+                    Number(log.value || 0),
+                    log.inboundInvoice || log.invoiceNumber || ''
+                );
+            }
+        });
+
+        // Sort by date ascending
+        monthlyItemsList.sort((a, b) => {
+            const parseDateStr = (str: string) => {
+                const parts = str.split('/');
+                return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])).getTime();
+            };
+            return parseDateStr(a.date) - parseDateStr(b.date);
+        });
+
+        const totalWeight = monthlyItemsList.reduce((sum, item) => sum + item.kg, 0);
+        const totalValue = monthlyItemsList.reduce((sum, item) => sum + item.totalValue, 0);
+
+        return {
+            supplier,
+            monthlyItemsList,
+            totalWeight,
+            totalValue,
+            firstBusinessDay
+        };
+    }, [selectedCronogramaSupplier, selectedMonth, selectedYear, cronogramaType, perCapitaConfig, suppliers, warehouseLog]);
 
 
 
@@ -424,211 +591,107 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     }, [imageDeliveries, activeImageMonth, invoiceSearch]);
 
     const handlePrintCronograma = () => {
-        const monthIndex = MONTHS_PT.indexOf(selectedMonth);
-        const firstBusinessDay = getFirstBusinessDayOfMonth(monthIndex, selectedYear);
-        
-        const SeiNumber = perCapitaConfig?.seiProcessNumbers?.[cronogramaType] || '';
-        
-        // Find supplier details in PC config
-        const pcSupplier = ensureArray(perCapitaConfig?.ppaisProducers).find((p: any) => (matchCpf(p.cpfCnpj, selectedCronogramaSupplier) || matchCpf(p.cpf, selectedCronogramaSupplier))) ||
-                           ensureArray(perCapitaConfig?.pereciveisSuppliers).find((p: any) => (matchCpf(p.cpfCnpj, selectedCronogramaSupplier) || matchCpf(p.cpf, selectedCronogramaSupplier))) ||
-                           ensureArray(perCapitaConfig?.estocaveisSuppliers).find((p: any) => (matchCpf(p.cpfCnpj, selectedCronogramaSupplier) || matchCpf(p.cpf, selectedCronogramaSupplier)));
-
-        // Always find the actual supplier with deliveries from the main suppliers prop
-        const mainSupplier = ensureArray(suppliers).find(s => matchCpf(s.cpf, selectedCronogramaSupplier));
-        
-        if (!mainSupplier && !pcSupplier) {
+        const { supplier, monthlyItemsList, totalWeight, totalValue, firstBusinessDay } = cronogramaDetails;
+        if (!supplier) {
             alert('Por favor, selecione um fornecedor.');
             return;
         }
 
-        // Merge info: use pcSupplier for metadata, both for deliveries
-        const supplier: any = {
-            ...((mainSupplier as any) || {}),
-            ...((pcSupplier as any) || {}),
-            name: (pcSupplier as any)?.name || (mainSupplier as any)?.name || 'DESCONHECIDO',
-            cpfCnpj: (pcSupplier as any)?.cpfCnpj || (mainSupplier as any)?.cpf || selectedCronogramaSupplier
-        };
-
-        const divisor = (monthIndex <= 3) ? 4 : 8;
-        const isQ1 = monthIndex <= 3;
-
-        const itemsSource = supplier.contractItems || {};
-        const supplierItems = (ensureArray(itemsSource) as any[]).filter(item => {
-            if (isQ1) {
-                return item.period !== '2_3_QUAD';
-            } else {
-                return !item.period || item.period === '2_3_QUAD';
-            }
-        });
-
-        const availableDatesList: string[] = [];
-        const daysInMonthObj = new Date(selectedYear, monthIndex + 1, 0).getDate();
-        const validWeeksForPC = supplier.monthlySchedule?.[selectedMonth] || 
-                                supplier.monthlySchedule?.[selectedMonth.toUpperCase()] || 
-                                supplier.monthlySchedule?.[selectedMonth.toLowerCase()] ||
-                                supplier.monthlySchedule?.[selectedMonth.charAt(0).toUpperCase() + selectedMonth.slice(1).toLowerCase()];
-        const allowedWeeksArray = supplier.allowedWeeks || [];
-
-        for (let d = 1; d <= daysInMonthObj; d++) {
-            const date = new Date(selectedYear, monthIndex, d);
-            // Corrige fuso horário
-            const dateStrRaw = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-            
-            const dayOfWeek = date.getDay();
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-            const isHoliday = !!HOLIDAYS_2026[dateStrRaw];
-            
-            if (!isWeekend && !isHoliday) {
-                if (validWeeksForPC && validWeeksForPC.length > 0) {
-                    const wNum = getWeekNumber(new Date(dateStrRaw + 'T12:00:00'));
-                    if (validWeeksForPC.includes(wNum)) {
-                        availableDatesList.push(date.toLocaleDateString('pt-BR'));
-                    }
-                } else if (allowedWeeksArray.length > 0) {
-                    const wNum = getWeekNumber(new Date(dateStrRaw + 'T12:00:00'));
-                    if (allowedWeeksArray.includes(wNum)) {
-                        availableDatesList.push(date.toLocaleDateString('pt-BR'));
-                    }
-                } else {
-                    availableDatesList.push(date.toLocaleDateString('pt-BR'));
-                }
-            }
-        }
-
-        const datesScheduled = availableDatesList.length > 0 ? availableDatesList.join(', ') : 'NENHUM DIA DISPONÍVEL';
-
-        const printItems = supplierItems.map(item => {
-            const quota = (item.totalKg || 0) / divisor;
-            return {
-                item: item.name,
-                totalKg: quota,
-                datesScheduled: datesScheduled,
-                valuePerKg: item.valuePerKg || 0
-            };
-        }).sort((a, b) => a.item.localeCompare(b.item));
-
-        const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
-        const commitmentNumbers = [...new Set(printItems.map(d => {
-            const normIt = normalize(d.item);
-            const acqItem = acquisitionItems?.find(ai => normalize(ai.name) === normIt || normalize(ai.nickname) === normIt);
-            if (acqItem?.commitmentNumber) return acqItem.commitmentNumber;
-            const contractItem = supplierItems.find(ci => normalize(ci.name) === normIt);
-            return contractItem?.commitmentNumber;
-        }).filter(Boolean))];
-        const commitmentStr = commitmentNumbers.length > 0 ? commitmentNumbers.join(' / ') : 'N/A';
-
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
+
+        const dateStrFirstBusinessDay = `${firstBusinessDay.getDate()} de ${firstBusinessDay.toLocaleDateString('pt-BR', { month: 'long' })} de ${selectedYear}`;
 
         const htmlContent = `
             <html>
             <head>
-                <title>Romaneio - ${selectedMonth} de ${selectedYear}</title>
+                <title>Cronograma de Entrega - ${selectedMonth} de ${selectedYear}</title>
                 <style>
-                    @page { size: A4 portrait; margin: 15mm; }
-                    body { font-family: Arial, sans-serif; font-size: 10pt; line-height: 1.4; color: #000; }
-                    .header-title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+                    @page { size: A4 portrait; margin: 20mm 15mm 20mm 15mm; }
+                    body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #000; margin: 0; padding: 0; }
+                    .container { width: 100%; }
+                    .header-title { text-align: center; font-weight: bold; font-size: 15pt; text-transform: uppercase; margin-top: 20px; margin-bottom: 30px; letter-spacing: 1px; }
                     
-                    .header-boxes { display: flex; gap: 10px; margin-bottom: 20px; }
-                    .header-box { flex: 1; border: 1.5px solid #000; padding: 10px; border-radius: 4px; }
-                    .box-row { margin-bottom: 4px; }
-                    .label { font-weight: bold; text-transform: uppercase; }
+                    .paragraph { text-align: justify; margin-bottom: 20px; text-indent: 0px; font-size: 11pt; }
                     
-                    .intro-text { text-align: justify; margin-bottom: 20px; font-size: 9pt; }
+                    .section-title-box { border: 1.5px solid #000; text-align: center; font-weight: bold; font-size: 12pt; text-transform: uppercase; padding: 6px; margin-top: 30px; margin-bottom: 15px; background-color: #f2f2f2; }
                     
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; text-transform: uppercase; }
-                    th, td { border: 1.5px solid #000; padding: 6px; text-align: left; vertical-align: middle; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 25px; text-transform: uppercase; font-size: 10pt; }
+                    th, td { border: 1.5px solid #000; padding: 8px; text-align: left; vertical-align: middle; }
                     th { font-weight: bold; text-transform: uppercase; background-color: #f2f2f2; text-align: center; }
-                    
-                    .footer-location { text-align: right; margin-top: 40px; font-weight: bold; }
-                    .signature-section { margin-top: 80px; text-align: center; }
-                    .signature-line { border-top: 1.5px solid #000; width: 300px; margin: 0 auto 5px auto; }
-                    .signature-name { font-weight: bold; text-transform: uppercase; }
-                    .signature-role { font-size: 9pt; }
                     
                     .text-center { text-align: center; }
                     .text-right { text-align: right; }
                     .font-bold { font-weight: bold; }
-                    .text-xs { font-size: 8pt; }
+                    .font-mono { font-family: monospace; }
+                    
+                    .footer-location { text-align: right; margin-top: 50px; font-weight: bold; font-size: 11pt; }
+                    .signature-section { margin-top: 80px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+                    .signature-line { border-top: 1.5px solid #000; width: 350px; margin-bottom: 5px; }
+                    .signature-name { font-weight: bold; text-transform: uppercase; font-size: 11pt; }
+                    .signature-role { font-size: 10pt; color: #444; text-transform: none; }
                 </style>
             </head>
             <body>
-                <div class="header-title">ROMANEIO - ${selectedMonth} DE ${selectedYear}</div>
-                
-                <div class="header-boxes">
-                    <div class="header-box">
-                        <div class="box-row"><span class="label">FORNECEDOR:</span> ${supplier.name.toUpperCase()}</div>
-                        <div class="box-row"><span class="label">CPF/CNPJ:</span> ${supplier.cpfCnpj || supplier.cpf}</div>
-                        <div class="box-row"><span class="label">ENDEREÇO:</span> ${supplier.address || 'N/A'}</div>
+                <div class="container">
+                    <div class="header-title">CRONOGRAMA DE ENTREGA</div>
+                    
+                    <div class="paragraph">
+                        <strong>Agricultor:</strong> ${supplier.name.toUpperCase()}, maior, capaz e residente na ${supplier.address || 'NÃO INFORMADO'}, inscrito no CPF/CNPJ: ${supplier.cpfCnpj || supplier.cpf || 'NÃO INFORMADO'} doravante designado Contratado.
                     </div>
-                    <div class="header-box">
-                        <div class="box-row"><span class="label">PROCESSO SEI:</span> ${SeiNumber || 'N/A'}</div>
-                        <div class="box-row"><span class="label">UNIDADE:</span> PENITENCIÁRIA DE TAIUVA</div>
-                        <div class="box-row"><span class="label">PERÍODO:</span> ${selectedMonth} DE ${selectedYear}</div>
-                        <div class="box-row"><span class="label">Nº EMPENHO:</span> ${commitmentStr}</div>
+                    
+                    <div class="paragraph">
+                        Solicitamos as devidas providências de Vossa Senhoria, no sentido de fornecer a esta Unidade Prisional, os itens relacionados abaixo, conforme especificações constantes no Folheto Descrito, durante o período de ${selectedMonth.toUpperCase()} DE ${selectedYear}. As entregas deverão ser efetuadas no endereço infra mencionado, impreterivelmente no dia e horário (das 08:00 às 11:00 horas e das 13:00 às 16:00horas) estipulado neste cronograma.
                     </div>
-                </div>
-                
-                <div class="intro-text">
-                    Solicitamos as devidas providências no sentido de fornecer a esta Unidade Prisional os itens relacionados abaixo, conforme especificações contratuais. As entregas deverão ser efetuadas no endereço mencionado, das 08:00 às 11:00 horas e das 13:00 às 16:00 horas, conforme estipulado neste romaneio.
-                </div>
-                
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ITEM</th>
-                            <th style="width: 100px;">PESO DO MÊS (KG)</th>
-                            <th style="width: 100px;">VALOR UNITÁRIO (R$)</th>
-                            <th style="width: 100px;">VALOR TOTAL (R$)</th>
-                            <th>DIAS DISPONÍVEIS PARA AGENDAMENTO</th>
-                            <th style="width: 120px;">PESO ENTREGUE</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${printItems.length > 0 ? printItems.map((itemGroup: any) => {
-                            const valPerKg = itemGroup.valuePerKg || 0;
-                            const totalVal = (itemGroup.totalKg || 0) * valPerKg;
-                            return `
+                    
+                    <div class="section-title-box">RELAÇÃO DE ITENS A SER ENTREGUE</div>
+                    
+                    <table>
+                        <thead>
                             <tr>
-                                <td><strong>${itemGroup.item || itemGroup.itemName || ''}</strong></td>
-                                <td class="text-center font-bold">${(itemGroup.totalKg || 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</td>
-                                <td class="text-center font-mono">R$ ${valPerKg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                <td class="text-center font-mono font-bold">R$ ${totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                <td class="text-center text-xs">${itemGroup.datesScheduled}</td>
-                                <td></td>
+                                <th style="width: 25%; text-align: center;">DATA DO AGENDAMENTO</th>
+                                <th style="width: 35%; text-align: center;">ITEM</th>
+                                <th style="width: 15%; text-align: center;">PESO (KG)</th>
+                                <th style="width: 15%; text-align: center;">VALOR UNITÁRIO (R$)</th>
+                                <th style="width: 15%; text-align: center;">VALOR TOTAL (R$)</th>
                             </tr>
-                            `;
-                        }).join('') : `
+                        </thead>
+                        <tbody>
+                            ${monthlyItemsList.length > 0 ? monthlyItemsList.map((item: any) => `
                             <tr>
-                                <td colspan="6" class="text-center italic" style="padding: 20px;">Nenhum item contratual cadastrado para este fornecedor</td>
+                                <td class="text-center font-mono">${item.date}</td>
+                                <td><strong>${item.item}</strong></td>
+                                <td class="text-center font-mono">${item.kg.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
+                                <td class="text-center font-mono">R$ ${item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td class="text-center font-mono">R$ ${item.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                             </tr>
-                        `}
-                        <tr class="font-bold uppercase" style="background-color: #f2f2f2;">
-                            <td class="text-right">TOTAIS DO PERÍODO</td>
-                            <td class="text-center">${printItems.reduce((acc: number, curr: any) => acc + (curr.totalKg || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
-                            <td class="text-center">---</td>
-                            <td class="text-center font-mono">R$ ${printItems.reduce((acc: number, curr: any) => acc + ((curr.totalKg || 0) * (curr.valuePerKg || 0)), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td colspan="2"></td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div style="display: flex; justify-content: space-between; margin-top: 50px;">
-                    <div style="text-align: center; flex: 1;">
-                        <div style="border-top: 1.5px solid #000; width: 250px; margin: 0 auto 5px auto;"></div>
-                        <div style="font-weight: bold; font-size: 8pt;">${supplier.name.toUpperCase()}</div>
-                        <div style="font-size: 9pt;">Contratado</div>
+                            `).join('') : `
+                            <tr>
+                                <td colspan="5" class="text-center font-bold" style="padding: 20px;">NENHUM ITEM CONSTANTE NA NOTA FISCAL / ENTRADA PARA ESTE PERÍODO E FORNECEDOR.</td>
+                            </tr>
+                            `}
+                            <tr class="font-bold uppercase" style="background-color: #f2f2f2;">
+                                <td colspan="2" class="text-right">TOTAIS</td>
+                                <td class="text-center font-mono">${totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
+                                <td class="text-center">---</td>
+                                <td class="text-center font-mono">R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div class="paragraph" style="font-size: 10pt; line-height: 1.5; text-align: justify;">
+                        De acordo com a Cláusula Segunda do contrato no seu item 1º. O objeto da presente contratação será entregue parceladamente, nos prazos e locais determinados pela CONTRATANTE, conforme cronograma de fornecimento Anexo I do presente contrato;
                     </div>
-                </div>
-
-                <div class="footer-location">
-                    Taiuva, ${firstBusinessDay.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
-                </div>
-                
-                <div class="signature-section" style="margin-top: 50px;">
-                    <div class="signature-line"></div>
-                    <div class="signature-role">Responsável pelo Almoxarifado</div>
+                    
+                    <div class="footer-location">
+                        Taiuva, ${dateStrFirstBusinessDay}
+                    </div>
+                    
+                    <div class="signature-section">
+                        <div class="signature-line"></div>
+                        <div class="signature-name">JOSÉ FABIANO MOUTIN</div>
+                        <div class="signature-role">Chefe de Seção de Finanças e Suprimentos</div>
+                    </div>
                 </div>
             </body>
             </html>
@@ -1872,7 +1935,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         </div>
 
                         <div className="p-4 md:p-6 space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Processo</label>
                                     <select 
@@ -1886,6 +1949,16 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     </select>
                                 </div>
                                 <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Buscar Fornecedor</label>
+                                    <input 
+                                        type="text"
+                                        placeholder="Buscar..."
+                                        value={cronogramaSupplierSearch}
+                                        onChange={e => { setCronogramaSupplierSearch(e.target.value); setSelectedCronogramaSupplier(''); }}
+                                        className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase placeholder-gray-400"
+                                    />
+                                </div>
+                                <div className="space-y-1">
                                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Fornecedor / Produtor</label>
                                     <select 
                                         value={selectedCronogramaSupplier} 
@@ -1893,13 +1966,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                         className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-[10px] uppercase"
                                     >
                                         <option value="">-- SELECIONE --</option>
-                                        {(cronogramaType === 'PPAIS' ? (perCapitaConfig?.ppaisProducers || []) : 
-                                          cronogramaType === 'PERECÍVEIS' ? (perCapitaConfig?.pereciveisSuppliers || []) : 
-                                          (perCapitaConfig?.estocaveisSuppliers || [])).map((s: any) => (
-                                            <option key={s.cpfCnpj} value={s.cpfCnpj}>{s.name.toUpperCase()}</option>
-                                          ))}
-                                        {cronogramaType === 'ESTOCÁVEIS' && ensureArray(suppliers).filter(s => !ensureArray(perCapitaConfig?.estocaveisSuppliers).some((p: any) => matchCpf(p.cpfCnpj || p.cpf, s.cpf))).map(s => (
-                                            <option key={s.cpf} value={s.cpf}>{s.name.toUpperCase()}</option>
+                                        {filteredCronogramaSuppliers.map((s: any) => (
+                                            <option key={s.cpfCnpj || s.cpf} value={s.cpfCnpj || s.cpf}>{s.name.toUpperCase()}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -1987,6 +2055,83 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                 </div>
                                             );
                                         })}
+                                    </div>
+
+                                    {/* Visual preview of the official printed document layout */}
+                                    <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 md:p-8 shadow-inner space-y-6 max-w-4xl mx-auto text-black font-serif text-[12px] leading-relaxed relative">
+                                        <div className="absolute top-3 right-3 bg-zinc-900 text-white font-sans text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest shadow">
+                                            Pré-visualização do Documento
+                                        </div>
+                                        <div className="text-center font-bold text-lg border-b border-gray-200 pb-4 uppercase tracking-wider font-serif text-zinc-900">
+                                            Cronograma de Entrega
+                                        </div>
+                                        
+                                        <div className="text-justify indent-0 font-serif space-y-4 text-zinc-900">
+                                            <p>
+                                                <strong>Agricultor/produtor:</strong> <span className="underline">{cronogramaDetails.supplier?.name?.toUpperCase() || 'DESCONHECIDO'}</span>, maior, capaz e residente na <span className="underline">{cronogramaDetails.supplier?.address || 'NÃO INFORMADO'}</span>, inscrito no CPF/CNPJ: <span className="underline">{cronogramaDetails.supplier?.cpfCnpj || cronogramaDetails.supplier?.cpf || 'NÃO INFORMADO'}</span>, doravante designado contratado.
+                                            </p>
+                                            <p>
+                                                Solicitamos as devidas providências de Vossa Senhoria, no sentido de fornecer a esta Unidade Prisional, os itens relacionados abaixo, conforme especificações constantes no Folheto Descrito, durante o período de <span className="underline font-bold">{selectedMonth.toUpperCase()} DE {selectedYear}</span>. As entregas deverão ser efetuadas no endereço infra mencionado, impreterivelmente no dia e horário (das 08:00 às 11:00 horas e das 13:00 às 16:00horas) estipulado neste cronograma.
+                                            </p>
+                                        </div>
+
+                                        <div className="border border-black bg-gray-50 text-center font-bold text-[11px] py-1 uppercase font-serif text-zinc-950">
+                                            Relação de itens a ser entregue
+                                        </div>
+
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full border-collapse border border-black text-left text-[11px] uppercase font-serif text-zinc-950">
+                                                <thead>
+                                                    <tr className="bg-gray-100 font-bold border-b border-black text-center">
+                                                        <th className="border border-black p-2 w-[25%]">Data do Agendamento</th>
+                                                        <th className="border border-black p-2 w-[35%]">Item</th>
+                                                        <th className="border border-black p-2 w-[15%]">Peso (Kg)</th>
+                                                        <th className="border border-black p-2 w-[15%]">Valor Unitário</th>
+                                                        <th className="border border-black p-2 w-[15%]">Valor Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {cronogramaDetails.monthlyItemsList.length > 0 ? (
+                                                        cronogramaDetails.monthlyItemsList.map((item: any, idx: number) => (
+                                                            <tr key={idx} className="border-b border-black">
+                                                                <td className="border border-black p-2 text-center font-mono">{item.date}</td>
+                                                                <td className="border border-black p-2 font-bold">{item.item}</td>
+                                                                <td className="border border-black p-2 text-center font-mono">{item.kg.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
+                                                                <td className="border border-black p-2 text-center font-mono">R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                <td className="border border-black p-2 text-center font-mono">R$ {item.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                            </tr>
+                                                        ))
+                                                    ) : (
+                                                        <tr>
+                                                            <td colSpan={5} className="border border-black p-6 text-center font-bold text-gray-500 italic">
+                                                                Nenhum item constante na nota fiscal / entrada para este período e fornecedor.
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                    <tr className="bg-gray-100 font-bold border-t border-black">
+                                                        <td colSpan={2} className="border border-black p-2 text-right">Totais:</td>
+                                                        <td className="border border-black p-2 text-center font-mono">{cronogramaDetails.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg</td>
+                                                        <td className="border border-black p-2 text-center">---</td>
+                                                        <td className="border border-black p-2 text-center font-mono font-bold">R$ {cronogramaDetails.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <p className="text-[10px] text-justify text-gray-600 font-serif leading-normal">
+                                            De acordo com a Cláusula Segunda do contrato no seu item 1º. O objeto da presente contratação será entregue parceladamente, nos prazos e locais determinados pela CONTRATANTE, conforme cronograma de fornecimento Anexo I do presente contrato.
+                                        </p>
+
+                                        <div className="flex flex-col md:flex-row justify-between items-center pt-4 border-t border-gray-100 gap-4">
+                                            <div className="text-[11px] font-bold font-serif text-zinc-900">
+                                                Taiuva, {cronogramaDetails.firstBusinessDay.getDate()} de {cronogramaDetails.firstBusinessDay.toLocaleDateString('pt-BR', { month: 'long' })} de {selectedYear}
+                                            </div>
+                                            <div className="text-center font-serif text-zinc-900">
+                                                <div className="w-48 border-t border-black mx-auto mb-1"></div>
+                                                <div className="font-bold text-[11px]">JOSÉ FABIANO MOUTIN</div>
+                                                <div className="text-[9px] text-gray-500">Chefe de Seção de Finanças e Suprimentos</div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (

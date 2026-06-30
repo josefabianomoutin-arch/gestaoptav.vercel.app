@@ -1,7 +1,40 @@
 {
   "name": "applet",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 3000"
+    "dev": "vite --host 0.0.0.0 --port 3000",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@google/genai": "^2.10.0",
+    "canvas-confetti": "^1.9.3",
+    "clsx": "^2.1.1",
+    "firebase": "^12.15.0",
+    "framer-motion": "^12.42.1",
+    "html2pdf.js": "^0.14.0",
+    "html5-qrcode": "^2.3.8",
+    "jsbarcode": "^3.12.3",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
+    "lucide-react": "^0.344.0",
+    "qrcode.react": "^4.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^3.9.1",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.6.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/canvas-confetti": "^1.6.4",
+    "@types/node": "^20.11.30",
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.2.0",
+    "vite-plugin-pwa": "^0.19.8"
   }
 }

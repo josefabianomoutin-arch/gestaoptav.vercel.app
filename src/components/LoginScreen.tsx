@@ -6,7 +6,7 @@ import InfobarTicker from './InfobarTicker';
 import { PublicInfo } from '../types';
 
 interface LoginScreenProps {
-  onLogin: (name: string, cpf: string) => boolean;
+  onLogin: (name: string, cpf: string) => boolean | string;
   publicInfoList: PublicInfo[];
   isLoading?: boolean;
 }
@@ -18,8 +18,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList, isLo
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const success = onLogin(loginName, loginCpf);
-    if (!success) {
+    const result = onLogin(loginName, loginCpf);
+    if (result === false) {
       toast.error('Usuário ou senha incorretos!', {
         description: 'Verifique se o CPF/CNPJ (apenas números) ou senha estão corretos.',
         style: { background: '#ef4444', color: '#fff', border: 'none' }

@@ -800,6 +800,14 @@ const App: React.FC = () => {
       setUser({ name: supplier.name, cpf: supplier.cpf, role: 'supplier' });
       return true;
     }
+
+    if (!isSuppliersLoaded || !isPerCapitaConfigLoaded) {
+      toast.info('Sincronizando banco de dados de acessos...', {
+        description: 'Os dados de produtores e fornecedores estão sendo sincronizados do servidor em segundo plano. Por favor, aguarde alguns segundos e tente entrar novamente.',
+        style: { background: '#2563eb', color: '#fff', border: 'none' }
+      });
+      return 'loading';
+    }
     
     return false;
   };
@@ -3036,7 +3044,7 @@ const App: React.FC = () => {
 
     try {
       if (!user) {
-        const isLoadingEssential = !isPasswordsLoaded || !isSuppliersLoaded || !isPerCapitaConfigLoaded;
+        const isLoadingEssential = !isPasswordsLoaded;
         return <LoginScreen onLogin={handleLogin} publicInfoList={publicInfo} isLoading={isLoadingEssential} />;
       }
 
