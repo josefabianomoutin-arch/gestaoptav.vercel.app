@@ -123,7 +123,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     dailyMenus,
     onUpdateDailyMenu,
     directorPerCapita,
-    onUpdateDirectorPerCapita
+    onUpdateDirectorPerCapita,
+    onUpdateThirdPartyEntry
 }) => {
     const [activeTab, setActiveTab] = useState<string>('history');
     const [receiptSupplierCpf, setReceiptSupplierCpf] = useState('');
@@ -2240,6 +2241,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         onDeleteDelivery={onDeleteDelivery}
                         onUpdateDelivery={onUpdateDelivery}
                         onSaveInvoice={onSaveInvoice}
+                        onUpdateThirdPartyEntry={onUpdateThirdPartyEntry}
                     />
                 ) : activeTab === 'cronograma' ? (
                     <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in mb-8">

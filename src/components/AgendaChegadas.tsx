@@ -5,6 +5,7 @@ import { Calendar, Clock, Truck, UserCheck, AlertCircle, Search, Trash2, CheckCi
 import { toast } from 'sonner';
 import SendInvoiceModal from './SendInvoiceModal';
 import { Html5Qrcode } from 'html5-qrcode';
+import { ensureArray } from '../lib/utils';
 
 interface AgendaChegadasProps {
     suppliers: Supplier[];
@@ -80,17 +81,17 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
             }
         };
 
-        suppliers.forEach(s => {
+        ensureArray(suppliers).forEach(s => {
             if (!s) return;
-            const deliveries = (Array.isArray(s.deliveries) ? s.deliveries : Object.values(s.deliveries || {}));
+            const deliveries = ensureArray(s.deliveries);
             deliveries.forEach(d => processDelivery(s as any, d));
         });
 
         if (perCapitaConfig) {
             ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'].forEach(key => {
-                const producers = perCapitaConfig[key] || [];
+                const producers = ensureArray(perCapitaConfig[key]);
                 producers.forEach((p: any) => {
-                    const deliveries = Array.isArray(p.deliveries) ? p.deliveries : Object.values(p.deliveries || {});
+                    const deliveries = ensureArray(p.deliveries);
                     deliveries.forEach(d => processDelivery({ name: p.name, cpf: p.cpfCnpj || p.cpf } as any, d));
                 });
             });
@@ -390,18 +391,18 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
             }
         };
 
-        suppliers.forEach(s => {
+        ensureArray(suppliers).forEach(s => {
             if (!s) return;
-            const deliveries = (Array.isArray(s.deliveries) ? s.deliveries : Object.values(s.deliveries || {}));
+            const deliveries = ensureArray(s.deliveries);
             deliveries.forEach(d => processDelivery(s as any, d, 'FORNECEDOR'));
         });
 
         // Also check perCapitaConfig if they are not in main suppliers
         if (perCapitaConfig) {
             ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'].forEach(key => {
-                const producers = perCapitaConfig[key] || [];
+                const producers = ensureArray(perCapitaConfig[key]);
                 producers.forEach((p: any) => {
-                    const deliveries = Array.isArray(p.deliveries) ? p.deliveries : Object.values(p.deliveries || {});
+                    const deliveries = ensureArray(p.deliveries);
                     deliveries.forEach(d => processDelivery({ name: p.name, cpf: p.cpfCnpj || p.cpf } as any, d, 'FORNECEDOR'));
                 });
             });
@@ -698,17 +699,17 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
 
     const currentSupplierItems = useMemo(() => {
         if (!invoiceInfo) return [];
-        const mainSup = suppliers.find(s => s.cpf === invoiceInfo.supplierCpf);
-        if (mainSup) return mainSup.contractItems || [];
+        const mainSup = ensureArray(suppliers).find(s => s.cpf === invoiceInfo.supplierCpf);
+        if (mainSup) return ensureArray(mainSup.contractItems);
         
         if (perCapitaConfig) {
             const allPC = [
-                ...(perCapitaConfig.ppaisProducers || []),
-                ...(perCapitaConfig.pereciveisSuppliers || []),
-                ...(perCapitaConfig.estocaveisSuppliers || [])
+                ...ensureArray(perCapitaConfig.ppaisProducers),
+                ...ensureArray(perCapitaConfig.pereciveisSuppliers),
+                ...ensureArray(perCapitaConfig.estocaveisSuppliers)
             ];
             const pcSup = allPC.find((p: any) => (p.cpfCnpj || p.cpf) === invoiceInfo.supplierCpf);
-            if (pcSup) return pcSup.contractItems || [];
+            if (pcSup) return ensureArray(pcSup.contractItems);
         }
         return [];
     }, [invoiceInfo, suppliers, perCapitaConfig]);
