@@ -8,6 +8,7 @@ import AgendaChegadas from './AgendaChegadas';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 import { DirectorPerCapitaTable } from './DirectorPerCapitaTable';
 import AdminEPIControl from './AdminEPIControl';
+import AdminPerCapita from './AdminPerCapita';
 
 interface FinanceDashboardProps {
   records: FinancialRecord[];
@@ -33,6 +34,14 @@ interface FinanceDashboardProps {
   temperatureLogs?: any[];
   onRegisterTemperatureLog?: (log: any) => Promise<{ success: boolean; message: string }>;
   onDeleteTemperatureLog?: (id: string) => Promise<void>;
+  onUpdatePerCapitaConfig?: (config: Partial<PerCapitaConfig>) => Promise<any>;
+  onUpdateContractForItem?: (itemName: string, assignments: any[]) => Promise<{ success: boolean; message: string }>;
+  onUpdateAcquisitionItem?: (item: AcquisitionItem) => Promise<{ success: boolean; message: string }>;
+  onDeleteAcquisitionItem?: (id: string) => Promise<{ success: boolean; message: string }>;
+  onUpdateSupplierObservations?: (cpf: string, observations: string) => Promise<{ success: boolean; message?: string }>;
+  onSyncPPAISToAgenda?: () => Promise<void>;
+  onSaveInvoice?: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: any[], invoiceDate?: string) => Promise<any>;
+  onDeleteDelivery?: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean }>;
 }
 
 const PTRES_OPTIONS = ['380302', '380303', '380304', '380308', '380328'] as const;
@@ -49,7 +58,7 @@ const PTRES_DESCRIPTIONS: Record<string, string> = {
 const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
-type SubTab = 'recursos' | 'pagamentos' | 'saldos' | 'cardapio' | 'agenda' | 'vehicles' | 'directors_percapita' | 'epiControl';
+type SubTab = 'recursos' | 'pagamentos' | 'saldos' | 'cardapio' | 'agenda' | 'vehicles' | 'directors_percapita' | 'epiControl' | 'perCapita';
 
 const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ 
     records, 
@@ -75,6 +84,14 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
     temperatureLogs = [],
     onRegisterTemperatureLog,
     onDeleteTemperatureLog,
+    onUpdatePerCapitaConfig,
+    onUpdateContractForItem,
+    onUpdateAcquisitionItem,
+    onDeleteAcquisitionItem,
+    onUpdateSupplierObservations,
+    onSyncPPAISToAgenda,
+    onSaveInvoice,
+    onDeleteDelivery,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('pagamentos');
@@ -289,6 +306,14 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
                     >
                         📝 {user?.name.toUpperCase().includes('WILLIAN') ? 'Per Capita Seg. Interna' : user?.name.toUpperCase().includes('WALTER') ? 'Per Capita Chefe Dep.' : 'Per Capita Diretores'}
                     </button>
+                    {user?.name.toUpperCase().includes('WALTER') && (
+                        <button 
+                            onClick={() => setActiveSubTab('perCapita')}
+                            className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'perCapita' ? 'bg-indigo-600 text-white shadow-lg' : 'hover:bg-indigo-800 text-indigo-200'}`}
+                        >
+                            📊 Per Capita Geral
+                        </button>
+                    )}
                     <button 
                         onClick={() => setActiveSubTab('epiControl')}
                         className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'epiControl' ? 'bg-orange-600 text-white shadow-lg' : 'hover:bg-indigo-800 text-orange-200'}`}
@@ -377,7 +402,26 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
             </div>
         )}
 
-        {activeSubTab !== 'saldos' && activeSubTab !== 'cardapio' && activeSubTab !== 'agenda' && activeSubTab !== 'vehicles' && activeSubTab !== 'directors_percapita' && activeSubTab !== 'epiControl' && (
+        {activeSubTab === 'perCapita' && (
+            <div className="animate-fade-in-up bg-white rounded-3xl p-6 shadow-xl border border-slate-100">
+                <AdminPerCapita 
+                    suppliers={suppliers || []} 
+                    warehouseLog={warehouseLog || []} 
+                    perCapitaConfig={perCapitaConfig || {}} 
+                    onUpdatePerCapitaConfig={onUpdatePerCapitaConfig || (async () => {})} 
+                    onUpdateContractForItem={onUpdateContractForItem || (async () => ({ success: true, message: '' }))} 
+                    onUpdateAcquisitionItem={onUpdateAcquisitionItem || (async () => ({ success: true, message: '' }))} 
+                    onDeleteAcquisitionItem={onDeleteAcquisitionItem || (async () => ({ success: true, message: '' }))} 
+                    acquisitionItems={acquisitionItems} 
+                    onUpdateSupplierObservations={onUpdateSupplierObservations} 
+                    onSyncPPAISToAgenda={onSyncPPAISToAgenda} 
+                    onSaveInvoice={onSaveInvoice} 
+                    onDeleteDelivery={onDeleteDelivery} 
+                />
+            </div>
+        )}
+
+        {activeSubTab !== 'saldos' && activeSubTab !== 'cardapio' && activeSubTab !== 'agenda' && activeSubTab !== 'vehicles' && activeSubTab !== 'directors_percapita' && activeSubTab !== 'epiControl' && activeSubTab !== 'perCapita' && (
             <div className="flex justify-center">
                 <div className="w-full max-w-2xl relative">
                     <span className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-400">

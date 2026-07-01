@@ -3264,6 +3264,14 @@ const App: React.FC = () => {
                    return { success: true, message: 'Ok' };
                }}
                onDeleteTemperatureLog={async (id) => remove(child(temperatureLogsRef, id))}
+               onUpdatePerCapitaConfig={handleUpdatePerCapitaConfig}
+               onUpdateContractForItem={handleUpdateContractForItem}
+               onUpdateAcquisitionItem={handleUpdateAcquisitionItem}
+               onDeleteAcquisitionItem={handleDeleteAcquisitionItem}
+               onUpdateSupplierObservations={handleUpdateSupplierObservations}
+               onSyncPPAISToAgenda={handleSyncPPAISToAgenda}
+               onSaveInvoice={handleSaveInvoice}
+               onDeleteDelivery={handleDeleteDelivery}
              />;
     }
 
