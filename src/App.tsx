@@ -720,35 +720,35 @@ const App: React.FC = () => {
       return true;
     }
 
-    const adminCpfs = ['15210361870', '29099022859', '36554895876'];
+    const adminCpfs = ['15210361870', '22121664866', '22743505826'];
 
-    // ACESSO ESPECÍFICO: DOUGLAS FERNANDO SEMENZIN GALDINO
-    if (['DOUGLAS', 'GALDINO', 'SEMENZIN'].some(n => cleanName.includes(n))) {
-      const douglasDbPass = (systemPasswords['DOUGLAS FERNANDO SEMENZIN GALDINO'] || 'diretor123').trim().toLowerCase();
-      if (numericPass === '29099022859' || rawPass.toLowerCase() === douglasDbPass) {
-        setUser({ name: 'DOUGLAS FERNANDO SEMENZIN GALDINO', cpf: '29099022859', role: 'financeiro' });
+    // ACESSO ESPECÍFICO: WALTER RODRIGUES JUNIOR
+    if (['WALTER', 'RODRIGUES', 'JUNIOR'].some(n => cleanName.includes(n))) {
+      const walterDbPass = (systemPasswords['WALTER RODRIGUES JUNIOR'] || '22121664866').trim().toLowerCase();
+      if (numericPass === '22121664866' || rawPass.toLowerCase() === walterDbPass) {
+        setUser({ name: 'WALTER RODRIGUES JUNIOR', cpf: '22121664866', role: 'financeiro' });
         return true;
       }
     }
 
-    // ACESSO ESPECÍFICO: ALFREDO GUILHERME LOPES
-    if (['ALFREDO', 'LOPES', 'GUILHERME'].some(n => cleanName.includes(n))) {
-      const alfredoDbPass = (systemPasswords['ALFREDO GUILHERME LOPES'] || 'diretor123').trim().toLowerCase();
-      if (numericPass === '36554895876' || rawPass.toLowerCase() === alfredoDbPass) {
-        setUser({ name: 'ALFREDO GUILHERME LOPES', cpf: '36554895876', role: 'financeiro' });
+    // ACESSO ESPECÍFICO: WILLIAN OLIVEIRA DOS SANTOS
+    if (['WILLIAN', 'OLIVEIRA', 'SANTOS'].some(n => cleanName.includes(n))) {
+      const willianDbPass = (systemPasswords['WILLIAN OLIVEIRA DOS SANTOS'] || '22743505826').trim().toLowerCase();
+      if (numericPass === '22743505826' || rawPass.toLowerCase() === willianDbPass) {
+        setUser({ name: 'WILLIAN OLIVEIRA DOS SANTOS', cpf: '22743505826', role: 'financeiro' });
         return true;
       }
     }
 
-    if (['ADMINISTRADOR', 'ADM', 'GALDINO', 'DOUGLAS', 'ALFREDO'].some(n => cleanName.includes(n))) {
+    if (['ADMINISTRADOR', 'ADM', 'WALTER', 'WILLIAN'].some(n => cleanName.includes(n))) {
       if (adminCpfs.includes(numericPass)) {
         let displayName = cleanName;
-        if (numericPass === '29099022859') {
-          displayName = 'DOUGLAS FERNANDO SEMENZIN GALDINO';
-        } else if (numericPass === '36554895876') {
-          displayName = 'ALFREDO GUILHERME LOPES';
+        if (numericPass === '22121664866') {
+          displayName = 'WALTER RODRIGUES JUNIOR';
+        } else if (numericPass === '22743505826') {
+          displayName = 'WILLIAN OLIVEIRA DOS SANTOS';
         }
-        const isFinanceAdmin = cleanName.includes('DOUGLAS') || cleanName.includes('ALFREDO') || numericPass === '29099022859' || numericPass === '36554895876';
+        const isFinanceAdmin = cleanName.includes('WALTER') || cleanName.includes('WILLIAN') || numericPass === '22121664866' || numericPass === '22743505826';
         setUser({ name: displayName, cpf: numericPass, role: isFinanceAdmin ? 'financeiro' : 'admin' });
         return true;
       }

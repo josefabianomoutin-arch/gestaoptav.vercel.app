@@ -148,7 +148,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
 
   const isFinanceAdmin = useMemo(() => {
     const name = user?.name.toUpperCase() || '';
-    return name.includes('DOUGLAS') || name.includes('ALFREDO');
+    return name.includes('WALTER') || name.includes('WILLIAN');
   }, [user]);
 
   const totalsGlobal = useMemo(() => {
@@ -275,7 +275,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
                         onClick={() => setActiveSubTab('directors_percapita')}
                         className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'directors_percapita' ? 'bg-indigo-600 text-white shadow-lg' : 'hover:bg-indigo-800 text-indigo-200'}`}
                     >
-                        📝 {user?.name.toUpperCase().includes('ALFREDO') ? 'Per Capita Seg. Interna' : user?.name.toUpperCase().includes('DOUGLAS') ? 'Per Capita Chefe Dep.' : 'Per Capita Diretores'}
+                        📝 {user?.name.toUpperCase().includes('WILLIAN') ? 'Per Capita Seg. Interna' : user?.name.toUpperCase().includes('WALTER') ? 'Per Capita Chefe Dep.' : 'Per Capita Diretores'}
                     </button>
                     <button 
                         onClick={() => setActiveSubTab('epiControl')}

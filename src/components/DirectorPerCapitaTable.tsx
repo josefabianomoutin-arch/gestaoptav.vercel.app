@@ -78,13 +78,14 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   perCapitaConfig,
 }) => {
   // Identify who the current logged-in user is
-  const isDouglas = currentUser?.cpf === '29099022859' || currentUser?.name?.toUpperCase().includes('DOUGLAS');
-  const isAlfredo = currentUser?.cpf === '36554895876' || currentUser?.name?.toUpperCase().includes('ALFREDO');
+  // Identify who the current logged-in user is (Walter Rodrigues Junior as Dep and Willian Oliveira dos santos as Seg)
+  const isDouglas = currentUser?.cpf === '22121664866' || currentUser?.name?.toUpperCase().includes('WALTER');
+  const isAlfredo = currentUser?.cpf === '22743505826' || currentUser?.name?.toUpperCase().includes('WILLIAN');
 
   const showChefeDep = isReadOnly || isDouglas || currentUser?.role === 'admin' || currentUser?.role === 'almoxarifado';
   const showChefeSeg = isReadOnly || isAlfredo || currentUser?.role === 'admin' || currentUser?.role === 'almoxarifado';
 
-  // Top level tabs: 'chefeDep' (Douglas Galdino) and 'chefeSeg' (Alfredo Lopes)
+  // Top level tabs: 'chefeDep' (Walter Rodrigues Junior) and 'chefeSeg' (Willian Oliveira dos santos)
   const [activeSubTab, setActiveSubTab] = useState<'chefeDep' | 'chefeSeg'>(() => {
     if (isAlfredo && !isDouglas && showChefeSeg) return 'chefeSeg';
     if (!showChefeDep && showChefeSeg) return 'chefeSeg';
@@ -513,7 +514,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     }
 
     const timestamp = new Date().toLocaleString('pt-BR');
-    const signerName = subTab === 'chefeDep' ? 'DOUGLAS FERNANDO SEMENZIN GALDINO' : 'ALFREDO GUILHERME LOPES';
+    const signerName = subTab === 'chefeDep' ? 'WALTER RODRIGUES JUNIOR' : 'WILLIAN OLIVEIRA DOS SANTOS';
     const timestampId = `pedido_${Date.now()}`;
     const formattedDate = new Date().toLocaleString('pt-BR');
 
@@ -784,8 +785,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       : 'Divisão de Chefia de Segurança Interna';
 
     const defaultSignerName = activeSubTab === 'chefeDep'
-      ? 'DOUGLAS FERNANDO SEMENZIN GALDINO'
-      : 'ALFREDO GUILHERME LOPES';
+      ? 'WALTER RODRIGUES JUNIOR'
+      : 'WILLIAN OLIVEIRA DOS SANTOS';
 
     const timestampText = order.signedAt || 'Não assinada';
 
@@ -1167,7 +1168,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     });
 
     const isAlim = categoryTab === 'alimentacao';
-    const subTabTitle = activeSubTab === 'chefeDep' ? 'Douglas' : 'Alfredo';
+    const subTabTitle = activeSubTab === 'chefeDep' ? 'Walter' : 'Willian';
     const title = `Etiquetas Cota ${subTabTitle} - ${isAlim ? 'ALIMENTAÇÃO' : 'LIMPEZA'}`;
 
     const barcodesScripts = cardsHtml.map(card => `
@@ -1327,8 +1328,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
     const isAlim = categoryTab === 'alimentacao';
     const chefName = activeSubTab === 'chefeDep' 
-      ? 'DOUGLAS FERNANDO SEMENZIN GALDINO (DEPARTAMENTO)' 
-      : 'ALFREDO GUILHERME LOPES (SEGURANÇA INTERNA)';
+      ? 'WALTER RODRIGUES JUNIOR (DEPARTAMENTO)' 
+      : 'WILLIAN OLIVEIRA DOS SANTOS (SEGURANÇA INTERNA)';
 
     const rowsHtml = sortedOrders.flatMap((order) => {
       const activeItems = (order.items || []).filter(item => item.itemName.trim() !== '');
@@ -1478,8 +1479,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
           </h2>
           <p className="text-xs text-slate-500 font-semibold leading-relaxed">
             Este painel da Cota Per Capita é de acesso restrito aos diretores autorizados: 
-            <strong className="block mt-1 text-slate-700">Douglas Fernando Semenzin Galdino</strong>
-            ou <strong className="block text-slate-700">Alfredo Guilherme Lopes</strong>.
+            <strong className="block mt-1 text-slate-700">Walter Rodrigues Junior</strong>
+            ou <strong className="block text-slate-700">Willian Oliveira dos santos</strong>.
           </p>
         </div>
       </div>
@@ -1523,7 +1524,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
             <div className="flex items-center gap-2 mt-0.5">
               <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse"></span>
               <h3 className="text-xs font-black text-slate-800 uppercase tracking-tight">
-                {activeSubTab === 'chefeDep' ? 'Douglas Fernando Semenzin Galdino' : 'Alfredo Guilherme Lopes'}
+                {activeSubTab === 'chefeDep' ? 'Walter Rodrigues Junior' : 'Willian Oliveira dos santos'}
               </h3>
             </div>
           </div>
@@ -2217,7 +2218,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                   </form>
                 ) : (
                   <p className="text-center text-xs font-bold uppercase tracking-wide text-amber-600 py-3 bg-amber-50 rounded-2xl border border-amber-100 max-w-xl mx-auto">
-                    ⚠️ Painel de Assinatura Eletrônica disponível apenas sob o login próprio de {activeSubTab === 'chefeDep' ? 'Douglas' : 'Alfredo'}.
+                    ⚠️ Painel de Assinatura Eletrônica disponível apenas sob o login próprio de {activeSubTab === 'chefeDep' ? 'Walter' : 'Willian'}.
                   </p>
                 )}
               </div>

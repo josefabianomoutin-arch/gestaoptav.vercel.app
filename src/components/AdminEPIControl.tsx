@@ -323,7 +323,7 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                       </div>
                       <div className="space-y-1.5">
                         <div className="border-t border-zinc-300 w-3/4 mx-auto"></div>
-                        <p className="text-xs font-bold uppercase text-zinc-700">DOUGLAS FERNANDO SEMENZIN GALDINO</p>
+                        <p className="text-xs font-bold uppercase text-zinc-700">WALTER RODRIGUES JUNIOR</p>
                         <p className="text-[9px] text-zinc-400 uppercase tracking-widest">Chefe de Departamento</p>
                       </div>
                     </div>
@@ -389,7 +389,7 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                             </div>
                             <div className="space-y-1.5">
                               <div className="border-t border-zinc-500 w-3/4 mx-auto"></div>
-                              <p className="text-xs font-bold uppercase text-zinc-700">DOUGLAS FERNANDO SEMENZIN GALDINO</p>
+                              <p className="text-xs font-bold uppercase text-zinc-700">WALTER RODRIGUES JUNIOR</p>
                               <p className="text-[9px] text-zinc-400 uppercase tracking-widest">Chefe de Departamento</p>
                             </div>
                           </div>
@@ -398,7 +398,7 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                         <div className="grid grid-cols-2 gap-8 pt-4 text-center">
                           <div className="space-y-1.5">
                             <div className="border-t border-zinc-300 w-3/4 mx-auto"></div>
-                            <p className="text-[10px] font-bold uppercase text-zinc-700">DOUGLAS FERNANDO SEMENZIN GALDINO</p>
+                            <p className="text-[10px] font-bold uppercase text-zinc-700">WALTER RODRIGUES JUNIOR</p>
                             <p className="text-[9px] text-zinc-400 uppercase tracking-widest">Chefe de Departamento</p>
                           </div>
                           <div className="space-y-1.5">
@@ -510,7 +510,7 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                 </div>
                 <div className="space-y-2">
                   <div className="border-t border-black w-11/12 mx-auto"></div>
-                  <p className="text-xs font-bold uppercase">DOUGLAS FERNANDO SEMENZIN GALDINO</p>
+                  <p className="text-xs font-bold uppercase">WALTER RODRIGUES JUNIOR</p>
                   <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-black">Chefe de Departamento</p>
                 </div>
               </div>
@@ -570,7 +570,7 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                       </div>
                       <div className="space-y-2">
                         <div className="border-t border-black w-11/12 mx-auto"></div>
-                        <p className="text-xs font-bold uppercase">DOUGLAS FERNANDO SEMENZIN GALDINO</p>
+                        <p className="text-xs font-bold uppercase">WALTER RODRIGUES JUNIOR</p>
                         <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-black">Chefe de Departamento</p>
                       </div>
                     </div>
@@ -579,7 +579,7 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
                   <div className="grid grid-cols-2 gap-12 text-center pt-8">
                     <div className="space-y-2">
                       <div className="border-t border-black w-11/12 mx-auto"></div>
-                      <p className="text-xs font-bold uppercase">DOUGLAS FERNANDO SEMENZIN GALDINO</p>
+                      <p className="text-xs font-bold uppercase">WALTER RODRIGUES JUNIOR</p>
                       <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-black">Chefe de Departamento</p>
                     </div>
                     <div className="space-y-2">

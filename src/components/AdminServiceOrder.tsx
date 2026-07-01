@@ -522,8 +522,8 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
   const handleValidate = async () => {
     if (!validatingScheduleId || !validationRole || !onUpdateMaintenanceSchedule) return;
 
-    const key = validationRole === 'chief' ? 'WALTER RODRIGUES JUNIOR' : 'ALFREDO GUILHERME LOPES';
-    const correctPassword = systemPasswords[key] || (validationRole === 'chief' ? 'chefe123' : 'diretor123');
+    const key = validationRole === 'chief' ? 'WALTER RODRIGUES JUNIOR' : 'WILLIAN OLIVEIRA DOS SANTOS';
+    const correctPassword = systemPasswords[key] || (validationRole === 'chief' ? '22121664866' : '22743505826');
 
     if (validationPassword === correctPassword) {
       const updates: Partial<MaintenanceSchedule> = validationRole === 'chief' 
@@ -639,7 +639,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               <div class="digital-signature">
                 <div class="signature-badge">Validado Digitalmente</div>
                 <div class="signature-details">
-                  ALFREDO GUILHERME LOPES<br/>
+                  WILLIAN OLIVEIRA DOS SANTOS<br/>
                   <div class="signature-timestamp">Autenticado em: ${formatTimestamp(schedule.validatedByDirectorAt)}</div>
                 </div>
               </div>
@@ -1668,7 +1668,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               </div>
               <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Validação de Segurança</h3>
               <p className="text-sm text-gray-500 font-medium mb-6">
-                Insira a senha do {validationRole === 'chief' ? 'Chefe Walter Rodrigues Junior' : 'Diretor Alfredo Guilherme Lopes'} para validar esta autorização.
+                Insira a senha do {validationRole === 'chief' ? 'Chefe Walter Rodrigues Junior' : 'Diretor Willian Oliveira dos santos'} para validar esta autorização.
               </p>
               
               <input
