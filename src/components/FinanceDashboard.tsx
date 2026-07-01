@@ -27,6 +27,12 @@ interface FinanceDashboardProps {
   perCapitaConfig?: PerCapitaConfig;
   epiLogs?: EpiLog[];
   acquisitionItems?: AcquisitionItem[];
+  cleaningLogs?: any[];
+  onRegisterCleaningLog?: (log: any) => Promise<{ success: boolean; message: string }>;
+  onDeleteCleaningLog?: (id: string) => Promise<void>;
+  temperatureLogs?: any[];
+  onRegisterTemperatureLog?: (log: any) => Promise<{ success: boolean; message: string }>;
+  onDeleteTemperatureLog?: (id: string) => Promise<void>;
 }
 
 const PTRES_OPTIONS = ['380302', '380303', '380304', '380308', '380328'] as const;
@@ -63,6 +69,12 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
     perCapitaConfig,
     epiLogs = [],
     acquisitionItems = [],
+    cleaningLogs = [],
+    onRegisterCleaningLog,
+    onDeleteCleaningLog,
+    temperatureLogs = [],
+    onRegisterTemperatureLog,
+    onDeleteTemperatureLog,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('pagamentos');
@@ -345,6 +357,13 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
                     suppliers={suppliers}
                     standardMenu={standardMenu}
                     perCapitaConfig={perCapitaConfig}
+                    cleaningLogs={cleaningLogs}
+                    onRegisterCleaningLog={onRegisterCleaningLog}
+                    onDeleteCleaningLog={onDeleteCleaningLog}
+                    temperatureLogs={temperatureLogs}
+                    onRegisterTemperatureLog={onRegisterTemperatureLog}
+                    onDeleteTemperatureLog={onDeleteTemperatureLog}
+                    financialRecords={records}
                 />
             </div>
         )}

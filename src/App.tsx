@@ -3250,6 +3250,20 @@ const App: React.FC = () => {
                perCapitaConfig={perCapitaConfig}
                epiLogs={epiLogs}
                acquisitionItems={acquisitionItems}
+               cleaningLogs={cleaningLogs || []}
+               onRegisterCleaningLog={async (l) => {
+                   const r = push(cleaningLogsRef);
+                   await set(r, { ...l, id: r.key });
+                   return { success: true, message: 'Ok' };
+               }}
+               onDeleteCleaningLog={async (id) => remove(child(cleaningLogsRef, id))}
+               temperatureLogs={temperatureLogs || []}
+               onRegisterTemperatureLog={async (l) => {
+                   const r = push(temperatureLogsRef);
+                   await set(r, { ...l, id: r.key });
+                   return { success: true, message: 'Ok' };
+               }}
+               onDeleteTemperatureLog={async (id) => remove(child(temperatureLogsRef, id))}
              />;
     }
 
