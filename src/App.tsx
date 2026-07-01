@@ -26,6 +26,7 @@ let warehouseLogRef: any;
 let perCapitaConfigRef: any;
 let cleaningLogsRef: any;
 let epiLogsRef: any;
+let temperatureLogsRef: any;
 let directorWithdrawalsRef: any;
 let standardMenuRef: any;
 let dailyMenusRef: any;
@@ -53,6 +54,7 @@ try {
   perCapitaConfigRef = ref(database, 'perCapitaConfig');
   cleaningLogsRef = ref(database, 'cleaningLogs');
   epiLogsRef = ref(database, 'epiLogs');
+  temperatureLogsRef = ref(database, 'temperatureLogs');
   directorWithdrawalsRef = ref(database, 'directorWithdrawals');
   directorPerCapitaRef = ref(database, 'directorPerCapita');
   standardMenuRef = ref(database, 'standardMenu');
@@ -89,6 +91,7 @@ const App: React.FC = () => {
   const [warehouseLog, setWarehouseLog] = useState<WarehouseMovement[]>([]);
   const [perCapitaConfig, setPerCapitaConfig] = useState<PerCapitaConfig>({});
   const [cleaningLogs, setCleaningLogs] = useState<CleaningLog[]>([]);
+  const [temperatureLogs, setTemperatureLogs] = useState<any[]>([]);
   const [epiLogs, setEpiLogs] = useState<EpiLog[]>([]);
   const [directorWithdrawals, setDirectorWithdrawals] = useState<DirectorPerCapitaLog[]>([]);
   const [standardMenu, setStandardMenu] = useState<StandardMenu>({});
@@ -169,6 +172,7 @@ const App: React.FC = () => {
       { key: 'maintenanceSchedules', setter: setMaintenanceSchedules },
       { key: 'directorPerCapita', setter: setDirectorPerCapita },
       { key: 'cleaningLogs', setter: setCleaningLogs },
+      { key: 'temperatureLogs', setter: setTemperatureLogs },
       { key: 'epiLogs', setter: setEpiLogs },
       { key: 'directorWithdrawals', setter: setDirectorWithdrawals }
     ];
@@ -420,6 +424,15 @@ const App: React.FC = () => {
       safeLocalStorageSetItem('cached_cleaningLogs', JSON.stringify(list));
     });
     unsubscribes.push(unsubCleaningLogs);
+
+    // Registros de Temperatura das Câmaras Frias
+    const unsubTemperatureLogs = onValue(temperatureLogsRef, (snapshot) => {
+      const data = snapshot.val();
+      const list = data ? Object.values(data) : [];
+      setTemperatureLogs(list);
+      safeLocalStorageSetItem('cached_temperatureLogs', JSON.stringify(list));
+    });
+    unsubscribes.push(unsubTemperatureLogs);
 
     // Registros de EPI
     const unsubEpiLogs = onValue(epiLogsRef, (snapshot) => {
@@ -3319,6 +3332,21 @@ const App: React.FC = () => {
                onUpdateDailyMenu={handleUpdateDailyMenu}
                directorPerCapita={directorPerCapita}
                onUpdateDirectorPerCapita={handleUpdateDirectorPerCapita}
+               cleaningLogs={cleaningLogs || []}
+               financialRecords={financialRecords || []}
+               onRegisterCleaningLog={async (l) => {
+                   const r = push(cleaningLogsRef);
+                   await set(r, { ...l, id: r.key });
+                   return { success: true, message: 'Ok' };
+               }}
+               onDeleteCleaningLog={async (id) => remove(child(cleaningLogsRef, id))}
+               temperatureLogs={temperatureLogs || []}
+               onRegisterTemperatureLog={async (l) => {
+                   const r = push(temperatureLogsRef);
+                   await set(r, { ...l, id: r.key });
+                   return { success: true, message: 'Ok' };
+               }}
+               onDeleteTemperatureLog={async (id) => remove(child(temperatureLogsRef, id))}
              />;
     }
 
