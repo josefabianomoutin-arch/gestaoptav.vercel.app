@@ -2,6 +2,18 @@
 import React, { useState, useMemo } from 'react';
 import type { StandardMenu, DailyMenus, MenuRow, Supplier, Delivery } from '../types';
 import { Calendar, Printer, Clock, Utensils, ChevronRight, ChevronLeft, CheckSquare, Square, Tag } from 'lucide-react';
+import { ensureArray } from '../lib/utils';
+
+const normalizeString = (str: string): string => {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toUpperCase();
+};
 
 interface MenuDashboardProps {
   standardMenu: StandardMenu;
@@ -76,29 +88,56 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
   };
 
   const findLotInfo = (contractedItemName: string) => {
-    if (!contractedItemName) return { lot: 'N/A', invoice: 'N/A', expiration: 'N/A' };
+    const normContracted = normalizeString(contractedItemName);
+    if (!normContracted) return { lot: 'N/A', invoice: 'N/A', expiration: 'N/A' };
     
     // Find the most recent delivery for this item
-    let latestDelivery = null;
+    let latestDelivery: any = null;
     let latestDate = 0;
 
     suppliers.forEach(s => {
-      (Object.values(s.deliveries || {}) as Delivery[]).forEach(d => {
-        if (d.item === contractedItemName && d.invoiceNumber) {
-          const dDate = new Date(d.date).getTime();
-          if (dDate > latestDate) {
-            latestDate = dDate;
-            latestDelivery = d;
+      ensureArray<any>(s.deliveries).forEach(d => {
+        if (d && d.item) {
+          const normDeliveryItem = normalizeString(d.item);
+          if (normDeliveryItem === normContracted && (d.invoiceNumber || d.invoice)) {
+            const dDate = new Date(d.date).getTime();
+            if (dDate > latestDate) {
+              latestDate = dDate;
+              latestDelivery = d;
+            }
           }
         }
       });
     });
 
     if (latestDelivery) {
-      const lotObj = (latestDelivery as any).lots?.[0];
-      const lotNum = lotObj?.lotNumber || 'N/A';
-      const expiration = lotObj?.expirationDate ? new Date(lotObj.expirationDate).toLocaleDateString('pt-BR') : 'N/A';
-      return { lot: lotNum, invoice: (latestDelivery as any).invoiceNumber || 'N/A', expiration };
+      const lotObj = ensureArray<any>((latestDelivery as any).lots)?.[0];
+      const lotNum = lotObj?.lotNumber || (latestDelivery as any).lotNumber || 'N/A';
+      
+      const rawExp = lotObj?.expirationDate || (latestDelivery as any).expirationDate;
+      let expiration = 'N/A';
+      if (rawExp) {
+        try {
+          if (typeof rawExp === 'string' && rawExp.includes('-')) {
+            const parts = rawExp.split('-');
+            if (parts.length === 3) {
+              if (parts[0].length === 4) { // YYYY-MM-DD
+                expiration = `${parts[2]}/${parts[1]}/${parts[0]}`;
+              } else {
+                expiration = rawExp;
+              }
+            } else {
+              expiration = new Date(rawExp).toLocaleDateString('pt-BR');
+            }
+          } else {
+            expiration = new Date(rawExp).toLocaleDateString('pt-BR');
+          }
+        } catch (e) {
+          expiration = String(rawExp);
+        }
+      }
+      const invoice = (latestDelivery as any).invoiceNumber || (latestDelivery as any).invoice || 'N/A';
+      return { lot: lotNum, invoice, expiration };
     }
 
     return { lot: 'N/A', invoice: 'N/A', expiration: 'N/A' };
@@ -248,14 +287,16 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
   const handlePrintLargeLabel = () => {
     const selectedItems = currentMenu.filter(r => selectedRows.has(r.id));
     
-    // Se não houver seleção, tenta pegar todos do almoço e janta
-    const lunchItems = selectedItems.length > 0 
+    // Se não houver seleção, tenta pegar todos do almoço e janta, descartando linhas vazias
+    const lunchItems = (selectedItems.length > 0 
       ? selectedItems.filter(r => r.period === 'ALMOÇO')
-      : currentMenu.filter(r => r.period === 'ALMOÇO');
+      : currentMenu.filter(r => r.period === 'ALMOÇO'))
+      .filter(r => r.foodItem || r.contractedItem);
       
-    const dinnerItems = selectedItems.length > 0
+    const dinnerItems = (selectedItems.length > 0
       ? selectedItems.filter(r => r.period === 'JANTA')
-      : currentMenu.filter(r => r.period === 'JANTA');
+      : currentMenu.filter(r => r.period === 'JANTA'))
+      .filter(r => r.foodItem || r.contractedItem);
     
     if (lunchItems.length === 0 && dinnerItems.length === 0) {
       alert('Selecione os itens do Almoço ou Janta para gerar a etiqueta.');
@@ -271,6 +312,47 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
     const mealsToPrint = [];
     if (lunchItems.length > 0) mealsToPrint.push({ title: 'Almoço', items: lunchItems });
     if (dinnerItems.length > 0) mealsToPrint.push({ title: 'Jantar', items: dinnerItems });
+
+    const maxItems = Math.max(...mealsToPrint.map(m => m.items.length), 1);
+
+    // Ajusta o espaçamento dinamicamente para garantir que caiba na etiqueta de 100mm de altura
+    let cardPadding = '6mm';
+    let headerMargin = '3mm';
+    let headerPadding = '3mm';
+    let mealTitleMargin = '3mm';
+    let mealTitlePadding = '1.5mm';
+    let tableFontSize = '10pt';
+    let tableCellPadding = '1.5mm 1mm';
+    let footerMargin = '3mm';
+    let footerPadding = '2mm';
+    let footerGap = '2mm';
+    let sigMargin = '2mm auto 0';
+
+    if (maxItems === 4) {
+      cardPadding = '5mm';
+      headerMargin = '2mm';
+      headerPadding = '2mm';
+      mealTitleMargin = '2mm';
+      mealTitlePadding = '1.2mm';
+      tableFontSize = '9pt';
+      tableCellPadding = '1.2mm 1mm';
+      footerMargin = '2mm';
+      footerPadding = '1.5mm';
+      footerGap = '1.5mm';
+      sigMargin = '1.5mm auto 0';
+    } else if (maxItems >= 5) {
+      cardPadding = '4mm';
+      headerMargin = '1.2mm';
+      headerPadding = '1.2mm';
+      mealTitleMargin = '1.2mm';
+      mealTitlePadding = '0.8mm';
+      tableFontSize = '8pt';
+      tableCellPadding = '0.6mm 1mm';
+      footerMargin = '1.2mm';
+      footerPadding = '1mm';
+      footerGap = '1mm';
+      sigMargin = '0.8mm auto 0';
+    }
 
     const labelsHtml = mealsToPrint.map(meal => `
       <div class="label-card">
@@ -337,7 +419,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
               width: 180mm;
               height: 100mm;
               border: 3px solid #000;
-              padding: 6mm;
+              padding: ${cardPadding};
               box-sizing: border-box;
               display: flex;
               flex-direction: column;
@@ -348,8 +430,8 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
             .header {
               text-align: center;
               border-bottom: 2px solid #000;
-              padding-bottom: 3mm;
-              margin-bottom: 3mm;
+              padding-bottom: ${headerPadding};
+              margin-bottom: ${headerMargin};
             }
             .header h1 { margin: 0; font-size: 20pt; text-transform: uppercase; font-weight: 900; }
             .header .date-info { font-size: 14pt; font-weight: bold; margin-top: 1mm; }
@@ -366,14 +448,14 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
               text-transform: uppercase;
               background: #000;
               color: #fff;
-              padding: 1.5mm;
+              padding: ${mealTitlePadding};
               text-align: center;
-              margin-bottom: 3mm;
+              margin-bottom: ${mealTitleMargin};
             }
             .item-table {
               width: 100%;
               border-collapse: collapse;
-              font-size: 10pt;
+              font-size: ${tableFontSize};
             }
             .item-table th {
               text-align: left;
@@ -383,19 +465,19 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
               font-size: 8pt;
             }
             .item-table td {
-              padding: 1.5mm 1mm;
+              padding: ${tableCellPadding};
               border-bottom: 0.5px solid #eee;
               font-weight: bold;
             }
             .text-center { text-align: center; }
 
             .footer {
-              margin-top: 3mm;
+              margin-top: ${footerMargin};
               border-top: 2px solid #000;
-              padding-top: 2mm;
+              padding-top: ${footerPadding};
               display: flex;
               flex-direction: column;
-              gap: 2mm;
+              gap: ${footerGap};
             }
             .footer-info {
               display: flex;
@@ -406,7 +488,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
             .signature-line {
               border-top: 1px solid #000;
               width: 50%;
-              margin: 2mm auto 0;
+              margin: ${sigMargin};
               text-align: center;
               font-size: 7pt;
               text-transform: uppercase;
