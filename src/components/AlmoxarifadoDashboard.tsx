@@ -183,6 +183,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [camaraFriaSubTab, setCamaraFriaSubTab] = useState<'temperature' | 'cleaning'>('temperature');
     const [tempDate, setTempDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [tempPeriod, setTempPeriod] = useState<'MANHÃ' | 'TARDE'>('MANHÃ');
+    const [tempTime, setTempTime] = useState<string>(new Date().toTimeString().slice(0, 5));
     const [tempValue, setTempValue] = useState<string>('');
     const [tempChamber, setTempChamber] = useState<'Câmara Fria de Congelados' | 'Câmara Fria de Resfriados'>('Câmara Fria de Resfriados');
     const [tempResponsible, setTempResponsible] = useState<string>('');
@@ -1440,6 +1441,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             const result = await onRegisterTemperatureLog({
                 date: tempDate,
                 period: tempPeriod,
+                time: tempTime,
                 value: Number(tempValue),
                 chamber: tempChamber,
                 responsible: tempResponsible,
@@ -1449,6 +1451,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             if (result.success) {
                 setTempValue('');
                 setTempObservations('');
+                setTempTime(new Date().toTimeString().slice(0, 5));
                 alert('Registro de temperatura gravado com sucesso!');
             } else {
                 alert(`Erro ao salvar: ${result.message}`);
@@ -1494,11 +1497,11 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
             const morningTemp = morningLog ? `${morningLog.value} °C` : '';
             const morningSig = morningLog ? morningLog.responsible.substring(0, 15) : '';
-            const morningTimeStr = morningLog ? 'SIM' : '';
+            const morningTimeStr = morningLog ? (morningLog.time || '') : '';
 
             const afternoonTemp = afternoonLog ? `${afternoonLog.value} °C` : '';
             const afternoonSig = afternoonLog ? afternoonLog.responsible.substring(0, 15) : '';
-            const afternoonTimeStr = afternoonLog ? 'SIM' : '';
+            const afternoonTimeStr = afternoonLog ? (afternoonLog.time || '') : '';
 
             const obs = (morningLog?.observations || afternoonLog?.observations || '');
 
@@ -1624,10 +1627,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 <th rowspan="2" style="width: 25%;">OBSERVAÇÕES / MEDIDAS CORRETIVAS</th>
                             </tr>
                             <tr>
-                                <th style="width: 8%;">REGISTRO?</th>
+                                <th style="width: 8%;">HORA</th>
                                 <th style="width: 12%;">TEMP. (°C)</th>
                                 <th style="width: 15%;">VISTO / MATRÍCULA</th>
-                                <th style="width: 8%;">REGISTRO?</th>
+                                <th style="width: 8%;">HORA</th>
                                 <th style="width: 12%;">TEMP. (°C)</th>
                                 <th style="width: 15%;">VISTO / MATRÍCULA</th>
                             </tr>
@@ -3384,16 +3387,27 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Temperatura Registrada (°C)</label>
-                                                <input 
-                                                    type="number"
-                                                    step="0.1"
-                                                    value={tempValue}
-                                                    onChange={e => setTempValue(e.target.value)}
-                                                    placeholder="Ex: -18.5 ou 4.2"
-                                                    className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
-                                                />
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Temperatura (°C)</label>
+                                                    <input 
+                                                        type="number"
+                                                        step="0.1"
+                                                        value={tempValue}
+                                                        onChange={e => setTempValue(e.target.value)}
+                                                        placeholder="Ex: -18.5 ou 4.2"
+                                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Hora da Medição</label>
+                                                    <input 
+                                                        type="time"
+                                                        value={tempTime}
+                                                        onChange={e => setTempTime(e.target.value)}
+                                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                                    />
+                                                </div>
                                             </div>
 
                                             <div className="space-y-1">
@@ -3499,6 +3513,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                         <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[9px]">
                                                             <th className="py-3 px-4">Data</th>
                                                             <th className="py-3 px-4">Período</th>
+                                                            <th className="py-3 px-4 text-center">Hora</th>
                                                             <th className="py-3 px-4 text-center">Temp (°C)</th>
                                                             <th className="py-3 px-4">Responsável</th>
                                                             <th className="py-3 px-4">Observações</th>
@@ -3527,6 +3542,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                                             <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${log.period === 'MANHÃ' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
                                                                                 {log.period}
                                                                             </span>
+                                                                        </td>
+                                                                        <td className="py-3 px-4 text-center font-bold text-slate-600">
+                                                                            {log.time || '-'}
                                                                         </td>
                                                                         <td className="py-3 px-4 text-center whitespace-nowrap">
                                                                             <span className={`px-3 py-1 rounded-xl text-xs font-black ${isOutsideRange ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
@@ -3557,7 +3575,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                             return logMonth === tempFilterMonth && logYear === tempFilterYear && log.chamber === tempChamber;
                                                         }).length === 0 && (
                                                             <tr>
-                                                                <td colSpan={6} className="py-8 text-center text-slate-400 font-black uppercase tracking-widest text-[10px]">
+                                                                <td colSpan={7} className="py-8 text-center text-slate-400 font-black uppercase tracking-widest text-[10px]">
                                                                     Nenhuma medição digital registrada para esta câmara no mês selecionado.
                                                                 </td>
                                                             </tr>
