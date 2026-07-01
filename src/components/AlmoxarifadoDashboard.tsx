@@ -1494,11 +1494,11 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
             const morningTemp = morningLog ? `${morningLog.value} °C` : '';
             const morningSig = morningLog ? morningLog.responsible.substring(0, 15) : '';
-            const morningTimeStr = morningLog ? 'SIM' : 'NÃO';
+            const morningTimeStr = morningLog ? 'SIM' : '';
 
             const afternoonTemp = afternoonLog ? `${afternoonLog.value} °C` : '';
             const afternoonSig = afternoonLog ? afternoonLog.responsible.substring(0, 15) : '';
-            const afternoonTimeStr = afternoonLog ? 'SIM' : 'NÃO';
+            const afternoonTimeStr = afternoonLog ? 'SIM' : '';
 
             const obs = (morningLog?.observations || afternoonLog?.observations || '');
 
@@ -1582,9 +1582,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         }
                         .text-center { text-align: center; }
                         .footer { 
-                            margin-top: 20px; 
+                            margin-top: 25px; 
                             display: flex; 
-                            justify-content: space-around; 
+                            justify-content: center; 
                         }
                         .sig { 
                             border-top: 1px solid #000; 
@@ -1640,10 +1640,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     <div class="footer">
                         <div class="sig">
                             VISTO DO RESPONSÁVEL DO SETOR<br/>
-                            <span style="font-weight: normal; font-size: 7px;">Assinatura & Carimbo</span>
-                        </div>
-                        <div class="sig">
-                            DIRETOR DE NÚCLEO / SUPERVISOR<br/>
                             <span style="font-weight: normal; font-size: 7px;">Assinatura & Carimbo</span>
                         </div>
                     </div>
