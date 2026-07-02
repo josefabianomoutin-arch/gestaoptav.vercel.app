@@ -37,15 +37,15 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
   const [deliveries, setDeliveries] = useState<any[]>(() => {
     if (!invoice) return [];
     return invoice.items.map((d) => {
-      // Find standard contract item matching by name
-      const matchedItem = contractItems.find(
-        (ci) => ci.name === d.item || ci.name === d.itemName
+      // Find standard contract item matching by id or name
+      const matchedItem = (contractItems || []).find(
+        (ci) => (ci.id && ci.id === d.itemId) || ci.name === d.item || ci.name === d.itemName
       );
       return {
         ...d,
-        itemId: d.itemId || matchedItem?.id || '',
-        itemName: d.itemName || d.item || '',
-        item: d.item || d.itemName || '',
+        itemId: d.itemId || matchedItem?.id || matchedItem?.name || d.itemName || d.item || '',
+        itemName: d.itemName || d.item || matchedItem?.name || '',
+        item: d.item || d.itemName || matchedItem?.name || '',
       };
     });
   });
@@ -82,21 +82,38 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
         if (d.id === id) {
           const updated = { ...d, [field]: val };
           if (field === 'itemId') {
-            const matched = contractItems.find((ci) => ci.id === val);
-            if (matched) {
-              updated.itemName = matched.name;
-              updated.item = matched.name; // For compatibility
-              // Automatically calculate suggested value
-              const itemPrice = Number(matched.valuePerKg) || 0;
-              const itemKg = Number(updated.kg) || 0;
-              updated.value = Number((itemKg * itemPrice).toFixed(2));
+            if (!val) {
+              updated.itemId = '';
+              updated.itemName = '';
+              updated.item = '';
+            } else {
+              const matched = (contractItems || []).find((ci) => (ci.id && ci.id === val) || ci.name === val);
+              if (matched) {
+                updated.itemId = matched.id || matched.name;
+                updated.itemName = matched.name;
+                updated.item = matched.name; // For compatibility
+                // Automatically calculate suggested value
+                const itemPrice = Number(matched.valuePerKg) || 0;
+                const itemKg = Number(updated.kg) || 0;
+                if (itemPrice > 0 && itemKg > 0) {
+                  updated.value = Number((itemKg * itemPrice).toFixed(2));
+                }
+              } else {
+                updated.itemId = val;
+                updated.itemName = val;
+                updated.item = val;
+              }
             }
           } else if (field === 'kg') {
-            const matched = contractItems.find((ci) => ci.id === d.itemId);
+            const inputKg = Number(val) || 0;
+            updated.kg = inputKg;
+            const currentItemKey = updated.itemId || updated.itemName || updated.item;
+            const matched = (contractItems || []).find((ci) => (ci.id && ci.id === currentItemKey) || ci.name === currentItemKey);
             if (matched) {
               const itemPrice = Number(matched.valuePerKg) || 0;
-              const inputKg = Number(val) || 0;
-              updated.value = Number((inputKg * itemPrice).toFixed(2));
+              if (itemPrice > 0) {
+                updated.value = Number((inputKg * itemPrice).toFixed(2));
+              }
             }
           }
           return updated;
@@ -248,13 +265,13 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
                     <div className="md:col-span-5 space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Item do Contrato</label>
                       <select
-                        value={delivery.itemId}
+                        value={delivery.itemId || delivery.itemName || delivery.item || ''}
                         onChange={(e) => handleUpdateDelivery(delivery.id!, 'itemId', e.target.value)}
                         className="w-full p-2.5 bg-white border border-gray-200 rounded-xl outline-none text-sm font-medium"
                       >
                         <option value="">Selecione o item...</option>
-                        {contractItems.map((item) => (
-                          <option key={item.id} value={item.id}>
+                        {contractItems.map((item, idx) => (
+                          <option key={item.id || item.name || idx} value={item.id || item.name}>
                             {item.name} (R$ {(Number(item.valuePerKg) || 0).toFixed(2)}/Kg)
                           </option>
                         ))}

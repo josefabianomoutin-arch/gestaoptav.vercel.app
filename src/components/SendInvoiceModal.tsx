@@ -14,12 +14,25 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
   const [loading, setLoading] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(invoiceInfo.date);
-  const [deliveries, setDeliveries] = useState<any[]>(invoiceInfo.deliveries.map(d => ({ ...d })));
+  const [deliveries, setDeliveries] = useState<any[]>(() => {
+    return (invoiceInfo.deliveries || []).map(d => {
+      const matched = (contractItems || []).find(ci => 
+        (ci.id && ci.id === d.itemId) || 
+        (ci.name && (ci.name === d.itemName || ci.name === d.item))
+      );
+      return {
+        ...d,
+        itemId: d.itemId || matched?.id || matched?.name || d.itemName || d.item || '',
+        itemName: d.itemName || d.item || matched?.name || '',
+        item: d.item || d.itemName || matched?.name || '',
+      };
+    });
+  });
   const [invoiceUrl, setInvoiceUrl] = useState('');
 
   const handleAddDelivery = () => {
     // IMPORTANTE: prefixo new_ para que o handleSaveInvoice no App.tsx reconheça como novo item
-    setDeliveries([...deliveries, { id: `new_manual-${Date.now()}`, itemId: '', itemName: '', kg: 0, value: 0 }]);
+    setDeliveries([...deliveries, { id: `new_manual-${Date.now()}`, itemId: '', itemName: '', item: '', kg: 0, value: 0 }]);
   };
 
   const handleRemoveDelivery = (id: string) => {
@@ -31,10 +44,36 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
       if (d.id === id) {
         const updated = { ...d, [field]: val };
         if (field === 'itemId') {
-          const item = contractItems.find(ci => ci.id === val);
-          if (item) {
-            updated.itemName = item.name;
-            updated.item = item.name; // Garante ambos para compatibilidade
+          if (!val) {
+            updated.itemId = '';
+            updated.itemName = '';
+            updated.item = '';
+          } else {
+            const matchedItem = (contractItems || []).find(ci => (ci.id && ci.id === val) || ci.name === val);
+            if (matchedItem) {
+              updated.itemId = matchedItem.id || matchedItem.name;
+              updated.itemName = matchedItem.name;
+              updated.item = matchedItem.name; // Garante ambos para compatibilidade
+              const price = Number(matchedItem.valuePerKg) || 0;
+              if (price > 0 && updated.kg) {
+                updated.value = Number((updated.kg * price).toFixed(2));
+              }
+            } else {
+              updated.itemId = val;
+              updated.itemName = val;
+              updated.item = val;
+            }
+          }
+        } else if (field === 'kg') {
+          const inputKg = Number(val) || 0;
+          updated.kg = inputKg;
+          const currentKey = updated.itemId || updated.itemName || updated.item;
+          const matchedItem = (contractItems || []).find(ci => (ci.id && ci.id === currentKey) || ci.name === currentKey);
+          if (matchedItem) {
+            const price = Number(matchedItem.valuePerKg) || 0;
+            if (price > 0) {
+              updated.value = Number((inputKg * price).toFixed(2));
+            }
           }
         }
         return updated;
@@ -53,13 +92,26 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
         alert("Adicione pelo menos um item da nota fiscal para cadastrar.");
         return;
     }
+    const invalid = deliveries.some(d => !d.itemName && !d.item);
+    if (invalid) {
+        alert("Por favor, selecione o item para todos os lançamentos.");
+        return;
+    }
     setLoading(true);
     try {
-      await onSave(invoiceNumber, invoiceUrl, deliveries, invoiceDate);
+      const cleanedDeliveries = deliveries.map(d => ({
+        ...d,
+        item: d.itemName || d.item,
+        itemName: d.itemName || d.item,
+        itemId: d.itemId || d.itemName || d.item,
+        invoiceNumber,
+        invoiceUrl,
+        invoiceDate
+      }));
+      await onSave(invoiceNumber, invoiceUrl, cleanedDeliveries, invoiceDate);
       onClose();
     } catch (e) {
       console.error("Erro ao salvar nota:", e);
-      // O erro já deve ter sido mostrado pelo toast no App.tsx
     } finally {
       setLoading(false);
     }
@@ -181,14 +233,20 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
                     <div className="md:col-span-5 space-y-1">
                       <label className="text-[10px] font-bold text-gray-400 uppercase">Item</label>
                       <select 
-                        value={delivery.itemId}
+                        value={delivery.itemId || delivery.itemName || delivery.item || ''}
                         onChange={(e) => handleUpdateDelivery(delivery.id!, 'itemId', e.target.value)}
-                        className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none"
+                        className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none font-medium text-sm"
                       >
                         <option value="">Selecione o item...</option>
-                        {contractItems.map(item => (
-                          <option key={item.id} value={item.id}>{item.name}</option>
-                        ))}
+                        {contractItems.map((item, index) => {
+                          const optionValue = item.id || item.name;
+                          const priceText = item.valuePerKg ? ` (R$ ${Number(item.valuePerKg).toFixed(2)}/Kg)` : '';
+                          return (
+                            <option key={item.id || item.name || index} value={optionValue}>
+                              {item.name}{priceText}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                     <div className="md:col-span-3 space-y-1">
