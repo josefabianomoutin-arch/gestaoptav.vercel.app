@@ -150,16 +150,23 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], perCapi
                 if (!months.includes(delMonth)) return;
 
                 // Busca no mapa consolidado
+                let matchedEntry: any = null;
                 for (const entry of consolidated.values()) {
                     if (entry.month === delMonth) {
                         const sMatch = entry.normSupplier === sNorm || entry.normSupplier.includes(sNorm) || sNorm.includes(entry.normSupplier);
                         if (sMatch) {
-                            const iMatch = entry.normItem === delINorm || entry.normItem.includes(delINorm) || delINorm.includes(entry.normItem);
-                            if (iMatch) {
-                                entry.receivedKg += (Number(del.kg) || 0);
+                            if (entry.normItem === delINorm) {
+                                matchedEntry = entry;
+                                break;
+                            }
+                            if (!matchedEntry && (entry.normItem.includes(delINorm) || delINorm.includes(entry.normItem))) {
+                                matchedEntry = entry;
                             }
                         }
                     }
+                }
+                if (matchedEntry) {
+                    matchedEntry.receivedKg += (Number(del.kg) || 0);
                 }
             });
         });

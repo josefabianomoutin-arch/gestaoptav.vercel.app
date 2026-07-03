@@ -379,8 +379,18 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         // Sort by date ascending
         monthlyItemsList.sort((a, b) => {
             const parseDateStr = (str: string) => {
-                const parts = str.split('/');
-                return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])).getTime();
+                if (!str) return 0;
+                if (str.includes('/')) {
+                    const parts = str.split('/');
+                    if (parts.length === 3) {
+                        const d = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+                        return isNaN(d.getTime()) ? 0 : d.getTime();
+                    }
+                } else if (str.includes('-')) {
+                    const d = new Date(str.includes('T') ? str : str + 'T12:00:00');
+                    return isNaN(d.getTime()) ? 0 : d.getTime();
+                }
+                return 0;
             };
             return parseDateStr(a.date) - parseDateStr(b.date);
         });
@@ -1234,7 +1244,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             const contractItemsData = receiptSupplier.contractItems || {};
             const contractItemsList = ensureArray(contractItemsData);
             const contractItem = (contractItemsList as any[]).find((ci: any) => ci && ci.name === itemName);
-            const unitPrice = Number(itemMovement?.value || d.value || 0);
+            const lineTotalValue = Number(itemMovement?.value || d.value || 0);
+            const calcUnitPrice = quantity > 0 
+                ? (lineTotalValue / quantity) 
+                : (Number(contractItem?.valuePerKg) || 0);
             
             let unit = 'Kg';
             if (contractItem?.unit) {
@@ -1249,7 +1262,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             if (groupedItemsMap.has(itemName)) {
                 const existing = groupedItemsMap.get(itemName);
                 existing.quantity += quantity;
-                existing.totalValue += unitPrice;
+                existing.totalValue += lineTotalValue;
+                existing.unitPrice = existing.quantity > 0 ? (existing.totalValue / existing.quantity) : calcUnitPrice;
                 if (!existing.lotNumber && (itemMovement?.lotNumber || d.lotNumber)) {
                     existing.lotNumber = itemMovement?.lotNumber || d.lotNumber;
                 }
@@ -1264,8 +1278,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     name: itemName,
                     quantity,
                     unit,
-                    unitPrice,
-                    totalValue: unitPrice,
+                    unitPrice: calcUnitPrice,
+                    totalValue: lineTotalValue,
                     category: contractItem?.category,
                     barcode: itemMovement?.barcode || d.barcode || '',
                     lotNumber: itemMovement?.lotNumber || d.lotNumber || 'UNICO',

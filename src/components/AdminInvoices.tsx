@@ -546,7 +546,34 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
   const updateNewItemValue = (name: string, kg: number) => {
-    setNewItem(prev => ({ ...prev, name, kg }));
+    let unitPrice = 0;
+    if (manualEntryData.supplierCpf && name) {
+      const normName = name.trim().toUpperCase();
+      const sup = suppliers.find(s => String(s.cpf || s.cnpj || '').replace(/\D/g, '') === String(manualEntryData.supplierCpf).replace(/\D/g, ''));
+      if (sup && sup.contractItems) {
+        const ciList = ensureArray<any>(sup.contractItems);
+        const ci = ciList.find(c => c && c.name && c.name.trim().toUpperCase() === normName);
+        if (ci) {
+          unitPrice = Number(ci.valuePerKg) || 0;
+        }
+      }
+      if (!unitPrice && acquisitionItems) {
+        const ai = acquisitionItems.find(a => a && (a.name?.trim().toUpperCase() === normName || a.contractItemName?.trim().toUpperCase() === normName));
+        if (ai) {
+          unitPrice = Number(ai.unitValue) || 0;
+        }
+      }
+    }
+
+    setNewItem(prev => {
+      const calcValue = (kg > 0 && unitPrice > 0) ? Math.round(kg * unitPrice * 100) / 100 : prev.value;
+      return {
+        ...prev,
+        name,
+        kg,
+        value: (prev.value === 0 || !prev.value || prev.name !== name) ? calcValue : prev.value
+      };
+    });
   };
 
   return (

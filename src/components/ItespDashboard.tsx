@@ -143,21 +143,28 @@ const ItespDashboard: React.FC<ItespDashboardProps> = ({ suppliers = [], perCapi
                 if (!months.includes(dMonth)) return;
 
                 // Busca no mapa
+                let matchedEntry: any = null;
                 for (const [, entry] of consolidatedMap.entries()) {
                     if (entry.month === dMonth && entry.sNorm === sNorm) {
-                        // Match de item
-                        const iMatch = entry.iNorm === dINorm || entry.iNorm.includes(dINorm) || dINorm.includes(entry.iNorm);
-                        if (iMatch) {
-                            entry.receivedKg += (Number(delivery.kg) || 0);
-                            entry.logEntries.push({
-                                id: delivery.id,
-                                date: delivery.date,
-                                lotNumber: (delivery.lots && delivery.lots[0]?.lotNumber) || 'N/A',
-                                inboundInvoice: delivery.invoiceNumber || 'N/A',
-                                quantity: delivery.kg || 0
-                            });
+                        if (entry.iNorm === dINorm) {
+                            matchedEntry = entry;
+                            break;
+                        }
+                        if (!matchedEntry && (entry.iNorm.includes(dINorm) || dINorm.includes(entry.iNorm))) {
+                            matchedEntry = entry;
                         }
                     }
+                }
+
+                if (matchedEntry) {
+                    matchedEntry.receivedKg += (Number(delivery.kg) || 0);
+                    matchedEntry.logEntries.push({
+                        id: delivery.id,
+                        date: delivery.date,
+                        lotNumber: (delivery.lots && delivery.lots[0]?.lotNumber) || 'N/A',
+                        inboundInvoice: delivery.invoiceNumber || 'N/A',
+                        quantity: delivery.kg || 0
+                    });
                 }
             });
         });

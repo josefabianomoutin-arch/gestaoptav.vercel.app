@@ -90,13 +90,15 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
 
         (warehouseLog || []).forEach(log => {
             if (!log) return;
-            const logInv = log.invoiceNumber || log.inboundInvoice || log.outboundInvoice;
+            const logInv = log.type === 'saída' 
+                ? (log.inboundInvoice || log.invoiceNumber || log.outboundInvoice)
+                : (log.invoiceNumber || log.inboundInvoice);
             if (!logInv) return;
             const key = `${logInv}|${log.supplierName}|${log.itemName}`;
             if (!stockMap[key]) {
                 const ts = log.timestamp || (log.date ? new Date(log.date + 'T12:00:00').getTime() : 0);
                 stockMap[key] = { 
-                    nfNumber: log.invoiceNumber || log.inboundInvoice || '', 
+                    nfNumber: log.type === 'saída' ? (log.inboundInvoice || log.invoiceNumber || '') : (log.invoiceNumber || log.inboundInvoice || ''), 
                     supplierName: log.supplierName, 
                     itemName: log.itemName, 
                     totalIn: 0, 

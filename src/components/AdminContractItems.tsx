@@ -122,13 +122,27 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
             // 3. Agrega Entradas de Notas Fiscais (Deliveries)
             (Object.values(s.deliveries || {}) as Delivery[]).forEach(del => {
                 if (del.item === 'AGENDAMENTO PENDENTE') return;
-                const delINorm = superNormalize(del.item || '');
-                
-                for (const [normKey, data] of map.entries()) {
-                    if (normKey === delINorm || normKey.includes(delINorm) || delINorm.includes(normKey)) {
-                        data.totalDelivered += Number(del.kg) || 0;
-                        data.totalValueDelivered += Number(del.value) || 0;
+                const delINorm = superNormalize(del.item || (del as any).itemName || '');
+                if (!delINorm) return;
+
+                let matchedData: any = null;
+                if (map.has(delINorm)) {
+                    matchedData = map.get(delINorm);
+                } else {
+                    for (const [normKey, data] of map.entries()) {
+                        if (normKey === delINorm) {
+                            matchedData = data;
+                            break;
+                        }
+                        if (!matchedData && (normKey.includes(delINorm) || delINorm.includes(normKey))) {
+                            matchedData = data;
+                        }
                     }
+                }
+
+                if (matchedData) {
+                    matchedData.totalDelivered += Number(del.kg) || 0;
+                    matchedData.totalValueDelivered += Number(del.value) || 0;
                 }
             });
         });
@@ -138,16 +152,30 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
             if (log.type !== 'saída' || !log.outboundInvoice) return; // Somente saídas com NF
             
             const logINorm = superNormalize(log.itemName);
-            
-            for (const [normKey, data] of map.entries()) {
-                if (normKey === logINorm || normKey.includes(logINorm) || logINorm.includes(normKey)) {
-                    const supplierDetail = data.details.find((d: any) => superNormalize(d.supplierName) === superNormalize(log.supplierName));
-                    const price = supplierDetail ? supplierDetail.price : (data.details[0]?.price || 0);
-                    const qty = Number(log.quantity) || 0;
+            if (!logINorm) return;
 
-                    data.totalExited += qty;
-                    data.totalValueExited += qty * price;
+            let matchedData: any = null;
+            if (map.has(logINorm)) {
+                matchedData = map.get(logINorm);
+            } else {
+                for (const [normKey, data] of map.entries()) {
+                    if (normKey === logINorm) {
+                        matchedData = data;
+                        break;
+                    }
+                    if (!matchedData && (normKey.includes(logINorm) || logINorm.includes(normKey))) {
+                        matchedData = data;
+                    }
                 }
+            }
+
+            if (matchedData) {
+                const supplierDetail = matchedData.details.find((d: any) => superNormalize(d.supplierName) === superNormalize(log.supplierName));
+                const price = supplierDetail ? supplierDetail.price : (matchedData.details[0]?.price || 0);
+                const qty = Number(log.quantity) || 0;
+
+                matchedData.totalExited += qty;
+                matchedData.totalValueExited += qty * price;
             }
         });
 
