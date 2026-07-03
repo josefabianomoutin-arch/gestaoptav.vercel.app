@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, Plus, Trash2, Loader2, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Delivery, ContractItem } from '../types';
 import { toast } from 'sonner';
+import { ensureArray } from '../lib/utils';
 
 interface EditInvoiceItemsModalProps {
   isOpen: boolean;
@@ -34,18 +35,36 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState(() => invoice?.invoiceNumber || '');
   const [invoiceDate, setInvoiceDate] = useState(() => invoice?.date || '');
+
+  // Garantir que contractItems seja um Array e que cada item possua um ID ÚNICO
+  const normalizedContractItems = useMemo(() => {
+    const raw = ensureArray<ContractItem>(contractItems);
+    return raw.map((ci, idx) => {
+      const cleanName = ci.name || (ci as any).itemName || (ci as any).item || `Item ${idx + 1}`;
+      const slugName = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const uniqueId = ci.id && String(ci.id).trim() !== ''
+        ? String(ci.id)
+        : `ci-idx-${idx}-${slugName}`;
+      return {
+        ...ci,
+        id: uniqueId,
+        name: cleanName,
+      };
+    });
+  }, [contractItems]);
+
   const [deliveries, setDeliveries] = useState<any[]>(() => {
     if (!invoice) return [];
     return invoice.items.map((d) => {
       // Find standard contract item matching by id or name
-      const matchedItem = (contractItems || []).find(
-        (ci) => (ci.id && ci.id === d.itemId) || ci.name === d.item || ci.name === d.itemName
+      const matchedItem = normalizedContractItems.find(
+        (ci) => (d.itemId && String(ci.id) === String(d.itemId)) || ci.name === d.item || ci.name === d.itemName
       );
       return {
         ...d,
-        itemId: d.itemId || matchedItem?.id || matchedItem?.name || d.itemName || d.item || '',
-        itemName: d.itemName || d.item || matchedItem?.name || '',
-        item: d.item || d.itemName || matchedItem?.name || '',
+        itemId: matchedItem?.id || d.itemId || '',
+        itemName: matchedItem?.name || d.itemName || d.item || '',
+        item: matchedItem?.name || d.item || d.itemName || '',
       };
     });
   });
@@ -56,7 +75,7 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
     setDeliveries([
       ...deliveries,
       {
-        id: `new_manual-${Date.now()}`,
+        id: `new_manual-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         itemId: '',
         itemName: '',
         item: '',
@@ -87,9 +106,9 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
               updated.itemName = '';
               updated.item = '';
             } else {
-              const matched = (contractItems || []).find((ci) => (ci.id && ci.id === val) || ci.name === val);
+              const matched = normalizedContractItems.find((ci) => String(ci.id) === String(val) || ci.name === val);
               if (matched) {
-                updated.itemId = matched.id || matched.name;
+                updated.itemId = matched.id;
                 updated.itemName = matched.name;
                 updated.item = matched.name; // For compatibility
                 // Automatically calculate suggested value
@@ -107,8 +126,7 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
           } else if (field === 'kg') {
             const inputKg = Number(val) || 0;
             updated.kg = inputKg;
-            const currentItemKey = updated.itemId || updated.itemName || updated.item;
-            const matched = (contractItems || []).find((ci) => (ci.id && ci.id === currentItemKey) || ci.name === currentItemKey);
+            const matched = normalizedContractItems.find((ci) => String(ci.id) === String(updated.itemId) || ci.name === updated.itemName || ci.name === updated.item);
             if (matched) {
               const itemPrice = Number(matched.valuePerKg) || 0;
               if (itemPrice > 0) {
@@ -265,13 +283,13 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
                     <div className="md:col-span-5 space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Item do Contrato</label>
                       <select
-                        value={delivery.itemId || delivery.itemName || delivery.item || ''}
+                        value={delivery.itemId || ''}
                         onChange={(e) => handleUpdateDelivery(delivery.id!, 'itemId', e.target.value)}
                         className="w-full p-2.5 bg-white border border-gray-200 rounded-xl outline-none text-sm font-medium"
                       >
                         <option value="">Selecione o item...</option>
-                        {contractItems.map((item, idx) => (
-                          <option key={item.id || item.name || idx} value={item.id || item.name}>
+                        {normalizedContractItems.map((item) => (
+                          <option key={item.id} value={item.id}>
                             {item.name} (R$ {(Number(item.valuePerKg) || 0).toFixed(2)}/Kg)
                           </option>
                         ))}

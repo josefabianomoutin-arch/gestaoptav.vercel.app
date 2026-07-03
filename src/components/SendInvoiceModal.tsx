@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, Send, Plus, Trash2, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Delivery, ContractItem } from '../types';
+import { ensureArray } from '../lib/utils';
 
 interface SendInvoiceModalProps {
   invoiceInfo: { date: string; deliveries: Delivery[] };
@@ -14,17 +15,36 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
   const [loading, setLoading] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(invoiceInfo.date);
+
+  // Garantir que contractItems seja um Array e que cada item possua um ID ÚNICO
+  const normalizedContractItems = useMemo(() => {
+    const raw = ensureArray<ContractItem>(contractItems);
+    return raw.map((ci, idx) => {
+      const cleanName = ci.name || (ci as any).itemName || (ci as any).item || `Item ${idx + 1}`;
+      const slugName = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const uniqueId = ci.id && String(ci.id).trim() !== ''
+        ? String(ci.id)
+        : `ci-idx-${idx}-${slugName}`;
+      return {
+        ...ci,
+        id: uniqueId,
+        name: cleanName,
+      };
+    });
+  }, [contractItems]);
+
   const [deliveries, setDeliveries] = useState<any[]>(() => {
-    return (invoiceInfo.deliveries || []).map(d => {
-      const matched = (contractItems || []).find(ci => 
-        (ci.id && ci.id === d.itemId) || 
+    return (invoiceInfo.deliveries || []).map((d, dIdx) => {
+      const matched = normalizedContractItems.find(ci => 
+        (d.itemId && String(ci.id) === String(d.itemId)) || 
         (ci.name && (ci.name === d.itemName || ci.name === d.item))
       );
       return {
         ...d,
-        itemId: d.itemId || matched?.id || matched?.name || d.itemName || d.item || '',
-        itemName: d.itemName || d.item || matched?.name || '',
-        item: d.item || d.itemName || matched?.name || '',
+        id: d.id || `delivery-${Date.now()}-${dIdx}`,
+        itemId: matched?.id || d.itemId || '',
+        itemName: matched?.name || d.itemName || d.item || '',
+        item: matched?.name || d.item || d.itemName || '',
       };
     });
   });
@@ -32,15 +52,18 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
 
   const handleAddDelivery = () => {
     // IMPORTANTE: prefixo new_ para que o handleSaveInvoice no App.tsx reconheça como novo item
-    setDeliveries([...deliveries, { id: `new_manual-${Date.now()}`, itemId: '', itemName: '', item: '', kg: 0, value: 0 }]);
+    setDeliveries(prev => [
+      ...prev, 
+      { id: `new_manual-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`, itemId: '', itemName: '', item: '', kg: 0, value: 0 }
+    ]);
   };
 
   const handleRemoveDelivery = (id: string) => {
-    setDeliveries(deliveries.filter(d => d.id !== id));
+    setDeliveries(prev => prev.filter(d => d.id !== id));
   };
 
   const handleUpdateDelivery = (id: string, field: string, val: any) => {
-    setDeliveries(deliveries.map(d => {
+    setDeliveries(prev => prev.map(d => {
       if (d.id === id) {
         const updated = { ...d, [field]: val };
         if (field === 'itemId') {
@@ -49,14 +72,15 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
             updated.itemName = '';
             updated.item = '';
           } else {
-            const matchedItem = (contractItems || []).find(ci => (ci.id && ci.id === val) || ci.name === val);
+            const matchedItem = normalizedContractItems.find(ci => String(ci.id) === String(val) || ci.name === val);
             if (matchedItem) {
-              updated.itemId = matchedItem.id || matchedItem.name;
+              updated.itemId = matchedItem.id;
               updated.itemName = matchedItem.name;
               updated.item = matchedItem.name; // Garante ambos para compatibilidade
               const price = Number(matchedItem.valuePerKg) || 0;
-              if (price > 0 && updated.kg) {
-                updated.value = Number((updated.kg * price).toFixed(2));
+              const inputKg = Number(updated.kg) || 0;
+              if (price > 0 && inputKg > 0) {
+                updated.value = Number((inputKg * price).toFixed(2));
               }
             } else {
               updated.itemId = val;
@@ -67,8 +91,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
         } else if (field === 'kg') {
           const inputKg = Number(val) || 0;
           updated.kg = inputKg;
-          const currentKey = updated.itemId || updated.itemName || updated.item;
-          const matchedItem = (contractItems || []).find(ci => (ci.id && ci.id === currentKey) || ci.name === currentKey);
+          const matchedItem = normalizedContractItems.find(ci => String(ci.id) === String(updated.itemId) || ci.name === updated.itemName || ci.name === updated.item);
           if (matchedItem) {
             const price = Number(matchedItem.valuePerKg) || 0;
             if (price > 0) {
@@ -99,15 +122,19 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
     }
     setLoading(true);
     try {
-      const cleanedDeliveries = deliveries.map(d => ({
-        ...d,
-        item: d.itemName || d.item,
-        itemName: d.itemName || d.item,
-        itemId: d.itemId || d.itemName || d.item,
-        invoiceNumber,
-        invoiceUrl,
-        invoiceDate
-      }));
+      const cleanedDeliveries = deliveries.map(d => {
+        const matched = normalizedContractItems.find(ci => String(ci.id) === String(d.itemId) || ci.name === d.itemName || ci.name === d.item);
+        const finalName = matched?.name || d.itemName || d.item || '';
+        return {
+          ...d,
+          item: finalName,
+          itemName: finalName,
+          itemId: matched?.id || d.itemId || finalName,
+          invoiceNumber,
+          invoiceUrl,
+          invoiceDate
+        };
+      });
       await onSave(invoiceNumber, invoiceUrl, cleanedDeliveries, invoiceDate);
       onClose();
     } catch (e) {
@@ -233,16 +260,15 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
                     <div className="md:col-span-5 space-y-1">
                       <label className="text-[10px] font-bold text-gray-400 uppercase">Item</label>
                       <select 
-                        value={delivery.itemId || delivery.itemName || delivery.item || ''}
+                        value={delivery.itemId || ''}
                         onChange={(e) => handleUpdateDelivery(delivery.id!, 'itemId', e.target.value)}
                         className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none font-medium text-sm"
                       >
                         <option value="">Selecione o item...</option>
-                        {contractItems.map((item, index) => {
-                          const optionValue = item.id || item.name;
+                        {normalizedContractItems.map((item) => {
                           const priceText = item.valuePerKg ? ` (R$ ${Number(item.valuePerKg).toFixed(2)}/Kg)` : '';
                           return (
-                            <option key={item.id || item.name || index} value={optionValue}>
+                            <option key={item.id} value={item.id}>
                               {item.name}{priceText}
                             </option>
                           );
