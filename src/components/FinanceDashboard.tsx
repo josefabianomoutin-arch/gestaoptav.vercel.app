@@ -4,6 +4,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { FinancialRecord, StandardMenu, DailyMenus, Supplier, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, WarehouseMovement, PerCapitaConfig, EpiLog, AcquisitionItem } from '../types';
 import MenuDashboard from './MenuDashboard';
+import AdminStandardMenu from './AdminStandardMenu';
 import AgendaChegadas from './AgendaChegadas';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 import { DirectorPerCapitaTable } from './DirectorPerCapitaTable';
@@ -42,6 +43,7 @@ interface FinanceDashboardProps {
   onSyncPPAISToAgenda?: () => Promise<void>;
   onSaveInvoice?: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: any[], invoiceDate?: string) => Promise<any>;
   onDeleteDelivery?: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean }>;
+  onUpdateDailyMenu?: (menus: DailyMenus) => Promise<any>;
 }
 
 const PTRES_OPTIONS = ['380302', '380303', '380304', '380308', '380328'] as const;
@@ -92,6 +94,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
     onSyncPPAISToAgenda,
     onSaveInvoice,
     onDeleteDelivery,
+    onUpdateDailyMenu,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('pagamentos');
@@ -327,15 +330,14 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
 
       <main className="p-4 md:p-8 max-w-[1600px] mx-auto space-y-12 animate-fade-in">
         
-        {activeSubTab === 'cardapio' && standardMenu && dailyMenus && suppliers && (
+        {activeSubTab === 'cardapio' && suppliers && (
             <div className="animate-fade-in-up">
-                <MenuDashboard 
-                    standardMenu={standardMenu} 
-                    dailyMenus={dailyMenus} 
+                <AdminStandardMenu 
+                    template={standardMenu || {}} 
+                    dailyMenus={dailyMenus || {}} 
+                    onUpdateDailyMenus={onUpdateDailyMenu || (async () => {})}
+                    inmateCount={perCapitaConfig?.inmateCount || 0}
                     suppliers={suppliers} 
-                    onLogout={onLogout} 
-                    embedded={true}
-                    showPdfOnly={isFinanceAdmin}
                 />
             </div>
         )}

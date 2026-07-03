@@ -10,6 +10,7 @@ import ItespDashboard from './components/ItespDashboard';
 import FinanceDashboard from './components/FinanceDashboard';
 import SubportariaDashboard from './components/SubportariaDashboard';
 import MenuDashboard from './components/MenuDashboard';
+import AdminStandardMenu from './components/AdminStandardMenu';
 import VehicleOrderDashboard from './components/VehicleOrderDashboard';
 import JulioDashboard from './components/JulioDashboard';
 import ServiceOrderDashboard from './components/ServiceOrderDashboard';
@@ -3272,11 +3273,12 @@ const App: React.FC = () => {
                onSyncPPAISToAgenda={handleSyncPPAISToAgenda}
                onSaveInvoice={handleSaveInvoice}
                onDeleteDelivery={handleDeleteDelivery}
+               onUpdateDailyMenu={handleUpdateDailyMenu}
              />;
     }
 
     if (user.role === 'cardapio') {
-      return <MenuDashboard standardMenu={standardMenu} dailyMenus={dailyMenus} suppliers={combinedSuppliers} onLogout={handleLogout} />;
+      return <AdminStandardMenu template={standardMenu || {}} dailyMenus={dailyMenus || {}} onUpdateDailyMenus={handleUpdateDailyMenu} inmateCount={perCapitaConfig?.inmateCount || 0} suppliers={combinedSuppliers || []} />;
     }
 
     if (user.role === 'almoxarifado') {
