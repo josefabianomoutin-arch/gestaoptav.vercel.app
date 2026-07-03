@@ -16,15 +16,21 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(invoiceInfo.date);
 
-  // Garantir que contractItems seja um Array e que cada item possua um ID ÚNICO
+  // Garantir que contractItems seja um Array e que cada item possua um ID ÚNICO E EXCLUSIVO
   const normalizedContractItems = useMemo(() => {
     const raw = ensureArray<ContractItem>(contractItems);
+    const seenIds = new Set<string>();
     return raw.map((ci, idx) => {
       const cleanName = ci.name || (ci as any).itemName || (ci as any).item || `Item ${idx + 1}`;
       const slugName = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const uniqueId = ci.id && String(ci.id).trim() !== ''
-        ? String(ci.id)
-        : `ci-idx-${idx}-${slugName}`;
+      const rawId = ci.id && String(ci.id).trim() !== '' ? String(ci.id).trim() : null;
+      
+      let uniqueId = rawId ? rawId : `ci-idx-${idx}-${slugName}`;
+      if (seenIds.has(uniqueId)) {
+        uniqueId = `ci-idx-${idx}-${slugName || Math.random().toString(36).substring(2, 6)}`;
+      }
+      seenIds.add(uniqueId);
+
       return {
         ...ci,
         id: uniqueId,
@@ -36,8 +42,9 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
   const [deliveries, setDeliveries] = useState<any[]>(() => {
     return (invoiceInfo.deliveries || []).map((d, dIdx) => {
       const matched = normalizedContractItems.find(ci => 
-        (d.itemId && String(ci.id) === String(d.itemId)) || 
-        (ci.name && (ci.name === d.itemName || ci.name === d.item))
+        (d.itemName && ci.name === d.itemName) || 
+        (d.item && ci.name === d.item) ||
+        (d.itemId && String(ci.id) === String(d.itemId))
       );
       return {
         ...d,
@@ -249,32 +256,40 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
           ) : (
             <div className="space-y-3">
               <AnimatePresence>
-                {deliveries.map((delivery) => (
-                  <motion.div 
-                    key={delivery.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    className="p-4 bg-gray-50 border border-gray-200 rounded-2xl grid grid-cols-1 md:grid-cols-12 gap-4 items-end"
-                  >
-                    <div className="md:col-span-5 space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase">Item</label>
-                      <select 
-                        value={delivery.itemId || ''}
-                        onChange={(e) => handleUpdateDelivery(delivery.id!, 'itemId', e.target.value)}
-                        className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none font-medium text-sm"
-                      >
-                        <option value="">Selecione o item...</option>
-                        {normalizedContractItems.map((item) => {
-                          const priceText = item.valuePerKg ? ` (R$ ${Number(item.valuePerKg).toFixed(2)}/Kg)` : '';
-                          return (
-                            <option key={item.id} value={item.id}>
-                              {item.name}{priceText}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
+                {deliveries.map((delivery) => {
+                  const matched = normalizedContractItems.find(ci => 
+                    (delivery.itemId && String(ci.id) === String(delivery.itemId)) ||
+                    (delivery.itemName && ci.name === delivery.itemName) ||
+                    (delivery.item && ci.name === delivery.item)
+                  );
+                  const selectedValue = matched ? matched.id : (delivery.itemId || '');
+
+                  return (
+                    <motion.div 
+                      key={delivery.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      className="p-4 bg-gray-50 border border-gray-200 rounded-2xl grid grid-cols-1 md:grid-cols-12 gap-4 items-end"
+                    >
+                      <div className="md:col-span-5 space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Item</label>
+                        <select 
+                          value={selectedValue}
+                          onChange={(e) => handleUpdateDelivery(delivery.id!, 'itemId', e.target.value)}
+                          className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none font-medium text-sm"
+                        >
+                          <option value="">Selecione o item...</option>
+                          {normalizedContractItems.map((item) => {
+                            const priceText = item.valuePerKg ? ` (R$ ${Number(item.valuePerKg).toFixed(2)}/Kg)` : '';
+                            return (
+                              <option key={item.id} value={item.id}>
+                                {item.name}{priceText}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
                     <div className="md:col-span-3 space-y-1">
                       <label className="text-[10px] font-bold text-gray-400 uppercase">Quantidade (Kg)</label>
                       <input 
@@ -303,7 +318,8 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
                       </button>
                     </div>
                   </motion.div>
-                ))}
+                );
+              })}
               </AnimatePresence>
             </div>
           )}
