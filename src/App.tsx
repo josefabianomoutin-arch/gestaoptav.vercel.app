@@ -198,7 +198,19 @@ const App: React.FC = () => {
 
   // 2. Conecta aos dados públicos essenciais no mount de forma leve (PublicInfo para tela de Login e Senhas do sistema)
   useEffect(() => {
-    if (!database) return;
+    // Safety fallback timer to ensure loading flags unlock after 1.5s even if network is slow/offline
+    const fallbackTimer = setTimeout(() => {
+      setIsPasswordsLoaded(true);
+      setIsSuppliersLoaded(true);
+      setIsPerCapitaConfigLoaded(true);
+    }, 1500);
+
+    if (!database) {
+      setIsPasswordsLoaded(true);
+      setIsSuppliersLoaded(true);
+      setIsPerCapitaConfigLoaded(true);
+      return () => clearTimeout(fallbackTimer);
+    }
 
     const unsubscribes: (() => void)[] = [];
 
@@ -225,6 +237,9 @@ const App: React.FC = () => {
       setSystemPasswords(data);
       setIsPasswordsLoaded(true);
       safeLocalStorageSetItem('cached_systemPasswords', JSON.stringify(data));
+    }, (err) => {
+      console.error("Erro ao carregar senhas do sistema:", err);
+      setIsPasswordsLoaded(true);
     });
     unsubscribes.push(unsubPasswords);
 
@@ -239,6 +254,9 @@ const App: React.FC = () => {
       setSuppliers(list as Supplier[]);
       setIsSuppliersLoaded(true);
       safeLocalStorageSetItem('cached_suppliers', JSON.stringify(list));
+    }, (err) => {
+      console.error("Erro ao carregar fornecedores:", err);
+      setIsSuppliersLoaded(true);
     });
     unsubscribes.push(unsubSuppliers);
 
@@ -248,10 +266,14 @@ const App: React.FC = () => {
       setPerCapitaConfig(config);
       setIsPerCapitaConfigLoaded(true);
       safeLocalStorageSetItem('cached_perCapitaConfig', JSON.stringify(config));
+    }, (err) => {
+      console.error("Erro ao carregar perCapitaConfig:", err);
+      setIsPerCapitaConfigLoaded(true);
     });
     unsubscribes.push(unsubPerCapita);
 
     return () => {
+      clearTimeout(fallbackTimer);
       unsubscribes.forEach((unsub) => unsub());
     };
   }, []);
@@ -790,28 +812,42 @@ const App: React.FC = () => {
       setUser({ name: 'SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA', cpf: '431385464', role: 'julio' });
       return true;
     }
-    const ppaisProducer = ensureArray(perCapitaConfig.ppaisProducers).find(p => p?.cpfCnpj && String(p.cpfCnpj).replace(/\D/g, '') === numericPass);
-    console.log('--- Debug: Login ---', { numericPass, found: !!ppaisProducer, all: perCapitaConfig.ppaisProducers?.map(p => p.cpfCnpj) });
+    const matchProducerOrSupplier = (p: any) => {
+      if (!p) return false;
+      const pCpf = String(p.cpfCnpj || p.cpf || p.cnpj || '').replace(/\D/g, '');
+      const pPass = String(p.password || p.senha || p.accessKey || '').trim().toLowerCase();
+      const pName = String(p.name || '').trim().toUpperCase();
+
+      if (numericPass && pCpf && pCpf === numericPass) return true;
+      if (rawPass && pPass && pPass === rawPass.toLowerCase()) return true;
+      if (cleanName && pName && (pName.includes(cleanName) || cleanName.includes(pName))) {
+        if (numericPass && pCpf && pCpf === numericPass) return true;
+        if (rawPass && pPass && pPass === rawPass.toLowerCase()) return true;
+      }
+      return false;
+    };
+
+    const ppaisProducer = ensureArray(perCapitaConfig.ppaisProducers).find(matchProducerOrSupplier);
     if (ppaisProducer) {
-      setUser({ name: ppaisProducer.name, cpf: ppaisProducer.cpfCnpj, role: 'producer' });
+      setUser({ name: ppaisProducer.name, cpf: ppaisProducer.cpfCnpj || ppaisProducer.cpf || numericPass, role: 'producer' });
       return true;
     }
 
-    const pereciveisSupplier = ensureArray(perCapitaConfig.pereciveisSuppliers).find(p => p?.cpfCnpj && String(p.cpfCnpj).replace(/\D/g, '') === numericPass);
+    const pereciveisSupplier = ensureArray(perCapitaConfig.pereciveisSuppliers).find(matchProducerOrSupplier);
     if (pereciveisSupplier) {
-      setUser({ name: pereciveisSupplier.name, cpf: pereciveisSupplier.cpfCnpj, role: 'pereciveis_supplier' });
+      setUser({ name: pereciveisSupplier.name, cpf: pereciveisSupplier.cpfCnpj || pereciveisSupplier.cpf || numericPass, role: 'pereciveis_supplier' });
       return true;
     }
 
-    const estocaveisSupplier = ensureArray(perCapitaConfig.estocaveisSuppliers).find(p => p?.cpfCnpj && String(p.cpfCnpj).replace(/\D/g, '') === numericPass);
+    const estocaveisSupplier = ensureArray(perCapitaConfig.estocaveisSuppliers).find(matchProducerOrSupplier);
     if (estocaveisSupplier) {
-      setUser({ name: estocaveisSupplier.name, cpf: estocaveisSupplier.cpfCnpj, role: 'estocaveis_supplier' });
+      setUser({ name: estocaveisSupplier.name, cpf: estocaveisSupplier.cpfCnpj || estocaveisSupplier.cpf || numericPass, role: 'estocaveis_supplier' });
       return true;
     }
 
-    const supplier = suppliers.find(s => s?.cpf && String(s.cpf).replace(/\D/g, '') === numericPass);
+    const supplier = suppliers.find(s => matchProducerOrSupplier(s));
     if (supplier) {
-      setUser({ name: supplier.name, cpf: supplier.cpf, role: 'supplier' });
+      setUser({ name: supplier.name, cpf: supplier.cpf || supplier.cnpj || numericPass, role: 'supplier' });
       return true;
     }
 
@@ -3058,7 +3094,7 @@ const App: React.FC = () => {
 
     try {
       if (!user) {
-        const isLoadingEssential = !isPasswordsLoaded;
+        const isLoadingEssential = !isPasswordsLoaded || !isSuppliersLoaded || !isPerCapitaConfigLoaded;
         return <LoginScreen onLogin={handleLogin} publicInfoList={publicInfo} isLoading={isLoadingEssential} />;
       }
 
