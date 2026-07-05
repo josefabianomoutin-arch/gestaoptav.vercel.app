@@ -238,7 +238,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         });
 
         // Subtrai as saídas dessa NF
-        (warehouseLog || []).filter(l => l && l.supplierName === selectedSupplier.name && l.inboundInvoice && l.type === 'saída').forEach(e => {
+        (warehouseLog || []).filter(l => l && l.supplierName === selectedSupplier.name && l.itemName === selectedItemName && l.inboundInvoice && l.type === 'saída').forEach(e => {
             if (invoiceBalances[e.inboundInvoice!]) {
                 invoiceBalances[e.inboundInvoice!].total -= (e.quantity || e.kg || 0);
             }
