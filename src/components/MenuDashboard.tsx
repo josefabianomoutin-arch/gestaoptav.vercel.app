@@ -19,7 +19,7 @@ interface MenuDashboardProps {
   standardMenu: StandardMenu;
   dailyMenus: DailyMenus;
   suppliers: Supplier[];
-  onLogout: () => void;
+  onLogout?: () => void;
   embedded?: boolean;
   showPdfOnly?: boolean;
 }
@@ -156,7 +156,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
     const dateFormatted = new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR');
     
     const labelsHtml = rowsToPrint.map(row => {
-      const { lot, invoice } = findLotInfo(row.contractedItem || '');
+      const { lot, invoice } = findLotInfo(row.contractedItem || row.foodItem || '');
       return `
         <div class="label-card">
           <div class="label-header">AMOSTRA 72 HORAS</div>
@@ -373,7 +373,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
             </thead>
             <tbody>
               ${meal.items.map(item => {
-                const { lot, invoice, expiration } = findLotInfo(item.contractedItem || '');
+                const { lot, invoice, expiration } = findLotInfo(item.contractedItem || item.foodItem || '');
                 return `
                   <tr>
                     <td>${getFirstTwoWords(item.contractedItem) || item.foodItem || '-'}</td>
@@ -546,7 +546,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
             </thead>
             <tbody>
               ${items.length > 0 ? items.map(row => {
-                const { lot, invoice } = findLotInfo(row.contractedItem || '');
+                const { lot, invoice } = findLotInfo(row.contractedItem || row.foodItem || '');
                 return `
                   <tr>
                     <td><strong>${getFirstTwoWords(row.contractedItem) || row.foodItem || 'N/A'}</strong></td>
@@ -773,8 +773,8 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
                         </div>
                       </div>
                       <div className="flex flex-col items-end text-[9px] font-mono text-slate-400">
-                        <span>LOT: {findLotInfo(row.contractedItem || '').lot}</span>
-                        <span>NF: {findLotInfo(row.contractedItem || '').invoice}</span>
+                        <span>LOT: {findLotInfo(row.contractedItem || row.foodItem || '').lot}</span>
+                        <span>NF: {findLotInfo(row.contractedItem || row.foodItem || '').invoice}</span>
                       </div>
                     </div>
                   ))
