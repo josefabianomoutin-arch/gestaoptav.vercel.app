@@ -3314,7 +3314,7 @@ const App: React.FC = () => {
     }
 
     if (user.role === 'cardapio') {
-      return <AdminStandardMenu template={standardMenu || {}} dailyMenus={dailyMenus || {}} onUpdateDailyMenus={handleUpdateDailyMenu} inmateCount={perCapitaConfig?.inmateCount || 0} suppliers={combinedSuppliers || []} />;
+      return <MenuDashboard standardMenu={standardMenu || {}} dailyMenus={dailyMenus || {}} suppliers={combinedSuppliers || []} onLogout={handleLogout} />;
     }
 
     if (user.role === 'almoxarifado') {
