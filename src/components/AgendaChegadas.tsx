@@ -1069,15 +1069,6 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                 )}
                             </div>
 
-                                {item.items && item.items.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mt-2 mb-2">
-                                        {item.items.map((it: any, idx: number) => (
-                                            <span key={idx} className="text-[8px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
-                                                {it.item || it.itemName || ''} ({it.kg}kg)
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
                                 <div className="mt-4 pt-4 border-t border-dashed border-slate-100 flex justify-between items-center">
                                 <div className="flex flex-wrap items-center gap-4">
                                     <div className="flex items-center gap-2">
