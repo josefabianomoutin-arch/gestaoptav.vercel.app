@@ -180,7 +180,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       });
     }
 
-    return list.sort((a, b) => a.localeCompare(b)).map(item => ({
+    return list.sort((a, b) => (a || '').localeCompare(b || '')).map(item => ({
       original: item,
       normalized: item.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase()
     }));
@@ -353,7 +353,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
     return Object.values(stockMap)
       .filter((item) => item.balance > 0.001)
-      .sort((a, b) => a.itemName.localeCompare(b.itemName) || a.expiration.localeCompare(b.expiration) || a.lot.localeCompare(b.lot));
+      .sort((a, b) => (a.itemName || '').localeCompare(b.itemName || '') || (a.expiration || '').localeCompare(b.expiration || '') || (a.lot || '').localeCompare(b.lot || ''));
   }, [warehouseLog, localActiveItems, suppliers]);
 
   // Keep local items in sync with active subtab's activeOrder items

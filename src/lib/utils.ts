@@ -18,7 +18,7 @@ export function safeLocalStorageSetItem(key: string, value: string): boolean {
     
     const dateA = String(a.date || a.timestamp || '');
     const dateB = String(b.date || b.timestamp || '');
-    return dateB.localeCompare(dateA);
+    return (dateB || '').localeCompare(dateA || '');
   };
 
   try {
@@ -45,7 +45,7 @@ export function safeLocalStorageSetItem(key: string, value: string): boolean {
               const sortedDeliveries = [...sup.deliveries].sort((a: any, b: any) => {
                 const dA = String(a.date || '');
                 const dB = String(b.date || '');
-                return dB.localeCompare(dA);
+                return (dB || '').localeCompare(dA || '');
               });
               return {
                 ...sup,
@@ -79,7 +79,7 @@ export function safeLocalStorageSetItem(key: string, value: string): boolean {
                   const sortedDeliveries = [...sup.deliveries].sort((a: any, b: any) => {
                     const dA = String(a.date || '');
                     const dB = String(b.date || '');
-                    return dB.localeCompare(dA);
+                    return (dB || '').localeCompare(dA || '');
                   });
                   return {
                     ...sup,

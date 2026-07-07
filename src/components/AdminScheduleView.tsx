@@ -68,7 +68,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
 
     const filteredSuppliers = useMemo(() => {
         return suppliers.filter(p => {
-            const nameMatch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const nameMatch = (p.name || '').toLowerCase().includes((searchTerm || '').toLowerCase());
             
             if (!nameMatch) return false;
             if (!dateFilter) return true;
@@ -88,7 +88,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
     }, [suppliers, searchTerm, dateFilter]);
 
     const reportSuppliers = useMemo(() => {
-        return suppliers.sort((a, b) => a.name.localeCompare(b.name));
+        return suppliers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }, [suppliers]);
 
     const reportAvailableMonths = useMemo(() => {
@@ -357,18 +357,18 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
 
     const filteredThirdParties = useMemo(() => {
         return (thirdPartyEntries || []).filter(log => {
-            const nameMatch = log.companyName.toLowerCase().includes(searchTerm.toLowerCase());
+            const nameMatch = (log.companyName || '').toLowerCase().includes((searchTerm || '').toLowerCase());
             const dateMatch = !dateFilter || log.date === dateFilter;
             return nameMatch && dateMatch;
         });
     }, [thirdPartyEntries, searchTerm, dateFilter]);
     
     const sortedSuppliers = useMemo(() => {
-        return [...filteredSuppliers].sort((a, b) => a.name.localeCompare(b.name));
+        return [...filteredSuppliers].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }, [filteredSuppliers]);
 
     const sortedThirdParties = useMemo(() => {
-        return [...filteredThirdParties].sort((a, b) => a.companyName.localeCompare(b.companyName));
+        return [...filteredThirdParties].sort((a, b) => (a.companyName || '').localeCompare(b.companyName || ''));
     }, [filteredThirdParties]);
 
     const handleCancel = (supplierCpf: string, deliveryIds: string[], date: string, isInvoice: boolean) => {

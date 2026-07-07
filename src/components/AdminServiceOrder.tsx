@@ -71,9 +71,9 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
-      order.requestingSector.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.requester.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.description.toLowerCase().includes(searchTerm.toLowerCase());
+      (order.requestingSector || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+      (order.requester || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+      (order.description || '').toLowerCase().includes((searchTerm || '').toLowerCase());
     
     const matchesStatus = filterStatus === 'todos' || order.status === filterStatus;
     const matchesStage = filterStage === 'todas' || order.projectStage === filterStage;

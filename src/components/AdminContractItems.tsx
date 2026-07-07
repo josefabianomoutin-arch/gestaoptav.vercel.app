@@ -181,7 +181,7 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
 
         return Array.from(map.values())
             .filter(item => item.totalContracted > 0 || (acquisitionItems && acquisitionItems.some(ai => superNormalize(ai.contractItemName || ai.name || '') === item.normName)))
-            .sort((a, b) => a.name.localeCompare(b.name));
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }, [suppliers, warehouseLog, acquisitionItems]);
 
     const filteredItems = useMemo(() => {
@@ -611,7 +611,7 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
     });
 
     const availableSuppliers = useMemo(() => {
-        return allSuppliers.filter(s => !assignments.some(a => a.supplierCpf === s.cpf)).sort((a,b) => a.name.localeCompare(b.name));
+        return allSuppliers.filter(s => !assignments.some(a => a.supplierCpf === s.cpf)).sort((a,b) => (a.name || '').localeCompare(b.name || ''));
     }, [allSuppliers, assignments]);
 
     const getDivisor = () => {

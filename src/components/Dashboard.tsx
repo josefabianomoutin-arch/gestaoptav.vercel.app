@@ -172,7 +172,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         acc[delivery.date].push(delivery);
         return acc;
     }, {} as Record<string, any[]>);
-    return Object.entries(groupedByDate).map(([date, deliveries]) => ({ date, deliveries: deliveries as Delivery[] })).sort((a,b) => b.date.localeCompare(a.date));
+    return Object.entries(groupedByDate).map(([date, deliveries]) => ({ date, deliveries: deliveries as Delivery[] })).sort((a,b) => (b.date || '').localeCompare(a.date || ''));
   }, [supplier.deliveries]);
 
   const uploadedInvoices = useMemo((): any[] => {
@@ -214,7 +214,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     return Object.values(groupedByNf).sort((a: any, b: any) => {
         const dateA = a.date || '';
         const dateB = b.date || '';
-        return dateB.localeCompare(dateA);
+        return (dateB || '').localeCompare(dateA || '');
     });
   }, [supplier.deliveries]);
 
@@ -360,7 +360,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             datesScheduled: datesScheduled,
             valuePerKg: item.valuePerKg || 0
         };
-    }).sort((a, b) => a.item.localeCompare(b.item));
+    }).sort((a, b) => (a.item || '').localeCompare(b.item || ''));
 
     const commitmentNumbers = [...new Set(printItems.map(d => {
         const contractItem = contractItems.find((ci: any) => (ci.name || ci.itemName || ci.item || '') === d.item);

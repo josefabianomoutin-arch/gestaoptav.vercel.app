@@ -399,7 +399,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
 
     return Array.from(weightsMap.entries())
       .map(([name, weight]) => ({ name, weight }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [template, dailyMenus]);
 
   // Mapa otimizado para lookup rápido durante o preenchimento automático
@@ -587,7 +587,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
         }
     });
     
-    const sortedSummary = Array.from(itemSummary.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    const sortedSummary = Array.from(itemSummary.entries()).sort((a, b) => (a[0] || '').localeCompare(b[0] || ''));
     
     const datesOfWeek = getDatesOfWeek(selectedWeek, 2026);
     const suppliersThisWeek = new Set<string>();
@@ -827,13 +827,13 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
         };
     }).filter(s => s.items.length > 0);
 
-    return result.sort((a,b) => a.supplierName.localeCompare(b.supplierName));
+    return result.sort((a,b) => (a.supplierName || '').localeCompare(b.supplierName || ''));
   }, [selectedWeek, dailyMenus, suppliers]);
 
   const monthlyReportData = useMemo(() => {
     const dates = Object.keys(dailyMenus || {})
       .filter(date => date.startsWith(reportMonth))
-      .sort((a, b) => a.localeCompare(b));
+      .sort((a, b) => (a || '').localeCompare(b || ''));
 
     // Agrupa itens listados por data
     const byDate = dates.map(date => {
@@ -876,7 +876,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
       });
     });
 
-    const byItem = Object.values(itemsMap).sort((a, b) => a.name.localeCompare(b.name));
+    const byItem = Object.values(itemsMap).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     return { byDate, byItem };
   }, [dailyMenus, reportMonth]);

@@ -307,7 +307,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             }
         });
 
-        return Object.values(grouped).sort((a, b) => a.itemName.localeCompare(b.itemName));
+        return Object.values(grouped).sort((a, b) => (a.itemName || '').localeCompare(b.itemName || ''));
     }, [perCapitaConfig, activeMonthTab, combinedLog]);
 
     React.useEffect(() => {

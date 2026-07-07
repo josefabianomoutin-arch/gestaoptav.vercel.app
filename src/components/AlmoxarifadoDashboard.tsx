@@ -3203,7 +3203,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                         className="w-full h-9 px-3 border border-gray-200 rounded-lg bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-teal-400 transition-all text-[10px] uppercase cursor-pointer"
                                     >
                                         <option value="">-- SELECIONE --</option>
-                                        {suppliers.sort((a, b) => a.name.localeCompare(b.name)).map(s => <option key={s.cpf} value={s.cpf}>{s.name.toUpperCase()}</option>)}
+                                        {suppliers.sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(s => <option key={s.cpf} value={s.cpf}>{s.name.toUpperCase()}</option>)}
                                     </select>
                                 </div>
                                 <div className="space-y-1 md:col-span-1">

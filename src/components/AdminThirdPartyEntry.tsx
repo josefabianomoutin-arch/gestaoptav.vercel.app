@@ -221,7 +221,7 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
             return;
         }
 
-        const sortedLogs = [...logs].sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || ''));
+        const sortedLogs = [...logs].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.time || '').localeCompare(a.time || ''));
 
         const printContent = `
             <html>
@@ -374,7 +374,7 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {logs.length > 0 ? logs.sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || '')).map(log => (
+                        {logs.length > 0 ? logs.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.time || '').localeCompare(a.time || '')).map(log => (
                             <tr key={log.id} className="hover:bg-gray-50 transition-colors">
                                 <td className="p-4">
                                     {log.photo ? (

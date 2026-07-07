@@ -53,9 +53,9 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
     });
 
     const filteredSuppliers = suppliers.filter(p => 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.name || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
         p.cpfCnpj.includes(searchTerm) ||
-        p.processNumber.toLowerCase().includes(searchTerm.toLowerCase())
+        (p.processNumber || '').toLowerCase().includes((searchTerm || '').toLowerCase())
     );
 
     const currentSupplier = useMemo(() => {

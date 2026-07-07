@@ -1230,7 +1230,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                             Ordens com Anexo (PDF)
                                                         </td>
                                                     </tr>
-                                                    {groupedOrders.withPdf.sort((a,b) => b.date.localeCompare(a.date)).map(order => renderOrderRow(order))}
+                                                    {groupedOrders.withPdf.sort((a,b) => (b.date || '').localeCompare(a.date || '')).map(order => renderOrderRow(order))}
                                                 </>
                                             )}
                                             {/* Ordens sem Anexo */}
@@ -1241,7 +1241,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                             Ordens sem Anexo
                                                         </td>
                                                     </tr>
-                                                    {groupedOrders.withoutPdf.sort((a,b) => b.date.localeCompare(a.date)).map(order => renderOrderRow(order))}
+                                                    {groupedOrders.withoutPdf.sort((a,b) => (b.date || '').localeCompare(a.date || '')).map(order => renderOrderRow(order))}
                                                 </>
                                             )}
                                         </>

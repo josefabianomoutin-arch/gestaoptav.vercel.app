@@ -390,7 +390,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
       });
       return Array.from(data.entries())
         .map(([name, values]) => ({ name, ...values }))
-        .sort((a, b) => a.name.localeCompare(b.name));
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }, [suppliers, ppaisAsSuppliers, pereciveisAsSuppliers, estocaveisAsSuppliers]);
 
     const perCapitaDenominator = useMemo(() => {
@@ -825,7 +825,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 empenhos: Array.from(data.empenhos),
                 hasEmpenho: data.empenhos.size > 0
             };
-        }).sort((a, b) => a.name.localeCompare(b.name));
+        }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
         return result;
     }, [suppliers, ppaisAsSuppliers, pereciveisAsSuppliers, estocaveisAsSuppliers, acquisitionItems]);
@@ -864,7 +864,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 observations: supplier.observations || ''
             };
         }).filter(s => s.totalWeight > 0 || s.totalValue > 0)
-          .sort((a, b) => a.name.localeCompare(b.name));
+          .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }, [suppliers]);
 
     return (
@@ -1253,7 +1253,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 </thead>
                                 <tbody className="divide-y divide-zinc-100">
                                     {[...(suppliers || []), ...ppaisAsSuppliers, ...pereciveisAsSuppliers]
-                                        .sort((a, b) => a.name.localeCompare(b.name))
+                                        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
                                         .map((s, idx) => {
                                             const items = Object.values(s.contractItems || {}) as any[];
                                             const category = ppaisProducers.some(p => matchCpfCnpj(p.cpfCnpj || p.cpf, s.cpf)) ? 'PPAIS' : 
@@ -1998,7 +1998,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                         </div>
                                     ) : (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                            {(activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers)).sort((a, b) => a.name.localeCompare(b.name)).map(s => {
+                                            {(activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers)).sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(s => {
                                                 const scheduledMonths = months.filter(m => getSafeScheduleWeeks(s.monthlySchedule, m).length > 0);
                                                 
                                                 const items = (s.contractItems || []) as any[];

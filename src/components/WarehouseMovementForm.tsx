@@ -133,7 +133,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                 ...s,
                 balance: s.totalIn - s.totalOut
             }))
-            .sort((a, b) => a.timestamp - b.timestamp || a.nfNumber.localeCompare(b.nfNumber));
+            .sort((a, b) => a.timestamp - b.timestamp || (a.nfNumber || '').localeCompare(b.nfNumber || ''));
     }, [warehouseLog, manualType]);
 
     const filteredNfSearch = useMemo(() => {
@@ -284,7 +284,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             });
         }
 
-        return itemsList.sort((a, b) => a.name.localeCompare(b.name));
+        return itemsList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }, [selectedSupplier, manualType, filteredSuppliers, registeredInvoicesWithStock]);
 
     useEffect(() => {

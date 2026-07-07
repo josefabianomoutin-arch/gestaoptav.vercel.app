@@ -66,10 +66,10 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialReco
   const filteredLogs = useMemo(() => {
     return logs
       .filter(l => 
-        l.responsible.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        l.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        l.observations.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (l.maintenanceDetails || '').toLowerCase().includes(searchTerm.toLowerCase())
+        (l.responsible || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+        (l.location || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+        (l.observations || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+        (l.maintenanceDetails || '').toLowerCase().includes((searchTerm || '').toLowerCase())
       )
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [logs, searchTerm]);

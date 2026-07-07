@@ -95,7 +95,7 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
   const filteredEpiItems = useMemo(() => {
     if (!itemSearchText.trim()) return epiItems;
     const term = itemSearchText.toLowerCase();
-    return epiItems.filter(item => item.name.toLowerCase().includes(term));
+    return epiItems.filter(item => (item.name || '').toLowerCase().includes(term));
   }, [epiItems, itemSearchText]);
 
   // Find currently selected item details
@@ -115,9 +115,9 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
     if (!historySearchText.trim()) return logs;
     const term = historySearchText.toLowerCase();
     return logs.filter(log => 
-      log.responsible.toLowerCase().includes(term) ||
+      (log.responsible || '').toLowerCase().includes(term) ||
       (log.registration && log.registration.toLowerCase().includes(term)) ||
-      log.itemName.toLowerCase().includes(term)
+      (log.itemName || '').toLowerCase().includes(term)
     );
   }, [logs, historySearchText]);
 

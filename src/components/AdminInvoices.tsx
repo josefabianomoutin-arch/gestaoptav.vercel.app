@@ -137,7 +137,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
       });
     }
 
-    return sList.sort((a, b) => a.name.localeCompare(b.name));
+    return sList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [suppliers, perCapitaConfig]);
 
   const allInvoices = useMemo(() => {
@@ -484,7 +484,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
         });
     }
 
-    return Array.from(items).sort((a, b) => a.localeCompare(b));
+    return Array.from(items).sort((a, b) => (a || '').localeCompare(b || ''));
   }, [allMappedSuppliers, perCapitaConfig, manualEntryData.supplierCpf, editingInvoice?.supplierCpf]);
 
   const handleManualSave = async () => {

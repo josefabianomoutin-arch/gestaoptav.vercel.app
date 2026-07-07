@@ -190,8 +190,8 @@ const ItespDashboard: React.FC<ItespDashboardProps> = ({ suppliers = [], perCapi
     const filteredData = useMemo(() => {
         const lowerSearch = searchTerm.toLowerCase();
         return comparisonData.filter(item => {
-            const searchMatch = item.supplierName.toLowerCase().includes(lowerSearch) || 
-                                item.productName.toLowerCase().includes(lowerSearch);
+            const searchMatch = (item.supplierName || '').toLowerCase().includes(lowerSearch) || 
+                                (item.productName || '').toLowerCase().includes(lowerSearch);
             const monthMatch = selectedMonth === 'all' || item.month === selectedMonth;
             const productMatch = selectedProduct === 'all' || item.productName === selectedProduct;
             return searchMatch && monthMatch && productMatch;

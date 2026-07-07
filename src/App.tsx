@@ -324,7 +324,7 @@ const App: React.FC = () => {
               const bInvoiced = b.invoiceUploaded || b.status === 'CONCLUÍDO';
               if (aInvoiced && !bInvoiced) return -1;
               if (!aInvoiced && bInvoiced) return 1;
-              return a.date.localeCompare(b.date);
+              return (a.date || '').localeCompare(b.date || '');
             });
 
             cleanedDeliveries.push(group[0]);
@@ -383,7 +383,7 @@ const App: React.FC = () => {
                 const bInvoiced = b.invoiceUploaded || b.status === 'CONCLUÍDO';
                 if (aInvoiced && !bInvoiced) return -1;
                 if (!aInvoiced && bInvoiced) return 1;
-                return a.date.localeCompare(b.date);
+                return (a.date || '').localeCompare(b.date || '');
               });
 
               cleanedDeliveries.push(group[0]);

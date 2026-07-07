@@ -104,7 +104,7 @@ const PtresTable: React.FC<{ ptres: string, ptresRecords: FinancialRecord[], for
             </div>
 
             <div className="space-y-8">
-                {(Object.entries(ptresTotalsByNatureza) as [string, { rec: number, gast: number }][]).sort(([a], [b]) => a.localeCompare(b)).map(([nat, totals]) => {
+                {(Object.entries(ptresTotalsByNatureza) as [string, { rec: number, gast: number }][]).sort(([a], [b]) => (a || '').localeCompare(b || '')).map(([nat, totals]) => {
                     const natRecords = ptresRecords.filter(r => (r.natureza || 'OUTROS') === nat);
                     const saldo = totals.rec - totals.gast;
                     

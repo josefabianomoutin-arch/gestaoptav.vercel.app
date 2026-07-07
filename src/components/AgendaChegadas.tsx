@@ -438,7 +438,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                 (item.supplierName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (item.supplierCpf || '').toLowerCase().includes(searchTerm.toLowerCase())
             )
-            .sort((a, b) => a.time.localeCompare(b.time));
+            .sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00'));
     }, [suppliers, thirdPartyEntries, selectedAgendaDate, searchTerm, perCapitaConfig]);
 
     const handleDelete = async (item: any) => {
