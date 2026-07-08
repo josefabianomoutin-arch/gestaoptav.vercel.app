@@ -1610,11 +1610,12 @@ const App: React.FC = () => {
     }
   };
 
-  const handleCancelDeliveries = async (supplierCpf: string, deliveryIds: string[]): Promise<void> => {
+  const handleCancelDeliveries = useCallback(async (supplierCpf: string, deliveryIds: string[]) => {
     try {
       const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
       const targetCpf = clean(supplierCpf);
       let deleted = false;
+      const updates: any = {};
 
       // 1. Delete from Per Capita
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
@@ -1622,38 +1623,41 @@ const App: React.FC = () => {
         const producers = ensureArray(perCapitaConfig[listKey]);
         const idx = producers.findIndex((p: any) => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
         if (idx !== -1) {
-          const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
-          await runTransaction(deliveriesRef, (current) => {
-            if (!current) return current;
-            const list = ensureArray<any>(current);
-            return list.filter(d => d && !deliveryIds.includes(d.id));
-          });
-          deleted = true;
+          const p = producers[idx];
+          if (p && p.deliveries) {
+              Object.keys(p.deliveries).forEach(key => {
+                  if (p.deliveries[key] && deliveryIds.includes(p.deliveries[key].id)) {
+                      updates[`perCapitaConfig/${listKey}/${idx}/deliveries/${key}`] = null;
+                      deleted = true;
+                  }
+              });
+          }
         }
       }
 
       // 2. Delete from Main Suppliers
       const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
       if (mainSupplier) {
-        const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
-        await runTransaction(deliveriesRef, (current) => {
-          if (!current) return current;
-          const list = ensureArray<any>(current);
-          return list.filter(d => d && !deliveryIds.includes(d.id));
-        });
-        deleted = true;
+        if (mainSupplier.deliveries) {
+            Object.keys(mainSupplier.deliveries).forEach(key => {
+                if (mainSupplier.deliveries[key] && deliveryIds.includes(mainSupplier.deliveries[key].id)) {
+                    updates[`suppliers/${mainSupplier.id || targetCpf}/deliveries/${key}`] = null;
+                    deleted = true;
+                }
+            });
+        }
       }
-
-      if (deleted) {
+      if (Object.keys(updates).length > 0) {
+        await update(ref(db), updates);
         toast.success('Agendamentos excluídos.');
       } else {
-        toast.error('Fornecedor não encontrado para exclusão.');
+        toast.error('Não foi possível encontrar os agendamentos para exclusão.');
       }
-    } catch (e) {
-      console.error("Error canceling deliveries:", e);
-      toast.error('Erro ao excluir agendamentos.');
+    } catch (error) {
+      console.error('Erro ao cancelar entregas:', error);
+      toast.error('Erro ao cancelar entregas.');
     }
-  };
+  }, [suppliers, perCapitaConfig]);
 
   const handleUpdateInvoiceItems = async (supplierCpf: string, invoiceNumber: string, items: any[], barcode?: string, newInvoiceNumber?: string, newDate?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string, supplierNameHint?: string, ne?: string): Promise<{ success: boolean; message?: string }> => {
     try {

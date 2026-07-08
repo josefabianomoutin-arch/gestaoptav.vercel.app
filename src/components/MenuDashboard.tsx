@@ -109,12 +109,12 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
         }
       });
     });
-
     if (latestDelivery) {
       const lotObj = ensureArray<any>((latestDelivery as any).lots)?.[0];
-      const lotNum = lotObj?.lotNumber || (latestDelivery as any).lotNumber || 'N/A';
+      const lotNum = lotObj?.lotNumber || lotObj?.number || (latestDelivery as any).lotNumber || 'N/A';
       
       const rawExp = lotObj?.expirationDate || (latestDelivery as any).expirationDate;
+      
       let expiration = 'N/A';
       if (rawExp) {
         try {

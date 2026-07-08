@@ -1,0 +1,11 @@
+      if (Object.keys(updates).length > 0) {
+        await update(ref(db), updates);
+        toast.success('Agendamentos excluídos.');
+      } else {
+        toast.error('Não foi possível encontrar os agendamentos para exclusão.');
+      }
+    } catch (error) {
+      console.error('Erro ao cancelar entregas:', error);
+      toast.error('Erro ao cancelar entregas.');
+    }
+  }, [suppliers, perCapitaConfig]);

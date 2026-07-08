@@ -301,23 +301,38 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
       
       suppliers.forEach(supplier => {
           ensureArray(supplier.deliveries).forEach((delivery: any) => {
-              if (delivery.item === itemName && delivery.lots) {
-                  delivery.lots.forEach(lot => {
-                      if ((lot.remainingQuantity || 0) > 0) {
-                          lots.push({
-                              supplierName: supplier.name,
-                              invoiceNumber: delivery.invoiceNumber || 'N/A',
-                              lotNumber: lot.lotNumber,
-                              expirationDate: lot.expirationDate || delivery.lots?.[0]?.expirationDate || 'N/A',
-                              date: delivery.date,
-                              quantity: delivery.kg || 0, // Original quantity of the delivery/item
-                              remainingQuantity: lot.remainingQuantity,
-                              barcode: delivery.barcode,
-                              receiptTermNumber: delivery.receiptTermNumber,
-                              itemName: itemName
-                          });
-                      }
-                  });
+              if (delivery.item === itemName) {
+                  if (delivery.lots && delivery.lots.length > 0) {
+                      delivery.lots.forEach((lot: any) => {
+                          if ((lot.remainingQuantity || 0) > 0) {
+                              lots.push({
+                                  supplierName: supplier.name,
+                                  invoiceNumber: delivery.invoiceNumber || 'N/A',
+                                  lotNumber: lot.lotNumber || lot.number || delivery.lotNumber || 'N/A',
+                                  expirationDate: lot.expirationDate || delivery.expirationDate || 'N/A',
+                                  date: delivery.date,
+                                  quantity: delivery.kg || 0,
+                                  remainingQuantity: lot.remainingQuantity,
+                                  barcode: delivery.barcode,
+                                  receiptTermNumber: delivery.receiptTermNumber,
+                                  itemName: itemName
+                              });
+                          }
+                      });
+                  } else if (delivery.lotNumber || delivery.expirationDate) {
+                      lots.push({
+                          supplierName: supplier.name,
+                          invoiceNumber: delivery.invoiceNumber || 'N/A',
+                          lotNumber: delivery.lotNumber || 'N/A',
+                          expirationDate: delivery.expirationDate || 'N/A',
+                          date: delivery.date,
+                          quantity: delivery.kg || 0,
+                          remainingQuantity: delivery.kg || 0,
+                          barcode: delivery.barcode,
+                          receiptTermNumber: delivery.receiptTermNumber,
+                          itemName: itemName
+                      });
+                  }
               }
           });
       });
