@@ -1614,8 +1614,9 @@ const App: React.FC = () => {
     try {
       const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
       const targetCpf = clean(supplierCpf);
+      let deleted = false;
 
-      // 1. Try Per Capita FIRST to prioritize Per Capita mappings
+      // 1. Delete from Per Capita
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
@@ -1627,12 +1628,11 @@ const App: React.FC = () => {
             const list = ensureArray<any>(current);
             return list.filter(d => d && !deliveryIds.includes(d.id));
           });
-          toast.success('Agendamentos excluídos.');
-          return;
+          deleted = true;
         }
       }
 
-      // 2. Try Main Suppliers
+      // 2. Delete from Main Suppliers
       const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
       if (mainSupplier) {
         const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
@@ -1641,8 +1641,13 @@ const App: React.FC = () => {
           const list = ensureArray<any>(current);
           return list.filter(d => d && !deliveryIds.includes(d.id));
         });
+        deleted = true;
+      }
+
+      if (deleted) {
         toast.success('Agendamentos excluídos.');
-        return;
+      } else {
+        toast.error('Fornecedor não encontrado para exclusão.');
       }
     } catch (e) {
       console.error("Error canceling deliveries:", e);
