@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
-import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Save, Database, Calendar, X } from 'lucide-react';
-import { getDatabase, ref, set, get } from 'firebase/database';
+import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Save, Database, Calendar, X, Wrench, Pencil, History, ArrowRightLeft, Check, AlertTriangle } from 'lucide-react';
+import { getDatabase, ref, set, get, push, remove, onValue } from 'firebase/database';
 import { app } from '../firebaseConfig';
 import { HOLIDAYS_2026 } from '../constants';
 import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus, Delivery } from '../types';
@@ -179,8 +179,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [isLoadingManualCron, setIsLoadingManualCron] = useState(false);
     const [isSavingManualCron, setIsSavingManualCron] = useState(false);
 
-    // --- Câmaras Frias States ---
-    const [camaraFriaSubTab, setCamaraFriaSubTab] = useState<'temperature' | 'cleaning'>('temperature');
+    // --- Câmaras Frias & Ferramentas States ---
+    const [camaraFriaSubTab, setCamaraFriaSubTab] = useState<'temperature' | 'cleaning' | 'tools'>('temperature');
     const [tempDate, setTempDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [tempPeriod, setTempPeriod] = useState<'MANHÃ' | 'TARDE'>('MANHÃ');
     const [tempTime, setTempTime] = useState<string>(new Date().toTimeString().slice(0, 5));
@@ -191,6 +191,345 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [isSavingTemp, setIsSavingTemp] = useState<boolean>(false);
     const [tempFilterMonth, setTempFilterMonth] = useState<string>(MONTHS_PT[new Date().getMonth()]);
     const [tempFilterYear, setTempFilterYear] = useState<number>(new Date().getFullYear());
+
+    // --- Controle de Ferramentas States & Database listeners ---
+    const [tools, setTools] = useState<any[]>([]);
+    const [toolMovements, setToolMovements] = useState<any[]>([]);
+    const [loadingTools, setLoadingTools] = useState(true);
+
+    const [newTool, setNewTool] = useState({
+        name: '',
+        model: '',
+        registerNumber: '',
+        toolCode: '',
+        category: 'MANUAL', // MANUAL, ELÉTRICA, MEDIÇÃO, EPI, OUTROS
+        location: '',
+        status: 'DISPONÍVEL'
+    });
+    const [editingToolId, setEditingToolId] = useState<string | null>(null);
+    const [isToolModalOpen, setIsToolModalOpen] = useState(false);
+
+    const [newMovement, setNewMovement] = useState({
+        toolId: '',
+        type: 'RETIRADA' as 'RETIRADA' | 'DEVOLUÇÃO',
+        personName: '',
+        personCpf: '',
+        responsible: currentUser?.name || '',
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toTimeString().slice(0, 5),
+        expectedReturnDate: '',
+        condition: 'BOM', // EXCELENTE, BOM, REGULAR, DANIFICADO
+        observations: ''
+    });
+
+    const [toolSearch, setToolSearch] = useState('');
+    const [toolStatusFilter, setToolStatusFilter] = useState('TODOS');
+    const [toolMovementSearch, setToolMovementSearch] = useState('');
+
+    useEffect(() => {
+        const db = getDatabase(app);
+        const toolsRef = ref(db, 'tools');
+        const movementsRef = ref(db, 'toolMovements');
+
+        const unsubTools = onValue(toolsRef, (snapshot) => {
+            const data = snapshot.val();
+            const list = data ? Object.entries(data).map(([key, val]: any) => ({
+                id: key,
+                ...val
+            })) : [];
+            setTools(list);
+            setLoadingTools(false);
+        });
+
+        const unsubMovements = onValue(movementsRef, (snapshot) => {
+            const data = snapshot.val();
+            const list = data ? Object.entries(data).map(([key, val]: any) => ({
+                id: key,
+                ...val
+            })) : [];
+            list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            setToolMovements(list);
+        });
+
+        return () => {
+            unsubTools();
+            unsubMovements();
+        };
+    }, []);
+
+    const handleSaveTool = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newTool.name || !newTool.registerNumber || !newTool.toolCode) {
+            alert('Por favor, preencha o nome, número de cadastro e o código da ferramenta.');
+            return;
+        }
+
+        const barcodeVal = `${newTool.registerNumber.trim().toUpperCase()}-${newTool.toolCode.trim().toUpperCase()}`;
+
+        try {
+            const db = getDatabase(app);
+            const toolData = {
+                name: newTool.name.toUpperCase().trim(),
+                model: newTool.model.toUpperCase().trim() || 'NÃO INFORMADO',
+                registerNumber: newTool.registerNumber.toUpperCase().trim(),
+                toolCode: newTool.toolCode.toUpperCase().trim(),
+                barcode: barcodeVal,
+                category: newTool.category,
+                location: newTool.location.toUpperCase().trim() || 'ALMOXARIFADO',
+                status: newTool.status,
+                createdAt: new Date().toISOString(),
+                lastMovement: editingToolId ? 'EDITADO' : 'CADASTRO INICIAL'
+            };
+
+            if (editingToolId) {
+                await set(ref(db, `tools/${editingToolId}`), {
+                    ...toolData,
+                    id: editingToolId
+                });
+                alert('Ferramenta atualizada com sucesso!');
+            } else {
+                const newToolRef = push(ref(db, 'tools'));
+                await set(newToolRef, {
+                    ...toolData,
+                    id: newToolRef.key
+                });
+                alert('Ferramenta cadastrada com sucesso!');
+            }
+
+            setNewTool({
+                name: '',
+                model: '',
+                registerNumber: '',
+                toolCode: '',
+                category: 'MANUAL',
+                location: '',
+                status: 'DISPONÍVEL'
+            });
+            setEditingToolId(null);
+            setIsToolModalOpen(false);
+        } catch (err) {
+            console.error("Error saving tool:", err);
+            alert("Erro ao salvar ferramenta.");
+        }
+    };
+
+    const handleDeleteTool = async (id: string) => {
+        if (!window.confirm('Tem certeza de que deseja excluir esta ferramenta? Isso removerá o registro permanentemente.')) {
+            return;
+        }
+        try {
+            const db = getDatabase(app);
+            await remove(ref(db, `tools/${id}`));
+            alert('Ferramenta removida com sucesso!');
+        } catch (err) {
+            console.error("Error deleting tool:", err);
+            alert("Erro ao remover ferramenta.");
+        }
+    };
+
+    const handleRegisterToolMovement = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newMovement.toolId || !newMovement.personName) {
+            alert('Por favor, selecione a ferramenta e informe o nome do colaborador.');
+            return;
+        }
+
+        const selectedTool = tools.find(t => t.id === newMovement.toolId);
+        if (!selectedTool) return;
+
+        try {
+            const db = getDatabase(app);
+            const movementRef = push(ref(db, 'toolMovements'));
+            const timestamp = Date.now();
+
+            const movementData = {
+                id: movementRef.key,
+                toolId: selectedTool.id,
+                toolName: selectedTool.name,
+                toolCode: selectedTool.toolCode,
+                registerNumber: selectedTool.registerNumber,
+                type: newMovement.type,
+                personName: newMovement.personName.toUpperCase().trim(),
+                personCpf: newMovement.personCpf.trim() || 'NÃO INFORMADO',
+                responsible: newMovement.responsible.toUpperCase().trim(),
+                date: newMovement.date,
+                time: newMovement.time,
+                expectedReturnDate: newMovement.type === 'RETIRADA' ? newMovement.expectedReturnDate : '',
+                condition: newMovement.type === 'DEVOLUÇÃO' ? newMovement.condition : '',
+                observations: newMovement.observations.trim() || 'SEM OBSERVAÇÕES',
+                timestamp: timestamp
+            };
+
+            await set(movementRef, movementData);
+
+            const nextStatus = newMovement.type === 'RETIRADA' 
+                ? 'EMPRESTADO' 
+                : (newMovement.condition === 'DANIFICADO' ? 'DANIFICADO' : (newMovement.condition === 'NECESSITA MANUTENÇÃO' ? 'MANUTENÇÃO' : 'DISPONÍVEL'));
+
+            await set(ref(db, `tools/${selectedTool.id}`), {
+                ...selectedTool,
+                status: nextStatus,
+                lastMovement: `${newMovement.type} POR ${newMovement.personName.toUpperCase()} EM ${newMovement.date} às ${newMovement.time}`
+            });
+
+            alert(`Movimentação de ${newMovement.type.toLowerCase()} registrada com sucesso!`);
+
+            setNewMovement(prev => ({
+                ...prev,
+                toolId: '',
+                personName: '',
+                personCpf: '',
+                expectedReturnDate: '',
+                condition: 'BOM',
+                observations: ''
+            }));
+        } catch (err) {
+            console.error("Error recording movement:", err);
+            alert("Erro ao registrar movimentação.");
+        }
+    };
+
+    const handlePrintToolLabel = (tool: any) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Etiqueta de Ferramenta - ${tool.registerNumber}</title>
+                <style>
+                    @page { size: 80mm 50mm; margin: 0; }
+                    body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 10px; background-color: #fff; color: #000; text-align: center; }
+                    .header { font-size: 8pt; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 3px; margin-bottom: 5px; text-transform: uppercase; }
+                    .title { font-size: 10pt; font-weight: bold; margin: 2px 0; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                    .info { font-size: 7.5pt; margin-bottom: 5px; display: flex; justify-content: space-around; }
+                    .barcode-container { display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 5px; }
+                    .barcode-container svg { max-width: 100%; height: auto; }
+                    .footer { font-size: 6pt; border-top: 1px dashed #000; padding-top: 2px; margin-top: 5px; text-transform: uppercase; }
+                </style>
+            </head>
+            <body>
+                <div class="header">C.F.A. TAIÚVA - ALMOXARIFADO</div>
+                <div class="title">${tool.name}</div>
+                <div class="info">
+                    <span><strong>CAD:</strong> ${tool.registerNumber}</span>
+                    <span><strong>CÓD:</strong> ${tool.toolCode}</span>
+                </div>
+                <div class="info">
+                    <span><strong>LOC:</strong> ${tool.location}</span>
+                </div>
+                <div class="barcode-container">
+                    <svg id="barcode"></svg>
+                </div>
+                <div class="footer">Patrimônio / Controle de Ferramentas</div>
+
+                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <script>
+                    window.onload = function() {
+                        try {
+                            JsBarcode("#barcode", "${tool.barcode}", {
+                                format: "CODE128",
+                                width: 1.8,
+                                height: 35,
+                                displayValue: true,
+                                fontSize: 9,
+                                margin: 0
+                            });
+                        } catch(e) {
+                            console.error('Barcode error:', e);
+                        }
+                        setTimeout(function() {
+                            window.print();
+                            window.close();
+                        }, 500);
+                    }
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    const handlePrintToolsReport = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Relatório de Movimentação de Ferramentas</title>
+                <style>
+                    @page { size: A4 portrait; margin: 15mm; }
+                    body { font-family: Arial, sans-serif; font-size: 9pt; line-height: 1.3; color: #000; margin: 0; padding: 0; }
+                    h2 { text-align: center; text-transform: uppercase; margin-bottom: 20px; font-size: 14pt; border-bottom: 2px solid #000; padding-bottom: 5px; }
+                    .info-header { margin-bottom: 15px; display: flex; justify-content: space-between; font-weight: bold; font-size: 9.5pt; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 8pt; text-transform: uppercase; }
+                    th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+                    th { background-color: #f2f2f2; font-weight: bold; text-align: center; }
+                    .type-badge { font-weight: bold; text-align: center; }
+                    .text-center { text-align: center; }
+                    .footer-signature { margin-top: 50px; display: flex; justify-content: space-around; page-break-inside: avoid; }
+                    .sig-line { border-top: 1px solid #000; width: 220px; text-align: center; padding-top: 4px; font-weight: bold; margin-top: 40px; }
+                </style>
+            </head>
+            <body>
+                <h2>Relatório de Controle de Entrada/Saída de Ferramentas</h2>
+                <div class="info-header">
+                    <span>C.F.A. TAIÚVA - ALMOXARIFADO</span>
+                    <span>EMISSÃO: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 12%;">DATA/HORA</th>
+                            <th style="width: 25%;">FERRAMENTA (REG / CÓD)</th>
+                            <th style="width: 10%;">OPERAÇÃO</th>
+                            <th style="width: 23%;">COLABORADOR / CPF</th>
+                            <th style="width: 15%;">AUTORIZADO POR</th>
+                            <th style="width: 15%;">PREV. / ESTADO / OBS.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${toolMovements.length > 0 ? toolMovements.map(log => `
+                            <tr>
+                                <td class="text-center">${log.date ? new Date(log.date + 'T12:00:00').toLocaleDateString('pt-BR') : ''}<br/>${log.time || ''}</td>
+                                <td><strong>${log.toolName || 'FMT'}</strong><br/>CAD: ${log.registerNumber || ''} | CÓD: ${log.toolCode || ''}</td>
+                                <td class="type-badge text-center" style="color: ${log.type === 'RETIRADA' ? '#b45309' : '#15803d'}; font-weight: 800;">
+                                    ${log.type || ''}
+                                </td>
+                                <td>${log.personName || ''}<br/><span style="font-size: 7.5pt; color: #444;">CPF: ${log.personCpf || ''}</span></td>
+                                <td>${log.responsible || ''}</td>
+                                <td style="font-size: 7.5pt;">
+                                    ${log.type === 'RETIRADA' ? `PREV. RETORNO: ${log.expectedReturnDate ? new Date(log.expectedReturnDate + 'T12:00:00').toLocaleDateString('pt-BR') : 'N/A'}` : `ESTADO: ${log.condition || 'BOM'}`}
+                                    ${log.observations && log.observations !== 'SEM OBSERVAÇÕES' ? `<br/>OBS: ${log.observations}` : ''}
+                                </td>
+                            </tr>
+                        `).join('') : `
+                            <tr>
+                                <td colSpan="6" style="text-align: center; padding: 20px; font-weight: bold;">Nenhum registro de movimentação encontrado.</td>
+                            </tr>
+                        `}
+                    </tbody>
+                </table>
+                <div class="footer-signature">
+                    <div class="sig-line">
+                        Responsável pelo Almoxarifado
+                    </div>
+                    <div class="sig-line">
+                        Diretoria / Supervisão
+                    </div>
+                </div>
+                <script>
+                    window.onload = function() {
+                        window.print();
+                        setTimeout(function() { window.close(); }, 500);
+                    }
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
 
     const filteredCronogramaSuppliers = useMemo(() => {
         const list = (cronogramaType === 'PPAIS' ? (perCapitaConfig?.ppaisProducers || []) : 
@@ -3324,8 +3663,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     <Database className="h-6 w-6" />
                                 </div>
                                 <div>
-                                    <h2 className="text-lg font-black uppercase tracking-tighter leading-none">Controle de Câmaras Frias</h2>
-                                    <p className="text-zinc-400 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Temperatura e Higienização das Câmaras</p>
+                                    <h2 className="text-lg font-black uppercase tracking-tighter leading-none">Controle de Câmaras Frias & Ferramentas</h2>
+                                    <p className="text-zinc-400 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Temperatura, Higienização e Ferramental do Almoxarifado</p>
                                 </div>
                             </div>
                             <div className="flex bg-zinc-800 p-1 rounded-2xl border border-zinc-700">
@@ -3343,6 +3682,13 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 >
                                     Controle de Limpeza
                                 </button>
+                                <button 
+                                    type="button"
+                                    onClick={() => setCamaraFriaSubTab('tools')}
+                                    className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all whitespace-nowrap ${camaraFriaSubTab === 'tools' ? 'bg-white text-zinc-900 shadow-md' : 'text-zinc-400 hover:text-white'}`}
+                                >
+                                    Controle de Ferramentas
+                                </button>
                             </div>
                         </div>
 
@@ -3354,6 +3700,617 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     onRegister={onRegisterCleaningLog || (async () => ({ success: false, message: 'N/A' }))} 
                                     onDelete={onDeleteCleaningLog || (async () => {})} 
                                 />
+                            </div>
+                        ) : camaraFriaSubTab === 'tools' ? (
+                            <div className="p-4 md:p-6 space-y-6">
+                                {/* Tools Dashboard Container */}
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50 border border-slate-100 p-4 rounded-3xl">
+                                    <div>
+                                        <h3 className="text-sm font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                                            <Wrench className="h-5 w-5 text-indigo-500" />
+                                            Controle Geral de Ferramentas
+                                        </h3>
+                                        <p className="text-[10px] text-slate-400 font-bold mt-0.5">Cadastre, gerencie e controle a retirada e devolução de ferramentas do almoxarifado</p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setEditingToolId(null);
+                                                setNewTool({
+                                                    name: '',
+                                                    model: '',
+                                                    registerNumber: '',
+                                                    toolCode: '',
+                                                    category: 'MANUAL',
+                                                    location: '',
+                                                    status: 'DISPONÍVEL'
+                                                });
+                                                setIsToolModalOpen(true);
+                                            }}
+                                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2 px-4 rounded-xl uppercase tracking-wider text-[9px] transition-all flex items-center gap-1.5 shadow-sm"
+                                        >
+                                            <Plus className="h-3.5 w-3.5" />
+                                            Nova Ferramenta
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handlePrintToolsReport}
+                                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2 px-4 rounded-xl uppercase tracking-wider text-[9px] transition-all flex items-center gap-1.5 shadow-sm"
+                                        >
+                                            <Printer className="h-3.5 w-3.5" />
+                                            Imprimir Movimentações
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Tools Secondary Tabs */}
+                                <div className="flex border-b border-slate-100 gap-6">
+                                    <button
+                                        type="button"
+                                        onClick={() => setToolsView('inventory')}
+                                        className={`pb-3 text-xs font-black uppercase tracking-wider transition-all relative ${toolsView === 'inventory' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        Estoque de Ferramentas ({tools.length})
+                                        {toolsView === 'inventory' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-full" />}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setToolsView('movement')}
+                                        className={`pb-3 text-xs font-black uppercase tracking-wider transition-all relative ${toolsView === 'movement' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        Retirada / Devolução
+                                        {toolsView === 'movement' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-full" />}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setToolsView('logs')}
+                                        className={`pb-3 text-xs font-black uppercase tracking-wider transition-all relative ${toolsView === 'logs' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        Histórico de Movimentações ({toolMovements.length})
+                                        {toolsView === 'logs' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-full" />}
+                                    </button>
+                                </div>
+
+                                {/* Views Rendering */}
+                                {toolsView === 'inventory' && (
+                                    <div className="space-y-4">
+                                        {/* Search and Filters */}
+                                        <div className="flex flex-col sm:flex-row gap-3">
+                                            <div className="relative flex-1">
+                                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                                                <input
+                                                    type="text"
+                                                    value={toolSearch}
+                                                    onChange={e => setToolSearch(e.target.value)}
+                                                    placeholder="Buscar por nome, cadastro, código..."
+                                                    className="w-full h-9 pl-9 pr-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                                />
+                                            </div>
+                                            <select
+                                                value={toolStatusFilter}
+                                                onChange={e => setToolStatusFilter(e.target.value)}
+                                                className="h-9 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                            >
+                                                <option value="TODOS">Todos os Status</option>
+                                                <option value="DISPONÍVEL">Disponível</option>
+                                                <option value="EMPRESTADO">Emprestado</option>
+                                                <option value="MANUTENÇÃO">Manutenção</option>
+                                                <option value="DANIFICADO">Danificado</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Tools Grid */}
+                                        {loadingTools ? (
+                                            <div className="text-center py-8 text-slate-400 font-bold text-xs uppercase">Carregando ferramentas...</div>
+                                        ) : tools.length === 0 ? (
+                                            <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl text-slate-400">
+                                                <Wrench className="h-10 w-10 mx-auto mb-2 opacity-35" />
+                                                <p className="font-bold text-xs uppercase">Nenhuma ferramenta cadastrada</p>
+                                                <p className="text-[10px] mt-1">Clique em "Nova Ferramenta" para registrar seu primeiro ativo.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {tools
+                                                    .filter(t => {
+                                                        const matchSearch = t.name?.toLowerCase().includes(toolSearch.toLowerCase()) ||
+                                                            t.registerNumber?.toLowerCase().includes(toolSearch.toLowerCase()) ||
+                                                            t.toolCode?.toLowerCase().includes(toolSearch.toLowerCase());
+                                                        const matchStatus = toolStatusFilter === 'TODOS' || t.status === toolStatusFilter;
+                                                        return matchSearch && matchStatus;
+                                                    })
+                                                    .map(t => {
+                                                        const statusColors: Record<string, string> = {
+                                                            'DISPONÍVEL': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                                                            'EMPRESTADO': 'bg-amber-50 text-amber-700 border-amber-200',
+                                                            'MANUTENÇÃO': 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                                                            'DANIFICADO': 'bg-rose-50 text-rose-700 border-rose-200',
+                                                            'DEFAULT': 'bg-slate-50 text-slate-700 border-slate-200'
+                                                        };
+                                                        const colorClass = statusColors[t.status] || statusColors['DEFAULT'];
+
+                                                        return (
+                                                            <div key={t.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:border-slate-200 transition-all">
+                                                                <div className="space-y-3">
+                                                                    <div className="flex justify-between items-start">
+                                                                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{t.category}</span>
+                                                                        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${colorClass}`}>{t.status}</span>
+                                                                    </div>
+                                                                    <div>
+                                                                        <h4 className="text-xs font-black text-slate-800 uppercase leading-snug">{t.name}</h4>
+                                                                        <p className="text-[10px] text-slate-400 font-bold mt-0.5 uppercase">Mod: {t.model}</p>
+                                                                    </div>
+                                                                    <div className="grid grid-cols-2 gap-2 text-[9px] bg-slate-50 p-2 rounded-xl border border-slate-100 font-bold uppercase text-slate-500">
+                                                                        <div>
+                                                                            <span className="text-[8px] text-slate-400 block font-normal">CADASTRO</span>
+                                                                            {t.registerNumber}
+                                                                        </div>
+                                                                        <div>
+                                                                            <span className="text-[8px] text-slate-400 block font-normal">CÓDIGO</span>
+                                                                            {t.toolCode}
+                                                                        </div>
+                                                                        <div className="col-span-2 border-t border-slate-100 pt-1 mt-1">
+                                                                            <span className="text-[8px] text-slate-400 block font-normal">ARMAZENAMENTO</span>
+                                                                            {t.location}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex flex-col items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                                                        <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mb-1">Código de Barras</span>
+                                                                        <div className="font-mono text-[9px] font-bold bg-white px-3 py-1 rounded border border-slate-100 text-slate-800 tracking-widest">{t.barcode}</div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex gap-2 mt-4 pt-3 border-t border-slate-50">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handlePrintToolLabel(t)}
+                                                                        className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 font-black py-1.5 px-3 rounded-lg uppercase tracking-wider text-[8px] transition-all flex items-center justify-center gap-1"
+                                                                        title="Imprimir Etiqueta"
+                                                                    >
+                                                                        <Printer className="h-3 w-3" />
+                                                                        Etiqueta
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setNewTool({
+                                                                                name: t.name || '',
+                                                                                model: t.model || '',
+                                                                                registerNumber: t.registerNumber || '',
+                                                                                toolCode: t.toolCode || '',
+                                                                                category: t.category || 'MANUAL',
+                                                                                location: t.location || '',
+                                                                                status: t.status || 'DISPONÍVEL'
+                                                                            });
+                                                                            setEditingToolId(t.id);
+                                                                            setIsToolModalOpen(true);
+                                                                        }}
+                                                                        className="bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-500 border border-slate-200 font-black p-1.5 rounded-lg transition-all"
+                                                                        title="Editar"
+                                                                    >
+                                                                        <Pencil className="h-3 w-3" />
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleDeleteTool(t.id)}
+                                                                        className="bg-slate-50 hover:bg-rose-50 hover:text-rose-600 text-slate-500 border border-slate-200 font-black p-1.5 rounded-lg transition-all"
+                                                                        title="Excluir"
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {toolsView === 'movement' && (
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                        {/* Register Form */}
+                                        <div className="lg:col-span-1 bg-slate-50 border border-slate-100 p-5 rounded-3xl space-y-4 shadow-sm">
+                                            <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                                                <ArrowRightLeft className="h-4 w-4 text-indigo-500" />
+                                                Registrar Movimentação
+                                            </h4>
+
+                                            <form onSubmit={handleRegisterToolMovement} className="space-y-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Tipo de Operação</label>
+                                                    <div className="grid grid-cols-2 gap-2 bg-slate-200/60 p-1 rounded-xl border border-slate-200">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setNewMovement(prev => ({ ...prev, type: 'RETIRADA', toolId: '' }))}
+                                                            className={`py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${newMovement.type === 'RETIRADA' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                                                        >
+                                                            SAÍDA (RETIRADA)
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setNewMovement(prev => ({ ...prev, type: 'DEVOLUÇÃO', toolId: '' }))}
+                                                            className={`py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${newMovement.type === 'DEVOLUÇÃO' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                                                        >
+                                                            ENTRADA (DEVOLUÇÃO)
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Ferramenta</label>
+                                                    <select
+                                                        value={newMovement.toolId}
+                                                        onChange={e => setNewMovement(prev => ({ ...prev, toolId: e.target.value }))}
+                                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs cursor-pointer"
+                                                    >
+                                                        <option value="">Selecione uma Ferramenta...</option>
+                                                        {tools
+                                                            .filter(t => newMovement.type === 'RETIRADA' ? t.status === 'DISPONÍVEL' : t.status === 'EMPRESTADO')
+                                                            .map(t => (
+                                                                <option key={t.id} value={t.id}>
+                                                                    {t.name} (CAD: {t.registerNumber} | CÓD: {t.toolCode})
+                                                                </option>
+                                                            ))}
+                                                    </select>
+                                                </div>
+
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Colaborador / Retirante</label>
+                                                    <input
+                                                        type="text"
+                                                        value={newMovement.personName}
+                                                        onChange={e => setNewMovement(prev => ({ ...prev, personName: e.target.value }))}
+                                                        placeholder="Nome de quem está retirando/devolvendo"
+                                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                                    />
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Matrícula / CPF</label>
+                                                        <input
+                                                            type="text"
+                                                            value={newMovement.personCpf}
+                                                            onChange={e => setNewMovement(prev => ({ ...prev, personCpf: e.target.value }))}
+                                                            placeholder="CPF/RE"
+                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Responsável Autorizador</label>
+                                                        <input
+                                                            type="text"
+                                                            value={newMovement.responsible}
+                                                            onChange={e => setNewMovement(prev => ({ ...prev, responsible: e.target.value }))}
+                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-slate-100 font-bold outline-none text-slate-500 text-xs"
+                                                            readOnly
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Data</label>
+                                                        <input
+                                                            type="date"
+                                                            value={newMovement.date}
+                                                            onChange={e => setNewMovement(prev => ({ ...prev, date: e.target.value }))}
+                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Hora</label>
+                                                        <input
+                                                            type="time"
+                                                            value={newMovement.time}
+                                                            onChange={e => setNewMovement(prev => ({ ...prev, time: e.target.value }))}
+                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {newMovement.type === 'RETIRADA' ? (
+                                                    <div className="space-y-1 animate-fade-in">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Previsão de Devolução</label>
+                                                        <input
+                                                            type="date"
+                                                            value={newMovement.expectedReturnDate}
+                                                            onChange={e => setNewMovement(prev => ({ ...prev, expectedReturnDate: e.target.value }))}
+                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-1 animate-fade-in">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Condição de Retorno</label>
+                                                        <select
+                                                            value={newMovement.condition}
+                                                            onChange={e => setNewMovement(prev => ({ ...prev, condition: e.target.value }))}
+                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs cursor-pointer"
+                                                        >
+                                                            <option value="EXCELENTE">Excelente Estado</option>
+                                                            <option value="BOM">Bom Estado (Comum)</option>
+                                                            <option value="REGULAR">Regular (Apresenta Desgaste)</option>
+                                                            <option value="DANIFICADO">Danificado / Quebrado</option>
+                                                            <option value="NECESSITA MANUTENÇÃO">Necessita Manutenção Técnica</option>
+                                                        </select>
+                                                    </div>
+                                                )}
+
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Observações Adicionais</label>
+                                                    <textarea
+                                                        value={newMovement.observations}
+                                                        onChange={e => setNewMovement(prev => ({ ...prev, observations: e.target.value }))}
+                                                        placeholder="Detalhes sobre a retirada, destinação ou anomalias..."
+                                                        className="w-full p-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs h-20 resize-none"
+                                                    />
+                                                </div>
+
+                                                <button
+                                                    type="submit"
+                                                    className={`w-full text-white font-black py-3 rounded-xl uppercase tracking-wider text-[10px] transition-all flex items-center justify-center gap-2 shadow-sm ${newMovement.type === 'RETIRADA' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                                                >
+                                                    <Save className="h-4 w-4" />
+                                                    Gravar Movimentação
+                                                </button>
+                                            </form>
+                                        </div>
+
+                                        {/* Simple Guide / Quick Stats */}
+                                        <div className="lg:col-span-2 space-y-6">
+                                            <div className="bg-slate-50 border border-slate-100 p-5 rounded-3xl">
+                                                <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 mb-3">Informações de Segurança</h4>
+                                                <div className="space-y-2 text-[10px] font-bold text-slate-500 uppercase leading-relaxed">
+                                                    <div className="flex items-start gap-2 bg-white p-3 rounded-xl border border-slate-100">
+                                                        <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                                                        <span><strong>Responsabilidade do Ativo:</strong> Ao retirar uma ferramenta, o colaborador assina digitalmente a responsabilidade pela guarda, conservação e retorno do item no prazo estipulado.</span>
+                                                    </div>
+                                                    <div className="flex items-start gap-2 bg-white p-3 rounded-xl border border-slate-100">
+                                                        <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                                                        <span><strong>Inspeção Visual Obrigatória:</strong> Antes de disponibilizar ou receber de volta, verifique trincas, cabos soltos ou fiação elétrica exposta para evitar acidentes de trabalho.</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Fast stats list */}
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-emerald-800">
+                                                    <span className="text-[9px] font-black block uppercase tracking-wider opacity-75">Disponíveis</span>
+                                                    <span className="text-2xl font-black">{tools.filter(t => t.status === 'DISPONÍVEL').length}</span>
+                                                    <span className="text-[8px] block font-bold mt-1 uppercase opacity-60">Prontas para uso</span>
+                                                </div>
+                                                <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-amber-800">
+                                                    <span className="text-[9px] font-black block uppercase tracking-wider opacity-75">Em Empréstimo</span>
+                                                    <span className="text-2xl font-black">{tools.filter(t => t.status === 'EMPRESTADO').length}</span>
+                                                    <span className="text-[8px] block font-bold mt-1 uppercase opacity-60">Em posse de colaboradores</span>
+                                                </div>
+                                                <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 text-rose-800">
+                                                    <span className="text-[9px] font-black block uppercase tracking-wider opacity-75">Fora de Serviço</span>
+                                                    <span className="text-2xl font-black">{tools.filter(t => t.status === 'MANUTENÇÃO' || t.status === 'DANIFICADO').length}</span>
+                                                    <span className="text-[8px] block font-bold mt-1 uppercase opacity-60">Manutenção / Danificadas</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {toolsView === 'logs' && (
+                                    <div className="space-y-4">
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                                            <input
+                                                type="text"
+                                                value={toolMovementSearch}
+                                                onChange={e => setToolMovementSearch(e.target.value)}
+                                                placeholder="Filtrar por nome de colaborador, ferramenta, registro de cadastro..."
+                                                className="w-full h-9 pl-9 pr-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                            />
+                                        </div>
+
+                                        <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-left border-collapse text-xs">
+                                                    <thead>
+                                                        <tr className="bg-slate-50 border-b border-slate-100 font-black uppercase text-slate-400 text-[9px] tracking-wider">
+                                                            <th className="p-4 text-center">Data / Hora</th>
+                                                            <th className="p-4">Ferramenta</th>
+                                                            <th className="p-4 text-center">Operação</th>
+                                                            <th className="p-4">Colaborador</th>
+                                                            <th className="p-4">Autorizado por</th>
+                                                            <th className="p-4">Previsão / Condição</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-50 font-bold uppercase text-slate-600 text-[10px]">
+                                                        {toolMovements.length === 0 ? (
+                                                            <tr>
+                                                                <td colSpan={6} className="p-8 text-center text-slate-400">Nenhum registro de movimentação encontrado.</td>
+                                                            </tr>
+                                                        ) : (
+                                                            toolMovements
+                                                                .filter(log => {
+                                                                    return log.toolName?.toLowerCase().includes(toolMovementSearch.toLowerCase()) ||
+                                                                        log.personName?.toLowerCase().includes(toolMovementSearch.toLowerCase()) ||
+                                                                        log.registerNumber?.toLowerCase().includes(toolMovementSearch.toLowerCase()) ||
+                                                                        log.toolCode?.toLowerCase().includes(toolMovementSearch.toLowerCase());
+                                                                })
+                                                                .map(log => (
+                                                                    <tr key={log.id} className="hover:bg-slate-50/50">
+                                                                        <td className="p-4 text-center text-slate-400">
+                                                                            {log.date ? new Date(log.date + 'T12:00:00').toLocaleDateString('pt-BR') : ''}
+                                                                            <span className="block text-[8px] font-normal text-slate-400 mt-0.5">{log.time || ''}</span>
+                                                                        </td>
+                                                                        <td className="p-4">
+                                                                            <span className="text-slate-800 block font-black leading-tight">{log.toolName}</span>
+                                                                            <span className="text-[8px] font-semibold text-slate-400">CAD: {log.registerNumber} | CÓD: {log.toolCode}</span>
+                                                                        </td>
+                                                                        <td className="p-4 text-center">
+                                                                            <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase ${log.type === 'RETIRADA' ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
+                                                                                {log.type}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="p-4">
+                                                                            <span className="text-slate-800 leading-tight block">{log.personName}</span>
+                                                                            <span className="text-[8px] font-semibold text-slate-400">CPF: {log.personCpf}</span>
+                                                                        </td>
+                                                                        <td className="p-4 text-slate-500">{log.responsible}</td>
+                                                                        <td className="p-4">
+                                                                            {log.type === 'RETIRADA' ? (
+                                                                                <div>
+                                                                                    <span className="text-[8px] text-slate-400 block font-normal">PREV. RETORNO</span>
+                                                                                    {log.expectedReturnDate ? new Date(log.expectedReturnDate + 'T12:00:00').toLocaleDateString('pt-BR') : 'N/A'}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div>
+                                                                                    <span className="text-[8px] text-slate-400 block font-normal">ESTADO RETORNO</span>
+                                                                                    {log.condition}
+                                                                                </div>
+                                                                            )}
+                                                                            {log.observations && log.observations !== 'SEM OBSERVAÇÕES' && (
+                                                                                <span className="block text-[8px] font-semibold text-slate-400 mt-0.5 lowercase normal-case italic">"{log.observations}"</span>
+                                                                            )}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Tool Modal Dialog */}
+                                {isToolModalOpen && (
+                                    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" id="tool-modal">
+                                        <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-100 animate-fade-in">
+                                            <div className="bg-zinc-900 text-white p-5 flex justify-between items-center italic">
+                                                <div className="flex items-center gap-2">
+                                                    <Wrench className="h-5 w-5 text-indigo-400" />
+                                                    <h3 className="font-black uppercase tracking-tighter text-sm leading-none">
+                                                        {editingToolId ? 'Editar Ferramenta' : 'Cadastrar Ferramenta'}
+                                                    </h3>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsToolModalOpen(false)}
+                                                    className="p-1 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition-all"
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </button>
+                                            </div>
+
+                                            <form onSubmit={handleSaveTool} className="p-6 space-y-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nome da Ferramenta</label>
+                                                    <input
+                                                        type="text"
+                                                        value={newTool.name}
+                                                        onChange={e => setNewTool(prev => ({ ...prev, name: e.target.value }))}
+                                                        placeholder="Ex: FURADEIRA DE IMPACTO"
+                                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                                        required
+                                                    />
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Marca / Modelo</label>
+                                                        <input
+                                                            type="text"
+                                                            value={newTool.model}
+                                                            onChange={e => setNewTool(prev => ({ ...prev, model: e.target.value }))}
+                                                            placeholder="Ex: BOSCH GSB 13 RE"
+                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Categoria</label>
+                                                        <select
+                                                            value={newTool.category}
+                                                            onChange={e => setNewTool(prev => ({ ...prev, category: e.target.value }))}
+                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs cursor-pointer"
+                                                        >
+                                                            <option value="MANUAL">Manual</option>
+                                                            <option value="ELÉTRICA">Elétrica</option>
+                                                            <option value="MEDIÇÃO">Medição</option>
+                                                            <option value="EPI">EPI</option>
+                                                            <option value="OUTROS">Outros</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">No. Cadastro (Patrimônio)</label>
+                                                        <input
+                                                            type="text"
+                                                            value={newTool.registerNumber}
+                                                            onChange={e => setNewTool(prev => ({ ...prev, registerNumber: e.target.value }))}
+                                                            placeholder="Ex: CAD-0104"
+                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Cód. Específico</label>
+                                                        <input
+                                                            type="text"
+                                                            value={newTool.toolCode}
+                                                            onChange={e => setNewTool(prev => ({ ...prev, toolCode: e.target.value }))}
+                                                            placeholder="Ex: FUR-01"
+                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                                            required
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Local de Armazenamento</label>
+                                                        <input
+                                                            type="text"
+                                                            value={newTool.location}
+                                                            onChange={e => setNewTool(prev => ({ ...prev, location: e.target.value }))}
+                                                            placeholder="Ex: GAVETA 3 / ARMÁRIO B"
+                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Status Inicial</label>
+                                                        <select
+                                                            value={newTool.status}
+                                                            onChange={e => setNewTool(prev => ({ ...prev, status: e.target.value }))}
+                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs cursor-pointer"
+                                                            disabled={!!editingToolId}
+                                                        >
+                                                            <option value="DISPONÍVEL">Disponível</option>
+                                                            <option value="EMPRESTADO">Emprestado</option>
+                                                            <option value="MANUTENÇÃO">Em Manutenção</option>
+                                                            <option value="DANIFICADO">Danificada / Inoperante</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex gap-3 pt-4 border-t border-slate-100">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsToolModalOpen(false)}
+                                                        className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black py-3 rounded-xl uppercase tracking-wider text-[10px] transition-all"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                    <button
+                                                        type="submit"
+                                                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-xl uppercase tracking-wider text-[10px] transition-all"
+                                                    >
+                                                        Salvar Registro
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="p-4 md:p-6 space-y-8">

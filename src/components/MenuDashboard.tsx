@@ -94,26 +94,35 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
     // Find the most recent delivery for this item
     let latestDelivery: any = null;
     let latestDate = 0;
+    let bestMatchType = 0; // 2 for exact match, 1 for partial match
 
     suppliers.forEach(s => {
       ensureArray<any>(s.deliveries).forEach(d => {
         if (d && d.item) {
           const normDeliveryItem = normalizeString(d.item);
-          if (normDeliveryItem === normContracted && (d.invoiceNumber || d.invoice)) {
-            const dDate = new Date(d.date).getTime();
-            if (dDate > latestDate) {
+          const isExact = normDeliveryItem === normContracted;
+          const isPartial = normDeliveryItem.includes(normContracted) || normContracted.includes(normDeliveryItem);
+          
+          if (isExact || isPartial) {
+            const currentMatchType = isExact ? 2 : 1;
+            const dDate = d.date ? new Date(d.date).getTime() : 0;
+            
+            // Prefer exact match over partial, or more recent date if match type is same
+            if (currentMatchType > bestMatchType || (currentMatchType === bestMatchType && dDate > latestDate)) {
               latestDate = dDate;
               latestDelivery = d;
+              bestMatchType = currentMatchType;
             }
           }
         }
       });
     });
+
     if (latestDelivery) {
       const lotObj = ensureArray<any>((latestDelivery as any).lots)?.[0];
-      const lotNum = lotObj?.lotNumber || lotObj?.number || (latestDelivery as any).lotNumber || 'N/A';
+      const lotNum = lotObj?.lotNumber || lotObj?.number || lotObj?.lot || lotObj?.lote || (latestDelivery as any).lotNumber || (latestDelivery as any).lot || (latestDelivery as any).lote || 'N/A';
       
-      const rawExp = lotObj?.expirationDate || (latestDelivery as any).expirationDate;
+      const rawExp = lotObj?.expirationDate || lotObj?.validade || lotObj?.expiration || (latestDelivery as any).expirationDate || (latestDelivery as any).validade || (latestDelivery as any).expiration;
       
       let expiration = 'N/A';
       if (rawExp) {
