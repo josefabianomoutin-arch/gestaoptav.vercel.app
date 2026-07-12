@@ -291,6 +291,34 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (!printWindow) return;
 
     const targetMonthKey = printMonth || new Date().toISOString().substring(0, 7);
+    
+    const bookedDeliveries = ensureArray<any>(supplier.deliveries).filter(d => d && d.date && d.date.startsWith(targetMonthKey));
+    const uniqueBookedDates = Array.from(new Set(bookedDeliveries.map(d => d.date))).sort();
+
+    const qrCodesHtml = uniqueBookedDates.map(dateStr => {
+        const [year, month, day] = dateStr.split('-');
+        const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        const formattedDate = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const weekday = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' });
+        const codeValue = `CHECKIN_DELIVERY:${supplier.cpf}:${dateStr}`;
+        return `
+            <div class="qrcode-item">
+                <div class="qrcode-date">${formattedDate}</div>
+                <div class="qrcode-weekday">${weekday}</div>
+                <div class="qrcode-container" data-code="${codeValue}"></div>
+            </div>
+        `;
+    }).join('');
+
+    const qrcodeSectionHtml = uniqueBookedDates.length > 0 ? `
+        <div class="qrcode-section">
+            <div class="qrcode-title">CÓDIGOS QR PARA CONFERÊNCIA DE ENTRADA / SAÍDA (PORTARIA)</div>
+            <div class="qrcode-grid">
+                ${qrCodesHtml}
+            </div>
+        </div>
+    ` : '';
+
     const targetMonthDate = new Date(targetMonthKey + '-15');
     const targetMonthName = targetMonthDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
 
@@ -396,6 +424,53 @@ const Dashboard: React.FC<DashboardProps> = ({
                 .signature-title { font-size: 8pt; }
                 .location-date { margin-top: 20px; text-align: right; font-weight: bold; }
                 .text-xs { font-size: 7.5pt; }
+                .qrcode-section {
+                    margin-top: 30px;
+                    border-top: 2px dashed #000;
+                    padding-top: 15px;
+                    page-break-inside: avoid;
+                }
+                .qrcode-title {
+                    font-size: 11pt;
+                    font-weight: bold;
+                    text-transform: uppercase;
+                    margin-bottom: 10px;
+                    text-align: center;
+                }
+                .qrcode-grid {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 15px;
+                    justify-content: center;
+                }
+                .qrcode-item {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    text-align: center;
+                    background: #fff;
+                    width: 140px;
+                    page-break-inside: avoid;
+                }
+                .qrcode-date {
+                    font-size: 9pt;
+                    font-weight: bold;
+                    margin-bottom: 5px;
+                }
+                .qrcode-weekday {
+                    font-size: 8pt;
+                    color: #444;
+                    margin-bottom: 8px;
+                    text-transform: uppercase;
+                }
+                .qrcode-container {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                }
+                .qrcode-container img {
+                    width: 100px;
+                    height: 100px;
+                }
             </style>
         </head>
         <body>
@@ -463,7 +538,30 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div class="signature-title text-black font-bold uppercase" style="margin-top: 4px;">Responsável pelo Almoxarifado</div>
                 </div>
             </div>
-            <script>window.onload = function() { setTimeout(function(){ window.print(); window.close(); }, 500); }</script>
+            
+            ${qrcodeSectionHtml}
+
+            <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+            <script>
+                window.onload = function() {
+                    try {
+                        var containers = document.querySelectorAll('.qrcode-container');
+                        containers.forEach(function(el) {
+                            var code = el.getAttribute('data-code');
+                            var qr = qrcode(0, 'M');
+                            qr.addData(code);
+                            qr.make();
+                            el.innerHTML = qr.createImgTag(3, 6);
+                        });
+                    } catch(e) {
+                        console.error('Error generating QR code:', e);
+                    }
+                    setTimeout(function(){ 
+                        window.print(); 
+                        window.close(); 
+                    }, 500);
+                }
+            </script>
         </body>
         </html>
     `;
