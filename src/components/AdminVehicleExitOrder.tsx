@@ -84,6 +84,8 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     const [vehicleScanFeedback, setVehicleScanFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
     const [isVehicleScannerActive, setIsVehicleScannerActive] = useState(false);
     const [barcodeModalOrder, setBarcodeModalOrder] = useState<VehicleExitOrder | null>(null);
+    const [barcodeModalVehicle, setBarcodeModalVehicle] = useState<VehicleAsset | null>(null);
+    const [barcodeTabMode, setBarcodeTabMode] = useState<'order' | 'vehicle'>('vehicle');
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
@@ -92,12 +94,46 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         const val = scannedValue.trim();
         if (!val) return;
 
-        // Find the order by ID
-        const matchedOrder = orders.find(o => o.id === val);
+        let matchedOrder: VehicleExitOrder | undefined = orders.find(o => o.id === val);
+        let vehicleMatchedMsg = "";
+
+        if (!matchedOrder) {
+            // Check if val matches any vehicle plate, assetNumber or id
+            const cleanVal = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            const matchedVehicle = vehicleAssets.find(v => {
+                const cleanPlate = (v.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+                const cleanAsset = (v.assetNumber || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+                const cleanId = (v.id || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+                return cleanPlate === cleanVal || cleanAsset === cleanVal || cleanId === cleanVal || (v.plate || '').toUpperCase() === val.toUpperCase();
+            });
+
+            if (matchedVehicle) {
+                // Find an active order for this vehicle (status 'aberta' or no returnTime yet)
+                const vehicleOrders = orders.filter(o => {
+                    const cleanOrderPlate = (o.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    const cleanVehPlate = (matchedVehicle.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    return cleanOrderPlate === cleanVehPlate || o.vehicleId === matchedVehicle.id || (o.vehicle || '').toUpperCase().includes((matchedVehicle.model || '').toUpperCase());
+                });
+
+                // Find the first order that is NOT concluded (i.e. status === 'aberta' or has no returnTime)
+                matchedOrder = vehicleOrders.find(o => !o.returnTime || o.status !== 'concluida');
+
+                if (matchedOrder) {
+                    vehicleMatchedMsg = ` (Identificado via veículo: ${matchedVehicle.model} - ${matchedVehicle.plate})`;
+                } else {
+                    setVehicleScanFeedback({
+                        type: 'error',
+                        message: `❌ Veículo "${matchedVehicle.model} (${matchedVehicle.plate})" identificado, mas nenhuma Ordem de Saída ativa (em aberto) foi encontrada para ele.`
+                    });
+                    return;
+                }
+            }
+        }
+
         if (!matchedOrder) {
             setVehicleScanFeedback({
                 type: 'error',
-                message: `❌ Ordem de Saída não encontrada com o código "${val}".`
+                message: `❌ Código "${val}" não corresponde a nenhuma Ordem de Saída ou veículo cadastrado.`
             });
             return;
         }
@@ -112,7 +148,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 if (!matchedOrder.validationRole) {
                     setVehicleScanFeedback({
                         type: 'error',
-                        message: `❌ A saída do veículo ${matchedOrder.vehicle} (${matchedOrder.plate}) está bloqueada pois a ordem ainda não foi validada digitalmente por uma chefia superior.`
+                        message: `❌ A saída do veículo ${matchedOrder.vehicle} (${matchedOrder.plate}) está bloqueada pois a ordem ainda não foi validada digitalmente por uma chefia superior.${vehicleMatchedMsg}`
                     });
                     return;
                 }
@@ -130,7 +166,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 } else {
                     setVehicleScanFeedback({
                         type: 'success',
-                        message: `✅ SAÍDA REGISTRADA AUTOMATICAMENTE! Veículo: ${matchedOrder.vehicle} (${matchedOrder.plate}) saiu às ${currentTime}.`
+                        message: `✅ SAÍDA REGISTRADA AUTOMATICAMENTE! Veículo: ${matchedOrder.vehicle} (${matchedOrder.plate}) saiu às ${currentTime}.${vehicleMatchedMsg}`
                     });
                 }
             } else if (!matchedOrder.returnTime) {
@@ -150,13 +186,13 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 } else {
                     setVehicleScanFeedback({
                         type: 'success',
-                        message: `✅ RETORNO REGISTRADO AUTOMATICAMENTE! Veículo: ${matchedOrder.vehicle} (${matchedOrder.plate}) retornou às ${currentTime}.`
+                        message: `✅ RETORNO REGISTRADO AUTOMATICAMENTE! Veículo: ${matchedOrder.vehicle} (${matchedOrder.plate}) retornou às ${currentTime}.${vehicleMatchedMsg}`
                     });
                 }
             } else {
                 setVehicleScanFeedback({
                     type: 'info',
-                    message: `ℹ️ Esta Ordem de Saída já foi concluída (Saída: ${matchedOrder.exitTime} | Retorno: ${matchedOrder.returnTime}).`
+                    message: `ℹ️ Esta Ordem de Saída já foi concluída (Saída: ${matchedOrder.exitTime} | Retorno: ${matchedOrder.returnTime}).${vehicleMatchedMsg}`
                 });
             }
         } catch (err: any) {
@@ -1980,6 +2016,17 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                 <td className="p-3 text-gray-500">{v.assetNumber}</td>
                                                 <td className="p-3">
                                                     <div className="flex justify-center gap-2">
+                                                        <button 
+                                                            onClick={() => {
+                                                                setBarcodeModalVehicle(v);
+                                                            }} 
+                                                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                                                            title="Visualizar Código de Barras do Veículo"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                            </svg>
+                                                        </button>
                                                         <button onClick={() => { setEditingVehicle(v); setVehicleFormData({ model: v.model, plate: v.plate, assetNumber: v.assetNumber }); setIsVehicleModalOpen(true); }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
                                                         <button 
                                                             onClick={() => {
@@ -2755,20 +2802,101 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         <div className="bg-indigo-600 p-6 text-white relative overflow-hidden">
                             <div className="absolute top-[-20%] right-[-10%] w-24 h-24 bg-white/10 rounded-full blur-xl" />
                             <h3 className="text-lg font-black uppercase tracking-tighter italic flex items-center gap-2 relative z-10">
-                                Código de Barras da Ordem
+                                Código de Barras
                             </h3>
                             <p className="text-[10px] text-indigo-200 font-bold uppercase mt-1">Veículo: {barcodeModalOrder.vehicle} ({barcodeModalOrder.plate})</p>
                         </div>
-                        <div className="p-6 flex flex-col items-center justify-center space-y-6">
-                            <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center">
-                                <Barcode value={barcodeModalOrder.id} />
-                            </div>
-                            <div className="text-center space-y-1">
-                                <p className="text-[10px] font-black uppercase text-gray-400">ID da Ordem</p>
-                                <p className="font-mono text-xs font-bold text-gray-700 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200/50">{barcodeModalOrder.id}</p>
-                            </div>
+
+                        {/* Selector Tabs */}
+                        <div className="flex border-b border-gray-100 bg-gray-50/50">
+                            <button
+                                onClick={() => setBarcodeTabMode('vehicle')}
+                                className={`flex-1 py-3 text-center text-[10px] font-black uppercase tracking-wider border-b-2 transition-all ${
+                                    barcodeTabMode === 'vehicle'
+                                        ? 'border-indigo-600 text-indigo-600 bg-white'
+                                        : 'border-transparent text-gray-400 hover:text-gray-600'
+                                }`}
+                            >
+                                🚗 Fixo no Veículo
+                            </button>
+                            <button
+                                onClick={() => setBarcodeTabMode('order')}
+                                className={`flex-1 py-3 text-center text-[10px] font-black uppercase tracking-wider border-b-2 transition-all ${
+                                    barcodeTabMode === 'order'
+                                        ? 'border-indigo-600 text-indigo-600 bg-white'
+                                        : 'border-transparent text-gray-400 hover:text-gray-600'
+                                }`}
+                            >
+                                📄 Apenas Esta Ordem
+                            </button>
+                        </div>
+
+                        <div className="p-6 flex flex-col items-center justify-center space-y-4">
+                            {barcodeTabMode === 'vehicle' ? (
+                                <>
+                                    <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center">
+                                        <Barcode value={barcodeModalOrder.plate} />
+                                    </div>
+                                    <div className="text-center space-y-2">
+                                        <p className="text-[10px] font-black uppercase text-gray-400">Código do Veículo (Placa)</p>
+                                        <p className="font-mono text-xs font-bold text-gray-700 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200/50">{barcodeModalOrder.plate}</p>
+                                        <p className="text-[10px] text-indigo-500 font-bold max-w-[280px] leading-tight">
+                                            💡 IMPRIMA E COLE ESTE CÓDIGO NO VEÍCULO!<br />
+                                            Ao ler este código na subportaria, o sistema buscará automaticamente a Ordem de Saída ativa para registrar a saída/retorno.
+                                        </p>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center">
+                                        <Barcode value={barcodeModalOrder.id} />
+                                    </div>
+                                    <div className="text-center space-y-2">
+                                        <p className="text-[10px] font-black uppercase text-gray-400">ID da Ordem</p>
+                                        <p className="font-mono text-xs font-bold text-gray-700 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200/50">{barcodeModalOrder.id}</p>
+                                        <p className="text-[10px] text-gray-400 font-bold max-w-[280px] leading-tight">
+                                            Código de barras descartável, válido apenas para esta viagem.
+                                        </p>
+                                    </div>
+                                </>
+                            )}
+
                             <button 
                                 onClick={() => setBarcodeModalOrder(null)} 
+                                className="w-full h-11 bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-500 font-black rounded-xl transition-all uppercase text-[10px] tracking-widest"
+                            >
+                                Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Barcode Modal for Vehicles */}
+            {barcodeModalVehicle && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm border border-white/20 overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="bg-indigo-600 p-6 text-white relative overflow-hidden">
+                            <div className="absolute top-[-20%] right-[-10%] w-24 h-24 bg-white/10 rounded-full blur-xl" />
+                            <h3 className="text-lg font-black uppercase tracking-tighter italic flex items-center gap-2 relative z-10">
+                                Código Fixo do Veículo
+                            </h3>
+                            <p className="text-[10px] text-indigo-200 font-bold uppercase mt-1">Veículo: {barcodeModalVehicle.model} ({barcodeModalVehicle.plate})</p>
+                        </div>
+                        <div className="p-6 flex flex-col items-center justify-center space-y-6">
+                            <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center">
+                                <Barcode value={barcodeModalVehicle.plate} />
+                            </div>
+                            <div className="text-center space-y-2">
+                                <p className="text-[10px] font-black uppercase text-gray-400">Código de Barras (Placa)</p>
+                                <p className="font-mono text-xs font-bold text-gray-700 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200/50">{barcodeModalVehicle.plate}</p>
+                                <p className="text-[10px] text-indigo-500 font-bold max-w-[280px] leading-tight">
+                                    💡 IMPRIMA E COLE ESTE CÓDIGO NO VEÍCULO!<br />
+                                    Ao ser bipado na subportaria, o sistema identificará o veículo e buscará automaticamente a Ordem de Saída ativa dele para dar Saída ou Retorno. Evita a necessidade de imprimir uma folha por viagem!
+                                </p>
+                            </div>
+                            <button 
+                                onClick={() => setBarcodeModalVehicle(null)} 
                                 className="w-full h-11 bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-500 font-black rounded-xl transition-all uppercase text-[10px] tracking-widest"
                             >
                                 Fechar
