@@ -1,13 +1,14 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
-import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Save, Database, Calendar, X, Wrench, Pencil, History, ArrowRightLeft, Check, AlertTriangle } from 'lucide-react';
+import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Save, Database, Calendar, X, Wrench, Pencil, History, ArrowRightLeft, Check, AlertTriangle, QrCode } from 'lucide-react';
 import { getDatabase, ref, set, get, push, remove, onValue } from 'firebase/database';
 import { app } from '../firebaseConfig';
 import { HOLIDAYS_2026 } from '../constants';
 import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus, Delivery } from '../types';
 import AdminInvoices from './AdminInvoices';
 import AgendaChegadas from './AgendaChegadas';
+import { Html5Qrcode } from 'html5-qrcode';
 import WarehouseMovementForm from './WarehouseMovementForm';
 import AdminWarehouseLog from './AdminWarehouseLog';
 import ValidityAnalysisPanel from './ValidityAnalysisPanel';
@@ -196,6 +197,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [tools, setTools] = useState<any[]>([]);
     const [toolMovements, setToolMovements] = useState<any[]>([]);
     const [loadingTools, setLoadingTools] = useState(true);
+    const [toolsView, setToolsView] = useState<'inventory' | 'movement' | 'logs'>('inventory');
 
     const [newTool, setNewTool] = useState({
         name: '',
@@ -225,6 +227,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [toolSearch, setToolSearch] = useState('');
     const [toolStatusFilter, setToolStatusFilter] = useState('TODOS');
     const [toolMovementSearch, setToolMovementSearch] = useState('');
+    const [toolBarcodeQuery, setToolBarcodeQuery] = useState('');
+    const [toolScanFeedback, setToolScanFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+    const [isToolScannerActive, setIsToolScannerActive] = useState(false);
 
     useEffect(() => {
         const db = getDatabase(app);
@@ -256,6 +261,110 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             unsubMovements();
         };
     }, []);
+
+    useEffect(() => {
+        let html5QrCode: Html5Qrcode | null = null;
+        let isStopped = false;
+
+        if (isToolScannerActive) {
+            const timer = setTimeout(() => {
+                try {
+                    const element = document.getElementById("tool-qr-reader");
+                    if (!element) return;
+
+                    html5QrCode = new Html5Qrcode("tool-qr-reader");
+                    
+                    const startScanner = async () => {
+                        try {
+                            await html5QrCode?.start(
+                                { facingMode: "environment" },
+                                {
+                                    fps: 10,
+                                    qrbox: { width: 220, height: 220 }
+                                },
+                                (decodedText) => {
+                                    handleScanBarcode(decodedText);
+                                    setIsToolScannerActive(false);
+                                    if (html5QrCode && html5QrCode.isScanning && !isStopped) {
+                                        isStopped = true;
+                                        html5QrCode.stop().catch(err => console.warn("Erro ao parar camera:", err));
+                                    }
+                                },
+                                () => {}
+                            );
+                        } catch (err) {
+                            console.warn("Failed with environment camera, trying user camera...", err);
+                            if (isStopped) return;
+                            try {
+                                await html5QrCode?.start(
+                                    { facingMode: "user" },
+                                    {
+                                        fps: 10,
+                                        qrbox: { width: 220, height: 220 }
+                                    },
+                                    (decodedText) => {
+                                        handleScanBarcode(decodedText);
+                                        setIsToolScannerActive(false);
+                                        if (html5QrCode && html5QrCode.isScanning && !isStopped) {
+                                            isStopped = true;
+                                            html5QrCode.stop().catch(stopErr => console.warn("Erro:", stopErr));
+                                        }
+                                    },
+                                    () => {}
+                                );
+                            } catch (fallbackErr) {
+                                console.error("Camera fallback failed too:", fallbackErr);
+                                try {
+                                    const devices = await Html5Qrcode.getCameras();
+                                    if (devices && devices.length > 0 && !isStopped) {
+                                        const cameraId = devices[devices.length - 1].id;
+                                        await html5QrCode?.start(
+                                            cameraId,
+                                            { fps: 10, qrbox: { width: 220, height: 220 } },
+                                            (decodedText) => {
+                                                handleScanBarcode(decodedText);
+                                                setIsToolScannerActive(false);
+                                                if (html5QrCode && html5QrCode.isScanning && !isStopped) {
+                                                    isStopped = true;
+                                                    html5QrCode.stop().catch(() => {});
+                                                }
+                                            },
+                                            () => {}
+                                        );
+                                    } else {
+                                        setToolScanFeedback({ type: 'error', message: "Nenhuma câmera encontrada." });
+                                    }
+                                } catch (_deviceErr) {
+                                    setToolScanFeedback({ type: 'error', message: "Não foi possível acessar a câmera do dispositivo." });
+                                }
+                            }
+                        }
+                    };
+
+                    startScanner();
+                } catch (e) {
+                    console.error("Camera scanner instance error:", e);
+                }
+            }, 300);
+
+            return () => {
+                clearTimeout(timer);
+                isStopped = true;
+                if (html5QrCode) {
+                    const stopScanner = async () => {
+                        try {
+                            if (html5QrCode && html5QrCode.isScanning) {
+                                await html5QrCode.stop();
+                            }
+                        } catch (err) {
+                            console.warn("Erro ao parar camera no cleanup:", err);
+                        }
+                    };
+                    stopScanner();
+                }
+            };
+        }
+    }, [isToolScannerActive]);
 
     const handleSaveTool = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -324,6 +433,62 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         } catch (err) {
             console.error("Error deleting tool:", err);
             alert("Erro ao remover ferramenta.");
+        }
+    };
+
+    const handleScanBarcode = (scannedValue: string) => {
+        const val = scannedValue.trim().toUpperCase();
+        if (!val) return;
+
+        // Try to find the tool
+        const matchedTool = tools.find(t => {
+            const toolBarcode = String(t.barcode || '').trim().toUpperCase();
+            const toolReg = String(t.registerNumber || '').trim().toUpperCase();
+            const toolCode = String(t.toolCode || '').trim().toUpperCase();
+            return toolBarcode === val || toolReg === val || toolCode === val;
+        });
+
+        if (matchedTool) {
+            // Determine operation type automatically:
+            // If the tool is DISPONÍVEL -> it's a RETIRADA (Exit)
+            // If the tool is EMPRESTADO -> it's a DEVOLUÇÃO (Entry)
+            let autoType: 'RETIRADA' | 'DEVOLUÇÃO' = 'RETIRADA';
+            let messageExtra = '';
+
+            if (matchedTool.status === 'DISPONÍVEL') {
+                autoType = 'RETIRADA';
+                messageExtra = 'Identificado para SAÍDA (RETIRADA)';
+            } else if (matchedTool.status === 'EMPRESTADO') {
+                autoType = 'DEVOLUÇÃO';
+                messageExtra = 'Identificado para ENTRADA (DEVOLUÇÃO)';
+            } else {
+                autoType = 'DEVOLUÇÃO';
+                messageExtra = `Atenção: Status "${matchedTool.status}". Defina a operação desejada.`;
+            }
+
+            setNewMovement(prev => ({
+                ...prev,
+                toolId: matchedTool.id,
+                type: autoType,
+            }));
+
+            setToolScanFeedback({
+                type: matchedTool.status === 'DANIFICADO' || matchedTool.status === 'MANUTENÇÃO' ? 'info' : 'success',
+                message: `✅ SUCESSO: ${matchedTool.name} (CAD: ${matchedTool.registerNumber}) selecionada! ${messageExtra}.`
+            });
+
+            // Focus on collaborator name input
+            setTimeout(() => {
+                const nameInput = document.getElementById('tool-movement-person-name');
+                if (nameInput) {
+                    nameInput.focus();
+                }
+            }, 100);
+        } else {
+            setToolScanFeedback({
+                type: 'error',
+                message: `❌ ERRO: Nenhuma ferramenta encontrada com o código "${val}".`
+            });
         }
     };
 
@@ -3667,7 +3832,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     <p className="text-zinc-400 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Temperatura, Higienização e Ferramental do Almoxarifado</p>
                                 </div>
                             </div>
-                            <div className="flex bg-zinc-800 p-1 rounded-2xl border border-zinc-700">
+                            <div className="flex bg-zinc-800 p-1 rounded-2xl border border-zinc-700 overflow-x-auto max-w-full scrollbar-none whitespace-nowrap">
                                 <button 
                                     type="button"
                                     onClick={() => setCamaraFriaSubTab('temperature')}
@@ -3917,6 +4082,86 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                             </h4>
 
                                             <form onSubmit={handleRegisterToolMovement} className="space-y-4">
+                                                {/* Barcode/QR Code Scanner Input Area */}
+                                                <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-3.5 space-y-2">
+                                                    <label className="text-[10px] font-black text-indigo-950 uppercase flex items-center gap-1">
+                                                        <BarcodeIcon className="h-4 w-4 text-indigo-600 animate-pulse" />
+                                                        Leitura de Código de Barras (Rápido)
+                                                    </label>
+                                                    <div className="flex gap-2">
+                                                        <div className="relative flex-1">
+                                                            <input
+                                                                type="text"
+                                                                value={toolBarcodeQuery}
+                                                                onChange={e => setToolBarcodeQuery(e.target.value)}
+                                                                onKeyDown={e => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.preventDefault();
+                                                                        handleScanBarcode(toolBarcodeQuery);
+                                                                        setToolBarcodeQuery('');
+                                                                    }
+                                                                }}
+                                                                placeholder="Bipe o código ou digite..."
+                                                                className="w-full h-9 pl-3 pr-8 border border-indigo-200 rounded-xl bg-white shadow-xs font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs text-indigo-950 animate-pulse"
+                                                            />
+                                                            {toolBarcodeQuery && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setToolBarcodeQuery('')}
+                                                                    className="absolute right-2 top-2 text-indigo-400 hover:text-indigo-600"
+                                                                >
+                                                                    <X className="h-4 w-4" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (toolBarcodeQuery) {
+                                                                    handleScanBarcode(toolBarcodeQuery);
+                                                                    setToolBarcodeQuery('');
+                                                                }
+                                                            }}
+                                                            className="px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase transition-all"
+                                                        >
+                                                            Buscar
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setIsToolScannerActive(!isToolScannerActive);
+                                                                setToolScanFeedback(null);
+                                                            }}
+                                                            className={`p-2 rounded-xl border transition-all ${isToolScannerActive ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                                            title="Usar câmera para escanear"
+                                                        >
+                                                            <QrCode className="h-5 w-5" />
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Camera Scanner Component inside the form */}
+                                                    {isToolScannerActive && (
+                                                        <div className="border border-indigo-200 rounded-xl overflow-hidden bg-black relative mt-2">
+                                                            <div id="tool-qr-reader" className="w-full aspect-square max-h-[220px]"></div>
+                                                            <div className="absolute bottom-2 left-2 right-2 bg-black/70 text-white text-[8px] font-bold text-center py-1 rounded">
+                                                                Aponte a câmera para o QR Code ou Código de Barras da ferramenta
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {toolScanFeedback && (
+                                                        <div className={`p-2.5 rounded-xl text-[9px] font-bold leading-relaxed border ${
+                                                            toolScanFeedback.type === 'success' 
+                                                                ? 'bg-emerald-50 text-emerald-800 border-emerald-100' 
+                                                                : toolScanFeedback.type === 'error'
+                                                                    ? 'bg-rose-50 text-rose-800 border-rose-100'
+                                                                    : 'bg-indigo-50 text-indigo-800 border-indigo-100'
+                                                        }`}>
+                                                            {toolScanFeedback.message}
+                                                        </div>
+                                                    )}
+                                                </div>
+
                                                 <div className="space-y-1">
                                                     <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Tipo de Operação</label>
                                                     <div className="grid grid-cols-2 gap-2 bg-slate-200/60 p-1 rounded-xl border border-slate-200">
@@ -3959,6 +4204,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                     <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Colaborador / Retirante</label>
                                                     <input
                                                         type="text"
+                                                        id="tool-movement-person-name"
                                                         value={newMovement.personName}
                                                         onChange={e => setNewMovement(prev => ({ ...prev, personName: e.target.value }))}
                                                         placeholder="Nome de quem está retirando/devolvendo"
