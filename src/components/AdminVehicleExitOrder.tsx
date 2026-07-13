@@ -1,5 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import JsBarcode from 'jsbarcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, VehicleInspection } from '../types';
 import ConfirmModal from './ConfirmModal';
 import VehicleInspectionTab from './VehicleInspectionTab';
@@ -37,6 +39,29 @@ interface AdminVehicleExitOrderProps {
     allowDelete?: boolean;
 }
 
+const Barcode: React.FC<{ value: string }> = ({ value }) => {
+    const svgRef = useRef<SVGSVGElement>(null);
+
+    useEffect(() => {
+        if (svgRef.current && value) {
+            try {
+                JsBarcode(svgRef.current, value, {
+                    format: "CODE128",
+                    width: 1.5,
+                    height: 40,
+                    displayValue: true,
+                    fontSize: 11,
+                    margin: 0
+                });
+            } catch (e) {
+                console.error("Barcode generation error:", e);
+            }
+        }
+    }, [value]);
+
+    return <svg ref={svgRef}></svg>;
+};
+
 const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({ 
     orders = [], onRegister, onUpdate, onDelete,
     vehicleAssets = [], onRegisterVehicleAsset, onUpdateVehicleAsset, onDeleteVehicleAsset,
@@ -53,9 +78,199 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 }) => {
     const [activeSubTab, setActiveSubTab] = useState<'orders' | 'assets' | 'gate' | 'inspections'>('orders');
     const [activeAssetTab, setActiveAssetTab] = useState<'vehicles' | 'drivers' | 'roles'>('vehicles');
+
+    // Barcode scanning state variables
+    const [vehicleBarcodeQuery, setVehicleBarcodeQuery] = useState('');
+    const [vehicleScanFeedback, setVehicleScanFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+    const [isVehicleScannerActive, setIsVehicleScannerActive] = useState(false);
+    const [barcodeModalOrder, setBarcodeModalOrder] = useState<VehicleExitOrder | null>(null);
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
+
+    const handleScanVehicleBarcode = async (scannedValue: string) => {
+        const val = scannedValue.trim();
+        if (!val) return;
+
+        // Find the order by ID
+        const matchedOrder = orders.find(o => o.id === val);
+        if (!matchedOrder) {
+            setVehicleScanFeedback({
+                type: 'error',
+                message: `❌ Ordem de Saída não encontrada com o código "${val}".`
+            });
+            return;
+        }
+
+        const now = new Date();
+        const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        const currentDate = now.toISOString().split('T')[0];
+
+        try {
+            if (!matchedOrder.exitTime) {
+                // Not exited yet -> Register Exit automatically
+                if (!matchedOrder.validationRole) {
+                    setVehicleScanFeedback({
+                        type: 'error',
+                        message: `❌ A saída do veículo ${matchedOrder.vehicle} (${matchedOrder.plate}) está bloqueada pois a ordem ainda não foi validada digitalmente por uma chefia superior.`
+                    });
+                    return;
+                }
+                const updated: VehicleExitOrder = {
+                    ...matchedOrder,
+                    exitTime: currentTime,
+                    exitDate: currentDate,
+                };
+                const res = await onUpdate(updated);
+                if (res && res.success === false) {
+                    setVehicleScanFeedback({
+                        type: 'error',
+                        message: `❌ Erro ao registrar saída: ${res.message}`
+                    });
+                } else {
+                    setVehicleScanFeedback({
+                        type: 'success',
+                        message: `✅ SAÍDA REGISTRADA AUTOMATICAMENTE! Veículo: ${matchedOrder.vehicle} (${matchedOrder.plate}) saiu às ${currentTime}.`
+                    });
+                }
+            } else if (!matchedOrder.returnTime) {
+                // Exited but not returned -> Register Return automatically
+                const updated: VehicleExitOrder = {
+                    ...matchedOrder,
+                    returnTime: currentTime,
+                    returnDate: currentDate,
+                    status: 'concluida' as const,
+                };
+                const res = await onUpdate(updated);
+                if (res && res.success === false) {
+                    setVehicleScanFeedback({
+                        type: 'error',
+                        message: `❌ Erro ao registrar retorno: ${res.message}`
+                    });
+                } else {
+                    setVehicleScanFeedback({
+                        type: 'success',
+                        message: `✅ RETORNO REGISTRADO AUTOMATICAMENTE! Veículo: ${matchedOrder.vehicle} (${matchedOrder.plate}) retornou às ${currentTime}.`
+                    });
+                }
+            } else {
+                setVehicleScanFeedback({
+                    type: 'info',
+                    message: `ℹ️ Esta Ordem de Saída já foi concluída (Saída: ${matchedOrder.exitTime} | Retorno: ${matchedOrder.returnTime}).`
+                });
+            }
+        } catch (err: any) {
+            console.error(err);
+            setVehicleScanFeedback({
+                type: 'error',
+                message: `❌ Erro ao salvar registro: ${err.message || err}`
+            });
+        }
+    };
+
+    useEffect(() => {
+        let html5QrCode: Html5Qrcode | null = null;
+        let isStopped = false;
+
+        if (isVehicleScannerActive) {
+            const timer = setTimeout(() => {
+                try {
+                    const element = document.getElementById("vehicle-qr-reader");
+                    if (!element) return;
+
+                    html5QrCode = new Html5Qrcode("vehicle-qr-reader");
+                    
+                    const startScanner = async () => {
+                        try {
+                            await html5QrCode?.start(
+                                { facingMode: "environment" },
+                                {
+                                    fps: 10,
+                                    qrbox: { width: 220, height: 220 }
+                                },
+                                (decodedText) => {
+                                    handleScanVehicleBarcode(decodedText);
+                                    setIsVehicleScannerActive(false);
+                                    if (html5QrCode && html5QrCode.isScanning && !isStopped) {
+                                        isStopped = true;
+                                        html5QrCode.stop().catch(err => console.warn("Erro ao parar camera:", err));
+                                    }
+                                },
+                                () => {}
+                            );
+                        } catch (err) {
+                            console.warn("Failed with environment camera, trying user camera...", err);
+                            if (isStopped) return;
+                            try {
+                                await html5QrCode?.start(
+                                    { facingMode: "user" },
+                                    {
+                                        fps: 10,
+                                        qrbox: { width: 220, height: 220 }
+                                    },
+                                    (decodedText) => {
+                                        handleScanVehicleBarcode(decodedText);
+                                        setIsVehicleScannerActive(false);
+                                        if (html5QrCode && html5QrCode.isScanning && !isStopped) {
+                                            isStopped = true;
+                                            html5QrCode.stop().catch(stopErr => console.warn("Erro:", stopErr));
+                                        }
+                                    },
+                                    () => {}
+                                );
+                            } catch (fallbackErr) {
+                                console.error("Camera fallback failed too:", fallbackErr);
+                                try {
+                                    const devices = await Html5Qrcode.getCameras();
+                                    if (devices && devices.length > 0 && !isStopped) {
+                                        const cameraId = devices[devices.length - 1].id;
+                                        await html5QrCode?.start(
+                                            cameraId,
+                                            { fps: 10, qrbox: { width: 220, height: 220 } },
+                                            (decodedText) => {
+                                                handleScanVehicleBarcode(decodedText);
+                                                setIsVehicleScannerActive(false);
+                                                if (html5QrCode && html5QrCode.isScanning && !isStopped) {
+                                                    isStopped = true;
+                                                    html5QrCode.stop().catch(() => {});
+                                                }
+                                            },
+                                            () => {}
+                                        );
+                                    } else {
+                                        setVehicleScanFeedback({ type: 'error', message: "Nenhuma câmera encontrada." });
+                                    }
+                                } catch (_deviceErr) {
+                                    setVehicleScanFeedback({ type: 'error', message: "Não foi possível acessar a câmera do dispositivo." });
+                                }
+                            }
+                        }
+                    };
+
+                    startScanner();
+                } catch (e) {
+                    console.error("Camera scanner instance error:", e);
+                }
+            }, 300);
+
+            return () => {
+                clearTimeout(timer);
+                isStopped = true;
+                if (html5QrCode) {
+                    const stopScanner = async () => {
+                        try {
+                            if (html5QrCode && html5QrCode.isScanning) {
+                                await html5QrCode.stop();
+                            }
+                        } catch (err) {
+                            console.warn("Erro ao parar camera no cleanup:", err);
+                        }
+                    };
+                    stopScanner();
+                }
+            };
+        }
+    }, [isVehicleScannerActive]);
     const [isValidationRoleModalOpen, setIsValidationRoleModalOpen] = useState(false);
     const [editingValidationRole, setEditingValidationRole] = useState<ValidationRole | null>(null);
     const [validationRoleFormData, setValidationRoleFormData] = useState<any>({
@@ -465,6 +680,9 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 </style>
             </head>
             <body>
+                <div style="position: absolute; top: 15mm; right: 15mm; text-align: center;">
+                    <svg id="barcode-print"></svg>
+                </div>
                 <div class="header">
                     <h1>SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA</h1>
                     <h2>Coordenadoria das Unidades Prisionais da Região Norte do Estado</h2>
@@ -545,8 +763,21 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                     </div>
                 </div>
                 
+                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
                 <script>
                     window.onload = () => {
+                        try {
+                            JsBarcode("#barcode-print", "${order.id}", {
+                                format: "CODE128",
+                                width: 1.2,
+                                height: 35,
+                                displayValue: true,
+                                fontSize: 8,
+                                margin: 0
+                            });
+                        } catch(e) {
+                            console.error("Barcode generation error:", e);
+                        }
                         window.print();
                         setTimeout(() => window.close(), 500);
                     };
@@ -719,8 +950,8 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             </td>
             <td className="p-4">
                 <div className="font-black text-gray-800 uppercase">{order.vehicle}</div>
-                <div className="text-[10px] text-indigo-500 font-mono flex items-center gap-2">
-                    {order.plate}
+                <div className="text-[10px] text-indigo-500 font-mono flex-wrap flex items-center gap-1.5">
+                    <span className="font-black">{order.plate}</span>
                     {order.pdfUrl && (
                         <button 
                             onClick={() => handleOpenPdf(order.pdfUrl!)}
@@ -728,6 +959,18 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                             PDF
+                        </button>
+                    )}
+                    {order.id && (
+                        <button 
+                            onClick={() => setBarcodeModalOrder(order)}
+                            className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-1 hover:bg-indigo-100"
+                            title="Visualizar Código de Barras da Ordem"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Código
                         </button>
                     )}
                 </div>
@@ -1265,6 +1508,101 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             )}
             {activeSubTab === 'gate' && (
                 <div className="space-y-6">
+                    {/* LEITOR DE CÓDIGO DE BARRAS / PORTARIA AUTOMÁTICA */}
+                    <div className="bg-indigo-950 text-white rounded-[2rem] p-6 shadow-xl relative overflow-hidden border border-indigo-900">
+                        {/* Background subtle decoration */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-800/10 rounded-full blur-3xl pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-800/5 rounded-full blur-2xl pointer-events-none"></div>
+
+                        <div className="relative z-10 flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
+                            <div className="space-y-1">
+                                <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                                    </svg>
+                                    Leitor de Código de Barras (Portaria Automática)
+                                </h3>
+                                <p className="text-[10px] text-indigo-200 font-bold uppercase">Bipe o Código de Barras da Ordem de Saída para registrar a Saída ou Retorno do veículo automaticamente</p>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                                <div className="relative flex-1 sm:w-64">
+                                    <input
+                                        type="text"
+                                        value={vehicleBarcodeQuery}
+                                        onChange={e => setVehicleBarcodeQuery(e.target.value)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleScanVehicleBarcode(vehicleBarcodeQuery);
+                                                setVehicleBarcodeQuery('');
+                                            }
+                                        }}
+                                        placeholder="Bipe o código ou digite..."
+                                        className="w-full h-11 pl-4 pr-10 border border-indigo-700/50 rounded-2xl bg-indigo-900 text-white shadow-inner font-bold outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all text-xs placeholder:text-indigo-400/60"
+                                    />
+                                    {vehicleBarcodeQuery && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setVehicleBarcodeQuery('')}
+                                            className="absolute right-3 top-3 text-indigo-400 hover:text-white"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (vehicleBarcodeQuery) {
+                                            handleScanVehicleBarcode(vehicleBarcodeQuery);
+                                            setVehicleBarcodeQuery('');
+                                        }
+                                    }}
+                                    className="px-5 h-11 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-black uppercase transition-all shadow-md flex items-center justify-center gap-1"
+                                >
+                                    Enviar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsVehicleScannerActive(!isVehicleScannerActive);
+                                        setVehicleScanFeedback(null);
+                                    }}
+                                    className={`p-3 h-11 rounded-2xl border transition-all flex items-center justify-center ${isVehicleScannerActive ? 'bg-red-600 text-white border-transparent' : 'bg-indigo-900 text-indigo-200 border-indigo-700/50 hover:bg-indigo-800 hover:text-white'}`}
+                                    title="Usar câmera do celular/computador"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Camera Scanner Container for Vehicle Orders */}
+                        {isVehicleScannerActive && (
+                            <div className="border border-indigo-800 rounded-3xl overflow-hidden bg-black relative mt-4 max-w-md mx-auto">
+                                <div id="vehicle-qr-reader" className="w-full aspect-square max-h-[250px]"></div>
+                                <div className="absolute bottom-2 left-2 right-2 bg-black/80 text-white text-[8px] font-bold text-center py-1.5 rounded-lg uppercase tracking-wider">
+                                    Aponte a câmera para o Código de Barras da Ordem de Saída
+                                </div>
+                            </div>
+                        )}
+
+                        {vehicleScanFeedback && (
+                            <div className={`mt-4 p-4 rounded-2xl text-xs font-bold leading-relaxed border ${
+                                vehicleScanFeedback.type === 'success' 
+                                    ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/30' 
+                                    : vehicleScanFeedback.type === 'error'
+                                        ? 'bg-rose-950/80 text-rose-300 border-rose-500/30'
+                                        : 'bg-blue-950/80 text-blue-300 border-blue-500/30'
+                            }`}>
+                                {vehicleScanFeedback.message}
+                            </div>
+                        )}
+                    </div>
+
                     {orders.some(o => !o.validationRole && !o.exitTime) && (
                         <div className="bg-amber-50 border border-amber-200 p-4 rounded-3xl flex items-center gap-4">
                             <div className="bg-amber-100 p-2 rounded-full text-amber-600">
@@ -2405,6 +2743,36 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                     Confirmar Checklist
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Barcode Modal */}
+            {barcodeModalOrder && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm border border-white/20 overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="bg-indigo-600 p-6 text-white relative overflow-hidden">
+                            <div className="absolute top-[-20%] right-[-10%] w-24 h-24 bg-white/10 rounded-full blur-xl" />
+                            <h3 className="text-lg font-black uppercase tracking-tighter italic flex items-center gap-2 relative z-10">
+                                Código de Barras da Ordem
+                            </h3>
+                            <p className="text-[10px] text-indigo-200 font-bold uppercase mt-1">Veículo: {barcodeModalOrder.vehicle} ({barcodeModalOrder.plate})</p>
+                        </div>
+                        <div className="p-6 flex flex-col items-center justify-center space-y-6">
+                            <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center">
+                                <Barcode value={barcodeModalOrder.id} />
+                            </div>
+                            <div className="text-center space-y-1">
+                                <p className="text-[10px] font-black uppercase text-gray-400">ID da Ordem</p>
+                                <p className="font-mono text-xs font-bold text-gray-700 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200/50">{barcodeModalOrder.id}</p>
+                            </div>
+                            <button 
+                                onClick={() => setBarcodeModalOrder(null)} 
+                                className="w-full h-11 bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-500 font-black rounded-xl transition-all uppercase text-[10px] tracking-widest"
+                            >
+                                Fechar
+                            </button>
                         </div>
                     </div>
                 </div>
