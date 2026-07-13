@@ -63,7 +63,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   onManualInvoiceEntry,
   mode = 'admin',
   perCapitaConfig,
-  acquisitionItems: _acquisitionItems = [],
+  acquisitionItems = [],
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter] = useState<'all' | 'pending' | 'opened'>('all');
@@ -256,16 +256,16 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                  (cleanStr(log.supplierCpf) === cleanStr(supplier.cpf) || cleanStr(log.supplierName) === cleanStr(supplier.name));
         });
 
-        const itemValue = itemMovement?.value || d.value || 0;
-        const barcode = itemMovement?.barcode || d.barcode || '';
+        const itemValue = (itemMovement as any)?.value || d.value || 0;
+        const barcode = (itemMovement as any)?.barcode || d.barcode || '';
         acc[invKey].items.push({ 
           ...d, 
           value: itemValue, 
           barcode,
-          lotNumber: itemMovement?.lotNumber || d.lotNumber,
-          expirationDate: itemMovement?.expirationDate || d.expirationDate,
-          pd: itemMovement?.pdNumber || d.pd,
-          location: itemMovement?.location || d.location || ''
+          lotNumber: (itemMovement as any)?.lotNumber || d.lotNumber,
+          expirationDate: (itemMovement as any)?.expirationDate || d.expirationDate,
+          pd: (itemMovement as any)?.pdNumber || d.pd,
+          location: (itemMovement as any)?.location || d.location || ''
         });
         
         if (new Date(d.date) < new Date(acc[invKey].date)) {

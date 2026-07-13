@@ -357,7 +357,7 @@ const App: React.FC = () => {
             if (deliveries.length === 0) continue;
 
             const weekGroups = new Map<number, any[]>();
-            deliveries.forEach(d => {
+            deliveries.forEach((d: any) => {
               if (!d || !d.date) return;
               const parts = d.date.split('-');
               if (parts.length === 3) {
@@ -1648,7 +1648,7 @@ const App: React.FC = () => {
         }
       }
       if (Object.keys(updates).length > 0) {
-        await update(ref(db), updates);
+        await update(ref(database), updates);
         toast.success('Agendamentos excluídos.');
       } else {
         toast.error('Não foi possível encontrar os agendamentos para exclusão.');
@@ -3534,6 +3534,10 @@ const App: React.FC = () => {
           onUpdateVehicleExitOrder={async (order) => {
             await set(child(vehicleExitOrdersRef, order.id), order);
             return { success: true, message: 'Atualizado' };
+          }}
+          onDeleteVehicleExitOrder={async (id) => {
+            await remove(child(vehicleExitOrdersRef, id));
+            return { success: true, message: 'Ordem de Saída excluída' };
           }}
           onDeleteThirdPartyEntry={async (id) => {
             await remove(child(thirdPartyEntriesRef, id));

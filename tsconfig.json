@@ -25,5 +25,16 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "api",
+    "test-projection.ts",
+    "check-all-db.ts",
+    "check-service-orders.ts",
+    "check-suppliers-items.ts",
+    "test-auth.ts",
+    "test-db-items.ts",
+    "test-pc-items.ts"
+  ]
 }

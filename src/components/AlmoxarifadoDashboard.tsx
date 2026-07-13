@@ -819,9 +819,11 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             const matchedAcquisitionItem = ensureArray(acquisitionItems).find((ai: any) => ai && (ai.name || '').toUpperCase().trim() === nameUpper);
 
             let itemFull = nameUpper;
-            const comprasCode = matchedContractItem?.comprasCode || matchedAcquisitionItem?.comprasCode;
-            const becCode = matchedContractItem?.becCode || matchedAcquisitionItem?.becCode;
-            const category = matchedContractItem?.category || matchedAcquisitionItem?.category;
+            const mci = matchedContractItem as any;
+            const mai = matchedAcquisitionItem as any;
+            const comprasCode = mci?.comprasCode || mai?.comprasCode;
+            const becCode = mci?.becCode || mai?.becCode;
+            const category = mci?.category || mai?.category;
 
             const codes: string[] = [];
             if (comprasCode) {

@@ -35,7 +35,7 @@ const getWeekNumber = (d: Date): number => {
 
 const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
     const { suppliers, thirdPartyEntries, onCancelDeliveries, onDeleteThirdPartyEntry, perCapitaConfig, onDeleteDelivery, onUpdateDelivery, onSaveInvoice, onRegisterThirdPartyEntry } = props;
-    const [activeSubTab, setActiveSubTab] = useState<'daily' | 'weekly' | 'report' | 'late'>('daily');
+    const [activeSubTab, setActiveSubTab] = useState<'daily' | 'weekly' | 'report' | 'late' | '___REMOVED_OLD___'>('daily');
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState('');
 

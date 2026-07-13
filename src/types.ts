@@ -28,6 +28,7 @@ export interface Delivery {
     pd?: string;
     ne?: string;
     arrivalTime?: string;
+    exitTime?: string;
     lots?: LotInfo[];
     observations?: string;
 }

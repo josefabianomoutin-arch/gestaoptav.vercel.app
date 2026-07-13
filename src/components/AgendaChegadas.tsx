@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import type { Supplier, ThirdPartyEntryLog, Delivery } from '../types';
+import type { Supplier, ThirdPartyEntryLog, Delivery, ContractItem } from '../types';
 import { Calendar, Clock, Truck, UserCheck, AlertCircle, Search, Trash2, CheckCircle2, FilePlus, QrCode, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import SendInvoiceModal from './SendInvoiceModal';
@@ -697,7 +697,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
         }
     };
 
-    const currentSupplierItems = useMemo(() => {
+    const currentSupplierItems = useMemo<ContractItem[]>(() => {
         if (!invoiceInfo) return [];
         const mainSup = ensureArray(suppliers).find(s => s.cpf === invoiceInfo.supplierCpf);
         if (mainSup) return ensureArray(mainSup.contractItems);
@@ -709,7 +709,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                 ...ensureArray(perCapitaConfig.estocaveisSuppliers)
             ];
             const pcSup = allPC.find((p: any) => (p.cpfCnpj || p.cpf) === invoiceInfo.supplierCpf);
-            if (pcSup) return ensureArray(pcSup.contractItems);
+            if (pcSup) return ensureArray((pcSup as any).contractItems);
         }
         return [];
     }, [invoiceInfo, suppliers, perCapitaConfig]);
