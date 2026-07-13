@@ -4426,137 +4426,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     </div>
                                 )}
 
-                                {/* Tool Modal Dialog */}
-                                {isToolModalOpen && (
-                                    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" id="tool-modal">
-                                        <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-100 animate-fade-in">
-                                            <div className="bg-zinc-900 text-white p-5 flex justify-between items-center italic">
-                                                <div className="flex items-center gap-2">
-                                                    <Wrench className="h-5 w-5 text-indigo-400" />
-                                                    <h3 className="font-black uppercase tracking-tighter text-sm leading-none">
-                                                        {editingToolId ? 'Editar Ferramenta' : 'Cadastrar Ferramenta'}
-                                                    </h3>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setIsToolModalOpen(false)}
-                                                    className="p-1 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition-all"
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </button>
-                                            </div>
-
-                                            <form onSubmit={handleSaveTool} className="p-6 space-y-4">
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nome da Ferramenta</label>
-                                                    <input
-                                                        type="text"
-                                                        value={newTool.name}
-                                                        onChange={e => setNewTool(prev => ({ ...prev, name: e.target.value }))}
-                                                        placeholder="Ex: FURADEIRA DE IMPACTO"
-                                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
-                                                        required
-                                                    />
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div className="space-y-1">
-                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Marca / Modelo</label>
-                                                        <input
-                                                            type="text"
-                                                            value={newTool.model}
-                                                            onChange={e => setNewTool(prev => ({ ...prev, model: e.target.value }))}
-                                                            placeholder="Ex: BOSCH GSB 13 RE"
-                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Categoria</label>
-                                                        <select
-                                                            value={newTool.category}
-                                                            onChange={e => setNewTool(prev => ({ ...prev, category: e.target.value }))}
-                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs cursor-pointer"
-                                                        >
-                                                            <option value="MANUAL">Manual</option>
-                                                            <option value="ELÉTRICA">Elétrica</option>
-                                                            <option value="MEDIÇÃO">Medição</option>
-                                                            <option value="EPI">EPI</option>
-                                                            <option value="OUTROS">Outros</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div className="space-y-1">
-                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">No. Cadastro (Patrimônio)</label>
-                                                        <input
-                                                            type="text"
-                                                            value={newTool.registerNumber}
-                                                            onChange={e => setNewTool(prev => ({ ...prev, registerNumber: e.target.value }))}
-                                                            placeholder="Ex: CAD-0104"
-                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
-                                                            required
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Cód. Específico</label>
-                                                        <input
-                                                            type="text"
-                                                            value={newTool.toolCode}
-                                                            onChange={e => setNewTool(prev => ({ ...prev, toolCode: e.target.value }))}
-                                                            placeholder="Ex: FUR-01"
-                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
-                                                            required
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div className="space-y-1">
-                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Local de Armazenamento</label>
-                                                        <input
-                                                            type="text"
-                                                            value={newTool.location}
-                                                            onChange={e => setNewTool(prev => ({ ...prev, location: e.target.value }))}
-                                                            placeholder="Ex: GAVETA 3 / ARMÁRIO B"
-                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Status Inicial</label>
-                                                        <select
-                                                            value={newTool.status}
-                                                            onChange={e => setNewTool(prev => ({ ...prev, status: e.target.value }))}
-                                                            className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs cursor-pointer"
-                                                            disabled={!!editingToolId}
-                                                        >
-                                                            <option value="DISPONÍVEL">Disponível</option>
-                                                            <option value="EMPRESTADO">Emprestado</option>
-                                                            <option value="MANUTENÇÃO">Em Manutenção</option>
-                                                            <option value="DANIFICADO">Danificada / Inoperante</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex gap-3 pt-4 border-t border-slate-100">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setIsToolModalOpen(false)}
-                                                        className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black py-3 rounded-xl uppercase tracking-wider text-[10px] transition-all"
-                                                    >
-                                                        Cancelar
-                                                    </button>
-                                                    <button
-                                                        type="submit"
-                                                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-xl uppercase tracking-wider text-[10px] transition-all"
-                                                    >
-                                                        Salvar Registro
-                                                    </button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                )}
+                                 {/* Tool Modal Dialog was moved to the root level to prevent z-index stacking context overlap */}
                             </div>
                         ) : (
                             <div className="p-4 md:p-6 space-y-8">
@@ -4807,6 +4677,137 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         )}
                     </div>
                 ) : null}
+            {/* Tool Modal Dialog - rendered at root level with z-[9999] to avoid z-index stacking issues */}
+            {isToolModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[9999] p-4" id="tool-modal">
+                    <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-100 animate-fade-in">
+                        <div className="bg-zinc-900 text-white p-5 flex justify-between items-center italic">
+                            <div className="flex items-center gap-2">
+                                <Wrench className="h-5 w-5 text-indigo-400" />
+                                <h3 className="font-black uppercase tracking-tighter text-sm leading-none">
+                                    {editingToolId ? 'Editar Ferramenta' : 'Cadastrar Ferramenta'}
+                                </h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsToolModalOpen(false)}
+                                className="p-1 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition-all"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveTool} className="p-6 space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nome da Ferramenta</label>
+                                <input
+                                    type="text"
+                                    value={newTool.name}
+                                    onChange={e => setNewTool(prev => ({ ...prev, name: e.target.value }))}
+                                    placeholder="Ex: FURADEIRA DE IMPACTO"
+                                    className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                    required
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Marca / Modelo</label>
+                                    <input
+                                        type="text"
+                                        value={newTool.model}
+                                        onChange={e => setNewTool(prev => ({ ...prev, model: e.target.value }))}
+                                        placeholder="Ex: BOSCH GSB 13 RE"
+                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Categoria</label>
+                                    <select
+                                        value={newTool.category}
+                                        onChange={e => setNewTool(prev => ({ ...prev, category: e.target.value }))}
+                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs cursor-pointer"
+                                    >
+                                        <option value="MANUAL">Manual</option>
+                                        <option value="ELÉTRICA">Elétrica</option>
+                                        <option value="MEDIÇÃO">Medição</option>
+                                        <option value="EPI">EPI</option>
+                                        <option value="OUTROS">Outros</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">No. Cadastro (Patrimônio)</label>
+                                    <input
+                                        type="text"
+                                        value={newTool.registerNumber}
+                                        onChange={e => setNewTool(prev => ({ ...prev, registerNumber: e.target.value }))}
+                                        placeholder="Ex: CAD-0104"
+                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Cód. Específico</label>
+                                    <input
+                                        type="text"
+                                        value={newTool.toolCode}
+                                        onChange={e => setNewTool(prev => ({ ...prev, toolCode: e.target.value }))}
+                                        placeholder="Ex: FUR-01"
+                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Local de Armazenamento</label>
+                                    <input
+                                        type="text"
+                                        value={newTool.location}
+                                        onChange={e => setNewTool(prev => ({ ...prev, location: e.target.value }))}
+                                        placeholder="Ex: GAVETA 3 / ARMÁRIO B"
+                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Status Inicial</label>
+                                    <select
+                                        value={newTool.status}
+                                        onChange={e => setNewTool(prev => ({ ...prev, status: e.target.value }))}
+                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs cursor-pointer"
+                                        disabled={!!editingToolId}
+                                    >
+                                        <option value="DISPONÍVEL">Disponível</option>
+                                        <option value="EMPRESTADO">Emprestado</option>
+                                        <option value="MANUTENÇÃO">Em Manutenção</option>
+                                        <option value="DANIFICADO">Danificada / Inoperante</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 pt-4 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsToolModalOpen(false)}
+                                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black py-3 rounded-xl uppercase tracking-wider text-[10px] transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-xl uppercase tracking-wider text-[10px] transition-all"
+                                >
+                                    Salvar Registro
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
             </main>
             <style>{`
                 .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }

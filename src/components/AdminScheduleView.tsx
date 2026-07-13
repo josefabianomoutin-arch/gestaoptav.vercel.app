@@ -583,7 +583,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
 
                     {/* Modal Add Third Party / Manual */}
                     {isAddThirdPartyModalOpen && (
-                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
                             <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden border border-indigo-100 animate-scale-in">
                                 <div className="p-8 border-b bg-indigo-50">
                                     <h3 className="text-xl font-black text-indigo-950 uppercase tracking-tighter">Registrar Agendamento Manual</h3>
