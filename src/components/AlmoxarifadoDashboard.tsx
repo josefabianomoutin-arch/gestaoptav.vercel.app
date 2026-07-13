@@ -1725,8 +1725,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             return cleanDInv === cleanTargetInvoice;
         });
 
-        if (deliveries.length === 0) return null;
-
         // Group items by name to avoid duplicates in the receipt term
         const groupedItemsMap = new Map<string, any>();
 
@@ -1795,14 +1793,110 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             }
         });
 
+        // Mirror entries from warehouseLog that might not be in supplier deliveries
+        (warehouseLog || []).forEach(log => {
+            if (!log) return false;
+            if (log.type === 'saída' || log.type === 'saida') return false;
+
+            const lInbound = String(log.inboundInvoice || '').trim().replace(/^0+/, '');
+            const lOutbound = String(log.outboundInvoice || '').trim().replace(/^0+/, '');
+            const lInv = String(log.invoiceNumber || '').trim().replace(/^0+/, '');
+            
+            if (!(lInbound === cleanTargetInvoice || lOutbound === cleanTargetInvoice || lInv === cleanTargetInvoice)) return;
+            if (String(log.supplierCpf || '').replace(/\D/g, '') !== String(receiptSupplier.cpf || '').replace(/\D/g, '')) return;
+
+            const itemName = log.item || log.itemName || 'N/A';
+            if (itemName === 'AGENDAMENTO PENDENTE') return;
+
+            const quantity = Number(log.kg || log.quantity || 0);
+            const lineTotalValue = Number(log.value || 0);
+            
+            if (groupedItemsMap.has(itemName)) {
+                const existing = groupedItemsMap.get(itemName);
+                
+                // Only add quantity if it wasn't already in deliveries, or if it was, we assume deliveries has the full amount.
+                // Actually, if it's already in deliveries, deliveries usually represents the whole invoice.
+                // However, if the user added it ONLY via warehouseLog, it won't be in deliveries.
+                // If the user added MULTIPLE items via warehouseLog, we need to accumulate them.
+                // Since we already processed deliveries, if `existing` came from deliveries, should we add this quantity?
+                // `AdminInvoices.tsx` pushes new items from warehouseLog ONLY if they don't exist by name/kg/barcode.
+                // Here, since we group by name, we can just say: if it's already here, we don't add the quantity, unless we track what we added.
+                // Let's just track a flag `fromLogOnly` to know if we can add to it.
+                if (existing.fromLogOnly) {
+                    existing.quantity += quantity;
+                    existing.totalValue += lineTotalValue;
+                    existing.unitPrice = existing.quantity > 0 ? (existing.totalValue / existing.quantity) : existing.unitPrice;
+                }
+
+                if (!existing.lotNumber && log.lotNumber) existing.lotNumber = log.lotNumber;
+                if (!existing.expiration && log.expirationDate) {
+                    existing.expiration = log.expirationDate;
+                    existing.expirationDate = log.expirationDate;
+                }
+            } else {
+                const contractItemsData = receiptSupplier.contractItems || {};
+                const contractItemsList = ensureArray(contractItemsData);
+                const contractItem = (contractItemsList as any[]).find((ci: any) => ci && ci.name === itemName);
+                const calcUnitPrice = quantity > 0 
+                    ? (lineTotalValue / quantity) 
+                    : (Number(contractItem?.valuePerKg) || 0);
+                
+                let unit = 'Kg';
+                if (contractItem?.unit) {
+                    const [unitType] = contractItem.unit.split('-');
+                    const unitMap: { [key: string]: string } = {
+                        kg: 'Kg', un: 'Un', saco: 'Sc', balde: 'Bd', pacote: 'Pct', pote: 'Pt',
+                        litro: 'L', l: 'L', caixa: 'Cx', embalagem: 'Emb', dz: 'Dz'
+                    };
+                    unit = unitMap[unitType] || 'Un';
+                }
+
+                groupedItemsMap.set(itemName, {
+                    name: itemName,
+                    quantity,
+                    unit,
+                    unitPrice: calcUnitPrice,
+                    totalValue: lineTotalValue,
+                    category: contractItem?.category,
+                    barcode: log.barcode || '',
+                    lotNumber: log.lotNumber || 'UNICO',
+                    expiration: log.expirationDate || '',
+                    expirationDate: log.expirationDate || '',
+                    fromLogOnly: true
+                });
+            }
+        });
+
+        if (groupedItemsMap.size === 0) return null;
+
         const items = Array.from(groupedItemsMap.values());
 
         const totalInvoiceValue = items.reduce((sum, it) => sum + it.totalValue, 0);
-        const firstDelivery = deliveries[0];
-        const invoiceDate = firstDelivery.invoiceDate || firstDelivery.date || '';
-        const receiptDate = firstDelivery.date || '';
+        const firstDelivery = deliveries[0] || {};
+        
+        let logDate = '';
+        let logNe = '';
+        let logPd = '';
+        if (deliveries.length === 0) {
+            const firstLog = (warehouseLog || []).find(log => {
+                const lInbound = String(log.inboundInvoice || '').trim().replace(/^0+/, '');
+                const lOutbound = String(log.outboundInvoice || '').trim().replace(/^0+/, '');
+                const lInv = String(log.invoiceNumber || '').trim().replace(/^0+/, '');
+                return (lInbound === cleanTargetInvoice || lOutbound === cleanTargetInvoice || lInv === cleanTargetInvoice) && 
+                       (String(log.supplierCpf || '').replace(/\D/g, '') === String(receiptSupplier.cpf || '').replace(/\D/g, ''));
+            });
+            if (firstLog) {
+                const anyLog = firstLog as any;
+                logDate = firstLog.date || '';
+                logNe = firstLog.neNumber || anyLog.ne || '';
+                logPd = firstLog.pdNumber || anyLog.pd || '';
+            }
+        }
+        
+        const invoiceDate = firstDelivery.invoiceDate || firstDelivery.date || logDate || '';
+        const receiptDate = firstDelivery.date || logDate || '';
         const barcode = items.find(it => it.barcode)?.barcode || '';
-        const receiptTermNumber = firstDelivery.receiptTermNumber || '';
+        const receiptTermNumber = firstDelivery.receiptTermNumber || firstDelivery.neNumber || logNe || logPd || '';
 
         return {
             supplierName: receiptSupplier.name,
