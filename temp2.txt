@@ -1,0 +1,101 @@
+
+        if (matchedTool) {
+            // Determine operation type automatically:
+            // If the tool is DISPONÍVEL -> it's a RETIRADA (Exit)
+            // If the tool is EMPRESTADO -> it's a DEVOLUÇÃO (Entry)
+            let autoType: 'RETIRADA' | 'DEVOLUÇÃO' = 'RETIRADA';
+            let messageExtra = '';
+
+            if (matchedTool.status === 'DISPONÍVEL') {
+                autoType = 'RETIRADA';
+                messageExtra = 'Identificado para SAÍDA (RETIRADA)';
+            } else if (matchedTool.status === 'EMPRESTADO') {
+                autoType = 'DEVOLUÇÃO';
+                messageExtra = 'Identificado para ENTRADA (DEVOLUÇÃO)';
+            } else {
+                autoType = 'DEVOLUÇÃO';
+                messageExtra = `Atenção: Status "${matchedTool.status}". Defina a operação desejada.`;
+            }
+
+            setNewMovement(prev => ({
+                ...prev,
+                toolId: matchedTool.id,
+                type: autoType,
+            }));
+
+            setToolScanFeedback({
+                type: matchedTool.status === 'DANIFICADO' || matchedTool.status === 'MANUTENÇÃO' ? 'info' : 'success',
+                message: `✅ SUCESSO: ${matchedTool.name} (CAD: ${matchedTool.registerNumber}) selecionada! ${messageExtra}.`
+            });
+
+            // Focus on collaborator name input
+            setTimeout(() => {
+                const nameInput = document.getElementById('tool-movement-person-name');
+                if (nameInput) {
+                    nameInput.focus();
+                }
+            }, 100);
+        } else {
+            setToolScanFeedback({
+                type: 'error',
+                message: `❌ ERRO: Nenhuma ferramenta encontrada com o código "${val}".`
+            });
+        }
+    };
+
+    const handleRegisterToolMovement = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newMovement.toolId || !newMovement.personName) {
+            alert('Por favor, selecione a ferramenta e informe o nome do colaborador.');
+            return;
+        }
+
+        const selectedTool = tools.find(t => t.id === newMovement.toolId);
+        if (!selectedTool) return;
+
+        try {
+            const db = getDatabase(app);
+            const movementRef = push(ref(db, 'toolMovements'));
+            const timestamp = Date.now();
+
+            const movementData = {
+                id: movementRef.key,
+                toolId: selectedTool.id,
+                toolName: selectedTool.name,
+                toolCode: selectedTool.toolCode,
+                registerNumber: selectedTool.registerNumber,
+                type: newMovement.type,
+                personName: newMovement.personName.toUpperCase().trim(),
+                personCpf: newMovement.personCpf.trim() || 'NÃO INFORMADO',
+                responsible: newMovement.responsible.toUpperCase().trim(),
+                date: newMovement.date,
+                time: newMovement.time,
+                expectedReturnDate: newMovement.type === 'RETIRADA' ? newMovement.expectedReturnDate : '',
+                condition: newMovement.type === 'DEVOLUÇÃO' ? newMovement.condition : '',
+                observations: newMovement.observations.trim() || 'SEM OBSERVAÇÕES',
+                timestamp: timestamp
+            };
+
+            await set(movementRef, movementData);
+
+            const nextStatus = newMovement.type === 'RETIRADA' 
+                ? 'EMPRESTADO' 
+                : (newMovement.condition === 'DANIFICADO' ? 'DANIFICADO' : (newMovement.condition === 'NECESSITA MANUTENÇÃO' ? 'MANUTENÇÃO' : 'DISPONÍVEL'));
+
+            await set(ref(db, `tools/${selectedTool.id}`), {
+                ...selectedTool,
+                status: nextStatus,
+                lastMovement: `${newMovement.type} POR ${newMovement.personName.toUpperCase()} EM ${newMovement.date} às ${newMovement.time}`
+            });
+
+            alert(`Movimentação de ${newMovement.type.toLowerCase()} registrada com sucesso!`);
+
+            setNewMovement(prev => ({
+                ...prev,
+                toolId: '',
+                personName: '',
+                personCpf: '',
+                expectedReturnDate: '',
+                condition: 'BOM',
+                observations: ''
+            }));

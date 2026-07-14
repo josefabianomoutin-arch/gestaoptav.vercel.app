@@ -1,0 +1,171 @@
+                                    >
+                                        Histórico de Movimentações ({toolMovements.length})
+                                        {toolsView === 'logs' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-full" />}
+                                    </button>
+                                </div>
+
+                                {/* Views Rendering */}
+                                {toolsView === 'inventory' && (
+                                    <div className="space-y-4">
+                                        {/* Search and Filters */}
+                                        <div className="flex flex-col sm:flex-row gap-3">
+                                            <div className="relative flex-1">
+                                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                                                <input
+                                                    type="text"
+                                                    value={toolSearch}
+                                                    onChange={e => setToolSearch(e.target.value)}
+                                                    placeholder="Buscar por nome, cadastro, código..."
+                                                    className="w-full h-9 pl-9 pr-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                                />
+                                            </div>
+                                            <select
+                                                value={toolStatusFilter}
+                                                onChange={e => setToolStatusFilter(e.target.value)}
+                                                className="h-9 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                            >
+                                                <option value="TODOS">Todos os Status</option>
+                                                <option value="DISPONÍVEL">Disponível</option>
+                                                <option value="EMPRESTADO">Emprestado</option>
+                                                <option value="MANUTENÇÃO">Manutenção</option>
+                                                <option value="DANIFICADO">Danificado</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Tools Grid */}
+                                        {loadingTools ? (
+                                            <div className="text-center py-8 text-slate-400 font-bold text-xs uppercase">Carregando ferramentas...</div>
+                                        ) : tools.length === 0 ? (
+                                            <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl text-slate-400">
+                                                <Wrench className="h-10 w-10 mx-auto mb-2 opacity-35" />
+                                                <p className="font-bold text-xs uppercase">Nenhuma ferramenta cadastrada</p>
+                                                <p className="text-[10px] mt-1">Clique em "Nova Ferramenta" para registrar seu primeiro ativo.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {tools
+                                                    .filter(t => {
+                                                        const matchSearch = t.name?.toLowerCase().includes(toolSearch.toLowerCase()) ||
+                                                            t.registerNumber?.toLowerCase().includes(toolSearch.toLowerCase()) ||
+                                                            t.toolCode?.toLowerCase().includes(toolSearch.toLowerCase());
+                                                        const matchStatus = toolStatusFilter === 'TODOS' || t.status === toolStatusFilter;
+                                                        return matchSearch && matchStatus;
+                                                    })
+                                                    .map(t => {
+                                                        const statusColors: Record<string, string> = {
+                                                            'DISPONÍVEL': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                                                            'EMPRESTADO': 'bg-amber-50 text-amber-700 border-amber-200',
+                                                            'MANUTENÇÃO': 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                                                            'DANIFICADO': 'bg-rose-50 text-rose-700 border-rose-200',
+                                                            'DEFAULT': 'bg-slate-50 text-slate-700 border-slate-200'
+                                                        };
+                                                        const colorClass = statusColors[t.status] || statusColors['DEFAULT'];
+
+                                                        return (
+                                                            <div key={t.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:border-slate-200 transition-all">
+                                                                <div className="space-y-3">
+                                                                    <div className="flex justify-between items-start">
+                                                                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{t.category}</span>
+                                                                        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${colorClass}`}>{t.status}</span>
+                                                                    </div>
+                                                                    <div>
+                                                                        <h4 className="text-xs font-black text-slate-800 uppercase leading-snug">{t.name}</h4>
+                                                                        <p className="text-[10px] text-slate-400 font-bold mt-0.5 uppercase">Mod: {t.model}</p>
+                                                                    </div>
+                                                                    <div className="grid grid-cols-2 gap-2 text-[9px] bg-slate-50 p-2 rounded-xl border border-slate-100 font-bold uppercase text-slate-500">
+                                                                        <div>
+                                                                            <span className="text-[8px] text-slate-400 block font-normal">CADASTRO</span>
+                                                                            {t.registerNumber}
+                                                                        </div>
+                                                                        <div>
+                                                                            <span className="text-[8px] text-slate-400 block font-normal">CÓDIGO</span>
+                                                                            {t.toolCode}
+                                                                        </div>
+                                                                        <div className="col-span-2 border-t border-slate-100 pt-1 mt-1">
+                                                                            <span className="text-[8px] text-slate-400 block font-normal">ARMAZENAMENTO</span>
+                                                                            {t.location}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex flex-col items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                                                        <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mb-1">Código de Barras</span>
+                                                                        <div className="font-mono text-[9px] font-bold bg-white px-3 py-1 rounded border border-slate-100 text-slate-800 tracking-widest">{t.barcode}</div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex gap-2 mt-4 pt-3 border-t border-slate-50">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handlePrintToolLabel(t)}
+                                                                        className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 font-black py-1.5 px-3 rounded-lg uppercase tracking-wider text-[8px] transition-all flex items-center justify-center gap-1"
+                                                                        title="Imprimir Etiqueta"
+                                                                    >
+                                                                        <Printer className="h-3 w-3" />
+                                                                        Etiqueta
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setNewTool({
+                                                                                name: t.name || '',
+                                                                                model: t.model || '',
+                                                                                registerNumber: t.registerNumber || '',
+                                                                                toolCode: t.toolCode || '',
+                                                                                category: t.category || 'MANUAL',
+                                                                                location: t.location || '',
+                                                                                status: t.status || 'DISPONÍVEL'
+                                                                            });
+                                                                            setEditingToolId(t.id);
+                                                                            setIsToolModalOpen(true);
+                                                                        }}
+                                                                        className="bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-500 border border-slate-200 font-black p-1.5 rounded-lg transition-all"
+                                                                        title="Editar"
+                                                                    >
+                                                                        <Pencil className="h-3 w-3" />
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleDeleteTool(t.id)}
+                                                                        className="bg-slate-50 hover:bg-rose-50 hover:text-rose-600 text-slate-500 border border-slate-200 font-black p-1.5 rounded-lg transition-all"
+                                                                        title="Excluir"
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {toolsView === 'movement' && (
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                        {/* Register Form */}
+                                        <div className="lg:col-span-1 bg-slate-50 border border-slate-100 p-5 rounded-3xl space-y-4 shadow-sm">
+                                            <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                                                <ArrowRightLeft className="h-4 w-4 text-indigo-500" />
+                                                Registrar Movimentação
+                                            </h4>
+
+                                            <form onSubmit={handleRegisterToolMovement} className="space-y-4">
+                                                {/* Barcode/QR Code Scanner Input Area */}
+                                                <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-3.5 space-y-2">
+                                                    <label className="text-[10px] font-black text-indigo-950 uppercase flex items-center gap-1">
+                                                        <BarcodeIcon className="h-4 w-4 text-indigo-600 animate-pulse" />
+                                                        Leitura de Código de Barras (Rápido)
+                                                    </label>
+                                                    <div className="flex gap-2">
+                                                        <div className="relative flex-1">
+                                                            <input
+                                                                type="text"
+                                                                value={toolBarcodeQuery}
+                                                                onChange={e => setToolBarcodeQuery(e.target.value)}
+                                                                onKeyDown={e => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.preventDefault();
+                                                                        handleScanBarcode(toolBarcodeQuery);
+                                                                        setToolBarcodeQuery('');
+                                                                    }
+                                                                }}
+                                                                placeholder="Bipe o código ou digite..."

@@ -4460,13 +4460,14 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                             <th className="p-4 text-center">Operação</th>
                                                             <th className="p-4">Colaborador</th>
                                                             <th className="p-4">Autorizado por</th>
+                                                            <th className="p-4 text-center">Status</th>
                                                             <th className="p-4">Previsão / Condição</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-slate-50 font-bold uppercase text-slate-600 text-[10px]">
                                                         {toolMovements.length === 0 ? (
                                                             <tr>
-                                                                <td colSpan={6} className="p-8 text-center text-slate-400">Nenhum registro de movimentação encontrado.</td>
+                                                                <td colSpan={7} className="p-8 text-center text-slate-400">Nenhum registro de movimentação encontrado.</td>
                                                             </tr>
                                                         ) : (
                                                             toolMovements
@@ -4476,7 +4477,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                                         log.registerNumber?.toLowerCase().includes(toolMovementSearch.toLowerCase()) ||
                                                                         log.toolCode?.toLowerCase().includes(toolMovementSearch.toLowerCase());
                                                                 })
-                                                                .map(log => (
+                                                                .map(log => {
+                                                                    const isNotReturned = log.type === 'RETIRADA' && !toolMovements.some(m => m.toolId === log.toolId && m.type === 'DEVOLUÇÃO' && m.timestamp > log.timestamp);
+                                                                    
+                                                                    return (
                                                                     <tr key={log.id} className="hover:bg-slate-50/50">
                                                                         <td className="p-4 text-center text-slate-400">
                                                                             {log.date ? new Date(log.date + 'T12:00:00').toLocaleDateString('pt-BR') : ''}
@@ -4496,6 +4500,21 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                                             <span className="text-[8px] font-semibold text-slate-400">CPF: {log.personCpf}</span>
                                                                         </td>
                                                                         <td className="p-4 text-slate-500">{log.responsible}</td>
+                                                                        <td className="p-4 text-center">
+                                                                            {isNotReturned ? (
+                                                                                <span className="inline-block px-2 py-1 rounded text-[9px] font-black uppercase bg-red-600 text-white shadow-sm shadow-red-200 animate-pulse">
+                                                                                    NÃO DEVOLVIDA
+                                                                                </span>
+                                                                            ) : log.type === 'RETIRADA' ? (
+                                                                                <span className="inline-block px-2 py-1 rounded text-[8px] font-black uppercase bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                                                                    DEVOLVIDA
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="inline-block px-2 py-1 rounded text-[8px] font-black uppercase bg-slate-50 text-slate-400 border border-slate-100">
+                                                                                    -
+                                                                                </span>
+                                                                            )}
+                                                                        </td>
                                                                         <td className="p-4">
                                                                             {log.type === 'RETIRADA' ? (
                                                                                 <div>
@@ -4513,7 +4532,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                                             )}
                                                                         </td>
                                                                     </tr>
-                                                                ))
+                                                                )})
                                                         )}
                                                     </tbody>
                                                 </table>
