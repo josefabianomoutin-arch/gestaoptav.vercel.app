@@ -183,6 +183,9 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
                     <div class="qrcode-date">${formattedDate}</div>
                     <div class="qrcode-weekday">${weekday}</div>
                     <div class="qrcode-container" data-code="${codeValue}"></div>
+                    <div class="barcode-container">
+                        <svg class="barcode-svg" data-code="${codeValue}"></svg>
+                    </div>
                 </div>
             `;
         }).join('');
@@ -275,7 +278,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
                         padding: 8px;
                         text-align: center;
                         background: #fff;
-                        width: 140px;
+                        width: 160px;
                         page-break-inside: avoid;
                     }
                     .qrcode-date {
@@ -297,6 +300,16 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
                     .qrcode-container img {
                         width: 100px;
                         height: 100px;
+                        margin-bottom: 5px;
+                    }
+                    .barcode-container {
+                        margin-top: 5px;
+                        display: flex;
+                        justify-content: center;
+                    }
+                    .barcode-svg {
+                        width: 100% !important;
+                        height: 35px !important;
                     }
                 </style>
             </head>
@@ -416,10 +429,10 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
                         <div class="signature-title"></div>
                     </div>
                 </div>
-
                 ${qrcodeSectionHtml}
 
                 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
                 <script>
                     window.onload = function() {
                         try {
@@ -434,6 +447,23 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
                         } catch(e) {
                             console.error('Error generating QR code:', e);
                         }
+                        
+                        try {
+                            var barcodeSvgs = document.querySelectorAll('.barcode-svg');
+                            barcodeSvgs.forEach(function(svg) {
+                                var code = svg.getAttribute('data-code');
+                                JsBarcode(svg, code, {
+                                    format: "CODE128",
+                                    displayValue: false,
+                                    width: 1.5,
+                                    height: 35,
+                                    margin: 0
+                                });
+                            });
+                        } catch(e) {
+                            console.error('Error generating Barcode:', e);
+                        }
+
                         setTimeout(function(){ 
                             window.print(); 
                             window.close(); 

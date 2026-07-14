@@ -1,0 +1,71 @@
+        `;
+    }).join('');
+
+    const qrcodeSectionHtml = uniqueBookedDates.length > 0 ? `
+        <div class="qrcode-section">
+            <div class="qrcode-title">CÓDIGOS QR PARA CONFERÊNCIA DE ENTRADA / SAÍDA (PORTARIA)</div>
+            <div class="qrcode-grid">
+                ${qrCodesHtml}
+            </div>
+        </div>
+    ` : '';
+
+    const targetMonthDate = new Date(targetMonthKey + '-15');
+    const targetMonthName = targetMonthDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
+
+    const monthIndex = targetMonthDate.getMonth();
+    const selectedYear = targetMonthDate.getFullYear();
+
+    const isQ1 = monthIndex <= 3;
+    const divisor = isQ1 ? 4 : 8;
+
+    const contractItems = ensureArray<any>(supplier.contractItems).filter(item => {
+        if (isQ1) {
+            return item.period !== '2_3_QUAD';
+        } else {
+            return !item.period || item.period === '2_3_QUAD';
+        }
+    });
+
+    const availableDatesList: string[] = [];
+    const daysInMonthObj = new Date(selectedYear, monthIndex + 1, 0).getDate();
+    const targetMonthNameKey = targetMonthName.split(' ')[0];
+    const validWeeksForPC = supplier?.monthlySchedule?.[targetMonthNameKey] || 
+                            supplier?.monthlySchedule?.[targetMonthNameKey.toUpperCase()] || 
+                            supplier?.monthlySchedule?.[targetMonthNameKey.toLowerCase()] ||
+                            supplier?.monthlySchedule?.[targetMonthNameKey.charAt(0).toUpperCase() + targetMonthNameKey.slice(1).toLowerCase()];
+    const allowedWeeksArray = supplier.allowedWeeks || [];
+
+    const getWeekNumberLocal = (d: Date): number => {
+        d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+        return weekNo;
+    };
+
+    for (let d = 1; d <= daysInMonthObj; d++) {
+        const date = new Date(selectedYear, monthIndex, d);
+        const dateStrRaw = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        
+        const dayOfWeek = date.getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const isHoliday = !!HOLIDAYS_2026[dateStrRaw];
+        
+        if (!isWeekend && !isHoliday) {
+            if (validWeeksForPC && validWeeksForPC.length > 0) {
+                const wNum = getWeekNumberLocal(new Date(dateStrRaw + 'T12:00:00'));
+                if (validWeeksForPC.includes(wNum)) {
+                    availableDatesList.push(date.toLocaleDateString('pt-BR'));
+                }
+            } else if (allowedWeeksArray.length > 0) {
+                const wNum = getWeekNumberLocal(new Date(dateStrRaw + 'T12:00:00'));
+                if (allowedWeeksArray.includes(wNum)) {
+                    availableDatesList.push(date.toLocaleDateString('pt-BR'));
+                }
+            } else {
+                availableDatesList.push(date.toLocaleDateString('pt-BR'));
+            }
+        }
+    }
+

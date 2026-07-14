@@ -1,101 +1,81 @@
+                    </tfoot>
+                </table>
 
-        if (matchedTool) {
-            // Determine operation type automatically:
-            // If the tool is DISPONÍVEL -> it's a RETIRADA (Exit)
-            // If the tool is EMPRESTADO -> it's a DEVOLUÇÃO (Entry)
-            let autoType: 'RETIRADA' | 'DEVOLUÇÃO' = 'RETIRADA';
-            let messageExtra = '';
+                <div class="location-date">
+                    Taiuva, ${getReportDate()}
+                </div>
 
-            if (matchedTool.status === 'DISPONÍVEL') {
-                autoType = 'RETIRADA';
-                messageExtra = 'Identificado para SAÍDA (RETIRADA)';
-            } else if (matchedTool.status === 'EMPRESTADO') {
-                autoType = 'DEVOLUÇÃO';
-                messageExtra = 'Identificado para ENTRADA (DEVOLUÇÃO)';
-            } else {
-                autoType = 'DEVOLUÇÃO';
-                messageExtra = `Atenção: Status "${matchedTool.status}". Defina a operação desejada.`;
-            }
+                <div class="signatures">
+                    <div class="signature-block">
+                        <div class="signature-line"></div>
+                        <div class="signature-name">${supplier.name.toUpperCase()}</div>
+                        <div class="signature-title">Contratado</div>
+                    </div>
+                    <div class="signature-block">
+                        <div class="signature-line"></div>
+                        <div class="signature-name">RESPONSÁVEL PELO ALMOXARIFADO</div>
+                        <div class="signature-title"></div>
+                    </div>
+                </div>
 
-            setNewMovement(prev => ({
-                ...prev,
-                toolId: matchedTool.id,
-                type: autoType,
-            }));
+                ${qrcodeSectionHtml}
 
-            setToolScanFeedback({
-                type: matchedTool.status === 'DANIFICADO' || matchedTool.status === 'MANUTENÇÃO' ? 'info' : 'success',
-                message: `✅ SUCESSO: ${matchedTool.name} (CAD: ${matchedTool.registerNumber}) selecionada! ${messageExtra}.`
-            });
+                <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+                <script>
+                    window.onload = function() {
+                        try {
+                            var containers = document.querySelectorAll('.qrcode-container');
+                            containers.forEach(function(el) {
+                                var code = el.getAttribute('data-code');
+                                var qr = qrcode(0, 'M');
+                                qr.addData(code);
+                                qr.make();
+                                el.innerHTML = qr.createImgTag(3, 6);
+                            });
+                        } catch(e) {
+                            console.error('Error generating QR code:', e);
+                        }
+                        setTimeout(function(){ 
+                            window.print(); 
+                            window.close(); 
+                        }, 500);
+                    }
+                </script>
+            </body>
+            </html>
+        `;
 
-            // Focus on collaborator name input
-            setTimeout(() => {
-                const nameInput = document.getElementById('tool-movement-person-name');
-                if (nameInput) {
-                    nameInput.focus();
-                }
-            }, 100);
-        } else {
-            setToolScanFeedback({
-                type: 'error',
-                message: `❌ ERRO: Nenhuma ferramenta encontrada com o código "${val}".`
-            });
-        }
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
     };
 
-    const handleRegisterToolMovement = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newMovement.toolId || !newMovement.personName) {
-            alert('Por favor, selecione a ferramenta e informe o nome do colaborador.');
-            return;
-        }
+    const filteredThirdParties = useMemo(() => {
+        return (thirdPartyEntries || []).filter(log => {
+            const nameMatch = (log.companyName || '').toLowerCase().includes((searchTerm || '').toLowerCase());
+            const dateMatch = !dateFilter || log.date === dateFilter;
+            return nameMatch && dateMatch;
+        });
+    }, [thirdPartyEntries, searchTerm, dateFilter]);
+    
+    const sortedSuppliers = useMemo(() => {
+        return [...filteredSuppliers].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }, [filteredSuppliers]);
 
-        const selectedTool = tools.find(t => t.id === newMovement.toolId);
-        if (!selectedTool) return;
+    const sortedThirdParties = useMemo(() => {
+        return [...filteredThirdParties].sort((a, b) => (a.companyName || '').localeCompare(b.companyName || ''));
+    }, [filteredThirdParties]);
 
-        try {
-            const db = getDatabase(app);
-            const movementRef = push(ref(db, 'toolMovements'));
-            const timestamp = Date.now();
+    const handleCancel = (supplierCpf: string, deliveryIds: string[], date: string, isInvoice: boolean) => {
+        const type = isInvoice ? 'FATURAMENTO' : 'AGENDAMENTO';
+        setConfirmConfig({
+            isOpen: true,
+            title: `Excluir ${type}`,
+            message: `ATENÇÃO: Deseja realmente EXCLUIR o ${type} do dia ${formatDate(date)}?\n\nEsta ação removerá o registro permanentemente.`,
+            onConfirm: () => {
+                onCancelDeliveries(supplierCpf, deliveryIds);
+                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            },
+            variant: 'danger'
+        });
+    };
 
-            const movementData = {
-                id: movementRef.key,
-                toolId: selectedTool.id,
-                toolName: selectedTool.name,
-                toolCode: selectedTool.toolCode,
-                registerNumber: selectedTool.registerNumber,
-                type: newMovement.type,
-                personName: newMovement.personName.toUpperCase().trim(),
-                personCpf: newMovement.personCpf.trim() || 'NÃO INFORMADO',
-                responsible: newMovement.responsible.toUpperCase().trim(),
-                date: newMovement.date,
-                time: newMovement.time,
-                expectedReturnDate: newMovement.type === 'RETIRADA' ? newMovement.expectedReturnDate : '',
-                condition: newMovement.type === 'DEVOLUÇÃO' ? newMovement.condition : '',
-                observations: newMovement.observations.trim() || 'SEM OBSERVAÇÕES',
-                timestamp: timestamp
-            };
-
-            await set(movementRef, movementData);
-
-            const nextStatus = newMovement.type === 'RETIRADA' 
-                ? 'EMPRESTADO' 
-                : (newMovement.condition === 'DANIFICADO' ? 'DANIFICADO' : (newMovement.condition === 'NECESSITA MANUTENÇÃO' ? 'MANUTENÇÃO' : 'DISPONÍVEL'));
-
-            await set(ref(db, `tools/${selectedTool.id}`), {
-                ...selectedTool,
-                status: nextStatus,
-                lastMovement: `${newMovement.type} POR ${newMovement.personName.toUpperCase()} EM ${newMovement.date} às ${newMovement.time}`
-            });
-
-            alert(`Movimentação de ${newMovement.type.toLowerCase()} registrada com sucesso!`);
-
-            setNewMovement(prev => ({
-                ...prev,
-                toolId: '',
-                personName: '',
-                personCpf: '',
-                expectedReturnDate: '',
-                condition: 'BOM',
-                observations: ''
-            }));
