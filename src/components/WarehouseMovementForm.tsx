@@ -192,20 +192,8 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     }, [manualType]);
 
     const filteredSuppliers = useMemo(() => {
-        if (selectedPeriod === '1_QUAD') {
-            return suppliers;
-        } else {
-            const raw = [
-                ...(perCapitaConfig?.ppaisProducers || []),
-                ...(perCapitaConfig?.pereciveisSuppliers || []),
-                ...(perCapitaConfig?.estocaveisSuppliers || [])
-            ];
-            return raw.map((s: any) => ({
-                ...s,
-                cpf: s.cpfCnpj || s.cpf || ''
-            }));
-        }
-    }, [selectedPeriod, suppliers, perCapitaConfig]);
+        return suppliers;
+    }, [suppliers]);
 
     const selectedSupplier = useMemo(() => 
         filteredSuppliers.find(s => s.cpf === selectedSupplierCpf), 

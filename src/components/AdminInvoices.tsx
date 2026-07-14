@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ensureArray } from '../lib/utils';
+import { getCombinedSuppliers } from '../lib/supplierUtils';
 import type { Supplier, WarehouseMovement, AcquisitionItem } from '../types';
 import { Download, Search, FileCheck, Trash2, RotateCcw, Plus, X, Edit2, Printer, Barcode as BarcodeIcon, Upload, Calendar, FileText, Package, MapPin } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
@@ -141,53 +142,20 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   }, [suppliers, perCapitaConfig]);
 
   const allInvoices = useMemo(() => {
+    const isSameCpf = (c1: string, c2: string) => {
+        if (!c1 || !c2) return false;
+        if (c1 === c2) return true;
+        if (c1.length === 11 && c2.length === 14 && c2.startsWith(c1)) return true;
+        if (c1.length === 14 && c2.length === 11 && c1.startsWith(c2)) return true;
+        return false;
+    };
     const invoices: any[] = [];
     const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
 
-    // 1. Unify all supplier definitions and deliveries by CPF to handle dual presence elegantly
-    const supplierMap = new Map<string, { name: string; cpf: string; deliveries: any[] }>();
-
-    ensureArray(suppliers).forEach(supplier => {
-      if (!supplier) return;
-      const cleanC = cleanStr(supplier.cpf);
-      if (cleanC) {
-        supplierMap.set(cleanC, {
-          name: supplier.name,
-          cpf: supplier.cpf,
-          deliveries: [...ensureArray(supplier.deliveries)]
-        });
-      }
-    });
-
-    if (perCapitaConfig) {
-      const pcLists = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
-      pcLists.forEach(listKey => {
-        ensureArray(perCapitaConfig[listKey]).forEach((pcSupplier: any) => {
-          if (!pcSupplier) return;
-          const cpf = pcSupplier.cpfCnpj || pcSupplier.cpf || '';
-          const cleanC = cleanStr(cpf);
-          if (cleanC) {
-            const currentDeliveries = ensureArray(pcSupplier.deliveries);
-            if (supplierMap.has(cleanC)) {
-              const existing = supplierMap.get(cleanC)!;
-              const mergedDeliveriesMap = new Map<string, any>();
-              existing.deliveries.forEach((d: any) => { if (d && d.id) mergedDeliveriesMap.set(String(d.id), d); });
-              currentDeliveries.forEach((d: any) => { if (d && d.id) mergedDeliveriesMap.set(String(d.id), d); });
-              existing.deliveries = Array.from(mergedDeliveriesMap.values());
-            } else {
-              supplierMap.set(cleanC, {
-                name: pcSupplier.name,
-                cpf: cpf,
-                deliveries: [...currentDeliveries]
-              });
-            }
-          }
-        });
-      });
-    }
+    const combinedSuppliers = getCombinedSuppliers(suppliers, perCapitaConfig);
 
     // Now group each unified supplier's deliveries into invoices!
-    supplierMap.forEach(supplier => {
+    combinedSuppliers.forEach(supplier => {
       const deliveries = supplier.deliveries as any[];
       const grouped = deliveries.reduce((acc, d) => {
         if (!d || (d.item === 'AGENDAMENTO PENDENTE' && !d.invoiceNumber)) return acc;
@@ -202,7 +170,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           const cleanDId = cleanStr(d.id);
           return cleanLogInv === cleanDInvoice &&
                  (cleanLogItem === cleanDItem || (cleanLogId && cleanLogId === cleanDId)) &&
-                 (cleanStr(log.supplierCpf) === cleanStr(supplier.cpf) || cleanStr(log.supplierName) === cleanStr(supplier.name));
+                 (cleanStr(log.supplierName) === cleanStr(supplier.name) || isSameCpf(cleanStr(log.supplierCpf), cleanStr(supplier.cpf)));
         });
 
         const isExit = d.type === 'saída' || d.type === 'saida' || (movement && movement.type === 'saída');
@@ -253,7 +221,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
           
           return cleanLogInv === cleanDInvoice &&
                  (cleanLogItem === cleanDItem || (cleanLogId && cleanLogId === cleanDId)) &&
-                 (cleanStr(log.supplierCpf) === cleanStr(supplier.cpf) || cleanStr(log.supplierName) === cleanStr(supplier.name));
+                 (cleanStr(log.supplierName) === cleanStr(supplier.name) || isSameCpf(cleanStr(log.supplierCpf), cleanStr(supplier.cpf)));
         });
 
         const itemValue = (itemMovement as any)?.value || d.value || 0;
@@ -292,7 +260,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
       // Check if this invoice is already in our list
       const existingInv = invoices.find(inv => 
         cleanStr(inv.invoiceNumber) === cleanLogInv &&
-        (cleanStr(inv.supplierName) === cleanStr(anyLog.supplierName) || cleanStr(inv.supplierCpf) === cleanStr(anyLog.supplierCpf))
+        (cleanStr(inv.supplierName) === cleanStr(anyLog.supplierName) || isSameCpf(cleanStr(inv.supplierCpf), cleanStr(anyLog.supplierCpf)))
       );
 
       if (existingInv) {
