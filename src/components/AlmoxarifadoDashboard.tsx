@@ -3117,11 +3117,15 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     </div>
                 ) : activeTab === 'sync' ? (
                     <SynchronizationModule onSyncWithFirebase={async (data) => {
+                        let successCount = 0;
                         for (const entry of data) {
                             const res = entry.type === 'entrada' ? await onRegisterEntry(entry) : await onRegisterWithdrawal(entry);
                             if (!res.success) throw new Error(res.message);
+                            successCount++;
+                            // Evita travamento da tela permitindo que o React renderize entre as inserções
+                            await new Promise(r => setTimeout(r, 50));
                         }
-                        return true;
+                        return successCount > 0;
                     }} />
                 ) : activeTab === 'agenda' ? (
                     <AgendaChegadas 

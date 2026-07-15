@@ -51,10 +51,10 @@ export const SegregationTabContent: React.FC<SegregationTabContentProps> = ({
     const filteredLogs = useMemo(() => {
         return logs.filter(log => {
             const matchesSearch = 
-                log.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                log.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (log.responsibleName && log.responsibleName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                (log.observations && log.observations.toLowerCase().includes(searchTerm.toLowerCase()));
+                (log.productName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (log.reason || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (log.responsibleName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (log.observations || '').toLowerCase().includes(searchTerm.toLowerCase());
             
             const matchesStatus = statusFilter === 'ALL' || log.status === statusFilter;
 
