@@ -58,11 +58,24 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
     const locateDeliveryForCpfAndDate = (cpf: string, targetDate: string) => {
         const groups: Record<string, any> = {};
         
+        const cleanNumber = (val: string) => (val || '').replace(/[^\d]/g, '');
+        const targetClean = cleanNumber(cpf);
+        
         const processDelivery = (s: Supplier, d: any) => {
             if (!d || d.date !== targetDate) return;
-            const sClean = (s.cpf || '').replace(/[^\d]/g, '');
-            const targetClean = (cpf || '').replace(/[^\d]/g, '');
-            if (sClean !== targetClean) return;
+            const sClean = cleanNumber(s.cpf);
+            
+            // 1. Exact match with supplier CPF/CNPJ
+            const isExactMatch = sClean && sClean === targetClean;
+            
+            // 2. Exact match with delivery barcode (if present)
+            const dBarcodeClean = cleanNumber(d.barcode);
+            const isBarcodeMatch = dBarcodeClean && dBarcodeClean === targetClean;
+            
+            // 3. Match CNPJ embedded in 44-digit NF-e key
+            const isEmbeddedCnpjMatch = targetClean.length === 44 && sClean && sClean === targetClean.substring(6, 20);
+            
+            if (!isExactMatch && !isBarcodeMatch && !isEmbeddedCnpjMatch) return;
             
             const groupKey = `${s.cpf || ''}-${d.time}`;
             if (!groups[groupKey]) {
@@ -73,11 +86,15 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                     supplierCpf: s.cpf,
                     time: d.time,
                     arrivalTime: d.arrivalTime,
+                    exitTime: d.exitTime,
                     deliveries: [d]
                 };
             } else {
                 groups[groupKey].allIds.push(d.id);
                 groups[groupKey].deliveries.push(d);
+                if (d.exitTime && !groups[groupKey].exitTime) {
+                    groups[groupKey].exitTime = d.exitTime;
+                }
             }
         };
 
@@ -185,10 +202,17 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
             setIsScannerOpen(false);
         } else {
             // Tenta localizar nos Terceiros
-            const log = (thirdPartyEntries || []).find(l => 
-                l.date === date && 
-                l.companyCnpj.replace(/[^\d]/g, '') === cpf
-            );
+            const targetClean = cpf.replace(/[^\d]/g, '');
+            const companyCnpjToMatch = targetClean.length === 44 ? targetClean.substring(6, 20) : targetClean;
+
+            const log = (thirdPartyEntries || []).find(l => {
+                const cleanCnpj = (l.companyCnpj || '').replace(/[^\d]/g, '');
+                const dBarcodeClean = (l.barcode || '').replace(/[^\d]/g, '');
+                return l.date === date && (
+                    cleanCnpj === companyCnpjToMatch || 
+                    (dBarcodeClean && dBarcodeClean === targetClean)
+                );
+            });
 
             if (log) {
                 if (scanAction === 'entrada') {
