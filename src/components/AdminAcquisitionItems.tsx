@@ -568,7 +568,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                                     <div key={s.cpf} className="flex items-center bg-white/50 px-2.5 py-1.5 rounded-xl border border-zinc-100 shadow-sm hover:border-indigo-200 transition-all">
                                                         <div className="w-2 h-2 rounded-full bg-indigo-500 mr-2 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
                                                         <div className="flex flex-col">
-                                                            <span className="text-[9px] font-black text-zinc-700 uppercase leading-none">{s.name.split(' ')[0]}</span>
+                                                            <span className="text-[9px] font-black text-zinc-700 uppercase leading-none truncate max-w-[140px]" title={s.name}>{s.name}</span>
                                                             <div className="mt-1 flex gap-1">
                                                                 {(s.allowedWeeks || []).map(w => (
                                                                     <span key={w} className="text-[7px] font-bold text-zinc-400 bg-zinc-50 px-1 rounded">W{w}</span>

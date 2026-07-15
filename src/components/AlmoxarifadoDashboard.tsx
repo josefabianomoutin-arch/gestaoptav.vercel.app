@@ -891,6 +891,99 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             }
         });
 
+        // If there are no actual deliveries in monthlyItemsList, populate with contractual quotas!
+        if (monthlyItemsList.length === 0 && supplier.contractItems && supplier.contractItems.length > 0) {
+            const getFirstBusinessDayOfWeek = (yearNum: number, mIndex: number, weekNum: number): string => {
+                const daysInMonth = new Date(yearNum, mIndex + 1, 0).getDate();
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const date = new Date(yearNum, mIndex, d);
+                    const dayOfWeek = date.getDay();
+                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                    
+                    const monthStr = String(mIndex + 1).padStart(2, '0');
+                    const dayStr = String(d).padStart(2, '0');
+                    const dateStrRaw = `${yearNum}-${monthStr}-${dayStr}`;
+                    const isHoliday = !!HOLIDAYS_2026[dateStrRaw];
+                    
+                    if (!isWeekend && !isHoliday) {
+                        if (getWeekNumber(date) === weekNum) {
+                            return `${dayStr}/${monthStr}/${yearNum}`;
+                        }
+                    }
+                }
+                return `SEMANA ${weekNum}`;
+            };
+
+            const isQ1 = monthIndex <= 3;
+            const divisor = isQ1 ? 4 : 8;
+            
+            // Filter contract items based on the period
+            const activeContractItems = ensureArray(supplier.contractItems).filter((item: any) => {
+                if (isQ1) {
+                    return item.period !== '2_3_QUAD';
+                } else {
+                    return !item.period || item.period === '2_3_QUAD';
+                }
+            });
+
+            // Get scheduled weeks for this month
+            const safeMonthSchedule = supplier?.monthlySchedule?.[selectedMonth] || 
+                                      supplier?.monthlySchedule?.[selectedMonth.toUpperCase()] || 
+                                      supplier?.monthlySchedule?.[selectedMonth.toLowerCase()] ||
+                                      supplier?.monthlySchedule?.[selectedMonth.charAt(0).toUpperCase() + selectedMonth.slice(1).toLowerCase()] || [];
+
+            if (safeMonthSchedule.length > 0) {
+                // For each contract item, create an expected delivery row for each scheduled week
+                activeContractItems.forEach((item: any) => {
+                    const rawKg = item.totalKg?.toString() || '0';
+                    const totalQty = parseFloat(rawKg.replace(',', '.')) || 0;
+                    if (totalQty <= 0) return;
+
+                    // Divide total quantity by the divisor to get the monthly quota
+                    const monthlyQuota = totalQty / divisor;
+                    
+                    // Divide the monthly quota equally among the scheduled weeks of this month
+                    const quotaPerWeek = monthlyQuota / safeMonthSchedule.length;
+                    const valuePerKg = parseFloat(item.valuePerKg?.toString().replace(',', '.') || '0') || 0;
+                    const valuePerWeek = quotaPerWeek * valuePerKg;
+
+                    safeMonthSchedule.forEach((week: number) => {
+                        const expectedDateStr = getFirstBusinessDayOfWeek(selectedYear, monthIndex, week);
+                        
+                        let displayDate = expectedDateStr;
+                        let dateWithWeek = expectedDateStr;
+                        if (expectedDateStr.includes('/')) {
+                            dateWithWeek = `${expectedDateStr} (SEMANA ${week} - PREVISTO)`;
+                        } else {
+                            displayDate = `SEMANA ${week}`;
+                            dateWithWeek = `SEMANA ${week} (PREVISTO)`;
+                        }
+
+                        // Complete description
+                        let itemFull = (item.name || item.itemName || '').toUpperCase().trim();
+                        const codes: string[] = [];
+                        if (item.comprasCode) codes.push(`CÓD. COMPRAS: ${item.comprasCode}`);
+                        if (item.becCode) codes.push(`CÓD. BEC: ${item.becCode}`);
+                        if (item.category && item.category !== 'OUTROS') codes.push(`CATEGORIA: ${item.category}`);
+                        if (codes.length > 0) {
+                            itemFull = `${itemFull} (${codes.join(' - ')})`;
+                        }
+
+                        monthlyItemsList.push({
+                            date: displayDate,
+                            dateWithWeek: dateWithWeek,
+                            item: (item.name || item.itemName || '').toUpperCase(),
+                            itemFull: itemFull,
+                            kg: quotaPerWeek,
+                            unitPrice: valuePerKg,
+                            totalValue: valuePerWeek,
+                            invoiceNumber: 'PREVISTO'
+                        });
+                    });
+                });
+            }
+        }
+
         // Sort by date ascending
         monthlyItemsList.sort((a, b) => {
             const parseDateStr = (str: string) => {

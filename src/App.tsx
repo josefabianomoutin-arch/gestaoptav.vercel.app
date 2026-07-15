@@ -1400,8 +1400,19 @@ const App: React.FC = () => {
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
-            if (!current || !Array.isArray(current)) return current;
-            return current.filter(d => d && d.id !== deliveryId);
+            if (!current) return current;
+            const isArr = Array.isArray(current);
+            const list = isArr ? current : Object.values(current);
+            const filtered = list.filter(d => d && d.id !== deliveryId);
+            if (isArr) return filtered;
+            const resultObj: any = {};
+            Object.keys(current).forEach((key) => {
+              const val = current[key];
+              if (val && val.id !== deliveryId) {
+                resultObj[key] = val;
+              }
+            });
+            return resultObj;
           });
           return { success: true };
         }
@@ -1412,8 +1423,19 @@ const App: React.FC = () => {
       if (mainSupplier) {
         const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
         await runTransaction(deliveriesRef, (current) => {
-          if (!current || !Array.isArray(current)) return current;
-          return current.filter(d => d && d.id !== deliveryId);
+          if (!current) return current;
+          const isArr = Array.isArray(current);
+          const list = isArr ? current : Object.values(current);
+          const filtered = list.filter(d => d && d.id !== deliveryId);
+          if (isArr) return filtered;
+          const resultObj: any = {};
+          Object.keys(current).forEach((key) => {
+            const val = current[key];
+            if (val && val.id !== deliveryId) {
+              resultObj[key] = val;
+            }
+          });
+          return resultObj;
         });
         return { success: true };
       }
@@ -1445,8 +1467,19 @@ const App: React.FC = () => {
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
-            if (!current || !Array.isArray(current)) return current;
-            return current.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
+            if (!current) return current;
+            const isArr = Array.isArray(current);
+            const list = isArr ? current : Object.values(current);
+            const updated = list.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
+            if (isArr) return updated;
+            const resultObj: any = {};
+            Object.keys(current).forEach((key) => {
+              const val = current[key];
+              if (val) {
+                resultObj[key] = val.id === deliveryId ? { ...val, ...updates } : val;
+              }
+            });
+            return resultObj;
           });
           return { success: true };
         }
@@ -1458,8 +1491,19 @@ const App: React.FC = () => {
         const supRef = child(suppliersRef, mainSupplier.id || targetCpf);
         const deliveriesRef = child(supRef, `deliveries`);
         await runTransaction(deliveriesRef, (current) => {
-          if (!current || !Array.isArray(current)) return current;
-          return current.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
+          if (!current) return current;
+          const isArr = Array.isArray(current);
+          const list = isArr ? current : Object.values(current);
+          const updated = list.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
+          if (isArr) return updated;
+          const resultObj: any = {};
+          Object.keys(current).forEach((key) => {
+            const val = current[key];
+            if (val) {
+              resultObj[key] = val.id === deliveryId ? { ...val, ...updates } : val;
+            }
+          });
+          return resultObj;
         });
         return { success: true };
       }
@@ -3682,9 +3726,9 @@ const App: React.FC = () => {
       const estocaveisList = ensureArray<any>(perCapitaConfig?.estocaveisSuppliers);
       
       // Try searching for the user in the per-capita lists
-      const ppaisEntry = ppaisList.find((p: any) => p && p.cpfCnpj && String(p.cpfCnpj).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
-      const pereciveisEntry = pereciveisList.find((p: any) => p && p.cpfCnpj && String(p.cpfCnpj).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
-      const estocaveisEntry = estocaveisList.find((p: any) => p && p.cpfCnpj && String(p.cpfCnpj).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
+      const ppaisEntry = ppaisList.find((p: any) => p && (p.cpfCnpj || p.cpf) && String(p.cpfCnpj || p.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
+      const pereciveisEntry = pereciveisList.find((p: any) => p && (p.cpfCnpj || p.cpf) && String(p.cpfCnpj || p.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
+      const estocaveisEntry = estocaveisList.find((p: any) => p && (p.cpfCnpj || p.cpf) && String(p.cpfCnpj || p.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
       
       // Also check if they are in the main suppliers list
       const currentSupplier = suppliers.find(s => s && s.cpf && String(s.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
@@ -3781,7 +3825,7 @@ const App: React.FC = () => {
         ...ensureArray(perCapitaConfig?.estocaveisSuppliers)
       ];
       
-      const p = allPC.find(s => s && s.cpfCnpj && String(s.cpfCnpj).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''))
+      const p = allPC.find(s => s && (s.cpfCnpj || s.cpf) && String(s.cpfCnpj || s.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''))
                || suppliers.find(s => s && s.cpf && String(s.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
 
       if (p) {
