@@ -154,7 +154,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
     // Now group each unified supplier's deliveries into invoices!
     suppliers.forEach(supplier => {
-      const deliveries = supplier.deliveries as any[];
+      const deliveries = (supplier.deliveries || []) as any[];
       const grouped = deliveries.reduce((acc, d) => {
         if (!d || (d.item === 'AGENDAMENTO PENDENTE' && !d.invoiceNumber)) return acc;
         const invoiceNum = String(d.invoiceNumber || 'S/N').trim();
@@ -388,7 +388,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
     const globalTotal = useMemo(() => {
         return filteredInvoices.reduce((total, inv) => {
-            const invTotal = inv.items.reduce((sum: number, it: any) => sum + (it.value || 0), 0);
+            const invTotal = (inv.items || []).reduce((sum: number, it: any) => sum + (it.value || 0), 0);
             return total + invTotal;
         }, 0);
     }, [filteredInvoices]);
@@ -763,7 +763,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                   <td className="px-4 py-3">
                     <div className="flex flex-col">
                         <div className={`text-[12px] font-black ${!hasPd ? 'text-rose-700' : 'text-emerald-700'} leading-none`}>
-                            {formatCurrency(inv.items.reduce((sum: number, it: any) => sum + (it.value || 0), 0))}
+                            {formatCurrency((inv.items || []).reduce((sum: number, it: any) => sum + (it.value || 0), 0))}
                         </div>
                         <div className="text-[7.5px] text-zinc-400 font-bold uppercase mt-1 flex items-center gap-1">
                             <div className={`w-1 h-1 rounded-full ${inv.isOpened ? 'bg-blue-500' : 'bg-amber-500 animate-pulse'}`}></div>
@@ -1173,7 +1173,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                         <div className="space-y-0.5">
                             <label className="text-[9px] font-black text-emerald-600 uppercase tracking-widest ml-0.5">Valor Total da Nota (R$)</label>
                             <div className="w-full h-10 px-3 rounded-xl border-2 border-emerald-200 bg-emerald-50 flex items-center font-black text-[11px] text-emerald-900">
-                                {formatCurrency(editingInvoice.items.reduce((sum: number, it: any) => sum + (it.value || 0), 0))}
+                                {formatCurrency((editingInvoice.items || []).reduce((sum: number, it: any) => sum + (it.value || 0), 0))}
                             </div>
                         </div>
                       </div>

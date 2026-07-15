@@ -2422,7 +2422,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         <tfoot>
                             <tr style="font-weight: bold; background-color: #f2f2f2;">
                                 <td colspan="4" class="text-right">TOTAL GERAL:</td>
-                                <td class="text-right">${formatCurrency(receiptData.items.reduce((sum, it) => sum + (it.totalValue || 0), 0))}</td>
+                                <td class="text-right">${formatCurrency((receiptData.items || []).reduce((sum, it) => sum + (it.totalValue || 0), 0))}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -2484,7 +2484,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             return;
         }
 
-        const totalValue = manualReceipt.items.reduce((sum: number, it: any) => sum + Number(it.totalValue || 0), 0);
+        const totalValue = (manualReceipt.items || []).reduce((sum: number, it: any) => sum + Number(it.totalValue || 0), 0);
 
         const htmlContent = `
             <html>
@@ -3041,7 +3041,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                             <p><span className="font-bold inline-block w-48">NOTA DE EMPENHO:</span> {manualReceipt.receiptTermNumber || 'N/A'}</p>
                                             <p><span className="font-bold inline-block w-48">DATA NOTA FISCAL:</span> {(manualReceipt.invoiceDate || '').split('-').reverse().join('/') || 'N/A'}</p>
                                             <p><span className="font-bold inline-block w-48">DATA RECEBIMENTO:</span> {(manualReceipt.receiptDate || '').split('-').reverse().join('/') || 'N/A'}</p>
-                                            <p><span className="font-bold inline-block w-48">VALOR TOTAL NF:</span> {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(manualReceipt.items.reduce((sum: number, it: any) => sum + (Number(it.totalValue) || 0), 0))}</p>
+                                            <p><span className="font-bold inline-block w-48">VALOR TOTAL NF:</span> {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((manualReceipt.items || []).reduce((sum: number, it: any) => sum + (Number(it.totalValue) || 0), 0))}</p>
                                             <p className="flex items-center gap-2">
                                                 <span className="font-bold inline-block w-48">CÓD. BARRAS NF:</span> 
                                                 {manualReceipt.barcode ? <Barcode value={manualReceipt.barcode} /> : 'N/A'}
@@ -3073,7 +3073,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                 <tr className="font-bold">
                                                     <td colSpan={4} className="border border-black p-1 text-right">TOTAL GERAL:</td>
                                                     <td className="border border-black p-1 text-right">
-                                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(manualReceipt.items.reduce((sum: number, it: any) => sum + (Number(it.totalValue) || 0), 0))}
+                                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((manualReceipt.items || []).reduce((sum: number, it: any) => sum + (Number(it.totalValue) || 0), 0))}
                                                     </td>
                                                 </tr>
                                             </tfoot>
@@ -3899,7 +3899,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                             <tr className="font-bold">
                                                 <td colSpan={4} className="border border-black p-1 text-right">TOTAL GERAL:</td>
                                                 <td className="border border-black p-1 text-right">
-                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receiptData.items.reduce((sum, it) => sum + (it.totalValue || 0), 0))}
+                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((receiptData.items || []).reduce((sum, it) => sum + (it.totalValue || 0), 0))}
                                                 </td>
                                             </tr>
                                         </tfoot>
