@@ -15,6 +15,7 @@ import ValidityAnalysisPanel from './ValidityAnalysisPanel';
 import SynchronizationModule from './SynchronizationModule';
 import AdminStandardMenu from './AdminStandardMenu';
 import AdminCleaningLog from './AdminCleaningLog';
+import { SegregationTabContent } from './SegregationTabContent';
 import { DirectorPerCapitaTable } from './DirectorPerCapitaTable';
 import { getWeekNumber } from '../lib/supplierUtils';
 import { ensureArray } from '../lib/utils';
@@ -52,6 +53,10 @@ interface AlmoxarifadoDashboardProps {
     directorPerCapita?: any;
     onUpdateDirectorPerCapita?: any;
     cleaningLogs?: any[];
+    segregationLogs?: any[];
+    onRegisterSegregationLog?: (log: any) => Promise<{ success: boolean; message: string }>;
+    onUpdateSegregationLog?: (log: any) => Promise<{ success: boolean; message: string }>;
+    onDeleteSegregationLog?: (id: string) => Promise<any>;
     financialRecords?: any[];
     onRegisterCleaningLog?: (log: any) => Promise<{ success: boolean; message: string }>;
     onDeleteCleaningLog?: (id: string) => Promise<any>;
@@ -135,6 +140,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     onUpdateDirectorPerCapita,
     onUpdateThirdPartyEntry,
     cleaningLogs = [],
+    segregationLogs = [],
+    onRegisterSegregationLog,
+    onUpdateSegregationLog,
+    onDeleteSegregationLog,
     financialRecords = [],
     onRegisterCleaningLog,
     onDeleteCleaningLog,
@@ -181,7 +190,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [isSavingManualCron, setIsSavingManualCron] = useState(false);
 
     // --- Câmaras Frias & Ferramentas States ---
-    const [camaraFriaSubTab, setCamaraFriaSubTab] = useState<'temperature' | 'cleaning' | 'tools'>('temperature');
+    const [camaraFriaSubTab, setCamaraFriaSubTab] = useState<'temperature' | 'cleaning' | 'tools' | 'segregation'>('temperature');
     const [tempDate, setTempDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [tempPeriod, setTempPeriod] = useState<'MANHÃ' | 'TARDE'>('MANHÃ');
     const [tempTime, setTempTime] = useState<string>(new Date().toTimeString().slice(0, 5));
@@ -3925,7 +3934,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 </div>
                                 <div>
                                     <h2 className="text-lg font-black uppercase tracking-tighter leading-none">Controle de Câmaras Frias & Ferramentas</h2>
-                                    <p className="text-zinc-400 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Temperatura, Higienização e Ferramental do Almoxarifado</p>
+                                    <p className="text-zinc-400 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Temperatura, Higienização, Ferramental e Itens Segregados</p>
                                 </div>
                             </div>
                             <div className="flex bg-zinc-800 p-1 rounded-2xl border border-zinc-700 overflow-x-auto max-w-full scrollbar-none whitespace-nowrap">
@@ -3950,10 +3959,27 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 >
                                     Controle de Ferramentas
                                 </button>
+                                <button 
+                                    type="button"
+                                    onClick={() => setCamaraFriaSubTab('segregation')}
+                                    className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all whitespace-nowrap ${camaraFriaSubTab === 'segregation' ? 'bg-white text-zinc-900 shadow-md' : 'text-zinc-400 hover:text-white'}`}
+                                >
+                                    Segregação
+                                </button>
                             </div>
                         </div>
 
-                        {camaraFriaSubTab === 'cleaning' ? (
+                        {camaraFriaSubTab === 'segregation' ? (
+                            <div className="p-4 md:p-6">
+                                <SegregationTabContent 
+                                    logs={segregationLogs}
+                                    onRegister={onRegisterSegregationLog}
+                                    onUpdate={onUpdateSegregationLog}
+                                    onDelete={onDeleteSegregationLog}
+                                    currentUser={currentUser}
+                                />
+                            </div>
+                        ) : camaraFriaSubTab === 'cleaning' ? (
                             <div className="p-4 md:p-6">
                                 <AdminCleaningLog 
                                     logs={cleaningLogs} 

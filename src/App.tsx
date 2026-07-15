@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Toaster, toast } from 'sonner';
-import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, VehicleInspection, ServiceOrder, MaintenanceSchedule, PublicInfo, ValidationRole, EpiLog } from './types';
+import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, VehicleInspection, ServiceOrder, MaintenanceSchedule, PublicInfo, ValidationRole, EpiLog, SegregationLog } from './types';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
@@ -26,6 +26,7 @@ let suppliersRef: any;
 let warehouseLogRef: any;
 let perCapitaConfigRef: any;
 let cleaningLogsRef: any;
+let segregationLogsRef: any;
 let epiLogsRef: any;
 let temperatureLogsRef: any;
 let directorWithdrawalsRef: any;
@@ -54,6 +55,7 @@ try {
   warehouseLogRef = ref(database, 'warehouseLog');
   perCapitaConfigRef = ref(database, 'perCapitaConfig');
   cleaningLogsRef = ref(database, 'cleaningLogs');
+  segregationLogsRef = ref(database, 'segregationLogs');
   epiLogsRef = ref(database, 'epiLogs');
   temperatureLogsRef = ref(database, 'temperatureLogs');
   directorWithdrawalsRef = ref(database, 'directorWithdrawals');
@@ -92,6 +94,7 @@ const App: React.FC = () => {
   const [warehouseLog, setWarehouseLog] = useState<WarehouseMovement[]>([]);
   const [perCapitaConfig, setPerCapitaConfig] = useState<PerCapitaConfig>({});
   const [cleaningLogs, setCleaningLogs] = useState<CleaningLog[]>([]);
+  const [segregationLogs, setSegregationLogs] = useState<SegregationLog[]>([]);
   const [temperatureLogs, setTemperatureLogs] = useState<any[]>([]);
   const [epiLogs, setEpiLogs] = useState<EpiLog[]>([]);
   const [directorWithdrawals, setDirectorWithdrawals] = useState<DirectorPerCapitaLog[]>([]);
@@ -173,6 +176,7 @@ const App: React.FC = () => {
       { key: 'maintenanceSchedules', setter: setMaintenanceSchedules },
       { key: 'directorPerCapita', setter: setDirectorPerCapita },
       { key: 'cleaningLogs', setter: setCleaningLogs },
+      { key: 'segregationLogs', setter: setSegregationLogs },
       { key: 'temperatureLogs', setter: setTemperatureLogs },
       { key: 'epiLogs', setter: setEpiLogs },
       { key: 'directorWithdrawals', setter: setDirectorWithdrawals }
@@ -449,6 +453,15 @@ const App: React.FC = () => {
       safeLocalStorageSetItem('cached_cleaningLogs', JSON.stringify(list));
     });
     unsubscribes.push(unsubCleaningLogs);
+
+    // Registros de Segregação
+    const unsubSegregationLogs = onValue(segregationLogsRef, (snapshot) => {
+      const data = snapshot.val();
+      const list = data ? Object.values(data) : [];
+      setSegregationLogs(list as SegregationLog[]);
+      safeLocalStorageSetItem('cached_segregationLogs', JSON.stringify(list));
+    });
+    unsubscribes.push(unsubSegregationLogs);
 
     // Registros de Temperatura das Câmaras Frias
     const unsubTemperatureLogs = onValue(temperatureLogsRef, (snapshot) => {
@@ -3404,6 +3417,17 @@ const App: React.FC = () => {
                directorPerCapita={directorPerCapita}
                onUpdateDirectorPerCapita={handleUpdateDirectorPerCapita}
                cleaningLogs={cleaningLogs || []}
+               segregationLogs={segregationLogs || []}
+               onRegisterSegregationLog={async (l) => {
+                   const r = push(segregationLogsRef);
+                   await set(r, { ...l, id: r.key });
+                   return { success: true, message: 'Item segregado registrado com sucesso' };
+               }}
+               onUpdateSegregationLog={async (log) => {
+                   await set(child(segregationLogsRef, log.id), log);
+                   return { success: true, message: 'Item segregado atualizado com sucesso' };
+               }}
+               onDeleteSegregationLog={async (id) => remove(child(segregationLogsRef, id))}
                financialRecords={financialRecords || []}
                onRegisterCleaningLog={async (l) => {
                    const r = push(cleaningLogsRef);

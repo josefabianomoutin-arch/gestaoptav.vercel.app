@@ -443,5 +443,20 @@ export interface EpiLog {
     acquisitionItemId?: string;
 }
 
+export interface SegregationLog {
+    id: string;
+    entryDate: string;
+    entryTime: string;
+    exitDate?: string;
+    exitTime?: string;
+    productName: string;
+    reason: string;
+    status: 'SEGREGADO' | 'LIBERADO';
+    responsibleName?: string;
+    observations?: string;
+    quantity?: number;
+    unit?: string;
+}
+
 export type UserRole = 'admin' | 'almoxarifado' | 'itesp' | 'financeiro' | 'cardapio' | 'subportaria' | 'infraestrutura' | 'ordem_saida' | 'julio' | 'producer' | 'pereciveis_supplier' | 'estocaveis_supplier' | 'supplier' | 'ordem_servico';
 
