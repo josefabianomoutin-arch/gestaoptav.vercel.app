@@ -824,7 +824,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     window.onload = function() {
                         try {
                             JsBarcode("#barcode-item", "${item.barcode || 'N/A'}", {
-                                format: "CODE128", width: 1.2, height: 40, displayValue: true, margin: 0
+                                format: "CODE128", width: 1.8, height: 50, displayValue: true, margin: 0
                             });
                         } catch (e) { console.error(e); }
                         setTimeout(() => { window.print(); window.close(); }, 500);

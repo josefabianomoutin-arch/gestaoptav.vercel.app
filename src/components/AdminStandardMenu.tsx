@@ -276,8 +276,8 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
                           try {
                               JsBarcode("#barcode", "${lot.barcode}", {
                                   format: "CODE128", 
-                                  width: 1.2, 
-                                  height: 40, 
+                                  width: 1.8, 
+                                  height: 50, 
                                   displayValue: false, 
                                   margin: 0,
                                   background: "transparent"

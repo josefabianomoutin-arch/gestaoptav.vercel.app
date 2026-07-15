@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ensureArray } from '../lib/utils';
-import { getCombinedSuppliers } from '../lib/supplierUtils';
+
 import type { Supplier, WarehouseMovement, AcquisitionItem } from '../types';
 import { Download, Search, FileCheck, Trash2, RotateCcw, Plus, X, Edit2, Printer, Barcode as BarcodeIcon, Upload, Calendar, FileText, Package, MapPin } from 'lucide-react';
 import { getDatabase, ref, get } from 'firebase/database';
@@ -152,10 +152,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     const invoices: any[] = [];
     const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
 
-    const combinedSuppliers = getCombinedSuppliers(suppliers, perCapitaConfig);
-
     // Now group each unified supplier's deliveries into invoices!
-    combinedSuppliers.forEach(supplier => {
+    suppliers.forEach(supplier => {
       const deliveries = supplier.deliveries as any[];
       const grouped = deliveries.reduce((acc, d) => {
         if (!d || (d.item === 'AGENDAMENTO PENDENTE' && !d.invoiceNumber)) return acc;
@@ -720,7 +718,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                                     border-radius: 3px;
                                                 }
                                                 .barcode-container { text-align: center; margin-top: 2mm; }
-                                                .barcode { width: 100%; height: 12mm; }
+                                                .barcode { max-width: 100%; height: 12mm; }
                                             </style>
                                         </head>
                                         <body>
@@ -740,7 +738,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                             </div>
                                             <script>
                                                 JsBarcode("#barcode", "${it.barcode || 'N/A'}", { 
-                                                    height: 35, 
+                                                    height: 45, 
                                                     width: 1.8, 
                                                     fontSize: 14, 
                                                     displayValue: true,

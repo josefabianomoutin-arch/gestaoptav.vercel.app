@@ -10,7 +10,7 @@ import ItespDashboard from './components/ItespDashboard';
 import FinanceDashboard from './components/FinanceDashboard';
 import SubportariaDashboard from './components/SubportariaDashboard';
 import MenuDashboard from './components/MenuDashboard';
-import AdminStandardMenu from './components/AdminStandardMenu';
+
 import VehicleOrderDashboard from './components/VehicleOrderDashboard';
 import JulioDashboard from './components/JulioDashboard';
 import ServiceOrderDashboard from './components/ServiceOrderDashboard';
@@ -206,9 +206,11 @@ const App: React.FC = () => {
     }, 1500);
 
     if (!database) {
-      setIsPasswordsLoaded(true);
-      setIsSuppliersLoaded(true);
-      setIsPerCapitaConfigLoaded(true);
+      setTimeout(() => {
+        setIsPasswordsLoaded(true);
+        setIsSuppliersLoaded(true);
+        setIsPerCapitaConfigLoaded(true);
+      }, 0);
       return () => clearTimeout(fallbackTimer);
     }
 
@@ -1614,7 +1616,7 @@ const App: React.FC = () => {
     try {
       const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
       const targetCpf = clean(supplierCpf);
-      let deleted = false;
+      
       const updates: any = {};
 
       // 1. Delete from Per Capita
@@ -1628,7 +1630,7 @@ const App: React.FC = () => {
               Object.keys(p.deliveries).forEach(key => {
                   if (p.deliveries[key] && deliveryIds.includes(p.deliveries[key].id)) {
                       updates[`perCapitaConfig/${listKey}/${idx}/deliveries/${key}`] = null;
-                      deleted = true;
+                      
                   }
               });
           }
@@ -1642,7 +1644,7 @@ const App: React.FC = () => {
             Object.keys(mainSupplier.deliveries).forEach(key => {
                 if (mainSupplier.deliveries[key] && deliveryIds.includes(mainSupplier.deliveries[key].id)) {
                     updates[`suppliers/${mainSupplier.id || targetCpf}/deliveries/${key}`] = null;
-                    deleted = true;
+                    
                 }
             });
         }

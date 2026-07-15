@@ -463,7 +463,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                     window.onload = function() {
                         try {
                             JsBarcode("#barcode-item", "${item.barcode}", {
-                                format: "CODE128", width: 1.2, height: 40, displayValue: true, margin: 0
+                                format: "CODE128", width: 1.8, height: 50, displayValue: true, margin: 0
                             });
                         } catch (e) { console.error(e); }
                         setTimeout(() => { window.print(); window.close(); }, 500);
@@ -546,7 +546,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                         try {
                             const code = "${nf.barcode || '00000000'}";
                             JsBarcode("#barcode-item-stock", code, {
-                                format: "CODE128", width: 1.2, height: 35, displayValue: true, margin: 0
+                                format: "CODE128", width: 1.8, height: 45, displayValue: true, margin: 0
                             });
                         } catch (e) { console.error(e); }
                         setTimeout(() => { window.print(); window.close(); }, 500);

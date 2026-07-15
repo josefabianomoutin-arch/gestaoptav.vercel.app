@@ -1192,7 +1192,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     const barcodesScripts = cardsHtml.map(card => `
         try {
             JsBarcode("${card.barcodeId}", "${card.barcodeValue}", {
-                format: "CODE128", width: 1.2, height: 40, displayValue: true, margin: 0
+                format: "CODE128", width: 1.8, height: 50, displayValue: true, margin: 0
             });
         } catch (e) {
             console.error("Erro ao gerar código de barras ${card.barcodeId}:", e);
@@ -1317,7 +1317,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                 window.onload = function() {
                     try {
                         JsBarcode("#barcode-item", "${barcodeFormatted}", {
-                            format: "CODE128", width: 1.2, height: 40, displayValue: true, margin: 0
+                            format: "CODE128", width: 1.8, height: 50, displayValue: true, margin: 0
                          });
                     } catch (e) { console.error(e); }
                     setTimeout(() => { window.print(); window.close(); }, 500);

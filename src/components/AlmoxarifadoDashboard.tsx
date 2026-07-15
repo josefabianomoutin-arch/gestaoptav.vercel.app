@@ -595,9 +595,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             JsBarcode("#barcode", "${tool.barcode}", {
                                 format: "CODE128",
                                 width: 1.8,
-                                height: 35,
+                                height: 45,
                                 displayValue: true,
-                                fontSize: 9,
+                                fontSize: 10,
                                 margin: 0
                             });
                         } catch(e) {
@@ -2021,7 +2021,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         try {
                             ${receiptData.items.map((item, idx) => `
                                 JsBarcode("#barcode-${idx}", "${(receiptData as any).items[idx].barcode || 'N/A'}", {
-                                    format: "CODE128", width: 1.2, height: 40, displayValue: true, margin: 0
+                                    format: "CODE128", width: 1.8, height: 50, displayValue: true, margin: 0
                                 });
                             `).join('')}
                         } catch (e) { console.error(e); }
@@ -2330,7 +2330,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     .barcode-row { margin-top: 15px; display: flex; align-items: center; }
                     .barcode-label { font-weight: bold; text-transform: uppercase; width: 200px; flex-shrink: 0; }
                     .barcode-container { flex: 1; display: flex; flex-direction: column; align-items: center; }
-                    .barcode-svg { width: 100%; height: 18mm !important; }
+                    .barcode-svg { max-width: 100%; height: 18mm !important; }
                     .barcode-text { font-size: 8pt; font-family: monospace; margin-top: 2px; }
 
                     table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 9pt; }

@@ -805,10 +805,10 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         try {
                             JsBarcode("#barcode-print", "${order.id}", {
                                 format: "CODE128",
-                                width: 1.2,
-                                height: 35,
+                                width: 1.8,
+                                height: 45,
                                 displayValue: true,
-                                fontSize: 8,
+                                fontSize: 10,
                                 margin: 0
                             });
                         } catch(e) {

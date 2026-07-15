@@ -448,19 +448,20 @@ const Dashboard: React.FC<DashboardProps> = ({
                 }
                 .qrcode-item {
                     border: 1px solid #000;
-                    padding: 8px;
+                    padding: 12px;
                     text-align: center;
                     background: #fff;
-                    width: 160px;
+                    width: 280px;
                     page-break-inside: avoid;
+                    border-radius: 4px;
                 }
                 .qrcode-date {
-                    font-size: 9pt;
+                    font-size: 10pt;
                     font-weight: bold;
                     margin-bottom: 5px;
                 }
                 .qrcode-weekday {
-                    font-size: 8pt;
+                    font-size: 8.5pt;
                     color: #444;
                     margin-bottom: 8px;
                     text-transform: uppercase;
@@ -469,20 +470,22 @@ const Dashboard: React.FC<DashboardProps> = ({
                     display: flex;
                     justify-content: center;
                     align-items: center;
+                    margin-bottom: 8px;
                 }
                 .qrcode-container img {
-                    width: 100px;
-                    height: 100px;
+                    width: 120px;
+                    height: 120px;
                     margin-bottom: 5px;
                 }
                 .barcode-container {
-                    margin-top: 5px;
+                    margin-top: 10px;
                     display: flex;
                     justify-content: center;
+                    width: 100%;
                 }
                 .barcode-svg {
-                    width: 100% !important;
-                    height: 35px !important;
+                    max-width: 100%;
+                    height: auto !important;
                 }
             </style>
         </head>
@@ -577,10 +580,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                             var code = svg.getAttribute('data-code');
                             JsBarcode(svg, code, {
                                 format: "CODE128",
-                                displayValue: false,
-                                width: 1.5,
-                                height: 35,
-                                margin: 0
+                                displayValue: true,
+                                fontSize: 11,
+                                width: 2.0,
+                                height: 50,
+                                margin: 5
                             });
                         });
                     } catch(e) {
