@@ -92,6 +92,9 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
             } else {
                 groups[groupKey].allIds.push(d.id);
                 groups[groupKey].deliveries.push(d);
+                if (d.arrivalTime && !groups[groupKey].arrivalTime) {
+                    groups[groupKey].arrivalTime = d.arrivalTime;
+                }
                 if (d.exitTime && !groups[groupKey].exitTime) {
                     groups[groupKey].exitTime = d.exitTime;
                 }
@@ -399,6 +402,9 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                 groups[groupKey].allIds.push(d.id);
                 groups[groupKey].items.push(d);
                 groups[groupKey].deliveries.push(d);
+                if (d.arrivalTime && !groups[groupKey].arrivalTime) {
+                    groups[groupKey].arrivalTime = d.arrivalTime;
+                }
                 if (d.exitTime && !groups[groupKey].exitTime) {
                     groups[groupKey].exitTime = d.exitTime;
                 }
@@ -503,10 +509,10 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
     };
 
     const saveArrival = async () => {
-        if (!selectedItem || !onUpdateDelivery) return;
+        if (!selectedItem) return;
         
         try {
-            if (selectedItem.type === 'FORNECEDOR') {
+            if (selectedItem.type === 'FORNECEDOR' && onUpdateDelivery) {
                 for (const id of selectedItem.allIds) {
                     await onUpdateDelivery(selectedItem.supplierCpf, id, { 
                         arrivalTime: arrivalData.arrivalTime,
@@ -514,6 +520,16 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                     });
                 }
                 toast.success("Chegada registrada!");
+            } else if (selectedItem.type === 'TERCEIRO' && onUpdateThirdPartyEntry) {
+                const log = (thirdPartyEntries || []).find(l => l.id === selectedItem.id);
+                if (log) {
+                    await onUpdateThirdPartyEntry({
+                        ...log,
+                        arrivalTime: arrivalData.arrivalTime,
+                        status: log.status === 'agendado' ? 'concluido' : log.status
+                    });
+                    toast.success("Chegada registrada!");
+                }
             }
             setIsArrivalModalOpen(false);
         } catch (_e) {
@@ -528,16 +544,26 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
     };
 
     const saveExit = async () => {
-        if (!selectedItem || !onUpdateDelivery) return;
+        if (!selectedItem) return;
         
         try {
-            if (selectedItem.type === 'FORNECEDOR') {
+            if (selectedItem.type === 'FORNECEDOR' && onUpdateDelivery) {
                 for (const id of selectedItem.allIds) {
                     await onUpdateDelivery(selectedItem.supplierCpf, id, { 
                         exitTime: exitTimeInput
                     });
                 }
                 toast.success("Saída registrada!");
+            } else if (selectedItem.type === 'TERCEIRO' && onUpdateThirdPartyEntry) {
+                const log = (thirdPartyEntries || []).find(l => l.id === selectedItem.id);
+                if (log) {
+                    await onUpdateThirdPartyEntry({
+                        ...log,
+                        exitTime: exitTimeInput,
+                        status: 'concluido'
+                    });
+                    toast.success("Saída registrada!");
+                }
             }
             setIsExitModalOpen(false);
         } catch (_e) {
@@ -688,37 +714,18 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
     };
 
     const handleThirdPartyArrival = async (item: any) => {
-        const log = (thirdPartyEntries || []).find(l => l.id === item.id);
-        if (log && onUpdateThirdPartyEntry) {
-            const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            const res = await onUpdateThirdPartyEntry({
-                ...log,
-                arrivalTime: nowTime,
-                status: 'concluido'
-            });
-            if (res.success) {
-                toast.success(`Check-In Realizado! Entrada de ${log.companyName} confirmada às ${nowTime}`);
-            } else {
-                toast.error("Erro ao registrar entrada.");
-            }
-        }
+        setSelectedItem(item);
+        setArrivalData({ 
+            arrivalTime: item.arrivalTime || new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), 
+            invoiceNumber: '' 
+        });
+        setIsArrivalModalOpen(true);
     };
 
     const handleThirdPartyExit = async (item: any) => {
-        const log = (thirdPartyEntries || []).find(l => l.id === item.id);
-        if (log && onUpdateThirdPartyEntry) {
-            const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            const res = await onUpdateThirdPartyEntry({
-                ...log,
-                exitTime: nowTime,
-                status: 'concluido'
-            });
-            if (res.success) {
-                toast.success(`Check-Out Realizado! Saída de ${log.companyName} confirmada às ${nowTime}`);
-            } else {
-                toast.error("Erro ao registrar saída.");
-            }
-        }
+        setSelectedItem(item);
+        setExitTimeInput(item.exitTime || new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+        setIsExitModalOpen(true);
     };
 
     const currentSupplierItems = useMemo<ContractItem[]>(() => {
@@ -1100,14 +1107,14 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                         <span className="text-[10px] font-black text-slate-400 uppercase">
                                             {item.type === 'TERCEIRO' ? 'Entrada:' : 'Chegada:'}
                                         </span>
-                                        <span className={`text-[11px] font-black ${item.arrivalTime ? 'text-green-600' : 'text-red-600 italic'}`}>
+                                        <span onClick={() => item.type === 'FORNECEDOR' ? handleRegisterArrival(item) : handleThirdPartyArrival(item)} className={`cursor-pointer hover:underline text-[11px] font-black ${item.arrivalTime ? 'text-green-600' : 'text-red-600 italic'}`}>
                                             {item.arrivalTime || 'Aguardando...'}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <Clock className="h-3 w-3 text-slate-300" />
                                         <span className="text-[10px] font-black text-slate-400 uppercase">Saída:</span>
-                                        <span className={`text-[11px] font-black ${item.exitTime ? 'text-rose-600' : 'text-red-600 italic'}`}>
+                                        <span onClick={() => item.type === 'FORNECEDOR' ? handleRegisterExit(item) : handleThirdPartyExit(item)} className={`cursor-pointer hover:underline text-[11px] font-black ${item.exitTime ? 'text-rose-600' : 'text-red-600 italic'}`}>
                                             {item.exitTime || 'Aguardando...'}
                                         </span>
                                     </div>

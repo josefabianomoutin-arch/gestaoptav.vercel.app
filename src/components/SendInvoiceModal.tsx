@@ -40,7 +40,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
   }, [contractItems]);
 
   const [deliveries, setDeliveries] = useState<any[]>(() => {
-    return (invoiceInfo.deliveries || []).map((d, dIdx) => {
+    return ensureArray(invoiceInfo.deliveries).map((d, dIdx) => {
       const matched = normalizedContractItems.find(ci => 
         (d.itemName && ci.name === d.itemName) || 
         (d.item && ci.name === d.item) ||
