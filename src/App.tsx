@@ -1398,7 +1398,36 @@ const App: React.FC = () => {
         const list = ensureArray(perCapitaConfig[listKey]);
         const idx = list.findIndex((p: any) => p && match(p.cpfCnpj || p.cpf, targetCpf));
         if (idx !== -1) {
-          const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
+          const p = list[idx];
+          const pDeliveries = Array.isArray(p.deliveries) ? p.deliveries : Object.values(p.deliveries || {});
+          if (pDeliveries.some((d: any) => d && d.id === deliveryId)) {
+            const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
+            await runTransaction(deliveriesRef, (current) => {
+              if (!current) return current;
+              const isArr = Array.isArray(current);
+              const list = isArr ? current : Object.values(current);
+              const filtered = list.filter(d => d && d.id !== deliveryId);
+              if (isArr) return filtered;
+              const resultObj: any = {};
+              Object.keys(current).forEach((key) => {
+                const val = current[key];
+                if (val && val.id !== deliveryId) {
+                  resultObj[key] = val;
+                }
+              });
+              return resultObj;
+            });
+            return { success: true };
+          }
+        }
+      }
+
+      // 3. Try Main Suppliers
+      const mainSupplier = (suppliers || []).find(s => s && match(s.cpf, targetCpf));
+      if (mainSupplier) {
+        const mDeliveries = Array.isArray(mainSupplier.deliveries) ? mainSupplier.deliveries : Object.values(mainSupplier.deliveries || {});
+        if (mDeliveries.some((d: any) => d && d.id === deliveryId)) {
+          const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
           await runTransaction(deliveriesRef, (current) => {
             if (!current) return current;
             const isArr = Array.isArray(current);
@@ -1418,35 +1447,12 @@ const App: React.FC = () => {
         }
       }
 
-      // 3. Try Main Suppliers
-      const mainSupplier = (suppliers || []).find(s => s && match(s.cpf, targetCpf));
-      if (mainSupplier) {
-        const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
-        await runTransaction(deliveriesRef, (current) => {
-          if (!current) return current;
-          const isArr = Array.isArray(current);
-          const list = isArr ? current : Object.values(current);
-          const filtered = list.filter(d => d && d.id !== deliveryId);
-          if (isArr) return filtered;
-          const resultObj: any = {};
-          Object.keys(current).forEach((key) => {
-            const val = current[key];
-            if (val && val.id !== deliveryId) {
-              resultObj[key] = val;
-            }
-          });
-          return resultObj;
-        });
-        return { success: true };
-      }
-
-      return { success: true };
+      return { success: false, message: 'Lançamento não encontrado.' };
     } catch (e) {
       console.error("Error deleting delivery:", e);
       return { success: false, message: 'Erro ao excluir lançamento.' };
     }
   };
-
 
   const handleUpdateDelivery = async (supplierCpf: string, deliveryId: string, updates: Partial<Delivery>) => {
     try {
@@ -1465,7 +1471,37 @@ const App: React.FC = () => {
         const list = ensureArray(perCapitaConfig[listKey]);
         const idx = list.findIndex((p: any) => p && match(p.cpfCnpj || p.cpf, targetCpf));
         if (idx !== -1) {
-          const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
+          const p = list[idx];
+          const pDeliveries = Array.isArray(p.deliveries) ? p.deliveries : Object.values(p.deliveries || {});
+          if (pDeliveries.some((d: any) => d && d.id === deliveryId)) {
+            const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
+            await runTransaction(deliveriesRef, (current) => {
+              if (!current) return current;
+              const isArr = Array.isArray(current);
+              const list = isArr ? current : Object.values(current);
+              const updated = list.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
+              if (isArr) return updated;
+              const resultObj: any = {};
+              Object.keys(current).forEach((key) => {
+                const val = current[key];
+                if (val) {
+                  resultObj[key] = val.id === deliveryId ? { ...val, ...updates } : val;
+                }
+              });
+              return resultObj;
+            });
+            return { success: true };
+          }
+        }
+      }
+
+      // 2. Try Main Suppliers
+      const mainSupplier = (suppliers || []).find(s => s && match(s.cpf, targetCpf));
+      if (mainSupplier) {
+        const mDeliveries = Array.isArray(mainSupplier.deliveries) ? mainSupplier.deliveries : Object.values(mainSupplier.deliveries || {});
+        if (mDeliveries.some((d: any) => d && d.id === deliveryId)) {
+          const supRef = child(suppliersRef, mainSupplier.id || targetCpf);
+          const deliveriesRef = child(supRef, `deliveries`);
           await runTransaction(deliveriesRef, (current) => {
             if (!current) return current;
             const isArr = Array.isArray(current);
@@ -1484,30 +1520,6 @@ const App: React.FC = () => {
           return { success: true };
         }
       }
-
-      // 2. Try Main Suppliers
-      const mainSupplier = (suppliers || []).find(s => s && match(s.cpf, targetCpf));
-      if (mainSupplier) {
-        const supRef = child(suppliersRef, mainSupplier.id || targetCpf);
-        const deliveriesRef = child(supRef, `deliveries`);
-        await runTransaction(deliveriesRef, (current) => {
-          if (!current) return current;
-          const isArr = Array.isArray(current);
-          const list = isArr ? current : Object.values(current);
-          const updated = list.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
-          if (isArr) return updated;
-          const resultObj: any = {};
-          Object.keys(current).forEach((key) => {
-            const val = current[key];
-            if (val) {
-              resultObj[key] = val.id === deliveryId ? { ...val, ...updates } : val;
-            }
-          });
-          return resultObj;
-        });
-        return { success: true };
-      }
-
       return { success: false, message: 'Lançamento não encontrado.' };
     } catch (e) {
       console.error("Error updating delivery:", e);

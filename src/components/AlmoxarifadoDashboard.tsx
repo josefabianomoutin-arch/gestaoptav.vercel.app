@@ -1799,7 +1799,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         const invoices = new Set<string>();
         const monthIndex = MONTHS_PT.indexOf(selectedMonth);
         
-        const deliveries = (receiptSupplier.deliveries as any) || [];
+        const deliveries = ensureArray(receiptSupplier.deliveries);
         deliveries.forEach((d: any) => {
             if (!d || !d.invoiceNumber) return;
             const dateStr = d.invoiceDate || d.date;
