@@ -270,6 +270,8 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
         if (manualInputValue.trim()) {
             handleScanSuccess(manualInputValue.trim());
             setManualInputValue('');
+        } else {
+            toast.error("Por favor, informe o CPF, CNPJ ou código do fornecedor.");
         }
     };
 
