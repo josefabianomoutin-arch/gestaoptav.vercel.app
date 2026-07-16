@@ -43,6 +43,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
     const [isExitModalOpen, setIsExitModalOpen] = useState(false);
     const [exitTimeInput, setExitTimeInput] = useState('');
     const [manualInputValue, setManualInputValue] = useState('');
+    const [manualTimeValue, setManualTimeValue] = useState('');
     const manualInputRef = useRef<HTMLInputElement>(null);
 
     // Auto focus manual scan input
@@ -151,7 +152,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
         }
         
         const foundGroup = locateDeliveryForCpfAndDate(cpf, date);
-        const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const nowTime = (scannerMode === 'manual' && manualTimeValue) ? manualTimeValue : new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
         if (foundGroup) {
             if (scanAction === 'entrada') {
@@ -831,13 +832,27 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                             autoFocus
                                         />
                                     </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                            Horário (Opcional - Retroativo)
+                                        </label>
+                                        <input
+                                            type="time"
+                                            value={manualTimeValue}
+                                            onChange={(e) => setManualTimeValue(e.target.value)}
+                                            className={`w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-gray-700 outline-none focus:ring-4 ${scanAction === 'entrada' ? 'focus:ring-emerald-100' : 'focus:ring-rose-100'} transition-all placeholder:text-gray-300`}
+                                        />
+                                    </div>
                                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider text-center max-w-sm mx-auto leading-relaxed">
                                         Aponte o leitor de mão para o QR Code para preencher e validar a {scanAction === 'entrada' ? 'entrada' : 'saída'} automaticamente.
                                     </p>
                                     <div className="flex gap-4 pt-2">
                                         <button
                                             type="button"
-                                            onClick={() => setManualInputValue('')}
+                                            onClick={() => {
+                                                setManualInputValue('');
+                                                setManualTimeValue('');
+                                            }}
                                             className="flex-1 py-4 rounded-2xl bg-gray-100 text-gray-500 font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all"
                                         >
                                             Limpar

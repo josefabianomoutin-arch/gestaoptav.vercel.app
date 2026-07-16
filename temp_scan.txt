@@ -1,0 +1,121 @@
+        const list = Object.values(groups);
+        return list.length > 0 ? list[0] : null;
+    };
+
+    const handleScanSuccess = async (text: string) => {
+        if (!text) return;
+        
+        let cpf = '';
+        let date = selectedAgendaDate;
+        
+        if (text.startsWith('CHECKIN_DELIVERY:')) {
+            const parts = text.split(':');
+            if (parts.length >= 3) {
+                cpf = parts[1];
+                date = parts[2];
+            }
+        } else {
+            // Tenta buscar por CPF bruto ou CNPJ
+            cpf = text.replace(/[^\d]/g, '');
+        }
+
+        if (!cpf) {
+            toast.error("Código QR ou CPF inválido.");
+            setIsScannerOpen(false);
+            return;
+        }
+        
+        if (date !== selectedAgendaDate) {
+            toast.error(`Ação NÃO liberada! Este agendamento é para o dia ${date}, mas a data selecionada na portaria é ${selectedAgendaDate}.`);
+            setIsScannerOpen(false);
+            return;
+        }
+        
+        const foundGroup = locateDeliveryForCpfAndDate(cpf, date);
+        const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        if (foundGroup) {
+            if (scanAction === 'entrada') {
+                if (foundGroup.arrivalTime) {
+                    toast.info(`Chegada de ${foundGroup.supplierName} já foi registrada às ${foundGroup.arrivalTime}`);
+                    setIsScannerOpen(false);
+                    return;
+                }
+                
+                if (onUpdateDelivery) {
+                    let success = true;
+                    for (const id of foundGroup.allIds) {
+                        const res = await onUpdateDelivery(foundGroup.supplierCpf, id, {
+                            arrivalTime: nowTime
+                        });
+                        if (!res.success) success = false;
+                    }
+                    if (success) {
+                        toast.success(`Check-In Realizado! Entrada de ${foundGroup.supplierName} liberada às ${nowTime}`);
+                    } else {
+                        toast.error(`Falha ao registrar a chegada no servidor.`);
+                    }
+                } else {
+                    toast.success(`QR Code validado com sucesso para ${foundGroup.supplierName}!`);
+                }
+            } else {
+                // scanAction === 'saida'
+                if (foundGroup.exitTime) {
+                    toast.info(`Saída de ${foundGroup.supplierName} já foi registrada às ${foundGroup.exitTime}`);
+                    setIsScannerOpen(false);
+                    return;
+                }
+                
+                if (onUpdateDelivery) {
+                    let success = true;
+                    for (const id of foundGroup.allIds) {
+                        const res = await onUpdateDelivery(foundGroup.supplierCpf, id, {
+                            exitTime: nowTime
+                        });
+                        if (!res.success) success = false;
+                    }
+                    if (success) {
+                        toast.success(`Check-Out Realizado! Saída de ${foundGroup.supplierName} confirmada às ${nowTime}`);
+                    } else {
+                        toast.error(`Falha ao registrar a saída no servidor.`);
+                    }
+                } else {
+                    toast.success(`Saída validada com sucesso para ${foundGroup.supplierName}!`);
+                }
+            }
+            setIsScannerOpen(false);
+        } else {
+            // Tenta localizar nos Terceiros
+            const targetClean = cpf.replace(/[^\d]/g, '');
+            const companyCnpjToMatch = targetClean.length === 44 ? targetClean.substring(6, 20) : targetClean;
+
+            const log = (thirdPartyEntries || []).find(l => {
+                const cleanCnpj = (l.companyCnpj || '').replace(/[^\d]/g, '');
+                const dBarcodeClean = (l.barcode || '').replace(/[^\d]/g, '');
+                return l.date === date && (
+                    cleanCnpj === companyCnpjToMatch || 
+                    (dBarcodeClean && dBarcodeClean === targetClean)
+                );
+            });
+
+            if (log) {
+                if (scanAction === 'entrada') {
+                    if (log.arrivalTime) {
+                        toast.info(`Chegada de ${log.companyName} já foi registrada às ${log.arrivalTime}`);
+                        setIsScannerOpen(false);
+                        return;
+                    }
+                    if (onUpdateThirdPartyEntry) {
+                        const res = await onUpdateThirdPartyEntry({
+                            ...log,
+                            arrivalTime: nowTime,
+                            status: 'concluido'
+                        });
+                        if (res.success) {
+                            toast.success(`Check-In Realizado! Entrada de ${log.companyName} confirmada às ${nowTime}`);
+                        } else {
+                            toast.error("Erro ao registrar entrada.");
+                        }
+                    }
+                } else {
+                    // scanAction === 'saida'
