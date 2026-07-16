@@ -44,6 +44,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
     const [exitTimeInput, setExitTimeInput] = useState('');
     const [manualInputValue, setManualInputValue] = useState('');
     const [manualTimeValue, setManualTimeValue] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const manualInputRef = useRef<HTMLInputElement>(null);
 
     // Auto focus manual scan input
@@ -124,144 +125,153 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
 
     const handleScanSuccess = async (text: string) => {
         if (!text) return;
-        
-        let cpf = '';
-        let date = selectedAgendaDate;
-        
-        if (text.startsWith('CHECKIN_DELIVERY:')) {
-            const parts = text.split(':');
-            if (parts.length >= 3) {
-                cpf = parts[1];
-                date = parts[2];
-            }
-        } else {
-            // Tenta buscar por CPF bruto ou CNPJ
-            cpf = text.replace(/[^\d]/g, '');
-        }
+        if (isSubmitting) return;
 
-        if (!cpf) {
-            toast.error("Código QR ou CPF inválido.");
-            setIsScannerOpen(false);
-            return;
-        }
-        
-        if (date !== selectedAgendaDate) {
-            toast.error(`Ação NÃO liberada! Este agendamento é para o dia ${date}, mas a data selecionada na portaria é ${selectedAgendaDate}.`);
-            setIsScannerOpen(false);
-            return;
-        }
-        
-        const foundGroup = locateDeliveryForCpfAndDate(cpf, date);
-        const nowTime = (scannerMode === 'manual' && manualTimeValue) ? manualTimeValue : new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-        if (foundGroup) {
-            if (scanAction === 'entrada') {
-                if (foundGroup.arrivalTime) {
-                    toast.info(`Chegada de ${foundGroup.supplierName} já foi registrada às ${foundGroup.arrivalTime}`);
-                    setIsScannerOpen(false);
-                    return;
-                }
-                
-                if (onUpdateDelivery) {
-                    let success = true;
-                    for (const id of foundGroup.allIds) {
-                        const res = await onUpdateDelivery(foundGroup.supplierCpf, id, {
-                            arrivalTime: nowTime
-                        });
-                        if (!res.success) success = false;
-                    }
-                    if (success) {
-                        toast.success(`Check-In Realizado! Entrada de ${foundGroup.supplierName} liberada às ${nowTime}`);
-                    } else {
-                        toast.error(`Falha ao registrar a chegada no servidor.`);
-                    }
-                } else {
-                    toast.success(`QR Code validado com sucesso para ${foundGroup.supplierName}!`);
+        setIsSubmitting(true);
+        try {
+            let cpf = '';
+            let date = selectedAgendaDate;
+            
+            if (text.startsWith('CHECKIN_DELIVERY:')) {
+                const parts = text.split(':');
+                if (parts.length >= 3) {
+                    cpf = parts[1];
+                    date = parts[2];
                 }
             } else {
-                // scanAction === 'saida'
-                if (foundGroup.exitTime) {
-                    toast.info(`Saída de ${foundGroup.supplierName} já foi registrada às ${foundGroup.exitTime}`);
-                    setIsScannerOpen(false);
-                    return;
-                }
-                
-                if (onUpdateDelivery) {
-                    let success = true;
-                    for (const id of foundGroup.allIds) {
-                        const res = await onUpdateDelivery(foundGroup.supplierCpf, id, {
-                            exitTime: nowTime
-                        });
-                        if (!res.success) success = false;
-                    }
-                    if (success) {
-                        toast.success(`Check-Out Realizado! Saída de ${foundGroup.supplierName} confirmada às ${nowTime}`);
-                    } else {
-                        toast.error(`Falha ao registrar a saída no servidor.`);
-                    }
-                } else {
-                    toast.success(`Saída validada com sucesso para ${foundGroup.supplierName}!`);
-                }
+                // Tenta buscar por CPF bruto ou CNPJ
+                cpf = text.replace(/[^\d]/g, '');
             }
-            setIsScannerOpen(false);
-        } else {
-            // Tenta localizar nos Terceiros
-            const targetClean = cpf.replace(/[^\d]/g, '');
-            const companyCnpjToMatch = targetClean.length === 44 ? targetClean.substring(6, 20) : targetClean;
 
-            const log = (thirdPartyEntries || []).find(l => {
-                const cleanCnpj = (l.companyCnpj || '').replace(/[^\d]/g, '');
-                const dBarcodeClean = (l.barcode || '').replace(/[^\d]/g, '');
-                return l.date === date && (
-                    cleanCnpj === companyCnpjToMatch || 
-                    (dBarcodeClean && dBarcodeClean === targetClean)
-                );
-            });
+            if (!cpf) {
+                toast.error("Código QR ou CPF inválido.");
+                setIsScannerOpen(false);
+                return;
+            }
+            
+            if (date !== selectedAgendaDate) {
+                toast.error(`Ação NÃO liberada! Este agendamento é para o dia ${date}, mas a data selecionada na portaria é ${selectedAgendaDate}.`);
+                setIsScannerOpen(false);
+                return;
+            }
+            
+            const foundGroup = locateDeliveryForCpfAndDate(cpf, date);
+            const nowTime = (scannerMode === 'manual' && manualTimeValue) ? manualTimeValue : new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-            if (log) {
+            if (foundGroup) {
                 if (scanAction === 'entrada') {
-                    if (log.arrivalTime) {
-                        toast.info(`Chegada de ${log.companyName} já foi registrada às ${log.arrivalTime}`);
+                    if (foundGroup.arrivalTime) {
+                        toast.info(`Chegada de ${foundGroup.supplierName} já foi registrada às ${foundGroup.arrivalTime}`);
                         setIsScannerOpen(false);
                         return;
                     }
-                    if (onUpdateThirdPartyEntry) {
-                        const res = await onUpdateThirdPartyEntry({
-                            ...log,
-                            arrivalTime: nowTime,
-                            status: 'concluido'
-                        });
-                        if (res.success) {
-                            toast.success(`Check-In Realizado! Entrada de ${log.companyName} confirmada às ${nowTime}`);
-                        } else {
-                            toast.error("Erro ao registrar entrada.");
+                    
+                    if (onUpdateDelivery) {
+                        let success = true;
+                        for (const id of foundGroup.allIds) {
+                            const res = await onUpdateDelivery(foundGroup.supplierCpf, id, {
+                                arrivalTime: nowTime
+                            });
+                            if (!res.success) success = false;
                         }
+                        if (success) {
+                            toast.success(`Check-In Realizado! Entrada de ${foundGroup.supplierName} liberada às ${nowTime}`);
+                        } else {
+                            toast.error(`Falha ao registrar a chegada no servidor.`);
+                        }
+                    } else {
+                        toast.success(`QR Code validado com sucesso para ${foundGroup.supplierName}!`);
                     }
                 } else {
                     // scanAction === 'saida'
-                    if (log.exitTime) {
-                        toast.info(`Saída de ${log.companyName} já foi registrada às ${log.exitTime}`);
+                    if (foundGroup.exitTime) {
+                        toast.info(`Saída de ${foundGroup.supplierName} já foi registrada às ${foundGroup.exitTime}`);
                         setIsScannerOpen(false);
                         return;
                     }
-                    if (onUpdateThirdPartyEntry) {
-                        const res = await onUpdateThirdPartyEntry({
-                            ...log,
-                            exitTime: nowTime,
-                            status: 'concluido'
-                        });
-                        if (res.success) {
-                            toast.success(`Check-Out Realizado! Saída de ${log.companyName} confirmada às ${nowTime}`);
-                        } else {
-                            toast.error("Erro ao registrar saída.");
+                    
+                    if (onUpdateDelivery) {
+                        let success = true;
+                        for (const id of foundGroup.allIds) {
+                            const res = await onUpdateDelivery(foundGroup.supplierCpf, id, {
+                                exitTime: nowTime
+                            });
+                            if (!res.success) success = false;
                         }
+                        if (success) {
+                            toast.success(`Check-Out Realizado! Saída de ${foundGroup.supplierName} confirmada às ${nowTime}`);
+                        } else {
+                            toast.error(`Falha ao registrar a saída no servidor.`);
+                        }
+                    } else {
+                        toast.success(`Saída validada com sucesso para ${foundGroup.supplierName}!`);
                     }
                 }
                 setIsScannerOpen(false);
             } else {
-                toast.error(`Nenhum agendamento pendente encontrado para o CPF/CNPJ ${cpf} no dia ${date}.`);
-                setIsScannerOpen(false);
+                // Tenta localizar nos Terceiros
+                const targetClean = cpf.replace(/[^\d]/g, '');
+                const companyCnpjToMatch = targetClean.length === 44 ? targetClean.substring(6, 20) : targetClean;
+
+                const log = (thirdPartyEntries || []).find(l => {
+                    const cleanCnpj = (l.companyCnpj || '').replace(/[^\d]/g, '');
+                    const dBarcodeClean = (l.barcode || '').replace(/[^\d]/g, '');
+                    return l.date === date && (
+                        cleanCnpj === companyCnpjToMatch || 
+                        (dBarcodeClean && dBarcodeClean === targetClean)
+                    );
+                });
+
+                if (log) {
+                    if (scanAction === 'entrada') {
+                        if (log.arrivalTime) {
+                            toast.info(`Chegada de ${log.companyName} já foi registrada às ${log.arrivalTime}`);
+                            setIsScannerOpen(false);
+                            return;
+                        }
+                        if (onUpdateThirdPartyEntry) {
+                            const res = await onUpdateThirdPartyEntry({
+                                ...log,
+                                arrivalTime: nowTime,
+                                status: 'concluido'
+                            });
+                            if (res.success) {
+                                toast.success(`Check-In Realizado! Entrada de ${log.companyName} confirmada às ${nowTime}`);
+                            } else {
+                                toast.error("Erro ao registrar entrada.");
+                            }
+                        }
+                    } else {
+                        // scanAction === 'saida'
+                        if (log.exitTime) {
+                            toast.info(`Saída de ${log.companyName} já foi registrada às ${log.exitTime}`);
+                            setIsScannerOpen(false);
+                            return;
+                        }
+                        if (onUpdateThirdPartyEntry) {
+                            const res = await onUpdateThirdPartyEntry({
+                                ...log,
+                                exitTime: nowTime,
+                                status: 'concluido'
+                            });
+                            if (res.success) {
+                                toast.success(`Check-Out Realizado! Saída de ${log.companyName} confirmada às ${nowTime}`);
+                            } else {
+                                toast.error("Erro ao registrar saída.");
+                            }
+                        }
+                    }
+                    setIsScannerOpen(false);
+                } else {
+                    toast.error(`Nenhum agendamento pendente encontrado para o CPF/CNPJ ${cpf} no dia ${date}.`);
+                    setIsScannerOpen(false);
+                }
             }
+        } catch (err) {
+            console.error("Error saving manual arrival/exit:", err);
+            toast.error("Erro ao registrar no servidor. Verifique a conexão.");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -474,6 +484,17 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
             .sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00'));
     }, [suppliers, thirdPartyEntries, selectedAgendaDate, searchTerm, perCapitaConfig]);
 
+    const pendingItems = useMemo(() => {
+        return dailyDeliveries.filter(item => {
+            if (item.status === 'CANCELADO') return false;
+            if (scanAction === 'entrada') {
+                return !item.arrivalTime;
+            } else {
+                return !item.exitTime;
+            }
+        });
+    }, [dailyDeliveries, scanAction]);
+
     const handleDelete = async (item: any) => {
         if (!onDeleteDelivery) return;
         const msg = item.status === 'CONCLUÍDO' 
@@ -513,7 +534,9 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
 
     const saveArrival = async () => {
         if (!selectedItem) return;
+        if (isSubmitting) return;
         
+        setIsSubmitting(true);
         try {
             if (selectedItem.type === 'FORNECEDOR' && onUpdateDelivery) {
                 for (const id of selectedItem.allIds) {
@@ -537,6 +560,8 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
             setIsArrivalModalOpen(false);
         } catch (_e) {
             toast.error("Erro ao salvar chegada.");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -548,7 +573,9 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
 
     const saveExit = async () => {
         if (!selectedItem) return;
-        
+        if (isSubmitting) return;
+
+        setIsSubmitting(true);
         try {
             if (selectedItem.type === 'FORNECEDOR' && onUpdateDelivery) {
                 for (const id of selectedItem.allIds) {
@@ -571,6 +598,8 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
             setIsExitModalOpen(false);
         } catch (_e) {
             toast.error("Erro ao salvar saída.");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -820,6 +849,30 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                 </div>
                             ) : (
                                 <form onSubmit={handleManualSubmit} className="space-y-4">
+                                    {pendingItems.length > 0 && (
+                                        <div>
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                                Ou escolha da Agenda de Hoje
+                                            </label>
+                                            <select
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val) {
+                                                        setManualInputValue(val);
+                                                    }
+                                                }}
+                                                className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-gray-700 outline-none focus:ring-4 focus:ring-indigo-100 transition-all text-xs"
+                                                value={manualInputValue}
+                                            >
+                                                <option value="">-- Selecione um agendamento pendente --</option>
+                                                {pendingItems.map((item) => (
+                                                    <option key={item.id} value={item.supplierCpf}>
+                                                        {item.time} - {item.supplierName.toUpperCase()} ({item.type === 'TERCEIRO' ? 'Terceiro' : 'Fornecedor'})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
                                     <div>
                                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
                                             Leitor de Código ou CPF
@@ -861,13 +914,15 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                                         </button>
                                         <button
                                             type="submit"
+                                            disabled={isSubmitting}
                                             className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white transition-all shadow-xl ${
+                                                isSubmitting ? 'bg-gray-400 cursor-not-allowed shadow-none' :
                                                 scanAction === 'entrada' 
                                                     ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100' 
                                                     : 'bg-rose-600 hover:bg-rose-700 shadow-rose-100'
                                             }`}
                                         >
-                                            Confirmar {scanAction === 'entrada' ? 'Entrada' : 'Saída'}
+                                            {isSubmitting ? 'Salvando...' : `Confirmar ${scanAction === 'entrada' ? 'Entrada' : 'Saída'}`}
                                         </button>
                                     </div>
                                 </form>

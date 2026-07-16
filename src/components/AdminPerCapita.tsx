@@ -177,7 +177,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             setTimeout(() => setSaveSuccess(false), 3000);
         } catch (error) {
             console.error("Failed to save per capita config:", error);
-            alert("Erro ao salvar configurações!");
+            toast.error("Erro ao salvar configurações!");
         } finally {
             setIsSaving(false);
         }

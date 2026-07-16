@@ -159,6 +159,7 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                                 embedded
                                 onUpdateDelivery={onUpdateDelivery}
                                 onUpdateThirdPartyEntry={onUpdateThirdPartyEntry}
+                                perCapitaConfig={perCapitaConfig}
                             />
                         </motion.div>
                     ) : activeTab === 'vehicles' ? (
