@@ -36,6 +36,16 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
     const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
     const [invoiceInfo, setInvoiceInfo] = useState<{ date: string; deliveries: Delivery[]; supplierCpf: string } | null>(null);
 
+    // Relatório Mensal States
+    const [isMonthlyReportOpen, setIsMonthlyReportOpen] = useState(false);
+    const [selectedMonth, setSelectedMonth] = useState(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    });
+    const [monthlySearch, setMonthlySearch] = useState('');
+    const [monthlyStatusFilter, setMonthlyStatusFilter] = useState('ALL'); // ALL, ARRIVED, EXITED, PENDING
+    const [monthlyTypeFilter, setMonthlyTypeFilter] = useState('ALL'); // ALL, FORNECEDOR, TERCEIRO
+
     // QR Code Scanner States
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [scannerMode, setScannerMode] = useState<'camera' | 'manual'>('camera');
@@ -388,6 +398,100 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isScannerOpen, scannerMode, selectedAgendaDate]);
 
+    const monthlyDeliveries = useMemo(() => {
+        const groups: Record<string, any> = {};
+        
+        const processDelivery = (s: Supplier, d: any, type: 'FORNECEDOR' | 'TERCEIRO') => {
+            if (!d || !d.date || !d.date.startsWith(selectedMonth)) return;
+            
+            const groupKey = `${type}-${s.cpf}-${d.date}-${d.time}`;
+            if (!groups[groupKey]) {
+                const isFaturado = d.item !== 'AGENDAMENTO PENDENTE' && (d.invoiceNumber || d.invoiceUploaded);
+                groups[groupKey] = {
+                    id: d.id,
+                    allIds: [d.id],
+                    supplierName: s.name,
+                    supplierCpf: s.cpf,
+                    date: d.date,
+                    time: d.time,
+                    arrivalTime: d.arrivalTime,
+                    exitTime: d.exitTime,
+                    status: isFaturado ? 'CONCLUÍDO' : 'AGENDADO',
+                    type: type,
+                    items: [d],
+                    deliveries: [d],
+                    observations: d.observations || ''
+                };
+            } else {
+                groups[groupKey].allIds.push(d.id);
+                groups[groupKey].items.push(d);
+                groups[groupKey].deliveries.push(d);
+                if (d.arrivalTime && !groups[groupKey].arrivalTime) {
+                    groups[groupKey].arrivalTime = d.arrivalTime;
+                }
+                if (d.exitTime && !groups[groupKey].exitTime) {
+                    groups[groupKey].exitTime = d.exitTime;
+                }
+                if (d.observations && !groups[groupKey].observations.includes(d.observations)) {
+                    groups[groupKey].observations = groups[groupKey].observations 
+                        ? `${groups[groupKey].observations}; ${d.observations}`
+                        : d.observations;
+                }
+                if (!(d.item !== 'AGENDAMENTO PENDENTE' && (d.invoiceNumber || d.invoiceUploaded))) {
+                    groups[groupKey].status = 'AGENDADO';
+                }
+            }
+        };
+
+        ensureArray(suppliers).forEach(s => {
+            if (!s) return;
+            const deliveries = ensureArray(s.deliveries);
+            deliveries.forEach(d => processDelivery(s as any, d, 'FORNECEDOR'));
+        });
+
+        if (perCapitaConfig) {
+            ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'].forEach(key => {
+                const producers = ensureArray(perCapitaConfig[key]);
+                producers.forEach((p: any) => {
+                    const deliveries = ensureArray(p.deliveries);
+                    deliveries.forEach(d => processDelivery({ name: p.name, cpf: p.cpfCnpj || p.cpf } as any, d, 'FORNECEDOR'));
+                });
+            });
+        }
+
+        const list = Object.values(groups);
+
+        (thirdPartyEntries || []).forEach(log => {
+            if (log.date && log.date.startsWith(selectedMonth)) {
+                let status: 'AGENDADO' | 'CONCLUÍDO' | 'TERCEIRO' | 'CANCELADO' = 'TERCEIRO';
+                if (log.status === 'concluido') status = 'CONCLUÍDO';
+                else if (log.status === 'cancelado') status = 'CANCELADO';
+                else if (log.status === 'agendado') status = 'AGENDADO';
+
+                list.push({
+                    id: log.id,
+                    allIds: [log.id],
+                    supplierName: log.companyName,
+                    supplierCpf: log.companyCnpj,
+                    date: log.date,
+                    time: log.time || '00:00',
+                    arrivalTime: log.arrivalTime,
+                    exitTime: log.exitTime,
+                    status: status,
+                    type: 'TERCEIRO',
+                    items: [],
+                    deliveries: []
+                });
+            }
+        });
+
+        return list.sort((a, b) => {
+            const dateCompare = (a.date || '').localeCompare(b.date || '');
+            if (dateCompare !== 0) return dateCompare;
+            return (a.time || '00:00').localeCompare(b.time || '00:00');
+        });
+    }, [suppliers, thirdPartyEntries, selectedMonth, perCapitaConfig]);
+
     const dailyDeliveries = useMemo(() => {
         const groups: Record<string, any> = {};
         
@@ -709,6 +813,181 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
         printWindow.document.close();
     };
 
+    const formatDateBR = (dateStr: string) => {
+        if (!dateStr) return '';
+        const parts = dateStr.split('-');
+        if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        return dateStr;
+    };
+
+    const filteredMonthlyDeliveries = useMemo(() => {
+        return monthlyDeliveries.filter(item => {
+            // Search filter
+            const matchesSearch = 
+                (item.supplierName || '').toLowerCase().includes(monthlySearch.toLowerCase()) ||
+                (item.supplierCpf || '').toLowerCase().includes(monthlySearch.toLowerCase());
+                
+            // Status filter
+            let matchesStatus = true;
+            if (monthlyStatusFilter === 'ARRIVED') {
+                matchesStatus = !!item.arrivalTime;
+            } else if (monthlyStatusFilter === 'EXITED') {
+                matchesStatus = !!item.exitTime;
+            } else if (monthlyStatusFilter === 'PENDING') {
+                matchesStatus = !item.arrivalTime && item.status !== 'CANCELADO';
+            } else if (monthlyStatusFilter === 'CANCELLED') {
+                matchesStatus = item.status === 'CANCELADO';
+            }
+            
+            // Type filter
+            let matchesType = true;
+            if (monthlyTypeFilter !== 'ALL') {
+                matchesType = item.type === monthlyTypeFilter;
+            }
+            
+            return matchesSearch && matchesStatus && matchesType;
+        });
+    }, [monthlyDeliveries, monthlySearch, monthlyStatusFilter, monthlyTypeFilter]);
+
+    const handleGenerateMonthlyReportPrint = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            toast.error("Por favor, permita popups para imprimir o relatório.");
+            return;
+        }
+
+        const monthParts = selectedMonth.split('-');
+        const year = monthParts[0];
+        const monthNum = parseInt(monthParts[1] || '1');
+        const monthNamesBR = [
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        ];
+        const monthName = monthNamesBR[monthNum - 1] || 'Geral';
+        const formattedMonthReport = `${monthName} de ${year}`;
+
+        const totalActive = filteredMonthlyDeliveries.filter(d => d.status !== 'CANCELADO').length;
+        const totalArrived = filteredMonthlyDeliveries.filter(d => d.arrivalTime && d.status !== 'CANCELADO').length;
+        const totalExited = filteredMonthlyDeliveries.filter(d => d.exitTime && d.status !== 'CANCELADO').length;
+        const totalPending = totalActive - totalArrived;
+
+        const rowsHtml = filteredMonthlyDeliveries.map(item => {
+            const itemsList = (item.items || []).map((it: any) => `${it.item || it.itemName || ''} (${it.kg}kg)`).join(', ');
+            return `
+                <tr>
+                    <td class="text-center font-bold" style="font-size: 8px;">${formatDateBR(item.date)}</td>
+                    <td class="text-center" style="font-size: 8px;">${item.time}</td>
+                    <td style="font-size: 8px; font-weight: bold;">${item.supplierName.toUpperCase()}</td>
+                    <td class="text-center font-mono" style="font-size: 8px;">${item.supplierCpf}</td>
+                    <td class="text-center font-bold" style="font-size: 8px;">${item.type}</td>
+                    <td class="text-center ${item.arrivalTime ? 'font-bold' : 'italic text-red'}" style="font-size: 8px;">${item.arrivalTime || 'Aguardando...'}</td>
+                    <td class="text-center ${item.exitTime ? 'font-bold' : 'italic text-red'}" style="font-size: 8px;">${item.exitTime || 'Aguardando...'}</td>
+                    <td class="text-center font-bold text-xs" style="font-size: 8px;">${item.status}</td>
+                    <td style="font-size: 8px;">${itemsList || 'N/A'}</td>
+                    <td style="font-size: 8px; font-style: italic;">${item.observations || ''}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Relatório Mensal de Portaria - ${formattedMonthReport}</title>
+                <style>
+                    @page { size: A4 landscape; margin: 10mm; }
+                    body { font-family: Arial, sans-serif; font-size: 8.5pt; line-height: 1.3; color: #000; margin: 0; padding: 0; }
+                    .header-title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin-bottom: 5px; }
+                    .header-subtitle { text-align: center; font-weight: bold; font-size: 9pt; text-transform: uppercase; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 5px; color: #333; }
+                    
+                    .summary-boxes { display: flex; gap: 10px; margin-bottom: 15px; }
+                    .summary-box { flex: 1; border: 1.5px solid #000; padding: 8px; border-radius: 4px; text-align: center; }
+                    .summary-val { font-size: 14pt; font-weight: bold; margin-top: 3px; }
+                    .label { font-weight: bold; text-transform: uppercase; font-size: 7.5pt; color: #555; }
+                    
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; text-transform: uppercase; }
+                    th, td { border: 1px solid #000; padding: 5px; text-align: left; vertical-align: middle; }
+                    th { font-weight: bold; text-transform: uppercase; background-color: #f2f2f2; text-align: center; font-size: 8pt; }
+                    
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .font-bold { font-weight: bold; }
+                    .text-red { color: #b91c1c; font-style: italic; font-weight: normal; }
+                    
+                    .signatures { display: flex; justify-content: space-between; margin-top: 50px; padding: 0 50px; page-break-inside: avoid; }
+                    .signature-box { text-align: center; width: 250px; }
+                    .signature-line { border-top: 1px solid #000; margin-bottom: 5px; }
+                    .signature-title { font-weight: bold; text-transform: uppercase; font-size: 7.5pt; }
+                </style>
+            </head>
+            <body>
+                <div class="header-title">PENITENCIÁRIA DE TAÍUVA</div>
+                <div class="header-subtitle">Relatório Mensal de Controle de Portaria (Entradas e Saídas) - Mês: ${formattedMonthReport}</div>
+                
+                <div class="summary-boxes">
+                    <div class="summary-box">
+                        <div class="label">Total Mensal Agendado</div>
+                        <div class="summary-val">${totalActive}</div>
+                    </div>
+                    <div class="summary-box" style="border-color: #16a34a; background-color: #f0fdf4;">
+                        <div class="label" style="color: #16a34a;">Registraram Entrada</div>
+                        <div class="summary-val" style="color: #16a34a;">${totalArrived}</div>
+                    </div>
+                    <div class="summary-box" style="border-color: #dc2626; background-color: #fef2f2;">
+                        <div class="label" style="color: #dc2626;">Registraram Saída</div>
+                        <div class="summary-val" style="color: #dc2626;">${totalExited}</div>
+                    </div>
+                    <div class="summary-box" style="border-color: #ea580c; background-color: #fff7ed;">
+                        <div class="label" style="color: #ea580c;">Pendentes (Sem Entrada)</div>
+                        <div class="summary-val" style="color: #ea580c;">${totalPending}</div>
+                    </div>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 8%;">Data</th>
+                            <th style="width: 7%;">Hora</th>
+                            <th style="width: 22%;">Fornecedor / Empresa</th>
+                            <th style="width: 12%;">CPF / CNPJ</th>
+                            <th style="width: 8%;">Tipo</th>
+                            <th style="width: 10%;">Horário Entrada</th>
+                            <th style="width: 10%;">Horário Saída</th>
+                            <th style="width: 8%;">Status</th>
+                            <th style="width: 15%;">Itens / Peso</th>
+                            <th style="width: 10%;">Observações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || '<tr><td colspan="10" class="text-center italic font-bold">Nenhuma entrega agendada ou registrada para este período.</td></tr>'}
+                    </tbody>
+                </table>
+                
+                <div class="signatures">
+                    <div class="signature-box">
+                        <div class="signature-line" style="margin-top: 30px;"></div>
+                        <div class="signature-title">Responsável pela Portaria</div>
+                        <div style="font-size: 7pt; color: #666; margin-top: 2px;">Assinatura e Carimbo</div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line" style="margin-top: 30px;"></div>
+                        <div class="signature-title">Responsável pelo Almoxarifado / Estoque</div>
+                        <div style="font-size: 7pt; color: #666; margin-top: 2px;">Assinatura e Carimbo</div>
+                    </div>
+                </div>
+
+                <script>
+                    window.onload = function() {
+                        window.print();
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
     const handleSaveInvoiceWithItems = async (invoiceNumber: string, invoiceUrl: string, deliveries: Delivery[], invoiceDate?: string) => {
         if (!onSaveInvoice || !invoiceInfo) return;
         try {
@@ -975,6 +1254,274 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                 </div>
             )}
 
+            {/* Monthly Report Modal */}
+            {isMonthlyReportOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+                    <div className="bg-slate-50 rounded-[2.5rem] shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-200 animate-scale-in flex flex-col max-h-[90vh]">
+                        
+                        {/* Header */}
+                        <div className="p-6 md:p-8 border-b bg-indigo-950 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div>
+                                <div className="flex items-center gap-3">
+                                    <Calendar className="h-6 w-6 text-indigo-400" />
+                                    <h3 className="text-xl font-black uppercase italic tracking-tighter">
+                                        Relatório Mensal de Portaria
+                                    </h3>
+                                </div>
+                                <p className="text-indigo-200 font-bold text-[10px] uppercase tracking-widest mt-1">
+                                    Controle Consolidado de Entradas e Saídas por Mês
+                                </p>
+                            </div>
+                            
+                            <div className="flex items-center gap-3 w-full md:w-auto">
+                                <label className="text-xs font-black uppercase tracking-wider text-indigo-300">Selecione o Mês:</label>
+                                <input 
+                                    type="month" 
+                                    value={selectedMonth} 
+                                    onChange={e => setSelectedMonth(e.target.value)}
+                                    className="p-3 bg-indigo-900 border border-indigo-800 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500 font-black text-white text-sm"
+                                />
+                                <button 
+                                    onClick={() => setIsMonthlyReportOpen(false)} 
+                                    className="text-indigo-300 hover:text-white text-3xl font-light leading-none ml-auto"
+                                >
+                                    &times;
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Search & Filters */}
+                        <div className="bg-white p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between gap-4 items-center">
+                            <div className="relative w-full md:w-72">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <input 
+                                    type="text" 
+                                    placeholder="Pesquisar fornecedor ou CPF/CNPJ..."
+                                    value={monthlySearch}
+                                    onChange={e => setMonthlySearch(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-100 font-bold text-xs transition-all"
+                                />
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                                <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                                    <button
+                                        onClick={() => setMonthlyStatusFilter('ALL')}
+                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${monthlyStatusFilter === 'ALL' ? 'bg-white text-indigo-950 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                                    >
+                                        Todos
+                                    </button>
+                                    <button
+                                        onClick={() => setMonthlyStatusFilter('ARRIVED')}
+                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${monthlyStatusFilter === 'ARRIVED' ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                                    >
+                                        Entradas
+                                    </button>
+                                    <button
+                                        onClick={() => setMonthlyStatusFilter('EXITED')}
+                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${monthlyStatusFilter === 'EXITED' ? 'bg-rose-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                                    >
+                                        Saídas
+                                    </button>
+                                    <button
+                                        onClick={() => setMonthlyStatusFilter('PENDING')}
+                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${monthlyStatusFilter === 'PENDING' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                                    >
+                                        Pendentes
+                                    </button>
+                                    <button
+                                        onClick={() => setMonthlyStatusFilter('CANCELLED')}
+                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${monthlyStatusFilter === 'CANCELLED' ? 'bg-slate-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                                    >
+                                        Cancelados
+                                    </button>
+                                </div>
+
+                                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                                    <button
+                                        onClick={() => setMonthlyTypeFilter('ALL')}
+                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${monthlyTypeFilter === 'ALL' ? 'bg-white text-indigo-950 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                                    >
+                                        Tipos: Todos
+                                    </button>
+                                    <button
+                                        onClick={() => setMonthlyTypeFilter('FORNECEDOR')}
+                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${monthlyTypeFilter === 'FORNECEDOR' ? 'bg-white text-indigo-950 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                                    >
+                                        Fornecedor
+                                    </button>
+                                    <button
+                                        onClick={() => setMonthlyTypeFilter('TERCEIRO')}
+                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${monthlyTypeFilter === 'TERCEIRO' ? 'bg-white text-indigo-950 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                                    >
+                                        Terceiro
+                                    </button>
+                                </div>
+
+                                <button
+                                    onClick={handleGenerateMonthlyReportPrint}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2.5 px-4 rounded-xl text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-md transition-all cursor-pointer font-sans"
+                                >
+                                    <FileText className="h-3.5 w-3.5" />
+                                    Imprimir / PDF
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Content Area - Scrollable */}
+                        <div className="p-6 md:p-8 space-y-6 overflow-y-auto flex-1 text-slate-800">
+                            {/* Consolidated Stats */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-4">
+                                    <div className="bg-indigo-50 p-2.5 rounded-xl text-indigo-900">
+                                        <Truck className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Agendamentos no Mês</p>
+                                        <p className="text-lg font-black text-slate-800">{filteredMonthlyDeliveries.filter(d => d.status !== 'CANCELADO').length}</p>
+                                    </div>
+                                </div>
+
+                                <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100/50 shadow-xs flex items-center gap-4">
+                                    <div className="bg-emerald-500 text-white p-2.5 rounded-xl">
+                                        <UserCheck className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[9px] font-black text-emerald-800 uppercase tracking-wider">Entradas Registradas</p>
+                                        <p className="text-lg font-black text-emerald-950">{filteredMonthlyDeliveries.filter(d => d.arrivalTime && d.status !== 'CANCELADO').length}</p>
+                                    </div>
+                                </div>
+
+                                <div className="bg-rose-50/50 p-5 rounded-2xl border border-rose-100/50 shadow-xs flex items-center gap-4">
+                                    <div className="bg-rose-500 text-white p-2.5 rounded-xl">
+                                        <UserCheck className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[9px] font-black text-rose-800 uppercase tracking-wider font-sans">Saídas Registradas</p>
+                                        <p className="text-lg font-black text-rose-950">{filteredMonthlyDeliveries.filter(d => d.exitTime && d.status !== 'CANCELADO').length}</p>
+                                    </div>
+                                </div>
+
+                                <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-100/50 shadow-xs flex items-center gap-4">
+                                    <div className="bg-amber-500 text-white p-2.5 rounded-xl">
+                                        <AlertCircle className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[9px] font-black text-amber-800 uppercase tracking-wider font-sans">Pendentes de Chegada</p>
+                                        <p className="text-lg font-black text-amber-950">{filteredMonthlyDeliveries.filter(d => !d.arrivalTime && d.status !== 'CANCELADO').length}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Monthly Table */}
+                            <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-xs">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-50/80 text-slate-500 text-[10px] font-bold uppercase border-b border-slate-100">
+                                                <th className="p-4 text-center">Data</th>
+                                                <th className="p-4 text-center">Hora</th>
+                                                <th className="p-4">Fornecedor / Empresa</th>
+                                                <th className="p-4 text-center">CPF / CNPJ</th>
+                                                <th className="p-4 text-center">Tipo</th>
+                                                <th className="p-4 text-center">Entrada</th>
+                                                <th className="p-4 text-center">Saída</th>
+                                                <th className="p-4 text-center">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 text-xs">
+                                            {filteredMonthlyDeliveries.length > 0 ? (
+                                                filteredMonthlyDeliveries.map((item, idx) => {
+                                                    const isCompleted = item.status === 'CONCLUÍDO';
+                                                    const isCancelled = item.status === 'CANCELADO';
+                                                    
+                                                    return (
+                                                        <tr key={`${item.id}-${idx}`} className={`hover:bg-slate-50/30 ${isCancelled ? 'bg-red-50/20 text-slate-400' : ''}`}>
+                                                            <td className="p-4 text-center font-bold text-slate-600">
+                                                                {formatDateBR(item.date)}
+                                                            </td>
+                                                            <td className="p-4 text-center text-slate-500 font-medium">
+                                                                {item.time}
+                                                            </td>
+                                                            <td className="p-4 font-black text-slate-800 uppercase">
+                                                                {item.supplierName}
+                                                            </td>
+                                                            <td className="p-4 text-center font-mono text-slate-500">
+                                                                {item.supplierCpf}
+                                                            </td>
+                                                            <td className="p-4 text-center">
+                                                                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                                                                    item.type === 'TERCEIRO' 
+                                                                        ? 'bg-amber-50 text-amber-700 border border-amber-200' 
+                                                                        : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                                                }`}>
+                                                                    {item.type}
+                                                                </span>
+                                                            </td>
+                                                            <td className="p-4 text-center">
+                                                                {item.arrivalTime ? (
+                                                                    <span className="text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg">
+                                                                        {item.arrivalTime}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-rose-500 italic font-medium">
+                                                                        Aguardando
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td className="p-4 text-center">
+                                                                {item.exitTime ? (
+                                                                    <span className="text-rose-600 font-bold bg-rose-50 px-2.5 py-1 rounded-lg">
+                                                                        {item.exitTime}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-slate-400 italic font-medium">
+                                                                        -
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td className="p-4 text-center">
+                                                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                                                    isCompleted 
+                                                                        ? 'bg-indigo-950 text-white' 
+                                                                        : isCancelled 
+                                                                            ? 'bg-rose-100 text-rose-800' 
+                                                                            : item.arrivalTime 
+                                                                                ? 'bg-emerald-100 text-emerald-800' 
+                                                                                : 'bg-amber-100 text-amber-800'
+                                                                }`}>
+                                                                    {item.status}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan={8} className="p-12 text-center text-slate-400 italic">
+                                                        Nenhum registro encontrado para os filtros selecionados.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 bg-white border-t border-slate-100 flex justify-end gap-3">
+                            <button 
+                                onClick={() => setIsMonthlyReportOpen(false)} 
+                                className="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider transition-all"
+                            >
+                                Fechar Relatório
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className={`space-y-6 animate-fade-in ${embedded ? '' : 'p-4 md:p-8 max-w-6xl mx-auto'}`}>
                 {/* Header / Selector */}
                 <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-100">
@@ -1034,6 +1581,14 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                         >
                             <FileText className="h-4 w-4" />
                             Relatório Portaria
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setIsMonthlyReportOpen(true)}
+                            className="bg-slate-800 hover:bg-black text-white font-black py-3 px-4 rounded-2xl text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg hover:shadow-slate-200 transition-all active:scale-95 cursor-pointer"
+                        >
+                            <Calendar className="h-4 w-4" />
+                            Relatório Mensal
                         </button>
                     </div>
                 </div>
