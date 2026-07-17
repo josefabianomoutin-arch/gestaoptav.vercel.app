@@ -4211,6 +4211,13 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                             'DANIFICADO': 'bg-rose-50 text-rose-700 border-rose-200',
                                                             'DEFAULT': 'bg-slate-50 text-slate-700 border-slate-200'
                                                         };
+                                                        const statusLabels: Record<string, string> = {
+                                                            'DISPONÍVEL': 'LIBERADA PARA USO',
+                                                            'EMPRESTADO': 'EMPRESTADO',
+                                                            'MANUTENÇÃO': 'EM MANUTENÇÃO',
+                                                            'DANIFICADO': 'DANIFICADA / INOPERANTE',
+                                                            'DEFAULT': 'DESCONHECIDO'
+                                                        };
                                                         const colorClass = statusColors[t.status] || statusColors['DEFAULT'];
 
                                                         return (
@@ -4218,7 +4225,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                                 <div className="space-y-3">
                                                                     <div className="flex justify-between items-start">
                                                                         <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{t.category}</span>
-                                                                        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${colorClass}`}>{t.status}</span>
+                                                                        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${colorClass}`}>
+                                                                            {statusLabels[t.status] || t.status}
+                                                                        </span>
                                                                     </div>
                                                                     <div>
                                                                         <h4 className="text-xs font-black text-slate-800 uppercase leading-snug">{t.name}</h4>
@@ -5012,14 +5021,15 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Status Inicial</label>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
+                                        {editingToolId ? 'Situação / Disponibilidade' : 'Status Inicial'}
+                                    </label>
                                     <select
                                         value={newTool.status}
                                         onChange={e => setNewTool(prev => ({ ...prev, status: e.target.value }))}
                                         className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs cursor-pointer"
-                                        disabled={!!editingToolId}
                                     >
-                                        <option value="DISPONÍVEL">Disponível</option>
+                                        <option value="DISPONÍVEL">Liberada para Uso (Disponível)</option>
                                         <option value="EMPRESTADO">Emprestado</option>
                                         <option value="MANUTENÇÃO">Em Manutenção</option>
                                         <option value="DANIFICADO">Danificada / Inoperante</option>
