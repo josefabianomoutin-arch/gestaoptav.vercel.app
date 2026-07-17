@@ -288,7 +288,7 @@ const App: React.FC = () => {
 
   const runDatabaseCleanup = useCallback(async () => {
     try {
-      console.log("Iniciando a limpeza automática de agendamentos duplicados na mesma semana...");
+      console.log("Iniciando a limpeza automática de agendamentos duplicados idênticos...");
       let totalCleanedCount = 0;
 
       // 1. Limpeza de entregas dos Fornecedores Principais (Main Suppliers)
@@ -300,37 +300,33 @@ const App: React.FC = () => {
             : Object.values(sup.deliveries || {});
           if (deliveries.length === 0) continue;
 
-          // Agrupa as entregas por número da semana
-          const weekGroups = new Map<number, any[]>();
+          // Agrupa as entregas por data, horário e item para identificar duplicados exatos
+          const uniqueGroups = new Map<string, any[]>();
           deliveries.forEach(d => {
             if (!d || !d.date) return;
-            const parts = d.date.split('-');
-            if (parts.length === 3) {
-              const dDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-              const wNum = getWeekNumber(dDate);
-              const group = weekGroups.get(wNum) || [];
-              group.push(d);
-              weekGroups.set(wNum, group);
-            }
+            const key = `${d.date}_${d.time || ''}_${d.item || ''}_${d.status || ''}`;
+            const group = uniqueGroups.get(key) || [];
+            group.push(d);
+            uniqueGroups.set(key, group);
           });
 
           let needsUpdate = false;
           const cleanedDeliveries: any[] = [];
 
-          weekGroups.forEach((group) => {
+          uniqueGroups.forEach((group) => {
             if (group.length <= 1) {
               cleanedDeliveries.push(...group);
               return;
             }
 
-            // Múltiplos agendamentos na mesma semana. Escolhemos APENAS um para manter.
-            // Priorizamos entregas com nota fiscal enviada ou concluídas, e desempatamos pela data mais antiga
+            // Múltiplos agendamentos idênticos. Mantemos apenas um.
+            // Priorizamos entregas com nota fiscal enviada ou concluídas, e desempatamos por IDs existentes
             group.sort((a, b) => {
               const aInvoiced = a.invoiceUploaded || a.status === 'CONCLUÍDO';
               const bInvoiced = b.invoiceUploaded || b.status === 'CONCLUÍDO';
               if (aInvoiced && !bInvoiced) return -1;
               if (!aInvoiced && bInvoiced) return 1;
-              return (a.date || '').localeCompare(b.date || '');
+              return (a.id || '').localeCompare(b.id || '');
             });
 
             cleanedDeliveries.push(group[0]);
@@ -339,9 +335,16 @@ const App: React.FC = () => {
           });
 
           if (needsUpdate) {
-            console.log(`Limpando duplicados para o fornecedor CPF ${sup.cpf}: mantendo ${cleanedDeliveries.length} de ${deliveries.length} agendamentos.`);
+            console.log(`Limpando duplicados idênticos para o fornecedor CPF ${sup.cpf}: mantendo ${cleanedDeliveries.length} de ${deliveries.length} agendamentos.`);
+            // Certifica-se de que cada entrega salva tenha um ID persistente
+            const finalDeliveries = cleanedDeliveries.map((d, index) => {
+              if (d && typeof d === 'object') {
+                return { ...d, id: d.id || `delivery-${index}-${Date.now()}` };
+              }
+              return d;
+            });
             const deliveriesRef = child(suppliersRef, `${sup.id || sup.cpf}/deliveries`);
-            await set(deliveriesRef, cleanedDeliveries);
+            await set(deliveriesRef, finalDeliveries);
           }
         }
       }
@@ -362,23 +365,19 @@ const App: React.FC = () => {
               : Object.values(p.deliveries || {});
             if (deliveries.length === 0) continue;
 
-            const weekGroups = new Map<number, any[]>();
+            const uniqueGroups = new Map<string, any[]>();
             deliveries.forEach((d: any) => {
               if (!d || !d.date) return;
-              const parts = d.date.split('-');
-              if (parts.length === 3) {
-                const dDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                const wNum = getWeekNumber(dDate);
-                const group = weekGroups.get(wNum) || [];
-                group.push(d);
-                weekGroups.set(wNum, group);
-              }
+              const key = `${d.date}_${d.time || ''}_${d.item || ''}_${d.status || ''}`;
+              const group = uniqueGroups.get(key) || [];
+              group.push(d);
+              uniqueGroups.set(key, group);
             });
 
             let needsUpdate = false;
             const cleanedDeliveries: any[] = [];
 
-            weekGroups.forEach((group) => {
+            uniqueGroups.forEach((group) => {
               if (group.length <= 1) {
                 cleanedDeliveries.push(...group);
                 return;
@@ -389,7 +388,7 @@ const App: React.FC = () => {
                 const bInvoiced = b.invoiceUploaded || b.status === 'CONCLUÍDO';
                 if (aInvoiced && !bInvoiced) return -1;
                 if (!aInvoiced && bInvoiced) return 1;
-                return (a.date || '').localeCompare(b.date || '');
+                return (a.id || '').localeCompare(b.id || '');
               });
 
               cleanedDeliveries.push(group[0]);
@@ -398,22 +397,28 @@ const App: React.FC = () => {
             });
 
             if (needsUpdate) {
-              updatedList[idx] = { ...p, deliveries: cleanedDeliveries };
+              const finalDeliveries = cleanedDeliveries.map((d, dIdx) => {
+                if (d && typeof d === 'object') {
+                  return { ...d, id: d.id || `delivery-${dIdx}-${Date.now()}` };
+                }
+                return d;
+              });
+              updatedList[idx] = { ...p, deliveries: finalDeliveries };
               listNeedsUpdate = true;
             }
           }
 
           if (listNeedsUpdate) {
-            console.log(`Limpando duplicados na lista PerCapita ${listKey}.`);
+            console.log(`Limpando duplicados idênticos na lista PerCapita ${listKey}.`);
             await set(child(perCapitaConfigRef, listKey), updatedList);
           }
         }
       }
 
       if (totalCleanedCount > 0) {
-        toast.info(`Limpeza concluída: ${totalCleanedCount} agendamentos duplicados na mesma semana foram removidos.`);
+        toast.info(`Limpeza de duplicados idênticos concluída: ${totalCleanedCount} registros idênticos foram unificados.`);
       } else {
-        console.log("Nenhum agendamento duplicado encontrado para limpar.");
+        console.log("Nenhum agendamento duplicado idêntico encontrado para limpar.");
       }
     } catch (err) {
       console.error("Erro durante a limpeza automática de agendamentos:", err);
@@ -1170,17 +1175,14 @@ const App: React.FC = () => {
           }
         }
 
-        // 3. Check if any delivery is in the same week
-        const alreadyHasInWeek = existingDeliveries.some((d: any) => {
+        // 3. Check if any delivery is on the exact same date and time
+        const alreadyHasOnDateTime = existingDeliveries.some((d: any) => {
           if (!d || !d.date) return false;
-          const dParts = d.date.split('-');
-          if (dParts.length !== 3) return false;
-          const dDateObj = new Date(parseInt(dParts[0]), parseInt(dParts[1]) - 1, parseInt(dParts[2]));
-          return getWeekNumber(dDateObj) === targetWeekNum;
+          return d.date === date && d.time === time;
         });
 
-        if (alreadyHasInWeek) {
-          toast.error(`Agendamento bloqueado: Você já possui uma entrega agendada para a semana ${targetWeekNum}.`);
+        if (alreadyHasOnDateTime) {
+          toast.error(`Agendamento bloqueado: Já existe uma entrega agendada para este fornecedor em ${date} às ${time}.`);
           return;
         }
       }
@@ -1473,19 +1475,36 @@ const App: React.FC = () => {
         if (idx !== -1) {
           const p = list[idx];
           const pDeliveries = Array.isArray(p.deliveries) ? p.deliveries : Object.values(p.deliveries || {});
-          if (pDeliveries.some((d: any) => d && d.id === deliveryId)) {
+          const hasMatch = pDeliveries.some((d: any, dIdx: number) => {
+            if (!d) return false;
+            const dId = d.id || `arr-idx-${dIdx}`;
+            return dId === deliveryId || String(dIdx) === deliveryId;
+          });
+          if (hasMatch) {
             const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
             await runTransaction(deliveriesRef, (current) => {
               if (!current) return current;
               const isArr = Array.isArray(current);
               const list = isArr ? current : Object.values(current);
-              const updated = list.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
+              const updated = list.map((d, dIdx) => {
+                if (!d) return d;
+                const dId = d.id || `arr-idx-${dIdx}`;
+                if (dId === deliveryId || `arr-idx-${dIdx}` === deliveryId || String(dIdx) === deliveryId) {
+                  return { ...d, ...updates, id: d.id || `arr-idx-${dIdx}` };
+                }
+                return d;
+              });
               if (isArr) return updated;
               const resultObj: any = {};
               Object.keys(current).forEach((key) => {
                 const val = current[key];
                 if (val) {
-                  resultObj[key] = val.id === deliveryId ? { ...val, ...updates } : val;
+                  const dId = val.id || key;
+                  if (dId === deliveryId || `arr-idx-${key}` === deliveryId) {
+                    resultObj[key] = { ...val, ...updates, id: val.id || key };
+                  } else {
+                    resultObj[key] = val;
+                  }
                 }
               });
               return resultObj;
@@ -1499,20 +1518,37 @@ const App: React.FC = () => {
       const mainSupplier = (suppliers || []).find(s => s && match(s.cpf, targetCpf));
       if (mainSupplier) {
         const mDeliveries = Array.isArray(mainSupplier.deliveries) ? mainSupplier.deliveries : Object.values(mainSupplier.deliveries || {});
-        if (mDeliveries.some((d: any) => d && d.id === deliveryId)) {
+        const hasMatch = mDeliveries.some((d: any, dIdx: number) => {
+          if (!d) return false;
+          const dId = d.id || `arr-idx-${dIdx}`;
+          return dId === deliveryId || String(dIdx) === deliveryId;
+        });
+        if (hasMatch) {
           const supRef = child(suppliersRef, mainSupplier.id || targetCpf);
           const deliveriesRef = child(supRef, `deliveries`);
           await runTransaction(deliveriesRef, (current) => {
             if (!current) return current;
             const isArr = Array.isArray(current);
             const list = isArr ? current : Object.values(current);
-            const updated = list.map(d => d && d.id === deliveryId ? { ...d, ...updates } : d);
+            const updated = list.map((d, dIdx) => {
+              if (!d) return d;
+              const dId = d.id || `arr-idx-${dIdx}`;
+              if (dId === deliveryId || `arr-idx-${dIdx}` === deliveryId || String(dIdx) === deliveryId) {
+                return { ...d, ...updates, id: d.id || `arr-idx-${dIdx}` };
+              }
+              return d;
+            });
             if (isArr) return updated;
             const resultObj: any = {};
             Object.keys(current).forEach((key) => {
               const val = current[key];
               if (val) {
-                resultObj[key] = val.id === deliveryId ? { ...val, ...updates } : val;
+                const dId = val.id || key;
+                if (dId === deliveryId || `arr-idx-${key}` === deliveryId) {
+                  resultObj[key] = { ...val, ...updates, id: val.id || key };
+                } else {
+                  resultObj[key] = val;
+                }
               }
             });
             return resultObj;

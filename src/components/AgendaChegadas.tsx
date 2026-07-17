@@ -518,6 +518,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
             arrivalTime: item.arrivalTime || new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), 
             invoiceNumber: item.items?.[0]?.invoiceNumber || '' 
         });
+        setExitTimeInput(item.exitTime || '');
         setIsArrivalModalOpen(true);
     };
 
@@ -532,7 +533,17 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
         setIsInvoiceModalOpen(true);
     };
 
-    const saveArrival = async () => {
+    const handleRegisterExit = (item: any) => {
+        setSelectedItem(item);
+        setArrivalData({ 
+            arrivalTime: item.arrivalTime || '', 
+            invoiceNumber: item.items?.[0]?.invoiceNumber || '' 
+        });
+        setExitTimeInput(item.exitTime || new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+        setIsExitModalOpen(true);
+    };
+
+    const savePortaria = async () => {
         if (!selectedItem) return;
         if (isSubmitting) return;
         
@@ -541,63 +552,28 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
             if (selectedItem.type === 'FORNECEDOR' && onUpdateDelivery) {
                 for (const id of selectedItem.allIds) {
                     await onUpdateDelivery(selectedItem.supplierCpf, id, { 
-                        arrivalTime: arrivalData.arrivalTime,
-                        invoiceNumber: arrivalData.invoiceNumber || selectedItem.items?.[0]?.invoiceNumber
+                        arrivalTime: arrivalData.arrivalTime || '',
+                        exitTime: exitTimeInput || '',
+                        invoiceNumber: arrivalData.invoiceNumber || selectedItem.items?.[0]?.invoiceNumber || ''
                     });
                 }
-                toast.success("Chegada registrada!");
+                toast.success("Dados de portaria atualizados!");
             } else if (selectedItem.type === 'TERCEIRO' && onUpdateThirdPartyEntry) {
                 const log = (thirdPartyEntries || []).find(l => l.id === selectedItem.id);
                 if (log) {
                     await onUpdateThirdPartyEntry({
                         ...log,
-                        arrivalTime: arrivalData.arrivalTime,
-                        status: log.status === 'agendado' ? 'concluido' : log.status
+                        arrivalTime: arrivalData.arrivalTime || '',
+                        exitTime: exitTimeInput || '',
+                        status: (arrivalData.arrivalTime && exitTimeInput) ? 'concluido' : log.status
                     });
-                    toast.success("Chegada registrada!");
+                    toast.success("Dados de portaria atualizados!");
                 }
             }
             setIsArrivalModalOpen(false);
-        } catch (_e) {
-            toast.error("Erro ao salvar chegada.");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleRegisterExit = (item: any) => {
-        setSelectedItem(item);
-        setExitTimeInput(item.exitTime || new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-        setIsExitModalOpen(true);
-    };
-
-    const saveExit = async () => {
-        if (!selectedItem) return;
-        if (isSubmitting) return;
-
-        setIsSubmitting(true);
-        try {
-            if (selectedItem.type === 'FORNECEDOR' && onUpdateDelivery) {
-                for (const id of selectedItem.allIds) {
-                    await onUpdateDelivery(selectedItem.supplierCpf, id, { 
-                        exitTime: exitTimeInput
-                    });
-                }
-                toast.success("Saída registrada!");
-            } else if (selectedItem.type === 'TERCEIRO' && onUpdateThirdPartyEntry) {
-                const log = (thirdPartyEntries || []).find(l => l.id === selectedItem.id);
-                if (log) {
-                    await onUpdateThirdPartyEntry({
-                        ...log,
-                        exitTime: exitTimeInput,
-                        status: 'concluido'
-                    });
-                    toast.success("Saída registrada!");
-                }
-            }
             setIsExitModalOpen(false);
         } catch (_e) {
-            toast.error("Erro ao salvar saída.");
+            toast.error("Erro ao salvar dados de portaria.");
         } finally {
             setIsSubmitting(false);
         }
@@ -794,7 +770,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                         <div className={`p-6 md:p-8 border-b flex justify-between items-center ${scanAction === 'entrada' ? 'bg-emerald-50 border-b-emerald-100' : 'bg-rose-50 border-b-rose-100'}`}>
                             <div>
                                 <h3 className={`text-xl font-black uppercase italic tracking-tighter ${scanAction === 'entrada' ? 'text-emerald-950' : 'text-rose-950'}`}>
-                                    Leitor Portaria (${scanAction === 'entrada' ? 'Entrada' : 'Saída'})
+                                    Leitor Portaria ({scanAction === 'entrada' ? 'Entrada' : 'Saída'})
                                 </h3>
                                 <p className={`font-bold text-[10px] uppercase tracking-widest ${scanAction === 'entrada' ? 'text-emerald-600' : 'text-rose-600'}`}>
                                     Escanear ou Digitar para registrar {scanAction === 'entrada' ? 'Entrada (Check-In)' : 'Saída (Check-Out)'}
@@ -932,64 +908,67 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                 </div>
             )}
 
-            {/* Exit Modal */}
-            {isExitModalOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden border border-rose-100 animate-scale-in">
-                        <div className="p-8 border-b bg-rose-50">
-                            <h3 className="text-xl font-black text-rose-950 uppercase italic tracking-tighter">Registrar Saída</h3>
-                            <p className="text-rose-400 font-bold text-[10px] uppercase tracking-widest">{selectedItem?.supplierName}</p>
-                        </div>
-                        <div className="p-8 space-y-6">
-                            <div>
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Horário Real de Saída</label>
-                                <input 
-                                    type="time" 
-                                    value={exitTimeInput}
-                                    onChange={e => setExitTimeInput(e.target.value)}
-                                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-black text-rose-900 outline-none focus:ring-4 focus:ring-rose-100 transition-all text-xl"
-                                />
-                            </div>
-                            <div className="flex gap-4">
-                                <button onClick={() => setIsExitModalOpen(false)} className="flex-1 py-4 rounded-2xl bg-gray-100 text-gray-500 font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all">Cancelar</button>
-                                <button onClick={saveExit} className="flex-1 py-4 rounded-2xl bg-rose-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-xl shadow-rose-100">Salvar Saída</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Arrival Modal */}
-            {isArrivalModalOpen && (
+            {/* Unified Portaria Modal */}
+            {(isArrivalModalOpen || isExitModalOpen) && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden border border-indigo-100 animate-scale-in">
                         <div className="p-8 border-b bg-indigo-50">
-                            <h3 className="text-xl font-black text-indigo-950 uppercase italic tracking-tighter">Registrar Chegada</h3>
-                            <p className="text-indigo-400 font-bold text-[10px] uppercase tracking-widest">{selectedItem?.supplierName}</p>
+                            <h3 className="text-xl font-black text-indigo-950 uppercase italic tracking-tighter">Dados da Portaria</h3>
+                            <p className="text-indigo-600 font-bold text-[10px] uppercase tracking-widest">{selectedItem?.supplierName}</p>
+                            <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest">Agendamento: {selectedItem?.time}</p>
                         </div>
                         <div className="p-8 space-y-6">
-                            <div>
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Horário Real de Chegada</label>
-                                <input 
-                                    type="time" 
-                                    value={arrivalData.arrivalTime}
-                                    onChange={e => setArrivalData(prev => ({ ...prev, arrivalTime: e.target.value }))}
-                                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-black text-indigo-900 outline-none focus:ring-4 focus:ring-indigo-100 transition-all text-xl"
-                                />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Horário de Chegada</label>
+                                    <input 
+                                        type="time" 
+                                        value={arrivalData.arrivalTime}
+                                        onChange={e => setArrivalData(prev => ({ ...prev, arrivalTime: e.target.value }))}
+                                        className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-black text-indigo-900 outline-none focus:ring-4 focus:ring-indigo-100 transition-all text-xl text-center"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Horário de Saída</label>
+                                    <input 
+                                        type="time" 
+                                        value={exitTimeInput}
+                                        onChange={e => setExitTimeInput(e.target.value)}
+                                        className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-black text-rose-900 outline-none focus:ring-4 focus:ring-rose-100 transition-all text-xl text-center"
+                                    />
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Número da NF (Opcional)</label>
-                                <input 
-                                    type="text" 
-                                    placeholder="Ex: 000123"
-                                    value={arrivalData.invoiceNumber}
-                                    onChange={e => setArrivalData(prev => ({ ...prev, invoiceNumber: e.target.value }))}
-                                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-gray-600 outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
-                                />
-                            </div>
+                            
+                            {selectedItem?.type === 'FORNECEDOR' && (
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Número da NF (Opcional)</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Ex: 000123"
+                                        value={arrivalData.invoiceNumber}
+                                        onChange={e => setArrivalData(prev => ({ ...prev, invoiceNumber: e.target.value }))}
+                                        className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-gray-600 outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                    />
+                                </div>
+                            )}
+
                             <div className="flex gap-4">
-                                <button onClick={() => setIsArrivalModalOpen(false)} className="flex-1 py-4 rounded-2xl bg-gray-100 text-gray-500 font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all">Cancelar</button>
-                                <button onClick={saveArrival} className="flex-1 py-4 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">Salvar Chegada</button>
+                                <button 
+                                    onClick={() => {
+                                        setIsArrivalModalOpen(false);
+                                        setIsExitModalOpen(false);
+                                    }} 
+                                    className="flex-1 py-4 rounded-2xl bg-gray-100 text-gray-500 font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    onClick={savePortaria} 
+                                    disabled={isSubmitting}
+                                    className="flex-1 py-4 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                >
+                                    {isSubmitting ? 'Salvando...' : 'Salvar Dados'}
+                                </button>
                             </div>
                         </div>
                     </div>

@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+import { toast } from 'sonner';
 import type { Supplier, ThirdPartyEntryLog, Delivery, PerCapitaConfig } from '../types';
 import WeeklyScheduleControl from './WeeklyScheduleControl';
 import ConfirmModal from './ConfirmModal';
@@ -545,16 +546,23 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
 
     const handleSaveNewThirdParty = async () => {
         if (!onRegisterThirdPartyEntry) return;
-        if (!newThirdParty.date || !newThirdParty.time || !newThirdParty.companyName || !newThirdParty.companyCnpj) {
-            alert('Preencha os campos obrigatórios: Data, Horário, Nome e CNPJ/CPF.');
+        if (!newThirdParty.date || !newThirdParty.time || !newThirdParty.companyName) {
+            toast.error('Preencha os campos obrigatórios: Data, Horário e Empresa/Fornecedor.');
             return;
         }
-        await onRegisterThirdPartyEntry({
-            ...newThirdParty,
-            status: 'agendado'
-        });
-        setIsAddThirdPartyModalOpen(false);
-        setNewThirdParty({ date: '', time: '', companyName: '', companyCnpj: '', driverName: '', vehiclePlate: '' });
+        try {
+            await onRegisterThirdPartyEntry({
+                ...newThirdParty,
+                companyCnpj: newThirdParty.companyCnpj || 'ISENTO',
+                status: 'agendado'
+            });
+            toast.success('Agendamento manual registrado com sucesso!');
+            setIsAddThirdPartyModalOpen(false);
+            setNewThirdParty({ date: '', time: '', companyName: '', companyCnpj: '', driverName: '', vehiclePlate: '' });
+        } catch (error) {
+            console.error('Erro ao registrar agendamento manual:', error);
+            toast.error('Ocorreu um erro ao salvar o agendamento.');
+        }
     };
 
     return (

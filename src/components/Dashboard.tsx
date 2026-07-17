@@ -107,21 +107,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         }
     }
 
-    // Check if there is already a delivery in the same week on a different date
-    const weekNum = getWeekNumber(date);
-    const hasDeliveryInSameWeekOnOtherDate = ensureArray<Delivery>(supplier.deliveries).some(d => {
-      if (!d || !d.date || d.date === dateString) return false;
-      const parts = d.date.split('-');
-      if (parts.length !== 3) return false;
-      const dDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-      return getWeekNumber(dDate) === weekNum;
-    });
-
-    if (hasDeliveryInSameWeekOnOtherDate && deliveriesOnDate.length === 0) {
-      toast.error(`Agendamento bloqueado: Você já possui uma entrega agendada para a semana ${weekNum}.`);
-      return;
-    }
-
     setSelectedDate(date);
     if (deliveriesOnDate.length > 0) {
       setDeliveriesToShow(deliveriesOnDate);
