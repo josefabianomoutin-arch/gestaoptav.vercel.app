@@ -94,8 +94,12 @@ const Dashboard: React.FC<DashboardProps> = ({
   const bannerColor = type === 'PRODUTOR' ? 'bg-indigo-600 border-indigo-800' : 'bg-emerald-600 border-emerald-800';
   const bannerTextColor = type === 'PRODUTOR' ? 'text-indigo-200' : 'text-emerald-100';
 
+  const getLocalDateString = (d: Date) => {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   const handleDayClick = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = getLocalDateString(date);
     const deliveriesOnDate = ensureArray<Delivery>(supplier.deliveries).filter(d => d.date === dateString);
     
     // Check if week is allowed
@@ -122,7 +126,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleScheduleSave = (time: string, observations?: string) => {
     if (selectedDate) {
-      const dateString = selectedDate.toISOString().split('T')[0];
+      const dateString = getLocalDateString(selectedDate);
       onScheduleDelivery(supplier.cpf, dateString, time, observations);
     }
     handleCloseModal();

@@ -70,7 +70,7 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
     const locateDeliveryForCpfAndDate = (cpf: string, targetDate: string) => {
         const groups: Record<string, any> = {};
         
-        const cleanNumber = (val: string) => (val || '').replace(/[^\d]/g, '');
+        const cleanNumber = (val: string) => String(val || '').trim().replace(/^0+/, '').replace(/[^\d]/g, '');
         const targetClean = cleanNumber(cpf);
         
         const processDelivery = (s: Supplier, d: any) => {
@@ -89,13 +89,14 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
             
             if (!isExactMatch && !isBarcodeMatch && !isEmbeddedCnpjMatch) return;
             
-            const groupKey = `${s.cpf || ''}-${d.time}`;
+            const cleanCpf = String(s.cpf || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+            const groupKey = `${cleanCpf}-${d.time}`;
             if (!groups[groupKey]) {
                 groups[groupKey] = {
                     id: d.id,
                     allIds: [d.id],
                     supplierName: s.name,
-                    supplierCpf: s.cpf,
+                    supplierCpf: cleanCpf,
                     time: d.time,
                     arrivalTime: d.arrivalTime,
                     exitTime: d.exitTime,
@@ -498,14 +499,15 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
         const processDelivery = (s: Supplier, d: any, type: 'FORNECEDOR' | 'TERCEIRO') => {
             if (!d || d.date !== selectedAgendaDate) return;
             
-            const groupKey = `${type}-${s.cpf}-${d.time}`;
+            const cleanCpf = String(s.cpf || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+            const groupKey = `${type}-${cleanCpf}-${d.time}`;
             if (!groups[groupKey]) {
                 const isFaturado = d.item !== 'AGENDAMENTO PENDENTE' && (d.invoiceNumber || d.invoiceUploaded);
                 groups[groupKey] = {
                     id: d.id, // Primary ID for modal usage
                     allIds: [d.id],
                     supplierName: s.name,
-                    supplierCpf: s.cpf,
+                    supplierCpf: cleanCpf,
                     time: d.time,
                     arrivalTime: d.arrivalTime,
                     exitTime: d.exitTime,

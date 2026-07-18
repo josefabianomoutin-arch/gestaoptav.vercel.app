@@ -1143,6 +1143,12 @@ const App: React.FC = () => {
     try {
       console.log('Agendando entrega:', { supplierCpf, date, time, observations });
       const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+      const match = (a: any, b: any) => {
+        const ca = clean(a);
+        const cb = clean(b);
+        if (!ca || !cb) return false;
+        return ca === cb || (ca.length === 11 && cb.length === 14 && cb.startsWith(ca)) || (cb.length === 11 && ca.length === 14 && ca.startsWith(cb));
+      };
       const targetCpf = clean(supplierCpf);
 
       // Verify if there is already a delivery in the same week
@@ -1155,7 +1161,7 @@ const App: React.FC = () => {
         let existingDeliveries: any[] = [];
         
         // 1. Standard supplier
-        const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+        const mainSupplier = (suppliers || []).find(s => s && match(s.cpf, targetCpf));
         if (mainSupplier && mainSupplier.deliveries) {
           existingDeliveries = Array.isArray(mainSupplier.deliveries) 
             ? mainSupplier.deliveries 
@@ -1167,7 +1173,7 @@ const App: React.FC = () => {
           const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
           for (const listKey of lists) {
             const list = ensureArray(perCapitaConfig[listKey]);
-            const p = list.find((item: any) => item && clean(item.cpfCnpj || item.cpf) === targetCpf);
+            const p = list.find((item: any) => item && match(item.cpfCnpj || item.cpf, targetCpf));
             if (p && p.deliveries) {
               const pDeliveries = Array.isArray(p.deliveries) ? p.deliveries : Object.values(p.deliveries);
               existingDeliveries = [...existingDeliveries, ...pDeliveries];
@@ -1187,27 +1193,86 @@ const App: React.FC = () => {
         }
       }
 
-      // If not in per capita lists, schedule inside the Main Suppliers list
-      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
-      if (mainSupplier) {
-        console.log('Found main supplier:', mainSupplier);
-        const refId = mainSupplier.id || targetCpf;
-        if (!refId) {
-            throw new Error('Supplier ID not found');
+      let scheduleSuccess = false;
+      const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+
+      // 1. Try Per Capita FIRST to prioritize Per Capita mappings
+      if (perCapitaConfig) {
+        for (const listKey of lists) {
+          const producers = ensureArray(perCapitaConfig[listKey]);
+          const idx = producers.findIndex((p: any) => p && match(p.cpfCnpj || p.cpf, targetCpf));
+          if (idx !== -1) {
+            const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
+            let isDuplicateTransaction = false;
+            await runTransaction(deliveriesRef, (current) => {
+              const list = ensureArray<any>(current);
+              const hasDuplicate = list.some(d => d && d.date === date && d.time === time);
+              if (hasDuplicate) {
+                isDuplicateTransaction = true;
+                return current;
+              }
+              const newId = `manual-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+              const newDelivery = {
+                id: newId,
+                date,
+                time,
+                item: 'AGENDAMENTO PENDENTE',
+                invoiceUploaded: false,
+                observations: observations || ''
+              };
+              return [...list, newDelivery];
+            });
+            
+            if (isDuplicateTransaction) {
+              toast.error(`Agendamento já existente para este fornecedor em ${date} às ${time}.`);
+              return;
+            }
+            scheduleSuccess = true;
+            break;
+          }
         }
-        const supRefPath = `${refId}/deliveries`;
-        console.log('Supplier ref path:', supRefPath);
-        const supRef = child(suppliersRef, supRefPath);
-        const newDeliveryRef = push(supRef);
-        await set(newDeliveryRef, {
-          id: newDeliveryRef.key,
-          date,
-          time,
-          item: 'AGENDAMENTO PENDENTE',
-          invoiceUploaded: false,
-          observations: observations || ''
-        });
-        toast.success('Agendamento realizado!');
+      }
+
+      // 2. Try Main Suppliers
+      if (!scheduleSuccess) {
+        const mainSupplier = (suppliers || []).find(s => s && match(s.cpf, targetCpf));
+        if (mainSupplier) {
+          console.log('Found main supplier:', mainSupplier);
+          const refId = mainSupplier.id || targetCpf;
+          if (!refId) {
+              throw new Error('Supplier ID not found');
+          }
+          const deliveriesRef = child(suppliersRef, `${refId}/deliveries`);
+          let isDuplicateTransaction = false;
+          await runTransaction(deliveriesRef, (current) => {
+            const list = ensureArray<any>(current);
+            const hasDuplicate = list.some(d => d && d.date === date && d.time === time);
+            if (hasDuplicate) {
+              isDuplicateTransaction = true;
+              return current;
+            }
+            const newId = `manual-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+            const newDelivery = {
+              id: newId,
+              date,
+              time,
+              item: 'AGENDAMENTO PENDENTE',
+              invoiceUploaded: false,
+              observations: observations || ''
+            };
+            return [...list, newDelivery];
+          });
+
+          if (isDuplicateTransaction) {
+            toast.error(`Agendamento já existente para este fornecedor em ${date} às ${time}.`);
+            return;
+          }
+          scheduleSuccess = true;
+        }
+      }
+
+      if (scheduleSuccess) {
+        toast.success('Agendamento realizado com sucesso!');
         return;
       }
 

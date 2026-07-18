@@ -30,13 +30,17 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({
 }) => {
   const [showQrCode, setShowQrCode] = useState(true);
   
-  const dateString = date.toISOString().split('T')[0];
+  const getLocalDateString = (d: Date) => {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  
+  const dateString = getLocalDateString(date);
   const formattedDate = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
   const invoiceNumber = deliveries.find(d => d.invoiceNumber)?.invoiceNumber;
   const deliveryTime = deliveries.find(d => d.time)?.time || deliveries.find(d => d.arrivalTime)?.arrivalTime;
   
   const isPastStrict = date < simulatedToday;
-  const isToday = date.toISOString().split('T')[0] === simulatedToday.toISOString().split('T')[0];
+  const isToday = getLocalDateString(date) === getLocalDateString(simulatedToday);
 
 
   const formatCurrency = (value: number) => {

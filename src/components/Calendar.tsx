@@ -85,7 +85,7 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeek
     
     for (let day = 1; day <= daysInMonth; day++) {
       const currentDate = new Date(year, month, day);
-      const dateString = currentDate.toISOString().split('T')[0];
+      const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
       const deliveriesOnThisDate = deliveriesByDate.get(dateString) || [];
       
       const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 6 = Saturday

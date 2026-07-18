@@ -140,7 +140,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
         const now = new Date();
         const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-        const currentDate = now.toISOString().split('T')[0];
+        const currentDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
         try {
             if (!matchedOrder.exitTime) {
@@ -555,7 +555,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
         const now = new Date();
         const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-        const currentDate = now.toISOString().split('T')[0];
+        const currentDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
         try {
             if (actionType === 'exit') {
@@ -608,7 +608,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     const handleQuickRegister = async (order: VehicleExitOrder, type: 'exit' | 'return') => {
         const now = new Date();
         const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-        const currentDate = now.toISOString().split('T')[0];
+        const currentDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
         if (type === 'exit') {
             // Se não houver validação, permitimos mas podemos deixar um aviso ou apenas registrar

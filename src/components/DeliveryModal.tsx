@@ -20,6 +20,7 @@ interface DeliveryModalProps {
 const DeliveryModal: React.FC<DeliveryModalProps> = ({ date, onClose, onSave, monthlyQuotas }) => {
   const [time, setTime] = useState('08:00');
   const [observations, setObservations] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const handlePlayGuide = async () => {
     const text = "Para agendar sua entrega, escolha um horário entre as 8 da manhã e as 4 da tarde no campo indicado. Depois de escolher o horário, clique no botão verde 'Salvar Agendamento' para confirmar.";
@@ -28,12 +29,14 @@ const DeliveryModal: React.FC<DeliveryModalProps> = ({ date, onClose, onSave, mo
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
 
     if (time < '08:00' || time > '16:00') {
       alert('O horário da entrega deve ser entre 08:00 e 16:00.');
       return;
     }
     
+    setIsSaving(true);
     onSave(time, observations);
   };
   
@@ -113,8 +116,10 @@ const DeliveryModal: React.FC<DeliveryModalProps> = ({ date, onClose, onSave, mo
           </div>
           
           <div className="pt-4 flex justify-end space-x-3">
-            <button type="button" onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition-colors">Cancelar</button>
-            <button type="submit" className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Salvar Agendamento</button>
+            <button type="button" disabled={isSaving} onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Cancelar</button>
+            <button type="submit" disabled={isSaving} className={`bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}>
+              {isSaving ? 'Salvando...' : 'Salvar Agendamento'}
+            </button>
           </div>
         </form>
       </div>
