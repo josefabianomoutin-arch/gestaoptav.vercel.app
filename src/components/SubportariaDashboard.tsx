@@ -18,8 +18,15 @@ interface SubportariaDashboardProps {
   vehicleAssets: VehicleAsset[];
   driverAssets: DriverAsset[];
   validationRoles: ValidationRole[];
+  onRegisterVehicleExitOrder?: (order: Omit<VehicleExitOrder, 'id'>) => Promise<{ success: boolean; message: string; id?: string }>;
   onUpdateVehicleExitOrder: (order: VehicleExitOrder) => Promise<{ success: boolean; message: string }>;
   onDeleteVehicleExitOrder: (id: string) => Promise<{ success: boolean; message: string }>;
+  onRegisterVehicleAsset?: (asset: Omit<VehicleAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
+  onUpdateVehicleAsset?: (asset: VehicleAsset) => Promise<{ success: boolean; message: string }>;
+  onDeleteVehicleAsset?: (id: string) => Promise<{ success: boolean; message: string }>;
+  onRegisterDriverAsset?: (asset: Omit<DriverAsset, 'id'>) => Promise<{ success: boolean; message: string }>;
+  onUpdateDriverAsset?: (asset: DriverAsset) => Promise<{ success: boolean; message: string }>;
+  onDeleteDriverAsset?: (id: string) => Promise<{ success: boolean; message: string }>;
   systemPasswords?: Record<string, string>;
   onUpdateSystemPassword?: (key: string, value: string) => Promise<void>;
   [key: string]: any;
@@ -35,8 +42,15 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
     vehicleAssets,
     driverAssets,
     validationRoles,
+    onRegisterVehicleExitOrder,
     onUpdateVehicleExitOrder,
     onDeleteVehicleExitOrder,
+    onRegisterVehicleAsset,
+    onUpdateVehicleAsset,
+    onDeleteVehicleAsset,
+    onRegisterDriverAsset,
+    onUpdateDriverAsset,
+    onDeleteDriverAsset,
     systemPasswords = {},
     onUpdateSystemPassword = async () => {},
     onUpdateDelivery,
@@ -173,18 +187,18 @@ const SubportariaDashboard: React.FC<SubportariaDashboardProps> = ({
                             <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tighter italic mb-4">Gestão de Saída de Veículos</h2>
                             <AdminVehicleExitOrder 
                                 orders={vehicleExitOrders} 
-                                onRegister={async () => ({ success: true, message: 'OK' })}
+                                onRegister={onRegisterVehicleExitOrder || (async () => ({ success: false, message: 'Função de registro não fornecida' }))}
                                 onUpdate={onUpdateVehicleExitOrder} 
                                 onDelete={onDeleteVehicleExitOrder}
                                 allowDelete={true}
                                 vehicleAssets={vehicleAssets}
-                                onRegisterVehicleAsset={async () => ({ success: true, message: 'OK' })}
-                                onUpdateVehicleAsset={async () => ({ success: true, message: 'OK' })}
-                                onDeleteVehicleAsset={async () => ({ success: true, message: 'OK' })}
+                                onRegisterVehicleAsset={onRegisterVehicleAsset || (async () => ({ success: false, message: 'Não permitido' }))}
+                                onUpdateVehicleAsset={onUpdateVehicleAsset || (async () => ({ success: false, message: 'Não permitido' }))}
+                                onDeleteVehicleAsset={onDeleteVehicleAsset || (async () => ({ success: false, message: 'Não permitido' }))}
                                 driverAssets={driverAssets}
-                                onRegisterDriverAsset={async () => ({ success: true, message: 'OK' })}
-                                onUpdateDriverAsset={async () => ({ success: true, message: 'OK' })}
-                                onDeleteDriverAsset={async () => ({ success: true, message: 'OK' })}
+                                onRegisterDriverAsset={onRegisterDriverAsset || (async () => ({ success: false, message: 'Não permitido' }))}
+                                onUpdateDriverAsset={onUpdateDriverAsset || (async () => ({ success: false, message: 'Não permitido' }))}
+                                onDeleteDriverAsset={onDeleteDriverAsset || (async () => ({ success: false, message: 'Não permitido' }))}
                                 validationRoles={validationRoles}
                             />
                         </motion.div>

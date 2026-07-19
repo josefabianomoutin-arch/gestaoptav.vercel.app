@@ -3714,6 +3714,12 @@ const App: React.FC = () => {
           vehicleAssets={vehicleAssets}
           driverAssets={driverAssets}
           validationRoles={validationRoles}
+          onRegisterVehicleExitOrder={async (order) => {
+            const r = push(vehicleExitOrdersRef);
+            const id = r.key || `order-${Date.now()}`;
+            await set(r, { ...order, id });
+            return { success: true, message: 'Ordem de saída registrada', id };
+          }}
           onUpdateVehicleExitOrder={async (order) => {
             await set(child(vehicleExitOrdersRef, order.id), order);
             return { success: true, message: 'Atualizado' };
@@ -3721,6 +3727,32 @@ const App: React.FC = () => {
           onDeleteVehicleExitOrder={async (id) => {
             await remove(child(vehicleExitOrdersRef, id));
             return { success: true, message: 'Ordem de Saída excluída' };
+          }}
+          onRegisterVehicleAsset={async (v) => {
+            const r = push(vehicleAssetsRef);
+            await set(r, { ...v, id: r.key });
+            return { success: true, message: 'Veículo registrado' };
+          }}
+          onUpdateVehicleAsset={async (v) => {
+            await set(child(vehicleAssetsRef, v.id), v);
+            return { success: true, message: 'Atualizado' };
+          }}
+          onDeleteVehicleAsset={async (id) => {
+            await remove(child(vehicleAssetsRef, id));
+            return { success: true, message: 'Veículo excluído' };
+          }}
+          onRegisterDriverAsset={async (d) => {
+            const r = push(driverAssetsRef);
+            await set(r, { ...d, id: r.key });
+            return { success: true, message: 'Motorista registrado' };
+          }}
+          onUpdateDriverAsset={async (d) => {
+            await set(child(driverAssetsRef, d.id), d);
+            return { success: true, message: 'Atualizado' };
+          }}
+          onDeleteDriverAsset={async (id) => {
+            await remove(child(driverAssetsRef, id));
+            return { success: true, message: 'Motorista excluído' };
           }}
           onDeleteThirdPartyEntry={async (id) => {
             await remove(child(thirdPartyEntriesRef, id));
