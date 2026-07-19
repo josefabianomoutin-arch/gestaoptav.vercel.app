@@ -40,6 +40,7 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
   const normalizedContractItems = useMemo(() => {
     const raw = ensureArray<ContractItem>(contractItems);
     const seenIds = new Set<string>();
+    let dupCounter = 1;
     return raw.map((ci, idx) => {
       const cleanName = ci.name || (ci as any).itemName || (ci as any).item || `Item ${idx + 1}`;
       const slugName = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -47,7 +48,7 @@ const EditInvoiceItemsModal: React.FC<EditInvoiceItemsModalProps> = ({
 
       let uniqueId = rawId ? rawId : `ci-idx-${idx}-${slugName}`;
       if (seenIds.has(uniqueId)) {
-        uniqueId = `ci-idx-${idx}-${slugName || Math.random().toString(36).substring(2, 6)}`;
+        uniqueId = `ci-idx-${idx}-${slugName || 'item'}-dup-${dupCounter++}`;
       }
       seenIds.add(uniqueId);
 

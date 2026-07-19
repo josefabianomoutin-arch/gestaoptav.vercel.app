@@ -1155,7 +1155,14 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         }
 
         if (editingOrder) {
-            await onUpdate({ ...finalData, id: editingOrder.id });
+            const orderStatus = finalData.returnTime ? 'concluida' as const : 'aberta' as const;
+            await onUpdate({
+                ...editingOrder,
+                ...finalData,
+                status: orderStatus,
+                id: editingOrder.id,
+                checklist: editingOrder.checklist || undefined
+            });
             setIsModalOpen(false);
             setEditingOrder(null);
             setFormData({

@@ -240,6 +240,62 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [toolScanFeedback, setToolScanFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
     const [isToolScannerActive, setIsToolScannerActive] = useState(false);
 
+    const handleScanBarcode = (scannedValue: string) => {
+        const val = scannedValue.trim().toUpperCase();
+        if (!val) return;
+
+        // Try to find the tool
+        const matchedTool = tools.find(t => {
+            const toolBarcode = String(t.barcode || '').trim().toUpperCase();
+            const toolReg = String(t.registerNumber || '').trim().toUpperCase();
+            const toolCode = String(t.toolCode || '').trim().toUpperCase();
+            return toolBarcode === val || toolReg === val || toolCode === val;
+        });
+
+        if (matchedTool) {
+            // Determine operation type automatically:
+            // If the tool is DISPONÍVEL -> it's a RETIRADA (Exit)
+            // If the tool is EMPRESTADO -> it's a DEVOLUÇÃO (Entry)
+            let autoType: 'RETIRADA' | 'DEVOLUÇÃO' = 'RETIRADA';
+            let messageExtra: string;
+
+            if (matchedTool.status === 'DISPONÍVEL') {
+                autoType = 'RETIRADA';
+                messageExtra = 'Identificado para SAÍDA (RETIRADA)';
+            } else if (matchedTool.status === 'EMPRESTADO') {
+                autoType = 'DEVOLUÇÃO';
+                messageExtra = 'Identificado para ENTRADA (DEVOLUÇÃO)';
+            } else {
+                autoType = 'DEVOLUÇÃO';
+                messageExtra = `Atenção: Status "${matchedTool.status}". Defina a operação desejada.`;
+            }
+
+            setNewMovement(prev => ({
+                ...prev,
+                toolId: matchedTool.id,
+                type: autoType,
+            }));
+
+            setToolScanFeedback({
+                type: matchedTool.status === 'DANIFICADO' || matchedTool.status === 'MANUTENÇÃO' ? 'info' : 'success',
+                message: `✅ SUCESSO: ${matchedTool.name} (CAD: ${matchedTool.registerNumber}) selecionada! ${messageExtra}.`
+            });
+
+            // Focus on collaborator name input
+            setTimeout(() => {
+                const nameInput = document.getElementById('tool-movement-person-name');
+                if (nameInput) {
+                    nameInput.focus();
+                }
+            }, 100);
+        } else {
+            setToolScanFeedback({
+                type: 'error',
+                message: `❌ ERRO: Nenhuma ferramenta encontrada com o código "${val}".`
+            });
+        }
+    };
+
     useEffect(() => {
         const db = getDatabase(app);
         const toolsRef = ref(db, 'tools');
@@ -442,62 +498,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         } catch (err) {
             console.error("Error deleting tool:", err);
             alert("Erro ao remover ferramenta.");
-        }
-    };
-
-    const handleScanBarcode = (scannedValue: string) => {
-        const val = scannedValue.trim().toUpperCase();
-        if (!val) return;
-
-        // Try to find the tool
-        const matchedTool = tools.find(t => {
-            const toolBarcode = String(t.barcode || '').trim().toUpperCase();
-            const toolReg = String(t.registerNumber || '').trim().toUpperCase();
-            const toolCode = String(t.toolCode || '').trim().toUpperCase();
-            return toolBarcode === val || toolReg === val || toolCode === val;
-        });
-
-        if (matchedTool) {
-            // Determine operation type automatically:
-            // If the tool is DISPONÍVEL -> it's a RETIRADA (Exit)
-            // If the tool is EMPRESTADO -> it's a DEVOLUÇÃO (Entry)
-            let autoType: 'RETIRADA' | 'DEVOLUÇÃO' = 'RETIRADA';
-            let messageExtra = '';
-
-            if (matchedTool.status === 'DISPONÍVEL') {
-                autoType = 'RETIRADA';
-                messageExtra = 'Identificado para SAÍDA (RETIRADA)';
-            } else if (matchedTool.status === 'EMPRESTADO') {
-                autoType = 'DEVOLUÇÃO';
-                messageExtra = 'Identificado para ENTRADA (DEVOLUÇÃO)';
-            } else {
-                autoType = 'DEVOLUÇÃO';
-                messageExtra = `Atenção: Status "${matchedTool.status}". Defina a operação desejada.`;
-            }
-
-            setNewMovement(prev => ({
-                ...prev,
-                toolId: matchedTool.id,
-                type: autoType,
-            }));
-
-            setToolScanFeedback({
-                type: matchedTool.status === 'DANIFICADO' || matchedTool.status === 'MANUTENÇÃO' ? 'info' : 'success',
-                message: `✅ SUCESSO: ${matchedTool.name} (CAD: ${matchedTool.registerNumber}) selecionada! ${messageExtra}.`
-            });
-
-            // Focus on collaborator name input
-            setTimeout(() => {
-                const nameInput = document.getElementById('tool-movement-person-name');
-                if (nameInput) {
-                    nameInput.focus();
-                }
-            }, 100);
-        } else {
-            setToolScanFeedback({
-                type: 'error',
-                message: `❌ ERRO: Nenhuma ferramenta encontrada com o código "${val}".`
-            });
         }
     };
 
@@ -951,7 +951,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         const expectedDateStr = getFirstBusinessDayOfWeek(selectedYear, monthIndex, week);
                         
                         let displayDate = expectedDateStr;
-                        let dateWithWeek = expectedDateStr;
+                        let dateWithWeek: string;
                         if (expectedDateStr.includes('/')) {
                             dateWithWeek = `${expectedDateStr} (SEMANA ${week} - PREVISTO)`;
                         } else {
@@ -1017,7 +1017,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
     // --- Manual Cronograma Handlers and Memos ---
     const filteredManualCronSuppliers = useMemo(() => {
-        let combined: any[] = [...ensureArray(suppliers)];
+        const combined: any[] = [...ensureArray(suppliers)];
         const ppais = ensureArray(perCapitaConfig?.ppaisProducers || []);
         const pereciveis = ensureArray(perCapitaConfig?.pereciveisSuppliers || []);
         const estocaveis = ensureArray(perCapitaConfig?.estocaveisSuppliers || []);
@@ -1045,8 +1045,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         if (cronogramaSubTab !== 'manual') return;
         const cleanedCpf = cleanCpf(manualCronSupplierCpfCnpj);
         if (!cleanedCpf) {
-            setManualCronItems([]);
-            return;
+            const t = setTimeout(() => {
+                setManualCronItems([]);
+            }, 0);
+            return () => clearTimeout(t);
         }
 
         const fetchManualCron = async () => {
