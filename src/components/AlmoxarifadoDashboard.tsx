@@ -18,7 +18,7 @@ import AdminCleaningLog from './AdminCleaningLog';
 import { SegregationTabContent } from './SegregationTabContent';
 import { DirectorPerCapitaTable } from './DirectorPerCapitaTable';
 import { getWeekNumber } from '../lib/supplierUtils';
-import { ensureArray } from '../lib/utils';
+import { ensureArray, generateStandardLabelStyles } from '../lib/utils';
 
 interface AlmoxarifadoDashboardProps {
     currentUser: { name: string; cpf: string; role: string };
@@ -2086,40 +2086,47 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 <title>Etiquetas - NF ${receiptData.invoiceNumber}</title>
                 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
                 <style>
-                    @page { size: 100mm 50mm; margin: 0; }
-                    body { margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: white; }
-                    .label-card {
-                        width: 100mm; height: 50mm;
-                        padding: 2mm 4mm; box-sizing: border-box;
-                        display: flex; flex-direction: column;
-                        border: 0.1mm solid #eee;
-                        page-break-after: always;
-                    }
-                    h1 { font-size: 11pt; margin: 0 0 1mm 0; font-weight: 900; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 0.3mm solid #000; padding-bottom: 0.5mm; }
-                    h2 { font-size: 7.5pt; margin: 0.5mm 0 1.5mm 0; font-weight: bold; text-transform: uppercase; color: #333; }
-                    .info { font-size: 7.5pt; line-height: 1.1; flex-grow: 1; }
-                    .info p { margin: 0.2mm 0; display: flex; justify-content: space-between; }
-                    .info strong { font-weight: 900; text-transform: uppercase; margin-right: 1mm; }
-                    .barcode-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-                    .barcode-svg { max-width: 90%; height: 14mm !important; }
+                    ${generateStandardLabelStyles()}
                 </style>
             </head>
             <body>
-                ${receiptData.items.map((item, idx) => `
+                ${receiptData.items.map((item, idx) => {
+                    const lotNum = (receiptData as any).items[idx].lotNumber || 'UNICO';
+                    const expText = item.expiration ? item.expiration.split('-').reverse().join('/') : 'N/A';
+                    return `
                     <div class="label-card">
-                        <h1>${item.name.split(' ').slice(0, 4).join(' ')}</h1>
-                        <h2>${receiptData!.supplierName}</h2>
-                        <div class="info">
-                            <p><strong>LOTE:</strong> <span>${(receiptData as any).items[idx].lotNumber || 'UNICO'}</span></p>
-                            <p><strong>VAL:</strong> <span>${item.expiration ? item.expiration.split('-').reverse().join('/') : 'N/A'}</span></p>
-                            <p><strong>QUANT:</strong> <span>${(item.quantity || 0).toFixed(2)} ${item.unit || 'kg'}</span> / <strong>DOC:</strong> <span>${receiptData!.invoiceNumber}</span></p>
-                            <p><strong>PROCESSO:</strong> <span>${receiptData!.processoSei || 'N/A'}</span></p>
+                        <div class="header-row">
+                            <h1 class="item-title" title="${item.name}">${item.name}</h1>
+                            <span class="tag-badge">ENTRADA NF</span>
                         </div>
+
+                        <div class="destaque-box">
+                            <div class="destaque-col">
+                                <span class="destaque-label">LOTE</span>
+                                <span class="destaque-val">${lotNum}</span>
+                            </div>
+                            <div class="destaque-divider"></div>
+                            <div class="destaque-col">
+                                <span class="destaque-label">VALIDADE</span>
+                                <span class="destaque-val">${expText}</span>
+                            </div>
+                        </div>
+
+                        <div class="info-body">
+                            <p class="info-line"><strong>FORNECEDOR:</strong> <span>${receiptData!.supplierName}</span></p>
+                            <p class="info-line">
+                                <strong>QUANT:</strong> <span>${(item.quantity || 0).toFixed(2)} ${item.unit || 'kg'}</span>
+                                <strong style="margin-left: 8px;">DOC/NF:</strong> <span>${receiptData!.invoiceNumber}</span>
+                            </p>
+                            ${receiptData!.processoSei ? `<p class="info-line"><strong>PROCESSO SEI:</strong> <span>${receiptData!.processoSei}</span></p>` : ''}
+                        </div>
+
                         <div class="barcode-container">
                             <svg id="barcode-${idx}" class="barcode-svg"></svg>
                         </div>
                     </div>
-                `).join('')}
+                    `;
+                }).join('')}
                 <script>
                     window.onload = function() {
                         try {

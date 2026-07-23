@@ -18,6 +18,7 @@ import {
   Database
 } from 'lucide-react';
 import AdminCleaningLog from './AdminCleaningLog';
+import { getPrintableLotDetails, generateStandardLabelStyles } from '../lib/utils';
 
 interface RowItem {
   index: number;
@@ -1050,83 +1051,6 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       .toUpperCase();
   };
 
-  const getMatchScore = (requestedName: string, logName: string): number => {
-    const reqNorm = normalizeText(requestedName);
-    const logNorm = normalizeText(logName);
-    if (!reqNorm || !logNorm) return 0;
-    if (reqNorm === logNorm) return 100;
-
-    const reqWords = reqNorm.split(' ').filter(Boolean);
-    const logWords = logNorm.split(' ').filter(Boolean);
-
-    if (reqWords.length === 0 || logWords.length === 0) return 0;
-
-    const reqFirstTwo = reqWords.slice(0, 2).join(' ');
-    const logFirstTwo = logWords.slice(0, 2).join(' ');
-    if (reqFirstTwo && logFirstTwo && reqFirstTwo === logFirstTwo) return 90;
-
-    if (logNorm.includes(reqNorm)) return 80;
-    if (reqNorm.includes(logNorm)) return 70;
-
-    if (reqWords[0] === logWords[0]) return 50;
-
-    const reqFirstWordChars = reqWords[0].slice(0, 4);
-    const logFirstWordChars = logWords[0].slice(0, 4);
-    if (reqFirstWordChars && logFirstWordChars && reqFirstWordChars === logFirstWordChars) return 40;
-
-    const sharedWords = reqWords.filter(w => logWords.includes(w));
-    if (sharedWords.length > 0) {
-      return 20 + sharedWords.length;
-    }
-
-    return 0;
-  };
-
-  const getPrintableLotDetails = (itemName: string) => {
-    if (!itemName || !itemName.trim()) return null;
-
-    const candidates: Array<{ log: any; score: number }> = [];
-
-    (warehouseLog || []).forEach((log: any) => {
-      if (!log) return;
-      const logItemName = log.itemName || log.item || '';
-      if (!logItemName) return;
-
-      const score = getMatchScore(itemName, logItemName);
-      if (score >= 35) { // broad matching threshold
-        candidates.push({ log, score });
-      }
-    });
-
-    if (candidates.length === 0) {
-      return null;
-    }
-
-    // Filtrar apenas pelos registros de entrada (Nota Fiscal que deu entrada no sistema)
-    const entradas = candidates.filter(c => c.log.type === 'entrada');
-
-    if (entradas.length > 0) {
-      // Ordena de forma a priorizar o score alto (melhor correspondência) e o timestamp decrescente (última nota a entrar)
-      entradas.sort((a, b) => {
-        const scoreDiff = b.score - a.score;
-        // Se a diferença de score for sutil (p. ex., até 15 pontos), prioriza o que for mais recente (último que entrou)
-        if (Math.abs(scoreDiff) > 15) {
-          return scoreDiff;
-        }
-        return (b.log.timestamp || 0) - (a.log.timestamp || 0);
-      });
-      return entradas[0].log;
-    }
-
-    // Fallback: se não houver nenhum registro do tipo 'entrada', ordena todos os candidatos por score e data de registro decrescente
-    candidates.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return (b.log.timestamp || 0) - (a.log.timestamp || 0);
-    });
-
-    return candidates[0].log;
-  };
-
   const handlePrintAllItemLabels = (itemsList: RowItem[]) => {
     const validItems = (itemsList || []).filter(item => item && item.itemName && item.itemName.trim() !== '');
     if (validItems.length === 0) {
@@ -1140,13 +1064,17 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       return;
     }
 
+    const isAlim = categoryTab === 'alimentacao';
+    const subTabTitle = activeSubTab === 'chefeDep' ? 'Walter' : 'Willian';
+    const tagText = `COTA ${subTabTitle.toUpperCase()}`;
+
     const cardsHtml = validItems.map((item, idx) => {
-      let lotDetails = getPrintableLotDetails(item.itemName);
+      let lotDetails = getPrintableLotDetails(item.itemName, warehouseLog);
       if (!lotDetails) {
         lotDetails = generateFallbackDetails(item.itemName, item.quantity);
       }
 
-      const itemNameFormatted = (lotDetails.itemName || lotDetails.item || item.itemName).split(' ').slice(0, 4).join(' ');
+      const fullItemName = lotDetails.itemName || lotDetails.item || item.itemName;
       const supplierNameFormatted = lotDetails.supplierName || 'SEM FORNECEDOR';
       const lotNumberFormatted = lotDetails.lotNumber || lotDetails.lot || 'UNICO';
       const expirationFormatted = lotDetails.expirationDate || lotDetails.expiration || '';
@@ -1161,32 +1089,44 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       const barcodeFormatted = lotDetails.barcode || 'N/A';
       const dateFormatted = lotDetails.date ? lotDetails.date.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
 
+      const cardId = `barcode-item-${idx}`;
+
       return {
         html: `
             <div class="label-card">
-                <h1 style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 1px 0;">
-                   <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%;">${itemNameFormatted}</span>
-                   <span class="tag-cota">COTA DIRETOR</span>
-                </h1>
-                <h2>${supplierNameFormatted}</h2>
-                <div class="info">
-                    <p><strong>LOTE:</strong> <span>${lotNumberFormatted}</span></p>
-                    <p><strong>VAL:</strong> <span>${formattedExpiration}</span></p>
-                    <p><strong>QUANT:</strong> <span>${qtyText} ${unitFormatted}</span> / <strong>DOC:</strong> <span>${invoiceNumberFormatted}</span></p>
-                    <p><strong>DATA:</strong> <span>${dateFormatted}</span></p>
+                <div class="header-row">
+                   <h1 class="item-title" title="${fullItemName}">${fullItemName}</h1>
+                   <span class="tag-badge">${tagText}</span>
+                </div>
+                <div class="destaque-box">
+                   <div class="destaque-col">
+                      <span class="destaque-label">LOTE</span>
+                      <span class="destaque-val">${lotNumberFormatted}</span>
+                   </div>
+                   <div class="destaque-divider"></div>
+                   <div class="destaque-col">
+                      <span class="destaque-label">VALIDADE</span>
+                      <span class="destaque-val">${formattedExpiration}</span>
+                   </div>
+                </div>
+                <div class="info-body">
+                   <p class="info-line"><strong>FORNECEDOR:</strong> <span>${supplierNameFormatted}</span></p>
+                   <p class="info-line">
+                      <strong>QUANT:</strong> <span>${qtyText} ${unitFormatted}</span>
+                      <strong style="margin-left: 8px;">DOC/NF:</strong> <span>${invoiceNumberFormatted}</span>
+                      <strong style="margin-left: 8px;">DATA:</strong> <span>${dateFormatted}</span>
+                   </p>
                 </div>
                 <div class="barcode-container">
-                    <svg id="barcode-item-${idx}" class="barcode-svg"></svg>
+                   <svg id="${cardId}" class="barcode-svg"></svg>
                 </div>
             </div>
         `,
-        barcodeId: `#barcode-item-${idx}`,
+        barcodeId: `#${cardId}`,
         barcodeValue: barcodeFormatted
       };
     });
 
-    const isAlim = categoryTab === 'alimentacao';
-    const subTabTitle = activeSubTab === 'chefeDep' ? 'Walter' : 'Willian';
     const title = `Etiquetas Cota ${subTabTitle} - ${isAlim ? 'ALIMENTAÇÃO' : 'LIMPEZA'}`;
 
     const barcodesScripts = cardsHtml.map(card => `
@@ -1205,26 +1145,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
             <title>${title}</title>
             <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
             <style>
-                @page { size: 100mm 50mm; margin: 0; }
-                body { margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: white; }
-                .label-card {
-                    width: 100mm; height: 50mm;
-                    padding: 2mm 4mm; box-sizing: border-box;
-                    display: flex; flex-direction: column;
-                    border: 0.1mm solid #eee;
-                    page-break-after: always;
-                }
-                .label-card:last-child {
-                    page-break-after: avoid;
-                }
-                h1 { font-size: 11pt; margin: 0 0 1mm 0; font-weight: 950; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 0.3mm solid #000; padding-bottom: 0.5mm; }
-                h2 { font-size: 7.5pt; margin: 0.5mm 0 1.5mm 0; font-weight: bold; text-transform: uppercase; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                .info { font-size: 7.5pt; line-height: 1.1; flex-grow: 1; }
-                .info p { margin: 0.2mm 0; display: flex; justify-content: space-between; }
-                .info strong { font-weight: 900; text-transform: uppercase; margin-right: 1mm; }
-                .barcode-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-                .barcode-svg { max-width: 90%; height: 14mm !important; }
-                .tag-cota { background-color: #000; color: #fff; padding: 0.2mm 1.2mm; font-size: 6.5pt; font-weight: 900; border-radius: 0.5mm; text-transform: uppercase; }
+                ${generateStandardLabelStyles()}
             </style>
         </head>
         <body>
@@ -1244,7 +1165,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   };
 
   const handlePrintItemLabel = (item: RowItem) => {
-    let lotDetails = getPrintableLotDetails(item.itemName);
+    let lotDetails = getPrintableLotDetails(item.itemName, warehouseLog);
     
     // Fallback descriptor if no item lot was logged in warehouseLog
     if (!lotDetails) {
@@ -1257,7 +1178,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       return;
     }
 
-    const itemNameFormatted = (lotDetails.itemName || lotDetails.item || item.itemName).split(' ').slice(0, 4).join(' ');
+    const fullItemName = lotDetails.itemName || lotDetails.item || item.itemName;
     const supplierNameFormatted = lotDetails.supplierName || 'SEM FORNECEDOR';
     const lotNumberFormatted = lotDetails.lotNumber || lotDetails.lot || 'UNICO';
     const expirationFormatted = lotDetails.expirationDate || lotDetails.expiration || '';
@@ -1272,45 +1193,46 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     const barcodeFormatted = lotDetails.barcode || 'N/A';
     const dateFormatted = lotDetails.date ? lotDetails.date.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
 
+    const isAlim = categoryTab === 'alimentacao';
+    const subTabTitle = activeSubTab === 'chefeDep' ? 'Walter' : 'Willian';
+    const tagText = `COTA ${subTabTitle.toUpperCase()}`;
+
     const htmlContent = `
         <html>
         <head>
-            <title>Etiqueta de Cota - ${itemNameFormatted}</title>
+            <title>Etiqueta de Cota - ${fullItemName}</title>
             <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
             <style>
-                @page { size: 100mm 50mm; margin: 0; }
-                body { margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: white; }
-                .label-card {
-                    width: 100mm; height: 50mm;
-                    padding: 2mm 4mm; box-sizing: border-box;
-                    display: flex; flex-direction: column;
-                    border: 0.1mm solid #eee;
-                }
-                h1 { font-size: 11pt; margin: 0 0 1mm 0; font-weight: 950; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 0.3mm solid #000; padding-bottom: 0.5mm; }
-                h2 { font-size: 7.5pt; margin: 0.5mm 0 1.5mm 0; font-weight: bold; text-transform: uppercase; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                .info { font-size: 7.5pt; line-height: 1.1; flex-grow: 1; }
-                .info p { margin: 0.2mm 0; display: flex; justify-content: space-between; }
-                .info strong { font-weight: 900; text-transform: uppercase; margin-right: 1mm; }
-                .barcode-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-                .barcode-svg { max-width: 90%; height: 14mm !important; }
-                .tag-cota { background-color: #000; color: #fff; padding: 0.2mm 1.2mm; font-size: 6.5pt; font-weight: 900; border-radius: 0.5mm; text-transform: uppercase; }
+                ${generateStandardLabelStyles()}
             </style>
         </head>
         <body>
             <div class="label-card">
-                <h1 style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 1px 0;">
-                   <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%;">${itemNameFormatted}</span>
-                   <span class="tag-cota">COTA DIRETOR</span>
-                </h1>
-                <h2>${supplierNameFormatted}</h2>
-                <div class="info">
-                    <p><strong>LOTE:</strong> <span>${lotNumberFormatted}</span></p>
-                    <p><strong>VAL:</strong> <span>${formattedExpiration}</span></p>
-                    <p><strong>QUANT:</strong> <span>${qtyText} ${unitFormatted}</span> / <strong>DOC:</strong> <span>${invoiceNumberFormatted}</span></p>
-                    <p><strong>DATA:</strong> <span>${dateFormatted}</span></p>
+                <div class="header-row">
+                   <h1 class="item-title" title="${fullItemName}">${fullItemName}</h1>
+                   <span class="tag-badge">${tagText}</span>
+                </div>
+                <div class="destaque-box">
+                   <div class="destaque-col">
+                      <span class="destaque-label">LOTE</span>
+                      <span class="destaque-val">${lotNumberFormatted}</span>
+                   </div>
+                   <div class="destaque-divider"></div>
+                   <div class="destaque-col">
+                      <span class="destaque-label">VALIDADE</span>
+                      <span class="destaque-val">${formattedExpiration}</span>
+                   </div>
+                </div>
+                <div class="info-body">
+                   <p class="info-line"><strong>FORNECEDOR:</strong> <span>${supplierNameFormatted}</span></p>
+                   <p class="info-line">
+                      <strong>QUANT:</strong> <span>${qtyText} ${unitFormatted}</span>
+                      <strong style="margin-left: 8px;">DOC/NF:</strong> <span>${invoiceNumberFormatted}</span>
+                      <strong style="margin-left: 8px;">DATA:</strong> <span>${dateFormatted}</span>
+                   </p>
                 </div>
                 <div class="barcode-container">
-                    <svg id="barcode-item" class="barcode-svg"></svg>
+                   <svg id="barcode-item" class="barcode-svg"></svg>
                 </div>
             </div>
             <script>

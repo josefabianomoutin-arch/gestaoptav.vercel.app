@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { Supplier, DirectorPerCapitaLog } from '../types';
 import ConfirmModal from './ConfirmModal';
+import { getPrintableLotDetails } from '../lib/utils';
 
 interface AdminDirectorPerCapitaProps {
   suppliers: Supplier[];
@@ -14,88 +15,6 @@ interface AdminDirectorPerCapitaProps {
 const formatCurrency = (value?: number) => {
     if (typeof value !== 'number' || isNaN(value)) return 'R$ 0,00';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-};
-
-const normalizeText = (t: string) => {
-  if (!t) return '';
-  return t
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[;,\-."']/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toUpperCase();
-};
-
-const getMatchScore = (requestedName: string, logName: string): number => {
-  const reqNorm = normalizeText(requestedName);
-  const logNorm = normalizeText(logName);
-  if (!reqNorm || !logNorm) return 0;
-  if (reqNorm === logNorm) return 100;
-
-  const reqWords = reqNorm.split(' ').filter(Boolean);
-  const logWords = logNorm.split(' ').filter(Boolean);
-
-  if (reqWords.length === 0 || logWords.length === 0) return 0;
-
-  const reqFirstTwo = reqWords.slice(0, 2).join(' ');
-  const logFirstTwo = logWords.slice(0, 2).join(' ');
-  if (reqFirstTwo && logFirstTwo && reqFirstTwo === logFirstTwo) return 90;
-
-  if (logNorm.includes(reqNorm)) return 80;
-  if (reqNorm.includes(logNorm)) return 70;
-
-  if (reqWords[0] === logWords[0]) return 50;
-
-  const reqFirstWordChars = reqWords[0].slice(0, 4);
-  const logFirstWordChars = logWords[0].slice(0, 4);
-  if (reqFirstWordChars && logFirstWordChars && reqFirstWordChars === logFirstWordChars) return 40;
-
-  const sharedWords = reqWords.filter(w => logWords.includes(w));
-  if (sharedWords.length > 0) {
-    return 20 + sharedWords.length;
-  }
-
-  return 0;
-};
-
-const getPrintableLotDetails = (itemName: string, warehouseLog?: any[]) => {
-  if (!itemName || !itemName.trim() || !warehouseLog) return null;
-
-  const candidates: Array<{ log: any; score: number }> = [];
-
-  warehouseLog.forEach((log: any) => {
-    if (!log) return;
-    const logItemName = log.itemName || log.item || '';
-    if (!logItemName) return;
-
-    const score = getMatchScore(itemName, logItemName);
-    if (score >= 35) { // broad matching threshold
-      candidates.push({ log, score });
-    }
-  });
-
-  if (candidates.length === 0) {
-    return null;
-  }
-
-  const entradas = candidates.filter(c => c.log.type === 'entrada');
-
-  if (entradas.length > 0) {
-    entradas.sort((a, b) => {
-      const scoreDiff = b.score - a.score;
-      if (Math.abs(scoreDiff) > 15) {
-        return scoreDiff;
-      }
-      const dateA = a.log.timestamp || a.log.date || 0;
-      const dateB = b.log.timestamp || b.log.date || 0;
-      return dateB > dateA ? 1 : -1;
-    });
-    return entradas[0].log;
-  } else {
-    candidates.sort((a, b) => b.score - a.score);
-    return candidates[0].log;
-  }
 };
 
 const AdminDirectorPerCapita: React.FC<AdminDirectorPerCapitaProps> = ({ suppliers, directorPerCapita, warehouseLog, onDelete }) => {

@@ -11,7 +11,7 @@ import {
     ImageIcon
 } from 'lucide-react';
 import type { WarehouseMovement, Supplier } from '../types';
-import { roundToTwoDecimalPlaces, ensureArray } from '../lib/utils';
+import { roundToTwoDecimalPlaces, ensureArray, generateStandardLabelStyles } from '../lib/utils';
 import ConfirmModal from './ConfirmModal';
 
 const monthNamesInOrder = [
@@ -783,39 +783,49 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
+        const lotText = item.lotNumber || 'UNICO';
+        const expFormatted = item.expirationDate ? item.expirationDate.split('-').reverse().join('/') : 'N/A';
+        const docText = item.inboundInvoice || item.outboundInvoice || 'N/A';
+        const dateText = item.date ? item.date.split('-').reverse().join('/') : 'N/A';
+        const typeTag = (item.type || 'movimentacao').toUpperCase();
+
         const htmlContent = `
             <html>
             <head>
                 <title>Etiqueta - ${item.itemName}</title>
                 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
                 <style>
-                    @page { size: 100mm 50mm; margin: 0; }
-                    body { margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: white; }
-                    .label-card {
-                        width: 100mm; height: 50mm;
-                        padding: 2mm 4mm; box-sizing: border-box;
-                        display: flex; flex-direction: column;
-                        border: 0.1mm solid #eee;
-                    }
-                    h1 { font-size: 11pt; margin: 0 0 1mm 0; font-weight: 900; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 0.3mm solid #000; padding-bottom: 0.5mm; }
-                    h2 { font-size: 7.5pt; margin: 0.5mm 0 1.5mm 0; font-weight: bold; text-transform: uppercase; color: #333; }
-                    .info { font-size: 7.5pt; line-height: 1.1; flex-grow: 1; }
-                    .info p { margin: 0.2mm 0; display: flex; justify-content: space-between; }
-                    .info strong { font-weight: 900; text-transform: uppercase; margin-right: 1mm; }
-                    .barcode-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-                    .barcode-svg { max-width: 90%; height: 14mm !important; }
+                    ${generateStandardLabelStyles()}
                 </style>
             </head>
             <body>
                 <div class="label-card">
-                    <h1>${item.itemName.split(' ').slice(0, 4).join(' ')}</h1>
-                    <h2>${item.supplierName}</h2>
-                    <div class="info">
-                        <p><strong>LOTE:</strong> <span>${item.lotNumber}</span></p>
-                        <p><strong>VAL:</strong> <span>${item.expirationDate ? item.expirationDate.split('-').reverse().join('/') : 'N/A'}</span></p>
-                        <p><strong>QUANT:</strong> <span>${item.quantity.toFixed(2)} kg</span> / <strong>DOC:</strong> <span>${item.inboundInvoice || item.outboundInvoice || 'N/A'}</span></p>
-                        <p><strong>DATA:</strong> <span>${(item.date || '').split('-').reverse().join('/')}</span></p>
+                    <div class="header-row">
+                        <h1 class="item-title" title="${item.itemName}">${item.itemName}</h1>
+                        <span class="tag-badge">${typeTag}</span>
                     </div>
+
+                    <div class="destaque-box">
+                        <div class="destaque-col">
+                            <span class="destaque-label">LOTE</span>
+                            <span class="destaque-val">${lotText}</span>
+                        </div>
+                        <div class="destaque-divider"></div>
+                        <div class="destaque-col">
+                            <span class="destaque-label">VALIDADE</span>
+                            <span class="destaque-val">${expFormatted}</span>
+                        </div>
+                    </div>
+
+                    <div class="info-body">
+                        <p class="info-line"><strong>FORNECEDOR:</strong> <span>${item.supplierName || 'N/A'}</span></p>
+                        <p class="info-line">
+                            <strong>QUANT:</strong> <span>${(item.quantity || 0).toFixed(2)} kg</span>
+                            <strong style="margin-left: 8px;">DOC/NF:</strong> <span>${docText}</span>
+                            <strong style="margin-left: 8px;">DATA:</strong> <span>${dateText}</span>
+                        </p>
+                    </div>
+
                     <div class="barcode-container">
                         <svg id="barcode-item" class="barcode-svg"></svg>
                     </div>

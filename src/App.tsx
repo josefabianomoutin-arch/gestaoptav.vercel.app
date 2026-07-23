@@ -614,7 +614,23 @@ const App: React.FC = () => {
     // Agendamentos de Manutenção
     const unsubMaintenance = onValue(maintenanceSchedulesRef, (snapshot) => {
       const data = snapshot.val();
-      const list = data ? Object.values(data) : [];
+      const list = data ? Object.values(data) as MaintenanceSchedule[] : [];
+      
+      const hasCamaraFria = list.some(item => item.date === '2026-07-20' && item.description.toLowerCase().includes('câmara fria'));
+      if (!hasCamaraFria) {
+        const newRef = push(maintenanceSchedulesRef);
+        const seedItem: MaintenanceSchedule = {
+          id: newRef.key as string,
+          date: '2026-07-20',
+          description: 'Manutenção da Câmara Fria',
+          status: 'agendado',
+          location: 'Cozinha Industrial / UP',
+          time: '08:00',
+          accompanyingPerson: 'Equipe de Manutenção Técnica'
+        };
+        set(newRef, seedItem);
+      }
+
       setMaintenanceSchedules(list as MaintenanceSchedule[]);
       safeLocalStorageSetItem('cached_maintenanceSchedules', JSON.stringify(list));
     });

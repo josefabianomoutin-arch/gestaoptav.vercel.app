@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, X, Package, Calendar, FileText, Barcode, Copy, Printer, Trash2 } from 'lucide-react';
 import type { Supplier, WarehouseMovement } from '../types';
 import { toast } from 'sonner';
-import { safeLocalStorageSetItem } from '../lib/utils';
+import { safeLocalStorageSetItem, generateStandardLabelStyles } from '../lib/utils';
 
 interface WarehouseMovementFormProps {
     suppliers: Supplier[];
@@ -418,6 +418,10 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
         if (!printWindow) return;
 
         const balanceAfter = item.availableBefore ? (item.availableBefore - item.quantity) : null;
+        const supplierName = selectedSupplier?.name || 'FORNECEDOR';
+        const lotText = item.lot || 'UNICO';
+        const expFormatted = item.exp ? item.exp.split('-').reverse().join('/') : 'N/A';
+        const saidaDateFormatted = manualDate ? manualDate.split('-').reverse().join('/') : 'N/A';
 
         const htmlContent = `
             <html>
@@ -425,36 +429,38 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                 <title>Etiqueta - ${item.itemName}</title>
                 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
                 <style>
-                    @page { size: 100mm 50mm; margin: 0; }
-                    body { margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: white; }
-                    .label-card {
-                        width: 100mm; height: 50mm;
-                        padding: 2mm 4mm; box-sizing: border-box;
-                        display: flex; flex-direction: column;
-                        border: 0.1mm solid #eee;
-                    }
-                    h1 { font-size: 11pt; margin: 0 0 1mm 0; font-weight: 900; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 0.3mm solid #000; padding-bottom: 0.5mm; }
-                    h2 { font-size: 7.5pt; margin: 0.5mm 0 1.5mm 0; font-weight: bold; text-transform: uppercase; color: #333; }
-                    .info { font-size: 7.5pt; line-height: 1.1; flex-grow: 1; }
-                    .info p { margin: 0.2mm 0; display: flex; justify-content: space-between; }
-                    .info strong { font-weight: 900; text-transform: uppercase; margin-right: 1mm; }
-                    .barcode-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-                    .barcode-svg { max-width: 90%; height: 14mm !important; }
-                    .balance-box { border: 0.5mm solid #000; padding: 1mm; margin-top: 1mm; text-align: center; }
+                    ${generateStandardLabelStyles()}
                 </style>
             </head>
             <body>
                 <div class="label-card">
-                    <h1>${item.itemName.split(' ').slice(0, 4).join(' ')}</h1>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                        <h2>${selectedSupplier?.name || 'FORNECEDOR'}</h2>
-                        ${balanceAfter !== null ? `<div class="balance-box"><strong>SALDO RESTANTE:</strong> ${balanceAfter.toFixed(2)} kg</div>` : ''}
+                    <div class="header-row">
+                        <h1 class="item-title" title="${item.itemName}">${item.itemName}</h1>
+                        <span class="tag-badge">SAÍDA</span>
                     </div>
-                    <div class="info">
-                        <p><strong>LOTE:</strong> <span>${item.lot}</span></p>
-                        <p><strong>VAL:</strong> <span>${item.exp ? item.exp.split('-').reverse().join('/') : 'N/A'}</span> / <strong>SAÍDA:</strong> <span>${manualDate.split('-').reverse().join('/')}</span></p>
-                        <p><strong>RETIROU:</strong> <span>${item.quantity.toFixed(2)} kg</span> / <strong>ORIGEM NF:</strong> <span>${item.inboundInvoice || 'N/A'}</span></p>
+
+                    <div class="destaque-box">
+                        <div class="destaque-col">
+                            <span class="destaque-label">LOTE</span>
+                            <span class="destaque-val">${lotText}</span>
+                        </div>
+                        <div class="destaque-divider"></div>
+                        <div class="destaque-col">
+                            <span class="destaque-label">VALIDADE</span>
+                            <span class="destaque-val">${expFormatted}</span>
+                        </div>
                     </div>
+
+                    <div class="info-body">
+                        <p class="info-line"><strong>FORNECEDOR:</strong> <span>${supplierName}</span></p>
+                        <p class="info-line">
+                            <strong>RETIROU:</strong> <span>${item.quantity.toFixed(2)} kg</span>
+                            <strong style="margin-left: 6px;">SAÍDA:</strong> <span>${saidaDateFormatted}</span>
+                            <strong style="margin-left: 6px;">ORIGEM NF:</strong> <span>${item.inboundInvoice || 'N/A'}</span>
+                        </p>
+                        ${balanceAfter !== null ? `<p class="info-line"><strong>SALDO RESTANTE NO ESTOQUE:</strong> <span>${balanceAfter.toFixed(2)} kg</span></p>` : ''}
+                    </div>
+
                     <div class="barcode-container">
                         <svg id="barcode-item" class="barcode-svg"></svg>
                     </div>
@@ -492,51 +498,37 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
                 <title>Etiqueta de Saldo - ${itemText}</title>
                 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
                 <style>
-                    @page { size: 100mm 50mm; margin: 0; }
-                    body { margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; background: white; color: #000; }
-                    .label-card {
-                        width: 100mm; height: 50mm;
-                        padding: 3mm 5mm; box-sizing: border-box;
-                        display: flex; flex-direction: column;
-                        border: 0.1mm solid #000;
-                    }
-                    .header-row { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 0.4mm solid #000; padding-bottom: 1px; }
-                    h1 { font-size: 11pt; margin: 0; font-weight: 900; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; }
-                    .tag-saldo-label { background: #000; color: #fff; padding: 1px 4px; font-size: 7.5pt; font-weight: bold; text-transform: uppercase; border-radius: 2px; margin-left: 5px; }
-                    h2 { font-size: 7.5pt; margin: 1mm 0; font-weight: bold; text-transform: uppercase; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                    .info-grid { display: flex; flex-wrap: wrap; font-size: 7.5pt; line-height: 1.2; flex-grow: 1; margin-top: 1mm; }
-                    .info-col { width: 50%; box-sizing: border-box; }
-                    .info-col p { margin: 0.4mm 0; }
-                    .info-col strong { font-weight: 900; }
-                    .balance-box { border: 0.6mm solid #000; padding: 1.5mm 3mm; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 25mm; }
-                    .balance-val { font-size: 13pt; font-weight: 900; }
-                    .balance-title { font-size: 5pt; font-weight: bold; letter-spacing: 0.5px; }
-                    .barcode-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-                    .barcode-svg { max-width: 90%; height: 12mm !important; }
+                    ${generateStandardLabelStyles()}
                 </style>
             </head>
             <body>
                 <div class="label-card">
                     <div class="header-row">
-                        <h1 title="${itemText}">${itemText.split(' ').slice(0, 4).join(' ')}</h1>
-                        <span class="tag-saldo-label">SALDO RESTANTE</span>
+                        <h1 class="item-title" title="${itemText}">${itemText}</h1>
+                        <span class="tag-badge">SALDO RESTANTE</span>
                     </div>
-                    <h2>${supplierName}</h2>
-                    <div style="display: flex; gap: 4px; justify-content: space-between; align-items: center; flex-grow: 1;">
-                        <div class="info-grid">
-                            <div style="width: 100%;">
-                                <p><strong>REGISTRO:</strong> <span>ENTRADA DA NOTA</span></p>
-                                <p><strong>ORIGEM NF:</strong> <span>${nf.number || nf.nfNumber || 'N/A'}</span></p>
-                                <p><strong>LOTE:</strong> <span>${nf.lot || 'UNICO'}</span></p>
-                                <p><strong>VAL:</strong> <span>${expFormatted}</span></p>
-                                <p><strong>ENTRADA:</strong> <span>${entryDateFormatted}</span></p>
-                            </div>
+
+                    <div class="destaque-box">
+                        <div class="destaque-col">
+                            <span class="destaque-label">LOTE</span>
+                            <span class="destaque-val">${nf.lot || 'UNICO'}</span>
                         </div>
-                        <div class="balance-box">
-                            <span class="balance-title">O SALDO FICARÁ EM</span>
-                            <span class="balance-val">${qty.toFixed(2)} KG</span>
+                        <div class="destaque-divider"></div>
+                        <div class="destaque-col">
+                            <span class="destaque-label">VALIDADE</span>
+                            <span class="destaque-val">${expFormatted}</span>
                         </div>
                     </div>
+
+                    <div class="info-body">
+                        <p class="info-line"><strong>FORNECEDOR:</strong> <span>${supplierName}</span></p>
+                        <p class="info-line">
+                            <strong>ORIGEM NF:</strong> <span>${nf.number || nf.nfNumber || 'N/A'}</span>
+                            <strong style="margin-left: 8px;">ENTRADA:</strong> <span>${entryDateFormatted}</span>
+                        </p>
+                        <p class="info-line"><strong>SALDO DISPONÍVEL NO ESTOQUE:</strong> <span style="font-weight: 900; font-size: 8.5pt;">${qty.toFixed(2)} KG</span></p>
+                    </div>
+
                     <div class="barcode-container">
                         <svg id="barcode-item-stock" class="barcode-svg"></svg>
                     </div>
