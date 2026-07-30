@@ -64,12 +64,15 @@ const JulioDashboard: React.FC<JulioDashboardProps> = ({
   const todayStr = new Date().toISOString().split('T')[0];
 
   const vehiclesOutside = useMemo(() => {
-    return vehicleExitOrders.filter(o => o.exitTime && !o.returnTime);
+    return vehicleExitOrders.filter(o => o.exitTime && (!o.returnTime || o.returnTime.trim() === '') && o.status !== 'concluida');
   }, [vehicleExitOrders]);
 
   const availableVehicles = useMemo(() => {
-    const outsidePlates = vehiclesOutside.map(o => o.plate);
-    return vehicleAssets.filter(v => !outsidePlates.includes(v.plate));
+    const outsidePlates = vehiclesOutside.map(o => (o.plate || '').replace(/[^A-Z0-9]/g, '').toUpperCase());
+    return vehicleAssets.filter(v => {
+      const p = (v.plate || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
+      return p && !outsidePlates.includes(p);
+    });
   }, [vehicleAssets, vehiclesOutside]);
 
   const vehiclesPendingInspection = useMemo(() => {

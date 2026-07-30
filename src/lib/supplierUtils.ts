@@ -99,8 +99,27 @@ export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any
                 const sDeliveriesRaw = ensureArray<any>(s.deliveries);
                 const extDeliveriesRaw = ensureArray<any>(existing.deliveries);
                 
-                const mergedDeliveries = [...extDeliveriesRaw, ...sDeliveriesRaw].filter(d => d && d.id);
-                const uniqueDeliveries = Array.from(new Map(mergedDeliveries.map((d: any) => [d.id, d])).values());
+                const mergedDeliveries = [...extDeliveriesRaw, ...sDeliveriesRaw].filter(d => d && (d.id || d.date));
+                const uniqueDeliveriesMap = new Map<string, any>();
+                mergedDeliveries.forEach((d: any) => {
+                    const idKey = d.id ? String(d.id) : `${d.date}_${d.time || ''}_${d.item || ''}`;
+                    if (!uniqueDeliveriesMap.has(idKey)) {
+                        uniqueDeliveriesMap.set(idKey, d);
+                    } else {
+                        // Enrich existing record if the new record has more details (e.g. arrivalTime, exitTime, invoiceNumber)
+                        const existing = uniqueDeliveriesMap.get(idKey);
+                        uniqueDeliveriesMap.set(idKey, {
+                            ...existing,
+                            time: existing.time || d.time,
+                            arrivalTime: existing.arrivalTime || d.arrivalTime,
+                            exitTime: existing.exitTime || d.exitTime,
+                            invoiceNumber: existing.invoiceNumber || d.invoiceNumber,
+                            invoiceUploaded: existing.invoiceUploaded || d.invoiceUploaded,
+                            observations: existing.observations || d.observations
+                        });
+                    }
+                });
+                const uniqueDeliveries = Array.from(uniqueDeliveriesMap.values());
                 const mergedWeeks = Array.from(new Set([...(existing.allowedWeeks || []), ...(s.allowedWeeks || [])])).sort((a, b) => a - b);
                 
                 // Merge contractItems preserving details

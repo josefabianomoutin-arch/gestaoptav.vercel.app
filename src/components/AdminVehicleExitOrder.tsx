@@ -108,22 +108,27 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             });
 
             if (matchedVehicle) {
-                // Find an active order for this vehicle (status 'aberta' or no returnTime yet)
+                // Find an active order for this vehicle
                 const vehicleOrders = orders.filter(o => {
                     const cleanOrderPlate = (o.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
                     const cleanVehPlate = (matchedVehicle.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
                     return cleanOrderPlate === cleanVehPlate || o.vehicleId === matchedVehicle.id || (o.vehicle || '').toUpperCase().includes((matchedVehicle.model || '').toUpperCase());
                 });
 
-                // Find the first order that is NOT concluded (i.e. status === 'aberta' or has no returnTime)
-                matchedOrder = vehicleOrders.find(o => !o.returnTime || o.status !== 'concluida');
+                // 1. First priority: Check if vehicle is currently in transit (exited, awaiting return)
+                matchedOrder = vehicleOrders.find(o => o.exitTime && (!o.returnTime || o.returnTime.trim() === '') && o.status !== 'concluida');
+
+                // 2. Second priority: Check if there is an open order awaiting exit
+                if (!matchedOrder) {
+                    matchedOrder = vehicleOrders.find(o => !o.exitTime && (!o.returnTime || o.returnTime.trim() === '') && o.status !== 'concluida');
+                }
 
                 if (matchedOrder) {
                     vehicleMatchedMsg = ` (Identificado via veículo: ${matchedVehicle.model} - ${matchedVehicle.plate})`;
                 } else {
                     setVehicleScanFeedback({
-                        type: 'error',
-                        message: `❌ Veículo "${matchedVehicle.model} (${matchedVehicle.plate})" identificado, mas nenhuma Ordem de Saída ativa (em aberto) foi encontrada para ele.`
+                        type: 'info',
+                        message: `ℹ️ Veículo "${matchedVehicle.model} (${matchedVehicle.plate})" está liberado na unidade. Nenhuma Ordem de Saída pendente ou em trânsito foi encontrada para ele.`
                     });
                     return;
                 }
@@ -392,15 +397,16 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
     const inTransitPlates = useMemo(() => {
         return orders
-            .filter(o => o.exitTime && !o.returnTime)
-            .map(o => o.plate.replace(/[^A-Z0-9]/g, '').toUpperCase());
+            .filter(o => o.exitTime && (!o.returnTime || o.returnTime.trim() === '') && o.status !== 'concluida')
+            .map(o => (o.plate || '').replace(/[^A-Z0-9]/g, '').toUpperCase());
     }, [orders]);
 
     const availableVehicles = useMemo(() => {
         return vehicleAssets.filter(v => {
-            const plate = v.plate.replace(/[^A-Z0-9]/g, '').toUpperCase();
+            const plate = (v.plate || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
+            if (!plate) return false;
             // Se estiver editando, o veículo da própria ordem deve estar disponível
-            if (editingOrder && editingOrder.plate.replace(/[^A-Z0-9]/g, '').toUpperCase() === plate) {
+            if (editingOrder && (editingOrder.plate || '').replace(/[^A-Z0-9]/g, '').toUpperCase() === plate) {
                 return true;
             }
             return !inTransitPlates.includes(plate);
@@ -611,31 +617,33 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         const currentDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
         if (type === 'exit') {
-            // Se não houver validação, permitimos mas podemos deixar um aviso ou apenas registrar
-            await onUpdate({ ...order, exitTime: currentTime, exitDate: currentDate });
+            await onUpdate({ ...order, exitTime: currentTime, exitDate: currentDate, status: 'aberta' });
         } else {
-            // Para retorno, abrimos o modal de edição para que o usuário possa confirmar/alterar a data e hora
-            setEditingOrder(order);
-            setFormData({
-                date: order.date,
-                vehicle: order.vehicle,
-                plate: order.plate,
-                assetNumber: order.assetNumber,
-                responsibleServer: order.responsibleServer,
-                serverRole: order.serverRole,
-                destination: order.destination,
-                fctNumber: order.fctNumber,
-                companions: (order.companions && order.companions.length > 0 ? order.companions : [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }]) as any[],
-                observations: order.observations || '',
-                exitTime: order.exitTime || '',
-                exitDate: order.exitDate || order.date,
-                returnTime: currentTime,
-                returnDate: currentDate,
-                validationRole: order.validationRole || '',
-                validatedBy: order.validatedBy || ''
-            });
-            setIsModalOpen(true);
+            await onUpdate({ ...order, returnTime: currentTime, returnDate: currentDate, status: 'concluida' });
         }
+    };
+
+    const handleOpenNewOrderModal = () => {
+        setEditingOrder(null);
+        setFormData({
+            date: new Date().toISOString().split('T')[0],
+            vehicle: '',
+            plate: '',
+            assetNumber: '',
+            responsibleServer: '',
+            serverRole: '',
+            destination: '',
+            fctNumber: '',
+            companions: [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
+            observations: '',
+            exitTime: '',
+            exitDate: '',
+            returnTime: '',
+            returnDate: '',
+            validationRole: '',
+            validatedBy: ''
+        });
+        setIsModalOpen(true);
     };
 
     // Asset Modals State
@@ -1476,7 +1484,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         {!readOnly && !securityMode && (
                             <div className="flex justify-end gap-3">
                                 <button 
-                                    onClick={() => { setEditingOrder(null); setIsModalOpen(true); }}
+                                    onClick={handleOpenNewOrderModal}
                                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 px-10 rounded-2xl transition-all shadow-xl shadow-indigo-100 active:scale-95 uppercase text-xs tracking-widest flex items-center gap-2 group"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -1682,7 +1690,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                     <p className="text-[9px] text-indigo-400 font-bold uppercase">Veículos com ordem emitida</p>
                                 </div>
                                 <div className="divide-y divide-gray-50 max-h-[500px] overflow-y-auto custom-scrollbar">
-                                    {orders.filter(o => !o.exitTime).length > 0 ? orders.filter(o => !o.exitTime).map(order => (
+                                    {orders.filter(o => (!o.exitTime || o.exitTime.trim() === '') && (!o.returnTime || o.returnTime.trim() === '') && o.status !== 'concluida').length > 0 ? orders.filter(o => (!o.exitTime || o.exitTime.trim() === '') && (!o.returnTime || o.returnTime.trim() === '') && o.status !== 'concluida').map(order => (
                                         <div key={order.id} className={`p-4 hover:bg-gray-50 transition-colors flex justify-between items-center ${!order.validationRole ? 'bg-red-50/80 border-l-4 border-red-500' : ''}`}>
                                             <div>
                                                 <div className="font-black text-gray-800 uppercase text-xs flex items-center gap-2">
@@ -1737,7 +1745,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                     <p className="text-[9px] text-emerald-400 font-bold uppercase">Veículos fora da unidade</p>
                                 </div>
                                 <div className="divide-y divide-gray-50 max-h-[500px] overflow-y-auto custom-scrollbar">
-                                    {orders.filter(o => o.exitTime && !o.returnTime).length > 0 ? orders.filter(o => o.exitTime && !o.returnTime).map(order => (
+                                    {orders.filter(o => o.exitTime && o.exitTime.trim() !== '' && (!o.returnTime || o.returnTime.trim() === '') && o.status !== 'concluida').length > 0 ? orders.filter(o => o.exitTime && o.exitTime.trim() !== '' && (!o.returnTime || o.returnTime.trim() === '') && o.status !== 'concluida').map(order => (
                                         <div key={order.id} className="p-4 hover:bg-gray-50 transition-colors flex justify-between items-center">
                                             <div>
                                                 <div className="font-black text-gray-800 uppercase text-xs">{order.vehicle}</div>
@@ -2341,27 +2349,40 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                         />
                                     </div>
                                     <div className="space-y-1 md:col-span-2">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Veículo (Modelo)</label>
-                                        <input 
-                                            type="text" 
-                                            list="vehicle-models"
-                                            required
-                                            placeholder="Ex: VW CARGO"
-                                            value={formData.vehicle}
-                                            onChange={e => {
-                                                const val = e.target.value.toUpperCase();
-                                                const found = availableVehicles.find(v => v.model === val);
-                                                if (found) {
-                                                    setFormData({ ...formData, vehicle: found.model, plate: found.plate, assetNumber: found.assetNumber });
-                                                } else {
-                                                    setFormData({ ...formData, vehicle: val });
-                                                }
-                                            }}
-                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
-                                        />
-                                        <datalist id="vehicle-models">
-                                            {availableVehicles.map(v => <option key={v.id} value={v.model}>{v.plate}</option>)}
-                                        </datalist>
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Selecionar Veículo da Frota</label>
+                                        <div className="flex flex-col gap-1">
+                                            <select
+                                                value={vehicleAssets.find(v => (v.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === (formData.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, ''))?.id || ''}
+                                                onChange={e => {
+                                                    const selectedId = e.target.value;
+                                                    const found = vehicleAssets.find(v => v.id === selectedId);
+                                                    if (found) {
+                                                        setFormData({
+                                                            ...formData,
+                                                            vehicle: found.model,
+                                                            plate: found.plate,
+                                                            assetNumber: found.assetNumber || ''
+                                                        });
+                                                    }
+                                                }}
+                                                className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs text-indigo-950"
+                                            >
+                                                <option value="">-- Selecione o Veículo ({availableVehicles.length} disponíveis) --</option>
+                                                {availableVehicles.map(v => (
+                                                    <option key={v.id} value={v.id}>
+                                                        {v.model} | PLACA: {v.plate} {v.assetNumber ? `| PATR: ${v.assetNumber}` : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <input 
+                                                type="text" 
+                                                required
+                                                placeholder="Modelo / Nome do Veículo"
+                                                value={formData.vehicle}
+                                                onChange={e => setFormData({ ...formData, vehicle: e.target.value.toUpperCase() })}
+                                                className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                            />
+                                        </div>
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Placa</label>
@@ -2390,26 +2411,38 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                     </div>
                                     <div className="space-y-1 md:col-span-3">
                                         <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Funcionário Responsável</label>
-                                        <input 
-                                            type="text" 
-                                            list="driver-names"
-                                            required
-                                            placeholder="Nome Completo"
-                                            value={formData.responsibleServer}
-                                            onChange={e => {
-                                                const val = e.target.value.toUpperCase();
-                                                const found = driverAssets.find(d => d.name === val);
-                                                if (found) {
-                                                    setFormData({ ...formData, responsibleServer: found.name, serverRole: found.role });
-                                                } else {
-                                                    setFormData({ ...formData, responsibleServer: val });
-                                                }
-                                            }}
-                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
-                                        />
-                                        <datalist id="driver-names">
-                                            {driverAssets.map(d => <option key={d.id} value={d.name}>{d.role}</option>)}
-                                        </datalist>
+                                        <div className="flex flex-col gap-1">
+                                            <select
+                                                value={driverAssets.find(d => (d.name || '').toUpperCase() === (formData.responsibleServer || '').toUpperCase())?.id || ''}
+                                                onChange={e => {
+                                                    const selectedId = e.target.value;
+                                                    const found = driverAssets.find(d => d.id === selectedId);
+                                                    if (found) {
+                                                        setFormData({
+                                                            ...formData,
+                                                            responsibleServer: found.name,
+                                                            serverRole: found.role
+                                                        });
+                                                    }
+                                                }}
+                                                className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs text-indigo-950"
+                                            >
+                                                <option value="">-- Selecione o Responsável Cadastrado --</option>
+                                                {driverAssets.map(d => (
+                                                    <option key={d.id} value={d.id}>
+                                                        {d.name} ({d.role})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <input 
+                                                type="text" 
+                                                required
+                                                placeholder="Nome Completo do Responsável"
+                                                value={formData.responsibleServer}
+                                                onChange={e => setFormData({ ...formData, responsibleServer: e.target.value.toUpperCase() })}
+                                                className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 

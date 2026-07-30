@@ -67,18 +67,30 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
         }
     }, [isScannerOpen, scannerMode]);
 
+    const cleanCpfNormalized = (val: any) => {
+        const raw = String(val || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+        return raw.length >= 11 ? raw.substring(0, 11) : raw;
+    };
+
     const locateDeliveryForCpfAndDate = (cpf: string, targetDate: string) => {
         const groups: Record<string, any> = {};
+        const processedDeliveryIds = new Set<string>();
         
         const cleanNumber = (val: string) => String(val || '').trim().replace(/^0+/, '').replace(/[^\d]/g, '');
         const targetClean = cleanNumber(cpf);
         
         const processDelivery = (s: Supplier, d: any) => {
             if (!d || d.date !== targetDate) return;
+            if (d.id) {
+                const idStr = String(d.id);
+                if (processedDeliveryIds.has(idStr)) return;
+                processedDeliveryIds.add(idStr);
+            }
+
             const sClean = cleanNumber(s.cpf);
             
             // 1. Exact match with supplier CPF/CNPJ
-            const isExactMatch = sClean && sClean === targetClean;
+            const isExactMatch = sClean && (sClean === targetClean || (sClean.length >= 11 && targetClean.length >= 11 && sClean.substring(0, 11) === targetClean.substring(0, 11)));
             
             // 2. Exact match with delivery barcode (if present)
             const dBarcodeClean = cleanNumber(d.barcode);
@@ -89,27 +101,32 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
             
             if (!isExactMatch && !isBarcodeMatch && !isEmbeddedCnpjMatch) return;
             
-            const cleanCpf = String(s.cpf || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
-            const groupKey = `${cleanCpf}-${d.time}`;
-            if (!groups[groupKey]) {
-                groups[groupKey] = {
+            const rawCpf = s.cpf || (s as any).cpfCnpj;
+            const normCpf = cleanCpfNormalized(rawCpf);
+            if (!groups[normCpf]) {
+                groups[normCpf] = {
                     id: d.id,
                     allIds: [d.id],
                     supplierName: s.name,
-                    supplierCpf: cleanCpf,
-                    time: d.time,
+                    supplierCpf: rawCpf || normCpf,
+                    time: d.time || '',
                     arrivalTime: d.arrivalTime,
                     exitTime: d.exitTime,
                     deliveries: [d]
                 };
             } else {
-                groups[groupKey].allIds.push(d.id);
-                groups[groupKey].deliveries.push(d);
-                if (d.arrivalTime && !groups[groupKey].arrivalTime) {
-                    groups[groupKey].arrivalTime = d.arrivalTime;
+                if (d.id && !groups[normCpf].allIds.includes(d.id)) {
+                    groups[normCpf].allIds.push(d.id);
                 }
-                if (d.exitTime && !groups[groupKey].exitTime) {
-                    groups[groupKey].exitTime = d.exitTime;
+                groups[normCpf].deliveries.push(d);
+                if (d.time && (!groups[normCpf].time || groups[normCpf].time === '00:00')) {
+                    groups[normCpf].time = d.time;
+                }
+                if (d.arrivalTime && !groups[normCpf].arrivalTime) {
+                    groups[normCpf].arrivalTime = d.arrivalTime;
+                }
+                if (d.exitTime && !groups[normCpf].exitTime) {
+                    groups[normCpf].exitTime = d.exitTime;
                 }
             }
         };
@@ -401,20 +418,31 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
 
     const monthlyDeliveries = useMemo(() => {
         const groups: Record<string, any> = {};
+        const processedDeliveryIds = new Set<string>();
         
         const processDelivery = (s: Supplier, d: any, type: 'FORNECEDOR' | 'TERCEIRO') => {
             if (!d || !d.date || !d.date.startsWith(selectedMonth)) return;
             
-            const groupKey = `${type}-${s.cpf}-${d.date}-${d.time}`;
+            if (d.id) {
+                const idStr = String(d.id);
+                if (processedDeliveryIds.has(idStr)) return;
+                processedDeliveryIds.add(idStr);
+            }
+
+            const rawCpf = s.cpf || (s as any).cpfCnpj;
+            const normCpf = cleanCpfNormalized(rawCpf);
+            if (!normCpf) return;
+
+            const groupKey = `${type}-${normCpf}-${d.date}`;
             if (!groups[groupKey]) {
                 const isFaturado = d.item !== 'AGENDAMENTO PENDENTE' && (d.invoiceNumber || d.invoiceUploaded);
                 groups[groupKey] = {
                     id: d.id,
                     allIds: [d.id],
                     supplierName: s.name,
-                    supplierCpf: s.cpf,
+                    supplierCpf: rawCpf || normCpf,
                     date: d.date,
-                    time: d.time,
+                    time: d.time || '00:00',
                     arrivalTime: d.arrivalTime,
                     exitTime: d.exitTime,
                     status: isFaturado ? 'CONCLUÍDO' : 'AGENDADO',
@@ -424,9 +452,14 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                     observations: d.observations || ''
                 };
             } else {
-                groups[groupKey].allIds.push(d.id);
+                if (d.id && !groups[groupKey].allIds.includes(d.id)) {
+                    groups[groupKey].allIds.push(d.id);
+                }
                 groups[groupKey].items.push(d);
                 groups[groupKey].deliveries.push(d);
+                if (d.time && (!groups[groupKey].time || groups[groupKey].time === '00:00')) {
+                    groups[groupKey].time = d.time;
+                }
                 if (d.arrivalTime && !groups[groupKey].arrivalTime) {
                     groups[groupKey].arrivalTime = d.arrivalTime;
                 }
@@ -495,20 +528,30 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
 
     const dailyDeliveries = useMemo(() => {
         const groups: Record<string, any> = {};
+        const processedDeliveryIds = new Set<string>();
         
         const processDelivery = (s: Supplier, d: any, type: 'FORNECEDOR' | 'TERCEIRO') => {
             if (!d || d.date !== selectedAgendaDate) return;
             
-            const cleanCpf = String(s.cpf || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
-            const groupKey = `${type}-${cleanCpf}-${d.time}`;
+            if (d.id) {
+                const idStr = String(d.id);
+                if (processedDeliveryIds.has(idStr)) return;
+                processedDeliveryIds.add(idStr);
+            }
+
+            const rawCpf = s.cpf || (s as any).cpfCnpj;
+            const normCpf = cleanCpfNormalized(rawCpf);
+            if (!normCpf) return;
+
+            const groupKey = `${type}-${normCpf}`;
             if (!groups[groupKey]) {
                 const isFaturado = d.item !== 'AGENDAMENTO PENDENTE' && (d.invoiceNumber || d.invoiceUploaded);
                 groups[groupKey] = {
                     id: d.id, // Primary ID for modal usage
                     allIds: [d.id],
                     supplierName: s.name,
-                    supplierCpf: cleanCpf,
-                    time: d.time,
+                    supplierCpf: rawCpf || normCpf,
+                    time: d.time || '',
                     arrivalTime: d.arrivalTime,
                     exitTime: d.exitTime,
                     status: isFaturado ? 'CONCLUÍDO' : 'AGENDADO',
@@ -518,9 +561,14 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                     observations: d.observations || ''
                 };
             } else {
-                groups[groupKey].allIds.push(d.id);
+                if (d.id && !groups[groupKey].allIds.includes(d.id)) {
+                    groups[groupKey].allIds.push(d.id);
+                }
                 groups[groupKey].items.push(d);
                 groups[groupKey].deliveries.push(d);
+                if (d.time && (!groups[groupKey].time || groups[groupKey].time === '00:00')) {
+                    groups[groupKey].time = d.time;
+                }
                 if (d.arrivalTime && !groups[groupKey].arrivalTime) {
                     groups[groupKey].arrivalTime = d.arrivalTime;
                 }
@@ -532,8 +580,6 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                         ? `${groups[groupKey].observations}; ${d.observations}`
                         : d.observations;
                 }
-                // If any item is NOT faturado, the group should probably be AGENDADO? 
-                // Usually they are all faturado together.
                 if (!(d.item !== 'AGENDAMENTO PENDENTE' && (d.invoiceNumber || d.invoiceUploaded))) {
                     groups[groupKey].status = 'AGENDADO';
                 }
@@ -546,7 +592,6 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
             deliveries.forEach(d => processDelivery(s as any, d, 'FORNECEDOR'));
         });
 
-        // Also check perCapitaConfig if they are not in main suppliers
         if (perCapitaConfig) {
             ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'].forEach(key => {
                 const producers = ensureArray(perCapitaConfig[key]);
