@@ -1074,8 +1074,9 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
         lotDetails = generateFallbackDetails(item.itemName, item.quantity);
       }
 
-      const fullItemName = lotDetails.itemName || lotDetails.item || item.itemName;
-      const supplierNameFormatted = lotDetails.supplierName || 'SEM FORNECEDOR';
+      // ALWAYS use the exact item name selected in the list
+      const fullItemName = item.itemName && item.itemName.trim() !== '' ? item.itemName.trim().toUpperCase() : (lotDetails.itemName || lotDetails.item || 'ITEM');
+      const supplierNameFormatted = lotDetails.supplierName || 'ESTOQUE GERAL / DIRETORIA';
       const lotNumberFormatted = lotDetails.lotNumber || lotDetails.lot || 'UNICO';
       const expirationFormatted = lotDetails.expirationDate || lotDetails.expiration || '';
       const formattedExpiration = expirationFormatted && expirationFormatted !== 'N/A' && expirationFormatted.includes('-')
@@ -1083,11 +1084,12 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
         : (expirationFormatted || 'N/A');
       
       const reqQty = parseFloat(String(item.quantity).replace(',', '.')) || 0;
-      const qtyText = reqQty > 0 ? reqQty.toFixed(2) : parseFloat(String(lotDetails.quantity || 0)).toFixed(2);
-      const unitFormatted = lotDetails.unit || 'UN';
+      const qtyText = reqQty > 0 ? (Number.isInteger(reqQty) ? reqQty.toString() : reqQty.toFixed(2)) : parseFloat(String(lotDetails.quantity || 0)).toFixed(2);
+      const unitFormatted = getItemUnit(item.itemName) || lotDetails.unit || 'UN';
       const invoiceNumberFormatted = lotDetails.invoiceNumber || lotDetails.inboundInvoice || 'S/N';
       const barcodeFormatted = lotDetails.barcode || 'N/A';
       const dateFormatted = lotDetails.date ? lotDetails.date.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
+      const obsText = item.observation ? item.observation.trim().toUpperCase() : '';
 
       const cardId = `barcode-item-${idx}`;
 
@@ -1116,6 +1118,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                       <strong style="margin-left: 8px;">DOC/NF:</strong> <span>${invoiceNumberFormatted}</span>
                       <strong style="margin-left: 8px;">DATA:</strong> <span>${dateFormatted}</span>
                    </p>
+                   ${obsText ? `<p class="info-line"><strong>OBS/DESTINO:</strong> <span>${obsText}</span></p>` : ''}
                 </div>
                 <div class="barcode-container">
                    <svg id="${cardId}" class="barcode-svg"></svg>
@@ -1178,8 +1181,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       return;
     }
 
-    const fullItemName = lotDetails.itemName || lotDetails.item || item.itemName;
-    const supplierNameFormatted = lotDetails.supplierName || 'SEM FORNECEDOR';
+    const fullItemName = item.itemName && item.itemName.trim() !== '' ? item.itemName.trim().toUpperCase() : (lotDetails.itemName || lotDetails.item || 'ITEM');
+    const supplierNameFormatted = lotDetails.supplierName || 'ESTOQUE GERAL / DIRETORIA';
     const lotNumberFormatted = lotDetails.lotNumber || lotDetails.lot || 'UNICO';
     const expirationFormatted = lotDetails.expirationDate || lotDetails.expiration || '';
     const formattedExpiration = expirationFormatted && expirationFormatted !== 'N/A' && expirationFormatted.includes('-')
@@ -1187,11 +1190,12 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       : (expirationFormatted || 'N/A');
     
     const reqQty = parseFloat(String(item.quantity).replace(',', '.')) || 0;
-    const qtyText = reqQty > 0 ? reqQty.toFixed(2) : parseFloat(String(lotDetails.quantity || 0)).toFixed(2);
-    const unitFormatted = lotDetails.unit || 'UN';
+    const qtyText = reqQty > 0 ? (Number.isInteger(reqQty) ? reqQty.toString() : reqQty.toFixed(2)) : parseFloat(String(lotDetails.quantity || 0)).toFixed(2);
+    const unitFormatted = getItemUnit(item.itemName) || lotDetails.unit || 'UN';
     const invoiceNumberFormatted = lotDetails.invoiceNumber || lotDetails.inboundInvoice || 'S/N';
     const barcodeFormatted = lotDetails.barcode || 'N/A';
     const dateFormatted = lotDetails.date ? lotDetails.date.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
+    const obsText = item.observation ? item.observation.trim().toUpperCase() : '';
 
     const isAlim = categoryTab === 'alimentacao';
     const subTabTitle = activeSubTab === 'chefeDep' ? 'Walter' : 'Willian';
@@ -1230,6 +1234,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                       <strong style="margin-left: 8px;">DOC/NF:</strong> <span>${invoiceNumberFormatted}</span>
                       <strong style="margin-left: 8px;">DATA:</strong> <span>${dateFormatted}</span>
                    </p>
+                   ${obsText ? `<p class="info-line"><strong>OBS/DESTINO:</strong> <span>${obsText}</span></p>` : ''}
                 </div>
                 <div class="barcode-container">
                    <svg id="barcode-item" class="barcode-svg"></svg>
@@ -1682,7 +1687,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
                 <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
                   {(viewingPastOrder.items || []).map((item) => {
-                    const lotDetails = getPrintableLotDetails(item.itemName);
+                    const lotDetails = getPrintableLotDetails(item.itemName, warehouseLog);
                     const lotNumberText = lotDetails ? (lotDetails.lotNumber || lotDetails.lot || 'UNICO') : '-';
                     const expRaw = lotDetails ? (lotDetails.expirationDate || lotDetails.expiration || '') : '';
                     const expirationText = expRaw && expRaw !== 'N/A'
@@ -1913,7 +1918,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                       (currentUser?.role === 'financeiro' && !isReadOnly)
                     );
 
-                    const lotDetails = getPrintableLotDetails(item.itemName);
+                    const lotDetails = getPrintableLotDetails(item.itemName, warehouseLog);
                     const lotNumberText = lotDetails ? (lotDetails.lotNumber || lotDetails.lot || 'UNICO') : '-';
                     const expRaw = lotDetails ? (lotDetails.expirationDate || lotDetails.expiration || '') : '';
                     const expirationText = expRaw && expRaw !== 'N/A'

@@ -200,18 +200,24 @@ export const getMatchScore = (requestedName: string, logName: string): number =>
   const logFirstTwo = logWords.slice(0, 2).join(' ');
   if (reqFirstTwo && logFirstTwo && reqFirstTwo === logFirstTwo) return 90;
 
-  if (logNorm.includes(reqNorm)) return 85;
-  if (reqNorm.includes(logNorm)) return 80;
+  // Check substring with word boundaries to avoid false partial word matches
+  const escapedReq = reqNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedLog = logNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const isReqInLog = new RegExp(`(?:^|\\s)${escapedReq}(?:$|\\s)`).test(logNorm);
+  const isLogInReq = new RegExp(`(?:^|\\s)${escapedLog}(?:$|\\s)`).test(reqNorm);
 
-  if (reqWords[0] === logWords[0]) return 50;
+  if (isReqInLog) return 85;
+  if (isLogInReq) return 80;
+
+  if (reqWords[0] === logWords[0]) return 40;
 
   const reqFirstWordChars = reqWords[0].slice(0, 4);
   const logFirstWordChars = logWords[0].slice(0, 4);
-  if (reqFirstWordChars && logFirstWordChars && reqFirstWordChars === logFirstWordChars) return 40;
+  if (reqFirstWordChars && logFirstWordChars && reqFirstWordChars === logFirstWordChars) return 25;
 
   const sharedWords = reqWords.filter(w => logWords.includes(w));
   if (sharedWords.length > 0) {
-    return 20 + sharedWords.length;
+    return 15 + sharedWords.length;
   }
 
   return 0;
@@ -231,7 +237,7 @@ export const getPrintableLotDetails = (itemName: string, warehouseLog?: any[]) =
     if (!logItemName) return;
 
     const score = getMatchScore(itemName, logItemName);
-    if (score >= 35) {
+    if (score >= 70) {
       candidates.push({ log, score, index: idx });
     }
   });
@@ -245,8 +251,10 @@ export const getPrintableLotDetails = (itemName: string, warehouseLog?: any[]) =
   // Find maximum match score in the pool
   const maxScore = Math.max(...pool.map(c => c.score));
 
-  // CRITICAL FIX: If exact match (score 100) exists, ONLY use exact matches!
-  const topCandidates = pool.filter(c => maxScore === 100 ? c.score === 100 : c.score >= Math.max(80, maxScore - 5));
+  if (maxScore < 70) return null;
+
+  // CRITICAL FIX: Filter top candidates with high match score
+  const topCandidates = pool.filter(c => maxScore === 100 ? c.score === 100 : c.score >= Math.max(75, maxScore - 5));
 
   if (topCandidates.length === 0) return null;
 
