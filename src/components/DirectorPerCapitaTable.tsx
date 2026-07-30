@@ -15,7 +15,11 @@ import {
   Search,
   Plus,
   Save,
-  Database
+  Database,
+  BarChart2,
+  Calendar,
+  DollarSign,
+  Filter
 } from 'lucide-react';
 import AdminCleaningLog from './AdminCleaningLog';
 import { getPrintableLotDetails, generateStandardLabelStyles } from '../lib/utils';
@@ -120,9 +124,15 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   const [activeSelectRowIndex, setActiveSelectRowIndex] = useState<number | null>(null);
   const [selectSearchTerm, setSelectSearchTerm] = useState('');
 
-  // Current view mode inside active tab: 'form' or 'history'
-  const [viewMode, setViewMode] = useState<'form' | 'history'>(isReadOnly ? 'history' : 'form');
+  // Current view mode inside active tab: 'form', 'history', or 'monthlyReport'
+  const [viewMode, setViewMode] = useState<'form' | 'history' | 'monthlyReport'>(isReadOnly ? 'history' : 'form');
   const [viewingPastOrder, setViewingPastOrder] = useState<OrderData | null>(null);
+
+  // Monthly report filters
+  const [selectedReportMonth, setSelectedReportMonth] = useState<string>('all');
+  const [selectedReportDirector, setSelectedReportDirector] = useState<'all' | 'chefeDep' | 'chefeSeg'>('all');
+  const [selectedReportCategory, setSelectedReportCategory] = useState<'all' | 'alimentacao' | 'limpeza'>('all');
+  const [customPrices, setCustomPrices] = useState<Record<string, number>>({});
 
   // Local state for active items to support seamless typing
   const [localActiveItems, setLocalActiveItems] = useState<RowItem[]>([]);
@@ -287,6 +297,384 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     }
     return '';
   }, [itemUnitsMap]);
+
+  // Retrieve unit price for an item
+  const getItemUnitPrice = React.useCallback((itemName: string): number => {
+    if (!itemName) return 0;
+    const norm = itemName.trim().toUpperCase();
+
+    if (customPrices[norm] !== undefined) return customPrices[norm];
+
+    // 1. Search in suppliers contract items
+    if (suppliers && Array.isArray(suppliers)) {
+      for (const sup of suppliers) {
+        if (!sup || !sup.contractItems) continue;
+        const list = Array.isArray(sup.contractItems) 
+          ? sup.contractItems 
+          : typeof sup.contractItems === 'object' 
+            ? Object.values(sup.contractItems) 
+            : [];
+        for (const ci of list as any[]) {
+          if (!ci || !ci.name) continue;
+          const ciName = ci.name.trim().toUpperCase();
+          if (ciName === norm || ciName.startsWith(norm) || norm.startsWith(ciName)) {
+            const val = parseFloat(String(ci.valuePerKg || ci.unitValue || ci.price || '0').replace(',', '.'));
+            if (!isNaN(val) && val > 0) return val;
+          }
+        }
+      }
+    }
+
+    // 2. Search in warehouseLog
+    if (warehouseLog && Array.isArray(warehouseLog)) {
+      for (const log of warehouseLog) {
+        if (!log) continue;
+        const logName = (log.itemName || log.item || '').trim().toUpperCase();
+        if (logName && (logName === norm || logName.startsWith(norm) || norm.startsWith(logName))) {
+          const val = parseFloat(String(log.unitPrice || log.valuePerKg || '0').replace(',', '.'));
+          if (!isNaN(val) && val > 0) return val;
+          if (log.quantity > 0 && log.totalValue > 0) return log.totalValue / log.quantity;
+        }
+      }
+    }
+
+    return 0;
+  }, [suppliers, warehouseLog, customPrices]);
+
+  // Aggregate monthly report data across all history records
+  const monthlyReportData = React.useMemo(() => {
+    if (!data) {
+      return { items: [], totalValue: 0, monthsList: [], totalItemsCount: 0, totalQuantitySum: 0, filteredOrdersCount: 0 };
+    }
+
+    const allOrders: Array<{
+      directorKey: 'chefeDep' | 'chefeSeg';
+      directorName: string;
+      category: 'alimentacao' | 'limpeza';
+      order: OrderData;
+      date: Date;
+      monthKey: string; // YYYY-MM
+    }> = [];
+
+    const extractOrdersFromObj = (
+      historyObj: Record<string, OrderData> | undefined,
+      directorKey: 'chefeDep' | 'chefeSeg',
+      directorName: string,
+      category: 'alimentacao' | 'limpeza'
+    ) => {
+      if (!historyObj) return;
+      Object.values(historyObj).forEach((order) => {
+        if (!order || !order.items || order.items.length === 0) return;
+        let dDate = new Date();
+        if (order.id && order.id.startsWith('pedido_')) {
+          const ts = parseInt(order.id.replace('pedido_', ''), 10);
+          if (!isNaN(ts) && ts > 0) dDate = new Date(ts);
+        } else if (order.createdAt) {
+          const parts = order.createdAt.split(/[\s,/:-T]+/);
+          if (order.createdAt.includes('-') && parts[0].length === 4) {
+            dDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+          } else if (parts.length >= 3) {
+            dDate = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+          }
+        }
+        if (isNaN(dDate.getTime())) dDate = new Date();
+
+        const monthKey = `${dDate.getFullYear()}-${String(dDate.getMonth() + 1).padStart(2, '0')}`;
+        allOrders.push({
+          directorKey,
+          directorName,
+          category,
+          order,
+          date: dDate,
+          monthKey
+        });
+      });
+    };
+
+    extractOrdersFromObj(data.chefeDep?.history, 'chefeDep', 'Walter Rodrigues Junior (Departamento)', 'alimentacao');
+    extractOrdersFromObj(data.chefeDep?.limpezaHistory, 'chefeDep', 'Walter Rodrigues Junior (Departamento)', 'limpeza');
+    extractOrdersFromObj(data.chefeSeg?.history, 'chefeSeg', 'Willian Oliveira dos Santos (Segurança)', 'alimentacao');
+    extractOrdersFromObj(data.chefeSeg?.limpezaHistory, 'chefeSeg', 'Willian Oliveira dos Santos (Segurança)', 'limpeza');
+
+    // Unique month keys sorted descending
+    const monthsSet = new Set<string>();
+    allOrders.forEach(o => monthsSet.add(o.monthKey));
+    const monthsList = Array.from(monthsSet).sort().reverse();
+
+    // Filter orders based on user selection
+    const filteredOrders = allOrders.filter(o => {
+      if (selectedReportMonth !== 'all' && o.monthKey !== selectedReportMonth) return false;
+      if (selectedReportDirector !== 'all' && o.directorKey !== selectedReportDirector) return false;
+      if (selectedReportCategory !== 'all' && o.category !== selectedReportCategory) return false;
+      return true;
+    });
+
+    // Aggregate items
+    const itemsMap: Record<string, {
+      itemName: string;
+      categories: Set<string>;
+      totalQty: number;
+      unit: string;
+      unitPrice: number;
+      totalValue: number;
+    }> = {};
+
+    filteredOrders.forEach(o => {
+      (o.order.items || []).forEach(it => {
+        if (!it || !it.itemName || it.itemName.trim() === '') return;
+        const rawName = it.itemName.trim().toUpperCase();
+        const qty = parseFloat(String(it.quantity).replace(',', '.')) || 0;
+        if (qty <= 0) return;
+
+        const unit = getItemUnit(it.itemName) || 'KG';
+        const unitPrice = getItemUnitPrice(it.itemName);
+
+        if (!itemsMap[rawName]) {
+          itemsMap[rawName] = {
+            itemName: rawName,
+            categories: new Set([o.category === 'alimentacao' ? 'Alimentação' : 'Limpeza']),
+            totalQty: 0,
+            unit,
+            unitPrice,
+            totalValue: 0
+          };
+        } else {
+          itemsMap[rawName].categories.add(o.category === 'alimentacao' ? 'Alimentação' : 'Limpeza');
+        }
+
+        itemsMap[rawName].totalQty += qty;
+        if (unitPrice > 0 && itemsMap[rawName].unitPrice === 0) {
+          itemsMap[rawName].unitPrice = unitPrice;
+        }
+      });
+    });
+
+    const itemsArray = Object.values(itemsMap).map(it => {
+      const price = it.unitPrice || 0;
+      return {
+        ...it,
+        categoryStr: Array.from(it.categories).join(', '),
+        unitPrice: price,
+        totalValue: it.totalQty * price
+      };
+    }).sort((a, b) => a.itemName.localeCompare(b.itemName));
+
+    const totalValue = itemsArray.reduce((acc, curr) => acc + curr.totalValue, 0);
+    const totalItemsCount = itemsArray.length;
+    const totalQuantitySum = itemsArray.reduce((acc, curr) => acc + curr.totalQty, 0);
+
+    return {
+      items: itemsArray,
+      totalValue,
+      totalItemsCount,
+      totalQuantitySum,
+      monthsList,
+      filteredOrdersCount: filteredOrders.length
+    };
+  }, [data, selectedReportMonth, selectedReportDirector, selectedReportCategory, getItemUnit, getItemUnitPrice]);
+
+  // Printable Monthly Consumption Report
+  const handlePrintMonthlyReport = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Por favor, permita pop-ups para imprimir o relatório.');
+      return;
+    }
+
+    const monthLabel = selectedReportMonth === 'all' 
+      ? 'TODOS OS MESES' 
+      : (() => {
+          const [year, month] = selectedReportMonth.split('-');
+          const dateObj = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
+          return dateObj.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
+        })();
+
+    const directorLabel = selectedReportDirector === 'all'
+      ? 'TODOS OS DIRETORES (DEPARTAMENTO E SEGURANÇA)'
+      : selectedReportDirector === 'chefeDep'
+        ? 'WALTER RODRIGUES JUNIOR (CHEFIA DE DEPARTAMENTO)'
+        : 'WILLIAN OLIVEIRA DOS SANTOS (CHEFIA DE SEGURANÇA INTERNA)';
+
+    const categoryLabel = selectedReportCategory === 'all'
+      ? 'TODAS AS CATEGORIAS (ALIMENTAÇÃO E LIMPEZA)'
+      : selectedReportCategory === 'alimentacao'
+        ? 'ALIMENTAÇÃO'
+        : 'LIMPEZA';
+
+    const formatR$ = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+    const rowsHtml = monthlyReportData.items.map((item, idx) => `
+      <tr>
+        <td style="text-align: center; font-weight: bold; color: #64748b;">${idx + 1}</td>
+        <td style="text-align: left; font-weight: bold; color: #0f172a;">${item.itemName}</td>
+        <td style="text-align: center; font-size: 10px; color: #475569;">${item.categoryStr}</td>
+        <td style="text-align: center; font-weight: bold; color: #1e3a8a;">${item.totalQty.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</td>
+        <td style="text-align: center; font-weight: bold; color: #475569;">${item.unit}</td>
+        <td style="text-align: right; font-family: monospace;">${formatR$(item.unitPrice)}</td>
+        <td style="text-align: right; font-weight: bold; color: #1e3a8a; font-family: monospace;">${formatR$(item.totalValue)}</td>
+      </tr>
+    `).join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Relatório Mensal de Consumo - Diretores</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+          body {
+            font-family: 'Inter', sans-serif;
+            margin: 30px;
+            color: #1e293b;
+            font-size: 11px;
+            line-height: 1.4;
+          }
+          .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #1e3a8a;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+          }
+          .logo {
+            font-size: 15px;
+            font-weight: 800;
+            color: #1e3a8a;
+          }
+          .logo-sub {
+            font-size: 9px;
+            color: #64748b;
+            margin-top: 2px;
+          }
+          .document-title {
+            text-align: right;
+          }
+          .document-title h1 {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 800;
+            color: #0f172a;
+            text-transform: uppercase;
+          }
+          .meta-grid {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-cols: 1fr 1fr;
+            gap: 8px;
+            font-size: 10px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+          }
+          th, td {
+            border: 1px solid #cbd5e1;
+            padding: 7px 10px;
+            text-align: left;
+          }
+          th {
+            background-color: #f1f5f9;
+            color: #334155;
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .total-box {
+            background-color: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+          }
+          .footer {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-around;
+          }
+          .signature-box {
+            border-top: 1px solid #1e293b;
+            width: 220px;
+            text-align: center;
+            padding-top: 5px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #475569;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header-container">
+          <div>
+            <div class="logo">Secretaria da Administração Penitenciária</div>
+            <div class="logo-sub">Polícia Penal - Penitenciária de Taiúva</div>
+          </div>
+          <div class="document-title">
+            <h1>Relatório Mensal de Consumo dos Diretores</h1>
+            <p style="margin:2px 0 0 0; font-size: 9px; color: #64748b; font-weight: 600;">Consumo de Per Capita por Item, Quantidade e Valor</p>
+          </div>
+        </div>
+
+        <div class="meta-grid">
+          <div><strong>Mês de Referência:</strong> ${monthLabel}</div>
+          <div><strong>Diretor / Chefia:</strong> ${directorLabel}</div>
+          <div><strong>Categoria:</strong> ${categoryLabel}</div>
+          <div><strong>Data de Emissão:</strong> ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}</div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 30px; text-align: center;">#</th>
+              <th>Item / Descrição do Produto</th>
+              <th style="width: 90px; text-align: center;">Categoria</th>
+              <th style="width: 90px; text-align: center;">Qtd. Total</th>
+              <th style="width: 60px; text-align: center;">Unid.</th>
+              <th style="width: 100px; text-align: right;">Valor Unit. (R$)</th>
+              <th style="width: 110px; text-align: right;">Valor Total (R$)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml || `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #64748b; font-style: italic;">Nenhum consumo localizado para os filtros selecionados.</td></tr>`}
+          </tbody>
+        </table>
+
+        <div class="total-box">
+          <div>
+            <span style="font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase;">Total de Itens Diferentes: <strong>${monthlyReportData.totalItemsCount}</strong></span>
+            <span style="margin-left: 20px; font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase;">Total da Quantidade Consumida: <strong>${monthlyReportData.totalQuantitySum.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</strong></span>
+          </div>
+          <div style="font-size: 13px; font-weight: 800; color: #1e3a8a;">
+            VALOR TOTAL DO CONSUMO: ${formatR$(monthlyReportData.totalValue)}
+          </div>
+        </div>
+
+        <div class="footer">
+          <div class="signature-box">Responsável (Almoxarifado)</div>
+          <div class="signature-box">Diretoria / Fiscal Subscritor</div>
+        </div>
+
+        <script>
+          window.onload = () => {
+            setTimeout(() => { window.print(); window.close(); }, 500);
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
 
 
 
@@ -1485,9 +1873,15 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
             )}
             <button
               onClick={() => { setViewMode('history'); setViewingPastOrder(null); }}
-              className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${viewMode === 'history' || viewingPastOrder || isReadOnly ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+              className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${(viewMode === 'history' || viewingPastOrder) && viewMode !== 'monthlyReport' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
             >
               <History className="h-3.5 w-3.5" /> Histórico ({Object.keys(data?.[activeSubTab]?.[historyKey] || {}).length})
+            </button>
+            <button
+              onClick={() => { setViewMode('monthlyReport'); setViewingPastOrder(null); }}
+              className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${viewMode === 'monthlyReport' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              <BarChart2 className="h-3.5 w-3.5" /> Relatório Mensal
             </button>
           </div>
         </div>
@@ -1775,6 +2169,218 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                 Voltar ao Histórico
               </button>
             </div>
+          </div>
+        )}
+
+        {/* VIEW 4: MONTHLY CONSUMPTION REPORT */}
+        {viewMode === 'monthlyReport' && !viewingPastOrder && (
+          <div className="space-y-6 animate-fade-in">
+            {/* Header Banner & Print Button */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-900 text-white rounded-3xl p-5 gap-4 shadow-lg border border-slate-800">
+              <div>
+                <div className="flex items-center gap-2">
+                  <BarChart2 className="h-6 w-6 text-indigo-400" />
+                  <h3 className="text-sm font-black uppercase tracking-wider text-white">
+                    Relatório Mensal de Consumo dos Diretores
+                  </h3>
+                </div>
+                <p className="text-[11px] font-semibold text-slate-400 mt-1">
+                  Consolidado de consumo por item, quantidade total e valor financeiro acumulado.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handlePrintMonthlyReport}
+                disabled={monthlyReportData.items.length === 0}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black py-2.5 px-5 rounded-2xl text-[11px] uppercase tracking-wider shadow-md transition-all active:scale-95 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed"
+              >
+                <Printer className="h-4 w-4" /> Imprimir Relatório Mensal (PDF)
+              </button>
+            </div>
+
+            {/* Filter Controls */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5 text-indigo-600" /> Mês / Ano de Referência
+                </label>
+                <select
+                  value={selectedReportMonth}
+                  onChange={(e) => setSelectedReportMonth(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                >
+                  <option value="all">📅 Todos os Meses no Histórico</option>
+                  {monthlyReportData.monthsList.map((mKey) => {
+                    const [yr, mo] = mKey.split('-');
+                    const dObj = new Date(parseInt(yr, 10), parseInt(mo, 10) - 1, 1);
+                    const label = dObj.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
+                    return (
+                      <option key={mKey} value={mKey}>
+                        {label}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Filter className="h-3.5 w-3.5 text-indigo-600" /> Diretor / Chefia
+                </label>
+                <select
+                  value={selectedReportDirector}
+                  onChange={(e) => setSelectedReportDirector(e.target.value as any)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                >
+                  <option value="all">👥 Todos os Diretores (Departamento e Segurança)</option>
+                  <option value="chefeDep">📝 Walter Rodrigues Junior (Chefe Departamento)</option>
+                  <option value="chefeSeg">👮 Willian Oliveira dos Santos (Segurança Interna)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Filter className="h-3.5 w-3.5 text-indigo-600" /> Categoria do Pedido
+                </label>
+                <select
+                  value={selectedReportCategory}
+                  onChange={(e) => setSelectedReportCategory(e.target.value as any)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                >
+                  <option value="all">📦 Todas as Categorias (Alimentação e Limpeza)</option>
+                  <option value="alimentacao">🍎 Alimentação</option>
+                  <option value="limpeza">🧹 Limpeza</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Metric Overview Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Itens Distintos</p>
+                  <p className="text-xl font-black text-slate-800 mt-0.5">{monthlyReportData.totalItemsCount}</p>
+                </div>
+                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                  <FileText className="h-5 w-5" />
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Qtd. Total Consumida</p>
+                  <p className="text-xl font-black text-indigo-600 mt-0.5">
+                    {monthlyReportData.totalQuantitySum.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
+                  <BarChart2 className="h-5 w-5" />
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Valor Total Estimado</p>
+                  <p className="text-xl font-black text-emerald-700 mt-0.5">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(monthlyReportData.totalValue)}
+                  </p>
+                </div>
+                <div className="p-3 bg-emerald-50 text-emerald-700 rounded-2xl">
+                  <DollarSign className="h-5 w-5" />
+                </div>
+              </div>
+            </div>
+
+            {/* Table of Consumption */}
+            {monthlyReportData.items.length === 0 ? (
+              <div className="p-12 text-center bg-slate-50 border border-dashed border-slate-200 rounded-3xl">
+                <FileText className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-xs text-slate-400 font-extrabold uppercase tracking-widest">
+                  Nenhum consumo registrado no período selecionado.
+                </p>
+                <p className="text-[10px] text-slate-400 font-semibold mt-1">
+                  Ajuste os filtros de mês, diretor ou categoria para visualizar os dados do histórico.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className="p-4 bg-slate-900 text-white flex justify-between items-center">
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-indigo-300">Detalhamento de Consumo por Item</h4>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Ajuste os valores unitários caso necessário para recalcular os totais.</p>
+                  </div>
+                  <span className="text-[10px] font-black bg-indigo-900/60 text-indigo-200 px-3 py-1 rounded-full border border-indigo-700/50">
+                    {monthlyReportData.filteredOrdersCount} Pedidos Considerados
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200">
+                        <th className="p-3.5 text-center w-12">#</th>
+                        <th className="p-3.5">Item / Descrição do Produto</th>
+                        <th className="p-3.5 text-center">Categoria</th>
+                        <th className="p-3.5 text-center">Qtd. Total</th>
+                        <th className="p-3.5 text-center">Unid.</th>
+                        <th className="p-3.5 text-right">Valor Unit. (R$)</th>
+                        <th className="p-3.5 text-right">Valor Total (R$)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-xs font-semibold text-slate-700 divide-y divide-slate-100">
+                      {monthlyReportData.items.map((item, idx) => (
+                        <tr key={item.itemName} className="hover:bg-slate-50/80 transition-all">
+                          <td className="p-3.5 text-center font-bold text-slate-400">{idx + 1}</td>
+                          <td className="p-3.5 font-extrabold text-slate-900">{item.itemName}</td>
+                          <td className="p-3.5 text-center">
+                            <span className="inline-block text-[9px] font-extrabold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 uppercase tracking-wider">
+                              {item.categoryStr}
+                            </span>
+                          </td>
+                          <td className="p-3.5 text-center font-black text-indigo-600 text-sm">
+                            {item.totalQty.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="p-3.5 text-center">
+                            <span className="px-2 py-0.5 bg-slate-900 text-white rounded text-[9px] font-black uppercase">
+                              {item.unit}
+                            </span>
+                          </td>
+                          <td className="p-3.5 text-right font-mono font-bold text-slate-600">
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={item.unitPrice || ''}
+                              placeholder="0,00"
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                setCustomPrices(prev => ({ ...prev, [item.itemName]: val }));
+                              }}
+                              className="w-24 text-right bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            />
+                          </td>
+                          <td className="p-3.5 text-right font-mono font-black text-indigo-700 text-sm">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalValue)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-900 text-white font-black text-xs">
+                        <td colSpan={3} className="p-4 uppercase tracking-wider">Total Acumulado ({monthlyReportData.totalItemsCount} Itens)</td>
+                        <td className="p-4 text-center font-black text-indigo-300">
+                          {monthlyReportData.totalQuantitySum.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-4"></td>
+                        <td className="p-4 text-right uppercase text-[10px] text-slate-400">Total Geral:</td>
+                        <td className="p-4 text-right font-mono text-base text-emerald-400">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(monthlyReportData.totalValue)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
