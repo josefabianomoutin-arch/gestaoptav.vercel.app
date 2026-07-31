@@ -311,6 +311,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 }
             };
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isVehicleScannerActive]);
     const [isValidationRoleModalOpen, setIsValidationRoleModalOpen] = useState(false);
     const [editingValidationRole, setEditingValidationRole] = useState<ValidationRole | null>(null);

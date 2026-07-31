@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import type { StandardMenu, DailyMenus, MenuRow, Supplier, Delivery } from '../types';
+import type { StandardMenu, DailyMenus, MenuRow, Supplier } from '../types';
 import { Calendar, Printer, Clock, Utensils, ChevronRight, ChevronLeft, CheckSquare, Square, Tag } from 'lucide-react';
 import { ensureArray } from '../lib/utils';
 
@@ -141,7 +141,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ standardMenu, dailyMenus,
           } else {
             expiration = new Date(rawExp).toLocaleDateString('pt-BR');
           }
-        } catch (e) {
+        } catch (_e) {
           expiration = String(rawExp);
         }
       }

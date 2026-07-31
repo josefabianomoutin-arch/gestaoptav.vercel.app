@@ -3,7 +3,6 @@ import React, { useMemo, useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { FinancialRecord, StandardMenu, DailyMenus, Supplier, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, WarehouseMovement, PerCapitaConfig, EpiLog, AcquisitionItem } from '../types';
-import MenuDashboard from './MenuDashboard';
 import AdminStandardMenu from './AdminStandardMenu';
 import AgendaChegadas from './AgendaChegadas';
 import AdminVehicleExitOrder from './AdminVehicleExitOrder';

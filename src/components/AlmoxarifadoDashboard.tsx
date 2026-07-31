@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
-import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Save, Database, Calendar, X, Wrench, Pencil, History, ArrowRightLeft, Check, AlertTriangle, QrCode } from 'lucide-react';
+import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Save, Database, X, Wrench, Pencil, ArrowRightLeft, Check, AlertTriangle, QrCode } from 'lucide-react';
 import { getDatabase, ref, set, get, push, remove, onValue } from 'firebase/database';
 import { app } from '../firebaseConfig';
 import { HOLIDAYS_2026 } from '../constants';
@@ -429,6 +429,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 }
             };
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isToolScannerActive]);
 
     const handleSaveTool = async (e: React.FormEvent) => {
@@ -771,7 +772,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             try {
                 const parsed = new Date(dateStr + 'T12:00:00');
                 return { month: parsed.getMonth(), year: parsed.getFullYear() };
-            } catch (e) {
+            } catch (_e) {
                 return { month: -1, year: -1 };
             }
         };
@@ -1013,7 +1014,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             totalValue,
             firstBusinessDay
         };
-    }, [selectedCronogramaSupplier, selectedMonth, selectedYear, cronogramaType, perCapitaConfig, suppliers, warehouseLog]);
+    }, [selectedCronogramaSupplier, selectedMonth, selectedYear, perCapitaConfig, suppliers, warehouseLog, acquisitionItems]);
 
     // --- Manual Cronograma Handlers and Memos ---
     const filteredManualCronSuppliers = useMemo(() => {

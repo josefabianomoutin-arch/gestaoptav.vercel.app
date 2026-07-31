@@ -17,7 +17,7 @@ async function run() {
   const snapSup = await get(ref(db, 'suppliers'));
   if (snapSup.exists()) {
     const data = snapSup.val();
-    for (const [key, val] of Object.entries(data)) {
+    for (const [_key, val] of Object.entries(data)) {
       const s = val as any;
       console.log(`Main Supplier - CPF: ${s.cpf}, ID: ${s.id}, Name: "${s.name}"`);
     }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Printer, X, Trash2, Pencil, Check, AlertTriangle, Calendar, Clock, ArrowRight, User, Info, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, Printer, X, Trash2, Pencil, Check, AlertTriangle, Clock, User, Info, CheckCircle2 } from 'lucide-react';
 import type { SegregationLog } from '../types';
 
 interface SegregationTabContentProps {

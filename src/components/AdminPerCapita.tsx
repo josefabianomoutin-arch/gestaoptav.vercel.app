@@ -315,15 +315,15 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         } as Supplier));
     }, [estocaveisSuppliers]);
 
-    const handleUpdateContractForPpais = async (itemName: string, assignments: any[]) => {
+    const _handleUpdateContractForPpais = async (itemName: string, assignments: any[]) => {
         return await onUpdateContractForItem(itemName, assignments);
     };
 
-    const handleUpdateContractForPereciveis = async (itemName: string, assignments: any[]) => {
+    const _handleUpdateContractForPereciveis = async (itemName: string, assignments: any[]) => {
         return await onUpdateContractForItem(itemName, assignments);
     };
 
-    const handleUpdateContractForEstocaveis = async (itemName: string, assignments: any[]) => {
+    const _handleUpdateContractForEstocaveis = async (itemName: string, assignments: any[]) => {
         return await onUpdateContractForItem(itemName, assignments);
     };
 

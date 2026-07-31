@@ -21,7 +21,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
     onRegisterEntry, 
     onRegisterWithdrawal,
     initialMode = 'entrada',
-    perCapitaConfig,
+    perCapitaConfig: _perCapitaConfig,
 }) => {
     const barcodeInputRef = useRef<HTMLInputElement>(null);
 

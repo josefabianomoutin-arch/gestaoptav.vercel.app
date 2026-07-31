@@ -318,7 +318,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     });
 
     return invoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [suppliers, warehouseLog, mode, perCapitaConfig]);
+  }, [suppliers, warehouseLog, mode]);
 
   const availableMonths = useMemo(() => {
     const months = new Set<string>();

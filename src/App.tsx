@@ -1171,7 +1171,7 @@ const App: React.FC = () => {
       const dateParts = date.split('-');
       if (dateParts.length === 3) {
         const targetDateObj = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
-        const targetWeekNum = getWeekNumber(targetDateObj);
+        const _targetWeekNum = getWeekNumber(targetDateObj);
 
         // Get all existing deliveries for this CPF across both main suppliers list and perCapita lists
         let existingDeliveries: any[] = [];

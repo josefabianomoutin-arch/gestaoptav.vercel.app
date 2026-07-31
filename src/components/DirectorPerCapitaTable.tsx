@@ -13,15 +13,11 @@ import {
   Trash,
   Barcode as BarcodeIcon,
   Search,
-  Plus,
-  Save,
-  Database,
   BarChart2,
   Calendar,
   DollarSign,
   Filter
 } from 'lucide-react';
-import AdminCleaningLog from './AdminCleaningLog';
 import { getPrintableLotDetails, generateStandardLabelStyles } from '../lib/utils';
 
 interface RowItem {
@@ -92,13 +88,13 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   suppliers = [],
   standardMenu: _standardMenu = {},
   perCapitaConfig,
-  cleaningLogs = [],
-  onRegisterCleaningLog,
-  onDeleteCleaningLog,
-  temperatureLogs = [],
-  onRegisterTemperatureLog,
-  onDeleteTemperatureLog,
-  financialRecords = [],
+  cleaningLogs: _cleaningLogs = [],
+  onRegisterCleaningLog: _onRegisterCleaningLog,
+  onDeleteCleaningLog: _onDeleteCleaningLog,
+  temperatureLogs: _temperatureLogs = [],
+  onRegisterTemperatureLog: _onRegisterTemperatureLog,
+  onDeleteTemperatureLog: _onDeleteTemperatureLog,
+  financialRecords: _financialRecords = [],
 }) => {
   // Identify who the current logged-in user is
   // Identify who the current logged-in user is (Walter Rodrigues Junior as Dep and Willian Oliveira dos santos as Seg)
@@ -1428,7 +1424,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     printWindow.document.close();
   };
 
-  const normalizeText = (text: string): string => {
+  const _normalizeText = (text: string): string => {
     if (!text) return '';
     return text
       .normalize('NFD')
@@ -1585,7 +1581,6 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     const dateFormatted = lotDetails.date ? lotDetails.date.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
     const obsText = item.observation ? item.observation.trim().toUpperCase() : '';
 
-    const isAlim = categoryTab === 'alimentacao';
     const subTabTitle = activeSubTab === 'chefeDep' ? 'Walter' : 'Willian';
     const tagText = `COTA ${subTabTitle.toUpperCase()}`;
 
