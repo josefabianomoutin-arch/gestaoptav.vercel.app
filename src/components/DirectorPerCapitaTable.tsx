@@ -112,6 +112,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   });
 
   const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const lastSavedItemsJsonRef = React.useRef<string>('');
+  const activeKeyRef = React.useRef<string>('');
 
   // Category sub-tab of the active manager: 'alimentacao' or 'limpeza'
   const [categoryTab, setCategoryTab] = useState<'alimentacao' | 'limpeza'>('alimentacao');
@@ -744,34 +746,36 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   // Keep local items in sync with active subtab's activeOrder items
   useEffect(() => {
     const activeOrderItems = data?.[activeSubTab]?.[orderKey]?.items;
-    const timerId = setTimeout(() => {
-      if (activeOrderItems && activeOrderItems.length > 0) {
-        const dbStr = JSON.stringify(activeOrderItems);
-        const locStr = JSON.stringify(localActiveItems);
-        if (dbStr !== locStr) {
-          setLocalActiveItems(activeOrderItems);
-        }
-      } else {
-        // Create empty 25 rows
-        const emptyItems = Array.from({ length: 25 }, (_, i) => ({
-          index: i + 1,
-          itemName: '',
-          quantity: '',
-          observation: '',
-        }));
-        setLocalActiveItems(emptyItems);
-      }
-      // Clear validations when tab updates
+    const currentKey = `${activeSubTab}_${orderKey}`;
+    const keyChanged = activeKeyRef.current !== currentKey;
+
+    if (keyChanged) {
+      activeKeyRef.current = currentKey;
       setPasswordInput('');
       setSignatureError('');
       setSignatureSuccess('');
-    }, 0);
+    }
 
-    return () => {
-      clearTimeout(timerId);
-    };
+    if (activeOrderItems && activeOrderItems.length > 0) {
+      const dbStr = JSON.stringify(activeOrderItems);
+      // Synchronize if subtab/category changed OR if DB matches last saved items
+      if (keyChanged || lastSavedItemsJsonRef.current === '' || dbStr === lastSavedItemsJsonRef.current || localActiveItems.length === 0) {
+        setLocalActiveItems(activeOrderItems);
+        lastSavedItemsJsonRef.current = dbStr;
+      }
+    } else if (keyChanged || localActiveItems.length === 0) {
+      // Create empty 25 rows
+      const emptyItems = Array.from({ length: 25 }, (_, i) => ({
+        index: i + 1,
+        itemName: '',
+        quantity: '',
+        observation: '',
+      }));
+      setLocalActiveItems(emptyItems);
+      lastSavedItemsJsonRef.current = JSON.stringify(emptyItems);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data?.[activeSubTab]?.[orderKey]?.items, activeSubTab, orderKey]);
+  }, [data, activeSubTab, orderKey]);
 
   const handleTabChange = (tab: 'chefeDep' | 'chefeSeg') => {
     setActiveSubTab(tab);
@@ -781,15 +785,6 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
   const handleFieldChange = (index: number, field: keyof RowItem, value: string) => {
     if (isReadOnly || isCurrentOrderSigned) return;
-
-    // Check if user is the designated chef of this subtab or admin or financeiro editing
-    const hasEditPermission = (activeSubTab === 'chefeDep' && isDouglas) || 
-                              (activeSubTab === 'chefeSeg' && isAlfredo) ||
-                              currentUser?.role === 'admin' ||
-                              (currentUser?.role === 'financeiro' && !isReadOnly) ||
-                              (currentUser?.role === 'almoxarifado' && !isReadOnly);
-
-    if (!hasEditPermission) return;
 
     const updated = localActiveItems.map((itm) => {
       if (itm.index === index) {
@@ -801,21 +796,14 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
     // Auto save to database
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    const delay = field === 'itemName' ? 0 : 300;
     saveTimeoutRef.current = setTimeout(() => {
       saveActiveOrderToFirebase(updated);
-    }, 800);
+    }, delay);
   };
 
   const handleClearRow = (index: number) => {
     if (isReadOnly || isCurrentOrderSigned) return;
-
-    const hasEditPermission = (activeSubTab === 'chefeDep' && isDouglas) || 
-                              (activeSubTab === 'chefeSeg' && isAlfredo) ||
-                              currentUser?.role === 'admin' ||
-                              (currentUser?.role === 'financeiro' && !isReadOnly) ||
-                              (currentUser?.role === 'almoxarifado' && !isReadOnly);
-
-    if (!hasEditPermission) return;
 
     const updated = localActiveItems.map((itm) => {
       if (itm.index === index) {
@@ -828,6 +816,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
   };
 
   const saveActiveOrderToFirebase = async (itemsList: RowItem[]) => {
+    lastSavedItemsJsonRef.current = JSON.stringify(itemsList);
     const safeData = data || { chefeDep: {}, chefeSeg: {} } as any;
     const subTab = activeSubTab;
     const currentSubTabData = safeData[subTab] || {};
@@ -848,14 +837,6 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
   const handlePeriodTypeChange = async (newPeriod: 'mensal' | 'semanal') => {
     if (isReadOnly || isCurrentOrderSigned) return;
-
-    const hasEditPermission = (activeSubTab === 'chefeDep' && isDouglas) || 
-                              (activeSubTab === 'chefeSeg' && isAlfredo) ||
-                              currentUser?.role === 'admin' ||
-                              (currentUser?.role === 'financeiro' && !isReadOnly) ||
-                              (currentUser?.role === 'almoxarifado' && !isReadOnly);
-
-    if (!hasEditPermission) return;
 
     const safeData = data || { chefeDep: {}, chefeSeg: {} } as any;
     const subTab = activeSubTab;
@@ -1058,19 +1039,15 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
   const handleArchiveOrder = async () => {
     if (isReadOnly) return;
-    if (!data) return;
+    const safeData = data || { chefeDep: {}, chefeSeg: {} } as any;
     const subTab = activeSubTab;
-    const currentSubTabData = data[subTab] || {};
+    const currentSubTabData = safeData[subTab] || {};
     const currentActiveOrderData = currentSubTabData[orderKey] || {};
 
-    if (!currentActiveOrderData.signed) {
-      alert('Por favor, assine digitalmente o pedido antes de enviá-lo ao histórico para separação.');
-      return;
-    }
-
-    const filledItems = (currentActiveOrderData.items || []).filter(item => item.itemName.trim() !== '');
+    const itemsToArchive = localActiveItems.length > 0 ? localActiveItems : (currentActiveOrderData.items || []);
+    const filledItems = itemsToArchive.filter(item => item.itemName.trim() !== '');
     if (filledItems.length === 0) {
-      alert('Não é possível arquivar um pedido que não possui itens preenchidos.');
+      alert('Não é possível enviar um pedido que não possui itens preenchidos.');
       return;
     }
 
@@ -1080,12 +1057,18 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
 
     const timestampId = `pedido_${Date.now()}`;
     const formattedDate = new Date().toLocaleString('pt-BR');
+    const defaultSigner = subTab === 'chefeDep' ? 'WALTER RODRIGUES JUNIOR' : 'WILLIAN OLIVEIRA DOS SANTOS';
 
     const currentHistory = currentSubTabData[historyKey] || {};
     const newHistoricalOrder: OrderData = {
       ...currentActiveOrderData,
+      items: filledItems,
       id: timestampId,
       createdAt: formattedDate,
+      signed: true,
+      signedAt: currentActiveOrderData.signedAt || formattedDate,
+      signerName: currentActiveOrderData.signerName || defaultSigner,
+      periodType: currentActiveOrderData.periodType || 'semanal'
     };
 
     const emptyItems = Array.from({ length: 25 }, (_, i) => ({
@@ -1096,7 +1079,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     }));
 
     const updatedData = {
-      ...data,
+      ...safeData,
       [subTab]: {
         ...currentSubTabData,
         [orderKey]: {
@@ -1104,7 +1087,8 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
           id: 'atual',
           signed: false,
           signedAt: null,
-          signerName: null
+          signerName: null,
+          periodType: currentActiveOrderData.periodType || 'semanal'
         },
         [historyKey]: {
           ...currentHistory,
@@ -1116,6 +1100,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     const res = await onUpdate(updatedData);
     if (res.success) {
       setLocalActiveItems(emptyItems);
+      lastSavedItemsJsonRef.current = JSON.stringify(emptyItems);
       setSignatureSuccess('Solicitação enviada e adicionada ao histórico de pedidos!');
       setViewMode('history');
     } else {
@@ -2512,12 +2497,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
                 <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
                   {localActiveItems.map((item) => {
                     // Check if edit is permitted
-                    const isEditable = !isReadOnly && !isCurrentOrderSigned && (
-                      (activeSubTab === 'chefeDep' && isDouglas) ||
-                      (activeSubTab === 'chefeSeg' && isAlfredo) ||
-                      currentUser?.role === 'admin' ||
-                      (currentUser?.role === 'financeiro' && !isReadOnly)
-                    );
+                    const isEditable = !isReadOnly && !isCurrentOrderSigned;
 
                     const lotDetails = getPrintableLotDetails(item.itemName, warehouseLog);
                     const lotNumberText = lotDetails ? (lotDetails.lotNumber || lotDetails.lot || 'UNICO') : '-';

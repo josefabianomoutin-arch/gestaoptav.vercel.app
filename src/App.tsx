@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Toaster, toast } from 'sonner';
-import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, VehicleInspection, ServiceOrder, MaintenanceSchedule, PublicInfo, ValidationRole, EpiLog, SegregationLog } from './types';
+import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, VehicleInspection, ServiceOrder, MaintenanceSchedule, PublicInfo, ValidationRole, EpiLog, SegregationLog, MarmitaWeightLog } from './types';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
@@ -29,6 +29,7 @@ let cleaningLogsRef: any;
 let segregationLogsRef: any;
 let epiLogsRef: any;
 let temperatureLogsRef: any;
+let marmitaWeightLogsRef: any;
 let directorWithdrawalsRef: any;
 let standardMenuRef: any;
 let dailyMenusRef: any;
@@ -58,6 +59,7 @@ try {
   segregationLogsRef = ref(database, 'segregationLogs');
   epiLogsRef = ref(database, 'epiLogs');
   temperatureLogsRef = ref(database, 'temperatureLogs');
+  marmitaWeightLogsRef = ref(database, 'marmitaWeightLogs');
   directorWithdrawalsRef = ref(database, 'directorWithdrawals');
   directorPerCapitaRef = ref(database, 'directorPerCapita');
   standardMenuRef = ref(database, 'standardMenu');
@@ -96,6 +98,7 @@ const App: React.FC = () => {
   const [cleaningLogs, setCleaningLogs] = useState<CleaningLog[]>([]);
   const [segregationLogs, setSegregationLogs] = useState<SegregationLog[]>([]);
   const [temperatureLogs, setTemperatureLogs] = useState<any[]>([]);
+  const [marmitaWeightLogs, setMarmitaWeightLogs] = useState<MarmitaWeightLog[]>([]);
   const [epiLogs, setEpiLogs] = useState<EpiLog[]>([]);
   const [directorWithdrawals, setDirectorWithdrawals] = useState<DirectorPerCapitaLog[]>([]);
   const [standardMenu, setStandardMenu] = useState<StandardMenu>({});
@@ -178,6 +181,7 @@ const App: React.FC = () => {
       { key: 'cleaningLogs', setter: setCleaningLogs },
       { key: 'segregationLogs', setter: setSegregationLogs },
       { key: 'temperatureLogs', setter: setTemperatureLogs },
+      { key: 'marmitaWeightLogs', setter: setMarmitaWeightLogs },
       { key: 'epiLogs', setter: setEpiLogs },
       { key: 'directorWithdrawals', setter: setDirectorWithdrawals }
     ];
@@ -476,6 +480,15 @@ const App: React.FC = () => {
       safeLocalStorageSetItem('cached_temperatureLogs', JSON.stringify(list));
     });
     unsubscribes.push(unsubTemperatureLogs);
+
+    // Registros de Peso das Marmitas
+    const unsubMarmitaWeightLogs = onValue(marmitaWeightLogsRef, (snapshot) => {
+      const data = snapshot.val();
+      const list = data ? Object.values(data) : [];
+      setMarmitaWeightLogs(list as MarmitaWeightLog[]);
+      safeLocalStorageSetItem('cached_marmitaWeightLogs', JSON.stringify(list));
+    });
+    unsubscribes.push(unsubMarmitaWeightLogs);
 
     // Registros de EPI
     const unsubEpiLogs = onValue(epiLogsRef, (snapshot) => {
@@ -3507,6 +3520,13 @@ const App: React.FC = () => {
                onSaveInvoice={handleSaveInvoice}
                onDeleteDelivery={handleDeleteDelivery}
                onUpdateDailyMenu={handleUpdateDailyMenu}
+               marmitaWeightLogs={marmitaWeightLogs || []}
+               onRegisterMarmitaWeightLog={async (l) => {
+                   const r = push(marmitaWeightLogsRef);
+                   await set(r, { ...l, id: r.key });
+                   return { success: true, message: 'Ok' };
+               }}
+               onDeleteMarmitaWeightLog={async (id) => remove(child(marmitaWeightLogsRef, id))}
              />;
     }
 
@@ -3615,6 +3635,13 @@ const App: React.FC = () => {
                    return { success: true, message: 'Ok' };
                }}
                onDeleteTemperatureLog={async (id) => remove(child(temperatureLogsRef, id))}
+               marmitaWeightLogs={marmitaWeightLogs || []}
+               onRegisterMarmitaWeightLog={async (l) => {
+                   const r = push(marmitaWeightLogsRef);
+                   await set(r, { ...l, id: r.key });
+                   return { success: true, message: 'Ok' };
+               }}
+               onDeleteMarmitaWeightLog={async (id) => remove(child(marmitaWeightLogsRef, id))}
              />;
     }
 

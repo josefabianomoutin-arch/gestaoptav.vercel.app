@@ -1,11 +1,11 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
-import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Save, Database, X, Wrench, Pencil, ArrowRightLeft, Check, AlertTriangle, QrCode } from 'lucide-react';
+import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Save, Database, X, Wrench, Pencil, ArrowRightLeft, Check, AlertTriangle, QrCode, Scale, Utensils } from 'lucide-react';
 import { getDatabase, ref, set, get, push, remove, onValue } from 'firebase/database';
 import { app } from '../firebaseConfig';
 import { HOLIDAYS_2026 } from '../constants';
-import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus, Delivery } from '../types';
+import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus, Delivery, MarmitaWeightLog } from '../types';
 import AdminInvoices from './AdminInvoices';
 import AgendaChegadas from './AgendaChegadas';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -63,6 +63,9 @@ interface AlmoxarifadoDashboardProps {
     temperatureLogs?: any[];
     onRegisterTemperatureLog?: (log: any) => Promise<{ success: boolean; message: string }>;
     onDeleteTemperatureLog?: (id: string) => Promise<any>;
+    marmitaWeightLogs?: MarmitaWeightLog[];
+    onRegisterMarmitaWeightLog?: (log: any) => Promise<{ success: boolean; message: string }>;
+    onDeleteMarmitaWeightLog?: (id: string) => Promise<any>;
     [key: string]: any;
 }
 
@@ -149,7 +152,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     onDeleteCleaningLog,
     temperatureLogs = [],
     onRegisterTemperatureLog,
-    onDeleteTemperatureLog
+    onDeleteTemperatureLog,
+    marmitaWeightLogs = [],
+    onRegisterMarmitaWeightLog,
+    onDeleteMarmitaWeightLog
 }) => {
     const [activeTab, setActiveTab] = useState<string>('history');
     const [receiptSupplierCpf, setReceiptSupplierCpf] = useState('');
@@ -190,7 +196,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [isSavingManualCron, setIsSavingManualCron] = useState(false);
 
     // --- Câmaras Frias & Ferramentas States ---
-    const [camaraFriaSubTab, setCamaraFriaSubTab] = useState<'temperature' | 'cleaning' | 'tools' | 'segregation'>('temperature');
+    const [camaraFriaSubTab, setCamaraFriaSubTab] = useState<'temperature' | 'cleaning' | 'tools' | 'segregation' | 'marmitaWeight'>('temperature');
     const [tempDate, setTempDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [tempPeriod, setTempPeriod] = useState<'MANHÃ' | 'TARDE'>('MANHÃ');
     const [tempTime, setTempTime] = useState<string>(new Date().toTimeString().slice(0, 5));
@@ -201,6 +207,23 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [isSavingTemp, setIsSavingTemp] = useState<boolean>(false);
     const [tempFilterMonth, setTempFilterMonth] = useState<string>(MONTHS_PT[new Date().getMonth()]);
     const [tempFilterYear, setTempFilterYear] = useState<number>(new Date().getFullYear());
+
+    // --- Controle de Peso das Marmitas States ---
+    const [marmitaDate, setMarmitaDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [marmitaPeriod, setMarmitaPeriod] = useState<'ALMOÇO' | 'JANTA'>('ALMOÇO');
+    const [marmitaStage, setMarmitaStage] = useState<'INÍCIO DA PRODUÇÃO' | 'FINAL DA PRODUÇÃO'>('INÍCIO DA PRODUÇÃO');
+    const [marmitaTime, setMarmitaTime] = useState<string>(new Date().toTimeString().slice(0, 5));
+    const [marmitaTargetWeight, setMarmitaTargetWeight] = useState<string>('500');
+    const [marmitaTolerance, setMarmitaTolerance] = useState<string>('20');
+    const [marmitaResponsible, setMarmitaResponsible] = useState<string>(currentUser?.name || '');
+    const [marmitaObservations, setMarmitaObservations] = useState<string>('');
+    const [marmitaSamples, setMarmitaSamples] = useState<string[]>(Array(15).fill(''));
+    const [isSavingMarmita, setIsSavingMarmita] = useState<boolean>(false);
+    const [marmitaFilterMonth, setMarmitaFilterMonth] = useState<string>(MONTHS_PT[new Date().getMonth()]);
+    const [marmitaFilterYear, setMarmitaFilterYear] = useState<number>(new Date().getFullYear());
+    const [marmitaFilterPeriod, setMarmitaFilterPeriod] = useState<'TODOS' | 'ALMOÇO' | 'JANTA'>('TODOS');
+    const [marmitaFilterStage, setMarmitaFilterStage] = useState<'TODOS' | 'INÍCIO DA PRODUÇÃO' | 'FINAL DA PRODUÇÃO'>('TODOS');
+    const [selectedMarmitaLogDetail, setSelectedMarmitaLogDetail] = useState<MarmitaWeightLog | null>(null);
 
     // --- Controle de Ferramentas States & Database listeners ---
     const [tools, setTools] = useState<any[]>([]);
@@ -2386,6 +2409,381 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
         }
     };
 
+    // --- Funções de Controle de Peso de Marmitas ---
+    const handleRegisterMarmitaWeight = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!marmitaResponsible.trim()) {
+            alert('Informe o nome do responsável pela pesagem.');
+            return;
+        }
+
+        const numSamples = marmitaSamples.map(s => Number(String(s).replace(',', '.')));
+        const filledCount = numSamples.filter(n => !isNaN(n) && n > 0).length;
+        if (filledCount === 0) {
+            alert('Informe ao menos um valor de amostra.');
+            return;
+        }
+
+        setIsSavingMarmita(true);
+        try {
+            const validNumbers = numSamples.filter(n => !isNaN(n) && n > 0);
+            const sum = validNumbers.reduce((a, b) => a + b, 0);
+            const avg = validNumbers.length > 0 ? Number((sum / validNumbers.length).toFixed(1)) : 0;
+            const minW = validNumbers.length > 0 ? Math.min(...validNumbers) : 0;
+            const maxW = validNumbers.length > 0 ? Math.max(...validNumbers) : 0;
+            const targetNum = Number(marmitaTargetWeight) || 500;
+            const tolNum = Number(marmitaTolerance) || 20;
+            const minAcceptable = targetNum - tolNum;
+            const maxAcceptable = targetNum + tolNum;
+            const compliant = validNumbers.filter(n => n >= minAcceptable && n <= maxAcceptable).length;
+
+            const logData: Omit<MarmitaWeightLog, 'id'> = {
+                date: marmitaDate,
+                period: marmitaPeriod,
+                stage: marmitaStage,
+                time: marmitaTime,
+                targetWeight: targetNum,
+                toleranceGrams: tolNum,
+                responsible: marmitaResponsible.trim(),
+                observations: marmitaObservations.trim(),
+                samples: numSamples.map(n => (isNaN(n) ? 0 : n)),
+                averageWeight: avg,
+                minWeight: minW,
+                maxWeight: maxW,
+                compliantCount: compliant,
+                createdAt: new Date().toISOString()
+            };
+
+            if (onRegisterMarmitaWeightLog) {
+                const res = await onRegisterMarmitaWeightLog(logData);
+                if (res.success) {
+                    alert(`Registro de peso (${marmitaPeriod} - ${marmitaStage}) salvo com sucesso!`);
+                    setMarmitaSamples(Array(15).fill(''));
+                    setMarmitaObservations('');
+                } else {
+                    alert(res.message || 'Erro ao salvar registro.');
+                }
+            }
+        } catch (err) {
+            console.error('Erro ao salvar registro de marmita:', err);
+            alert('Erro ao salvar registro de peso.');
+        } finally {
+            setIsSavingMarmita(false);
+        }
+    };
+
+    const handleDeleteMarmitaWeight = async (id: string) => {
+        if (window.confirm('Tem certeza que deseja excluir este registro de pesagem?')) {
+            try {
+                if (onDeleteMarmitaWeightLog) {
+                    await onDeleteMarmitaWeightLog(id);
+                }
+            } catch (err) {
+                console.error('Erro ao deletar pesagem:', err);
+                alert('Erro ao excluir registro.');
+            }
+        }
+    };
+
+    const handlePrintMarmitaDailySheet = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Por favor, permita popups para imprimir a ficha.');
+            return;
+        }
+
+        const createSampleRows = () => {
+            let rows = '';
+            for (let i = 1; i <= 15; i++) {
+                rows += `
+                    <tr>
+                        <td style="text-align: center; font-weight: bold; padding: 2px;">#${String(i).padStart(2, '0')}</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                `;
+            }
+            return rows;
+        };
+
+        const htmlContent = `
+            <html>
+                <head>
+                    <title>Ficha de Coleta Diária - Peso de Marmitas (15+15 Almoço / 15+15 Janta)</title>
+                    <style>
+                        @page { size: A4 portrait; margin: 6mm; }
+                        body { font-family: Arial, sans-serif; font-size: 9px; color: #111; margin: 0; padding: 0; line-height: 1.15; }
+                        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 6px; }
+                        .header-sap { font-size: 9px; font-weight: bold; text-transform: uppercase; }
+                        .header-unit { font-size: 11px; font-weight: bold; text-transform: uppercase; margin: 1px 0; }
+                        .report-title { text-align: center; font-size: 10px; font-weight: bold; text-transform: uppercase; background: #e2e8f0; padding: 4px; border: 1px solid #000; margin-bottom: 6px; }
+                        .info-box { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; border: 1px solid #000; padding: 4px 6px; gap: 4px; font-size: 8px; margin-bottom: 6px; }
+                        .tables-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+                        table { width: 100%; border-collapse: collapse; font-size: 8px; }
+                        th, td { border: 1px solid #000; padding: 2px; text-align: center; }
+                        th { background-color: #f1f5f9; font-weight: bold; text-transform: uppercase; font-size: 7.5px; }
+                        .obs-box { border: 1px solid #000; padding: 4px; min-height: 30px; margin-bottom: 8px; font-size: 8px; }
+                        .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px; text-align: center; font-size: 8px; }
+                        .sig-line { border-top: 1px solid #000; padding-top: 2px; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div class="header-sap">Governo do Estado de São Paulo - Secretaria da Administração Penitenciária</div>
+                        <div class="header-unit">Coordenadoria de Unidades Prisionais - Setor de Nutrição e Alimentação</div>
+                        <div style="font-size: 8.5px; font-weight: bold; color: #333;">CONTROLE DE QUALIDADE - PESAGEM DIÁRIA DE MARMITAS</div>
+                    </div>
+
+                    <div class="report-title">Ficha Diária de Coleta: Almoço (15 Início + 15 Final) & Janta (15 Início + 15 Final)</div>
+
+                    <div class="info-box">
+                        <div><strong>DATA:</strong> ____/____/2026</div>
+                        <div><strong>META PADRÃO:</strong> 500g (±20g)</div>
+                        <div><strong>RESPONSÁVEL COZINHA:</strong> ____________</div>
+                        <div><strong>VISTO NUTRICIONISTA:</strong> ____________</div>
+                    </div>
+
+                    <div class="tables-grid">
+                        <!-- ALMOÇO INÍCIO -->
+                        <div>
+                            <div style="font-weight: bold; text-align: center; background: #fef3c7; border: 1px solid #000; border-bottom: none; padding: 3px; font-size: 9px; color: #78350f;">
+                                ALMOÇO - INÍCIO DA PRODUÇÃO (15 AMOSTRAS)
+                            </div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 18%;">Nº</th>
+                                        <th style="width: 20%;">Hora</th>
+                                        <th style="width: 24%;">Peso (g)</th>
+                                        <th style="width: 18%;">Conf?</th>
+                                        <th style="width: 20%;">Visto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${createSampleRows()}
+                                </tbody>
+                            </table>
+                            <div style="border: 1px solid #000; border-top: none; padding: 2px 4px; font-size: 7.5px; background: #fffbeb;">
+                                <strong>MÉDIA:</strong> _______ g &nbsp;|&nbsp; <strong>CONF:</strong> ___/15
+                            </div>
+                        </div>
+
+                        <!-- ALMOÇO FINAL -->
+                        <div>
+                            <div style="font-weight: bold; text-align: center; background: #fef3c7; border: 1px solid #000; border-bottom: none; padding: 3px; font-size: 9px; color: #78350f;">
+                                ALMOÇO - FINAL DA PRODUÇÃO (15 AMOSTRAS)
+                            </div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 18%;">Nº</th>
+                                        <th style="width: 20%;">Hora</th>
+                                        <th style="width: 24%;">Peso (g)</th>
+                                        <th style="width: 18%;">Conf?</th>
+                                        <th style="width: 20%;">Visto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${createSampleRows()}
+                                </tbody>
+                            </table>
+                            <div style="border: 1px solid #000; border-top: none; padding: 2px 4px; font-size: 7.5px; background: #fffbeb;">
+                                <strong>MÉDIA:</strong> _______ g &nbsp;|&nbsp; <strong>CONF:</strong> ___/15
+                            </div>
+                        </div>
+
+                        <!-- JANTA INÍCIO -->
+                        <div>
+                            <div style="font-weight: bold; text-align: center; background: #e0e7ff; border: 1px solid #000; border-bottom: none; padding: 3px; font-size: 9px; color: #1e1b4b;">
+                                JANTA - INÍCIO DA PRODUÇÃO (15 AMOSTRAS)
+                            </div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 18%;">Nº</th>
+                                        <th style="width: 20%;">Hora</th>
+                                        <th style="width: 24%;">Peso (g)</th>
+                                        <th style="width: 18%;">Conf?</th>
+                                        <th style="width: 20%;">Visto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${createSampleRows()}
+                                </tbody>
+                            </table>
+                            <div style="border: 1px solid #000; border-top: none; padding: 2px 4px; font-size: 7.5px; background: #eef2ff;">
+                                <strong>MÉDIA:</strong> _______ g &nbsp;|&nbsp; <strong>CONF:</strong> ___/15
+                            </div>
+                        </div>
+
+                        <!-- JANTA FINAL -->
+                        <div>
+                            <div style="font-weight: bold; text-align: center; background: #e0e7ff; border: 1px solid #000; border-bottom: none; padding: 3px; font-size: 9px; color: #1e1b4b;">
+                                JANTA - FINAL DA PRODUÇÃO (15 AMOSTRAS)
+                            </div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 18%;">Nº</th>
+                                        <th style="width: 20%;">Hora</th>
+                                        <th style="width: 24%;">Peso (g)</th>
+                                        <th style="width: 18%;">Conf?</th>
+                                        <th style="width: 20%;">Visto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${createSampleRows()}
+                                </tbody>
+                            </table>
+                            <div style="border: 1px solid #000; border-top: none; padding: 2px 4px; font-size: 7.5px; background: #eef2ff;">
+                                <strong>MÉDIA:</strong> _______ g &nbsp;|&nbsp; <strong>CONF:</strong> ___/15
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="obs-box">
+                        <strong>OBSERVAÇÕES / AÇÕES CORRETIVAS APLICADAS:</strong>
+                    </div>
+
+                    <div class="signatures">
+                        <div>
+                            <div class="sig-line">Responsável pela Pesagem na Cozinha</div>
+                            <div style="font-size: 7.5px; color: #555;">Nome e Assinatura</div>
+                        </div>
+                        <div>
+                            <div class="sig-line">Nutricionista / Responsável Técnico</div>
+                            <div style="font-size: 7.5px; color: #555;">CRN / Carimbo e Visto</div>
+                        </div>
+                    </div>
+
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                        }
+                    </script>
+                </body>
+            </html>
+        `;
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
+    const handlePrintMarmitaMonthlyReport = () => {
+        const filteredLogs = ensureArray(marmitaWeightLogs).filter((log: MarmitaWeightLog) => {
+            if (!log) return false;
+            const logDate = new Date(log.date + 'T12:00:00');
+            const logMonth = MONTHS_PT[logDate.getMonth()];
+            const logYear = logDate.getFullYear();
+            const periodMatch = marmitaFilterPeriod === 'TODOS' || log.period === marmitaFilterPeriod;
+            const stageMatch = marmitaFilterStage === 'TODOS' || log.stage === marmitaFilterStage;
+            return logMonth === marmitaFilterMonth && logYear === marmitaFilterYear && periodMatch && stageMatch;
+        });
+
+        const monthIndex = MONTHS_PT.indexOf(marmitaFilterMonth);
+        const daysInMonth = new Date(marmitaFilterYear, monthIndex + 1, 0).getDate();
+
+        let tableRowsHtml = '';
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${marmitaFilterYear}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            
+            const almocoInicio = filteredLogs.find((l: MarmitaWeightLog) => l.date === dateStr && l.period === 'ALMOÇO' && (l.stage === 'INÍCIO DA PRODUÇÃO' || !l.stage));
+            const almocoFinal = filteredLogs.find((l: MarmitaWeightLog) => l.date === dateStr && l.period === 'ALMOÇO' && l.stage === 'FINAL DA PRODUÇÃO');
+            const jantaInicio = filteredLogs.find((l: MarmitaWeightLog) => l.date === dateStr && l.period === 'JANTA' && (l.stage === 'INÍCIO DA PRODUÇÃO' || !l.stage));
+            const jantaFinal = filteredLogs.find((l: MarmitaWeightLog) => l.date === dateStr && l.period === 'JANTA' && l.stage === 'FINAL DA PRODUÇÃO');
+
+            const almocoIniStr = almocoInicio ? `${almocoInicio.averageWeight}g (${almocoInicio.compliantCount}/15)` : '-';
+            const almocoFinStr = almocoFinal ? `${almocoFinal.averageWeight}g (${almocoFinal.compliantCount}/15)` : '-';
+            const jantaIniStr = jantaInicio ? `${jantaInicio.averageWeight}g (${jantaInicio.compliantCount}/15)` : '-';
+            const jantaFinStr = jantaFinal ? `${jantaFinal.averageWeight}g (${jantaFinal.compliantCount}/15)` : '-';
+
+            const obs = [almocoInicio?.observations, almocoFinal?.observations, jantaInicio?.observations, jantaFinal?.observations]
+                .filter(Boolean)
+                .join(' | ');
+
+            tableRowsHtml += `
+                <tr>
+                    <td style="text-align: center; font-weight: bold; padding: 3px;">${String(day).padStart(2, '0')}</td>
+                    <td style="text-align: center; font-weight: bold;">${almocoIniStr}</td>
+                    <td style="text-align: center; font-weight: bold;">${almocoFinStr}</td>
+                    <td style="text-align: center; font-weight: bold;">${jantaIniStr}</td>
+                    <td style="text-align: center; font-weight: bold;">${jantaFinStr}</td>
+                    <td style="font-size: 7.5px;">${obs || '-'}</td>
+                </tr>
+            `;
+        }
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Por favor, permita popups para imprimir.');
+            return;
+        }
+
+        const htmlContent = `
+            <html>
+                <head>
+                    <title>Relatório Mensal de Peso de Marmitas - ${marmitaFilterMonth}/${marmitaFilterYear}</title>
+                    <style>
+                        @page { size: A4 portrait; margin: 8mm; }
+                        body { font-family: Arial, sans-serif; color: #111; line-height: 1.15; margin: 0; padding: 0; font-size: 9px; }
+                        .header { text-align: center; margin-bottom: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; }
+                        .header-sap { font-size: 9px; text-transform: uppercase; font-weight: bold; }
+                        .header-unit { font-size: 11px; font-weight: bold; }
+                        .report-title { text-align: center; font-size: 10px; font-weight: bold; margin: 5px 0; text-transform: uppercase; background: #e2e8f0; padding: 4px; border: 1px solid #000; }
+                        .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; border: 1px solid #000; margin-bottom: 6px; padding: 4px; font-weight: bold; font-size: 8px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+                        th, td { border: 1px solid #000; padding: 3px; text-align: center; font-size: 8px; }
+                        th { background-color: #cbd5e1; font-weight: bold; text-transform: uppercase; font-size: 7.5px; }
+                        .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px; text-align: center; font-size: 8px; }
+                        .sig-line { border-top: 1px solid #000; padding-top: 3px; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div class="header-sap">Governo do Estado de São Paulo - Secretaria da Administração Penitenciária</div>
+                        <div class="header-unit">Coordenadoria de Unidades Prisionais - Setor de Nutrição e Alimentação</div>
+                    </div>
+                    <div class="report-title">RELATÓRIO MENSAL CONSOLIDADO DE PESAGEM DE MARMITAS</div>
+                    <div class="info-grid">
+                        <div><strong>MÊS/ANO:</strong> ${marmitaFilterMonth} / ${marmitaFilterYear}</div>
+                        <div><strong>AMOSTRAGEM EXIGIDA:</strong> Almoço (15 Início + 15 Final) / Janta (15 Início + 15 Final)</div>
+                        <div><strong>PESO META:</strong> 500g (±20g)</div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 6%;">Dia</th>
+                                <th style="width: 20%;">Almoço - Início (Média/Conf)</th>
+                                <th style="width: 20%;">Almoço - Final (Média/Conf)</th>
+                                <th style="width: 20%;">Janta - Início (Média/Conf)</th>
+                                <th style="width: 20%;">Janta - Final (Média/Conf)</th>
+                                <th>Observações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRowsHtml}
+                        </tbody>
+                    </table>
+                    <div class="signatures">
+                        <div>
+                            <div class="sig-line">Responsável pela Coleta de Pesagem</div>
+                        </div>
+                        <div>
+                            <div class="sig-line">Nutricionista / Chefe de Seção de Alimentação</div>
+                        </div>
+                    </div>
+                    <script>
+                        window.onload = function() { window.print(); }
+                    </script>
+                </body>
+            </html>
+        `;
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
     const handlePrintReceipt = () => {
         if (!receiptData) return;
         
@@ -4040,8 +4438,8 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     <Database className="h-6 w-6" />
                                 </div>
                                 <div>
-                                    <h2 className="text-lg font-black uppercase tracking-tighter leading-none">Controle de Câmaras Frias & Ferramentas</h2>
-                                    <p className="text-zinc-400 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Temperatura, Higienização, Ferramental e Itens Segregados</p>
+                                    <h2 className="text-lg font-black uppercase tracking-tighter leading-none">Controle de Câmaras Frias, Marmitas & Ferramentas</h2>
+                                    <p className="text-zinc-400 font-bold text-[8px] uppercase tracking-widest mt-0.5 italic">Temperatura, Limpeza, Pesagem de Marmitas (15 Amostras), Ferramentas e Segregação</p>
                                 </div>
                             </div>
                             <div className="flex bg-zinc-800 p-1 rounded-2xl border border-zinc-700 overflow-x-auto max-w-full scrollbar-none whitespace-nowrap">
@@ -4051,6 +4449,13 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all whitespace-nowrap ${camaraFriaSubTab === 'temperature' ? 'bg-white text-zinc-900 shadow-md' : 'text-zinc-400 hover:text-white'}`}
                                 >
                                     Controle de Temperatura
+                                </button>
+                                <button 
+                                    type="button"
+                                    onClick={() => setCamaraFriaSubTab('marmitaWeight')}
+                                    className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all whitespace-nowrap ${camaraFriaSubTab === 'marmitaWeight' ? 'bg-white text-zinc-900 shadow-md' : 'text-zinc-400 hover:text-white'}`}
+                                >
+                                    Peso das Marmitas (15+15)
                                 </button>
                                 <button 
                                     type="button"
@@ -4085,6 +4490,483 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     onDelete={onDeleteSegregationLog}
                                     currentUser={currentUser}
                                 />
+                            </div>
+                        ) : camaraFriaSubTab === 'marmitaWeight' ? (
+                            <div className="p-4 md:p-6 space-y-8 animate-fade-in">
+                                {/* Banner Informacional */}
+                                <div className="bg-gradient-to-r from-emerald-900 to-zinc-900 p-6 rounded-3xl text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-xl border border-emerald-800/40">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-emerald-500/20 text-emerald-400 rounded-2xl border border-emerald-500/30">
+                                            <Scale className="h-8 w-8" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black uppercase tracking-tight">Controle de Registro de Peso das Marmitas</h3>
+                                            <p className="text-emerald-200/80 text-xs font-semibold mt-0.5">
+                                                Coleta de 15 amostras no <strong className="text-amber-300">Início da Produção</strong> e 15 amostras no <strong className="text-emerald-300">Final da Produção</strong> (Almoço e Janta).
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 w-full md:w-auto">
+                                        <button
+                                            type="button"
+                                            onClick={handlePrintMarmitaDailySheet}
+                                            className="flex-1 md:flex-initial px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95"
+                                        >
+                                            <Printer className="h-4 w-4" />
+                                            Ficha de Coleta Impressa (Diária)
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                                    {/* Form Left Side (5 cols) */}
+                                    <div className="lg:col-span-5 bg-slate-50 border border-slate-200/80 p-6 rounded-3xl space-y-5 shadow-sm">
+                                        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                                            <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                                                <Plus className="h-4 w-4 text-emerald-600" />
+                                                Lançamento Digital de Pesagem
+                                            </h3>
+                                            <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-wider rounded-full">
+                                                {marmitaPeriod} • {marmitaStage === 'INÍCIO DA PRODUÇÃO' ? 'Início' : 'Final'} (15)
+                                            </span>
+                                        </div>
+
+                                        <form onSubmit={handleRegisterMarmitaWeight} className="space-y-4">
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Data da Pesagem</label>
+                                                    <input 
+                                                        type="date"
+                                                        value={marmitaDate}
+                                                        onChange={e => setMarmitaDate(e.target.value)}
+                                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-xs"
+                                                        required
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Refeição / Período</label>
+                                                    <select 
+                                                        value={marmitaPeriod}
+                                                        onChange={e => setMarmitaPeriod(e.target.value as any)}
+                                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-xs"
+                                                    >
+                                                        <option value="ALMOÇO">ALMOÇO</option>
+                                                        <option value="JANTA">JANTA</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Momento / Etapa da Produção</label>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setMarmitaStage('INÍCIO DA PRODUÇÃO')}
+                                                        className={`h-10 px-3 rounded-xl border text-xs font-black uppercase transition-all flex items-center justify-center gap-1.5 ${
+                                                            marmitaStage === 'INÍCIO DA PRODUÇÃO'
+                                                                ? 'bg-amber-500 text-zinc-950 border-amber-600 shadow-sm'
+                                                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                                        }`}
+                                                    >
+                                                        Início (15 Amostras)
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setMarmitaStage('FINAL DA PRODUÇÃO')}
+                                                        className={`h-10 px-3 rounded-xl border text-xs font-black uppercase transition-all flex items-center justify-center gap-1.5 ${
+                                                            marmitaStage === 'FINAL DA PRODUÇÃO'
+                                                                ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
+                                                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                                        }`}
+                                                    >
+                                                        Final (15 Amostras)
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Horário</label>
+                                                    <input 
+                                                        type="time"
+                                                        value={marmitaTime}
+                                                        onChange={e => setMarmitaTime(e.target.value)}
+                                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-xs"
+                                                        required
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Peso Meta (g)</label>
+                                                    <input 
+                                                        type="number"
+                                                        value={marmitaTargetWeight}
+                                                        onChange={e => setMarmitaTargetWeight(e.target.value)}
+                                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-xs"
+                                                        required
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Tolerância (g)</label>
+                                                    <input 
+                                                        type="number"
+                                                        value={marmitaTolerance}
+                                                        onChange={e => setMarmitaTolerance(e.target.value)}
+                                                        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-xs"
+                                                        placeholder="±20"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Responsável pela Pesagem</label>
+                                                <input 
+                                                    type="text"
+                                                    value={marmitaResponsible}
+                                                    onChange={e => setMarmitaResponsible(e.target.value)}
+                                                    placeholder="Nome do operador ou nutricionista"
+                                                    className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-xs"
+                                                    required
+                                                />
+                                            </div>
+
+                                            {/* 15 Sample Inputs Box */}
+                                            <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+                                                <div className="flex justify-between items-center">
+                                                    <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                                        <Utensils className="h-3.5 w-3.5 text-emerald-600" />
+                                                        Medições das 15 Amostras (Gramas)
+                                                    </label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setMarmitaSamples(Array(15).fill(marmitaTargetWeight || '500'))}
+                                                        className="text-[9px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg transition-all"
+                                                    >
+                                                        Preencher Meta ({marmitaTargetWeight || 500}g)
+                                                    </button>
+                                                </div>
+
+                                                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                                                    {Array.from({ length: 15 }).map((_, index) => (
+                                                        <div key={index} className="space-y-0.5">
+                                                            <span className="text-[8px] font-black text-slate-400 uppercase block text-center">
+                                                                # {String(index + 1).padStart(2, '0')}
+                                                            </span>
+                                                            <input 
+                                                                type="number"
+                                                                step="1"
+                                                                value={marmitaSamples[index] || ''}
+                                                                onChange={e => {
+                                                                    const updated = [...marmitaSamples];
+                                                                    updated[index] = e.target.value;
+                                                                    setMarmitaSamples(updated);
+                                                                }}
+                                                                placeholder="g"
+                                                                className="w-full h-8 px-1.5 text-center border border-slate-200 rounded-lg bg-slate-50 font-bold outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all text-xs"
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                {/* Real-time calculated stats */}
+                                                {(() => {
+                                                    const validNums = marmitaSamples
+                                                        .map(s => Number(String(s).replace(',', '.')))
+                                                        .filter(n => !isNaN(n) && n > 0);
+                                                    if (validNums.length === 0) return null;
+                                                    const avg = (validNums.reduce((a, b) => a + b, 0) / validNums.length).toFixed(1);
+                                                    const target = Number(marmitaTargetWeight) || 500;
+                                                    const tol = Number(marmitaTolerance) || 20;
+                                                    const compliant = validNums.filter(n => n >= (target - tol) && n <= (target + tol)).length;
+                                                    return (
+                                                        <div className="mt-3 p-3 bg-emerald-50/70 rounded-xl border border-emerald-100 flex justify-between items-center text-[10px]">
+                                                            <div>
+                                                                <span className="text-slate-500 font-bold">Média: </span>
+                                                                <span className="font-black text-emerald-900 text-xs">{avg}g</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-slate-500 font-bold">Preenchidas: </span>
+                                                                <span className="font-bold text-slate-800">{validNums.length}/15</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-slate-500 font-bold">Conformes: </span>
+                                                                <span className="font-black text-emerald-700">{compliant}/{validNums.length}</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Observações / Prato Servido</label>
+                                                <input 
+                                                    type="text"
+                                                    value={marmitaObservations}
+                                                    onChange={e => setMarmitaObservations(e.target.value)}
+                                                    placeholder="Ex: Arroz, feijão, frango assado e salada"
+                                                    className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-xs"
+                                                />
+                                            </div>
+
+                                            <button 
+                                                type="submit"
+                                                disabled={isSavingMarmita}
+                                                className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-wider rounded-2xl shadow-lg shadow-emerald-600/20 active:scale-98 transition-all flex items-center justify-center gap-2 text-xs"
+                                            >
+                                                {isSavingMarmita ? 'Salvando...' : 'Salvar Lançamento de Peso'}
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    {/* Right Side: History Logs & Monthly Report Filters (7 cols) */}
+                                    <div className="lg:col-span-7 space-y-6">
+                                        {/* Header Controls */}
+                                        <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-3xl space-y-4">
+                                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                                <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                                                    <FileText className="h-4 w-4 text-emerald-600" />
+                                                    Histórico de Lançamentos Digitais
+                                                </h3>
+                                                <button
+                                                    type="button"
+                                                    onClick={handlePrintMarmitaMonthlyReport}
+                                                    className="px-3.5 py-1.5 bg-zinc-900 hover:bg-black text-white font-black text-[10px] uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shadow-md active:scale-95"
+                                                >
+                                                    <Printer className="h-3.5 w-3.5 text-emerald-400" />
+                                                    Relatório Mensal Impresso
+                                                </button>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200">
+                                                <div>
+                                                    <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Mês</label>
+                                                    <select 
+                                                        value={marmitaFilterMonth}
+                                                        onChange={e => setMarmitaFilterMonth(e.target.value)}
+                                                        className="w-full h-9 px-2 border border-slate-200 rounded-xl bg-white font-bold text-xs outline-none"
+                                                    >
+                                                        {MONTHS_PT.map(m => (
+                                                            <option key={m} value={m}>{m}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Ano</label>
+                                                    <select 
+                                                        value={marmitaFilterYear}
+                                                        onChange={e => setMarmitaFilterYear(Number(e.target.value))}
+                                                        className="w-full h-9 px-2 border border-slate-200 rounded-xl bg-white font-bold text-xs outline-none"
+                                                    >
+                                                        {[2025, 2026, 2027].map(y => (
+                                                            <option key={y} value={y}>{y}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Refeição</label>
+                                                    <select 
+                                                        value={marmitaFilterPeriod}
+                                                        onChange={e => setMarmitaFilterPeriod(e.target.value as any)}
+                                                        className="w-full h-9 px-2 border border-slate-200 rounded-xl bg-white font-bold text-xs outline-none"
+                                                    >
+                                                        <option value="TODOS">Todas</option>
+                                                        <option value="ALMOÇO">Almoço</option>
+                                                        <option value="JANTA">Janta</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Etapa</label>
+                                                    <select 
+                                                        value={marmitaFilterStage}
+                                                        onChange={e => setMarmitaFilterStage(e.target.value as any)}
+                                                        className="w-full h-9 px-2 border border-slate-200 rounded-xl bg-white font-bold text-xs outline-none"
+                                                    >
+                                                        <option value="TODOS">Todas</option>
+                                                        <option value="INÍCIO DA PRODUÇÃO">Início</option>
+                                                        <option value="FINAL DA PRODUÇÃO">Final</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Logs Table */}
+                                        <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-left text-xs">
+                                                    <thead className="bg-slate-100/80 text-slate-500 uppercase text-[9px] font-black border-b border-slate-200">
+                                                        <tr>
+                                                            <th className="py-3 px-4">Data / Hora</th>
+                                                            <th className="py-3 px-3">Refeição & Etapa</th>
+                                                            <th className="py-3 px-3">Média</th>
+                                                            <th className="py-3 px-3">Min / Max</th>
+                                                            <th className="py-3 px-3">Conformes</th>
+                                                            <th className="py-3 px-3">Responsável</th>
+                                                            <th className="py-3 px-4 text-right">Ações</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                                                        {ensureArray(marmitaWeightLogs)
+                                                            .filter((log: MarmitaWeightLog) => {
+                                                                if (!log || !log.date) return false;
+                                                                const logDate = new Date(log.date + 'T12:00:00');
+                                                                const logMonth = MONTHS_PT[logDate.getMonth()];
+                                                                const logYear = logDate.getFullYear();
+                                                                const periodMatch = marmitaFilterPeriod === 'TODOS' || log.period === marmitaFilterPeriod;
+                                                                const stageMatch = marmitaFilterStage === 'TODOS' || (log.stage || 'INÍCIO DA PRODUÇÃO') === marmitaFilterStage;
+                                                                return logMonth === marmitaFilterMonth && logYear === marmitaFilterYear && periodMatch && stageMatch;
+                                                            })
+                                                            .sort((a, b) => b.date.localeCompare(a.date))
+                                                            .map((log: MarmitaWeightLog) => {
+                                                                const target = log.targetWeight || 500;
+                                                                const tol = log.toleranceGrams || 20;
+                                                                const isOk = log.averageWeight >= (target - tol) && log.averageWeight <= (target + tol);
+                                                                const currentStage = log.stage || 'INÍCIO DA PRODUÇÃO';
+                                                                return (
+                                                                    <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
+                                                                        <td className="py-3 px-4 font-bold text-slate-900">
+                                                                            {log.date ? log.date.split('-').reverse().join('/') : '-'}
+                                                                            <span className="block text-[9px] text-slate-400 font-normal">{log.time || ''}</span>
+                                                                        </td>
+                                                                        <td className="py-3 px-3">
+                                                                            <div className="flex flex-col gap-0.5 items-start">
+                                                                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                                                                                    log.period === 'ALMOÇO' ? 'bg-amber-100 text-amber-900' : 'bg-indigo-100 text-indigo-900'
+                                                                                }`}>
+                                                                                    {log.period}
+                                                                                </span>
+                                                                                <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold ${
+                                                                                    currentStage === 'INÍCIO DA PRODUÇÃO' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                                                                }`}>
+                                                                                    {currentStage === 'INÍCIO DA PRODUÇÃO' ? 'Início da Produção' : 'Final da Produção'}
+                                                                                </span>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="py-3 px-3 font-black">
+                                                                            <span className={isOk ? 'text-emerald-700' : 'text-rose-600'}>
+                                                                                {log.averageWeight}g
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="py-3 px-3 text-[10px] text-slate-500 font-medium">
+                                                                            {log.minWeight || 0}g / {log.maxWeight || 0}g
+                                                                        </td>
+                                                                        <td className="py-3 px-3 text-[10px]">
+                                                                            <span className="font-bold text-slate-900">{log.compliantCount || 0}</span>/15
+                                                                        </td>
+                                                                        <td className="py-3 px-3 text-[10px] text-slate-600 truncate max-w-[120px]">
+                                                                            {log.responsible}
+                                                                        </td>
+                                                                        <td className="py-3 px-4 text-right space-x-1">
+                                                                            <button 
+                                                                                onClick={() => setSelectedMarmitaLogDetail(log)}
+                                                                                className="text-slate-500 hover:text-emerald-600 p-1 rounded-lg hover:bg-slate-100 transition-all inline-block"
+                                                                                title="Ver 15 Amostras"
+                                                                            >
+                                                                                <Eye className="h-4 w-4" />
+                                                                            </button>
+                                                                            <button 
+                                                                                onClick={() => handleDeleteMarmitaWeight(log.id)}
+                                                                                className="text-rose-500 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 transition-all inline-block"
+                                                                                title="Excluir"
+                                                                            >
+                                                                                <Trash2 className="h-4 w-4" />
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+
+                                                        {ensureArray(marmitaWeightLogs).filter((log: MarmitaWeightLog) => {
+                                                            if (!log || !log.date) return false;
+                                                            const logDate = new Date(log.date + 'T12:00:00');
+                                                            const logMonth = MONTHS_PT[logDate.getMonth()];
+                                                            const logYear = logDate.getFullYear();
+                                                            const periodMatch = marmitaFilterPeriod === 'TODOS' || log.period === marmitaFilterPeriod;
+                                                            const stageMatch = marmitaFilterStage === 'TODOS' || (log.stage || 'INÍCIO DA PRODUÇÃO') === marmitaFilterStage;
+                                                            return logMonth === marmitaFilterMonth && logYear === marmitaFilterYear && periodMatch && stageMatch;
+                                                        }).length === 0 && (
+                                                            <tr>
+                                                                <td colSpan={7} className="py-8 text-center text-slate-400 font-black uppercase tracking-widest text-[10px]">
+                                                                    Nenhum registro de pesagem para este mês/filtro.
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Modal Detail View for 15 Samples */}
+                                {selectedMarmitaLogDetail && (
+                                    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[9999] p-4">
+                                        <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-100 animate-fade-in p-6 space-y-4">
+                                            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                                                <div>
+                                                    <h3 className="font-black text-slate-900 uppercase text-sm flex items-center gap-2">
+                                                        <Scale className="h-4 w-4 text-emerald-600" />
+                                                        Detalhamento das 15 Amostras
+                                                    </h3>
+                                                    <p className="text-[10px] text-slate-500 font-semibold">
+                                                        {selectedMarmitaLogDetail.period} • {selectedMarmitaLogDetail.stage || 'INÍCIO DA PRODUÇÃO'} — {selectedMarmitaLogDetail.date?.split('-').reverse().join('/')} às {selectedMarmitaLogDetail.time}
+                                                    </p>
+                                                </div>
+                                                <button 
+                                                    onClick={() => setSelectedMarmitaLogDetail(null)}
+                                                    className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                                                >
+                                                    <X className="h-5 w-5" />
+                                                </button>
+                                            </div>
+
+                                            <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-xl text-[10px]">
+                                                <div>
+                                                    <span className="text-slate-400 font-bold block uppercase">Responsável</span>
+                                                    <span className="font-bold text-slate-800">{selectedMarmitaLogDetail.responsible}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-slate-400 font-bold block uppercase">Média Geral</span>
+                                                    <span className="font-black text-emerald-800">{selectedMarmitaLogDetail.averageWeight}g</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-slate-400 font-bold block uppercase">Conformidade</span>
+                                                    <span className="font-bold text-slate-800">{selectedMarmitaLogDetail.compliantCount}/15</span>
+                                                </div>
+                                            </div>
+
+                                            {selectedMarmitaLogDetail.observations && (
+                                                <div className="text-xs bg-amber-50 text-amber-900 p-2.5 rounded-xl border border-amber-200/60 font-medium">
+                                                    <strong>Obs:</strong> {selectedMarmitaLogDetail.observations}
+                                                </div>
+                                            )}
+
+                                            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                                                {ensureArray(selectedMarmitaLogDetail.samples).map((sampleVal: number, idx: number) => {
+                                                    const target = selectedMarmitaLogDetail.targetWeight || 500;
+                                                    const tol = selectedMarmitaLogDetail.toleranceGrams || 20;
+                                                    const isCompliant = sampleVal >= (target - tol) && sampleVal <= (target + tol);
+                                                    return (
+                                                        <div 
+                                                            key={idx} 
+                                                            className={`p-2 rounded-xl text-center border ${
+                                                                isCompliant ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-rose-50 border-rose-200 text-rose-900'
+                                                            }`}
+                                                        >
+                                                            <span className="text-[8px] font-black uppercase text-slate-400 block">#{idx + 1}</span>
+                                                            <span className="font-black text-xs">{sampleVal}g</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            <button
+                                                onClick={() => setSelectedMarmitaLogDetail(null)}
+                                                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs uppercase"
+                                            >
+                                                Fechar
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ) : camaraFriaSubTab === 'cleaning' ? (
                             <div className="p-4 md:p-6">

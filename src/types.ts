@@ -460,3 +460,21 @@ export interface SegregationLog {
 
 export type UserRole = 'admin' | 'almoxarifado' | 'itesp' | 'financeiro' | 'cardapio' | 'subportaria' | 'infraestrutura' | 'ordem_saida' | 'julio' | 'producer' | 'pereciveis_supplier' | 'estocaveis_supplier' | 'supplier' | 'ordem_servico';
 
+export interface MarmitaWeightLog {
+    id: string;
+    date: string; // YYYY-MM-DD
+    period: 'ALMOÇO' | 'JANTA';
+    stage?: 'INÍCIO DA PRODUÇÃO' | 'FINAL DA PRODUÇÃO';
+    targetWeight: number; // e.g. 500g
+    toleranceGrams?: number; // e.g. 20g
+    time: string; // HH:MM
+    responsible: string;
+    observations?: string;
+    samples: number[]; // Array of 15 sample weight values in grams
+    averageWeight: number;
+    minWeight: number;
+    maxWeight: number;
+    compliantCount: number;
+    createdAt?: string;
+}
+
