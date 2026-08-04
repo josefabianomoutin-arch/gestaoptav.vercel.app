@@ -27,7 +27,7 @@ const DeliveryModal: React.FC<DeliveryModalProps> = ({ date, onClose, onSave, mo
     await speechService.speak(text);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSaving) return;
 
@@ -37,7 +37,12 @@ const DeliveryModal: React.FC<DeliveryModalProps> = ({ date, onClose, onSave, mo
     }
     
     setIsSaving(true);
-    onSave(time, observations);
+    try {
+      await onSave(time, observations);
+    } catch (err) {
+      console.error("Erro ao agendar:", err);
+      setIsSaving(false);
+    }
   };
   
   const formattedDate = date.toLocaleString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
