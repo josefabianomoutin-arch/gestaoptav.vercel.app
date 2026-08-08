@@ -1804,16 +1804,16 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
     <div id="director-per-capita-panel" className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-fade-in">
       
       {/* 1. Header with Dual Tab Switch of Chefs */}
-      <div className="p-4 md:p-6 bg-slate-900 border-b border-slate-800">
-        <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest text-center mb-4">
+      <div className="p-3 sm:p-6 bg-slate-900 border-b border-slate-800">
+        <h2 className="text-xs sm:text-sm font-black text-slate-400 uppercase tracking-widest text-center mb-3 sm:mb-4">
           Cota Per Capita dos Diretores
         </h2>
         
-        <div className="flex bg-slate-800 p-1.5 rounded-2xl max-w-lg mx-auto border border-slate-700">
+        <div className="flex bg-slate-800 p-1 sm:p-1.5 rounded-2xl max-w-lg mx-auto border border-slate-700">
           {showChefeDep && (
             <button
               onClick={() => handleTabChange('chefeDep')}
-              className={`flex-1 py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeSubTab === 'chefeDep' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+              className={`flex-1 py-2 sm:py-2.5 px-2 sm:px-4 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 sm:gap-1.5 ${activeSubTab === 'chefeDep' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
             >
               📝 {isDouglas ? 'Seu Painel: Dep.' : 'Chefe Departamento'}
             </button>
@@ -1821,7 +1821,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
           {showChefeSeg && (
             <button
               onClick={() => handleTabChange('chefeSeg')}
-              className={`flex-1 py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeSubTab === 'chefeSeg' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+              className={`flex-1 py-2 sm:py-2.5 px-2 sm:px-4 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 sm:gap-1.5 ${activeSubTab === 'chefeSeg' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
             >
               👮 {isAlfredo ? 'Seu Painel: Seg.' : 'Segurança Interna'}
             </button>
@@ -1830,38 +1830,38 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       </div>
 
       {/* 2. Responsable Officer Metadata Info Block & Subtabs toggle */}
-      <div className="p-4 md:p-6 border-b border-slate-100 bg-slate-50/50">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="p-3 sm:p-6 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
           <div>
             <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block">Chefia Ativa Selecionada</span>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse"></span>
+              <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse shrink-0"></span>
               <h3 className="text-xs font-black text-slate-800 uppercase tracking-tight">
                 {activeSubTab === 'chefeDep' ? 'Walter Rodrigues Junior' : 'Willian Oliveira dos santos'}
               </h3>
             </div>
           </div>
           
-          <div className="flex bg-white rounded-xl p-1 border border-slate-200 shadow-sm w-full md:w-auto">
+          <div className="flex bg-white rounded-xl p-1 border border-slate-200 shadow-sm w-full sm:w-auto overflow-x-auto max-w-full">
             {!isReadOnly && (
               <button
                 onClick={() => { setViewMode('form'); setViewingPastOrder(null); }}
-                className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${viewMode === 'form' && !viewingPastOrder ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+                className={`flex-1 sm:flex-none px-2.5 sm:px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${viewMode === 'form' && !viewingPastOrder ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
               >
-                <FileText className="h-3.5 w-3.5" /> Pedido Ativo
+                <FileText className="h-3.5 w-3.5 shrink-0" /> Pedido Ativo
               </button>
             )}
             <button
               onClick={() => { setViewMode('history'); setViewingPastOrder(null); }}
-              className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${(viewMode === 'history' || viewingPastOrder) && viewMode !== 'monthlyReport' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+              className={`flex-1 sm:flex-none px-2.5 sm:px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${(viewMode === 'history' || viewingPastOrder) && viewMode !== 'monthlyReport' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
             >
-              <History className="h-3.5 w-3.5" /> Histórico ({Object.keys(data?.[activeSubTab]?.[historyKey] || {}).length})
+              <History className="h-3.5 w-3.5 shrink-0" /> Histórico ({Object.keys(data?.[activeSubTab]?.[historyKey] || {}).length})
             </button>
             <button
               onClick={() => { setViewMode('monthlyReport'); setViewingPastOrder(null); }}
-              className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${viewMode === 'monthlyReport' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+              className={`flex-1 sm:flex-none px-2.5 sm:px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${viewMode === 'monthlyReport' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
             >
-              <BarChart2 className="h-3.5 w-3.5" /> Relatório Mensal
+              <BarChart2 className="h-3.5 w-3.5 shrink-0" /> Relatório Mensal
             </button>
           </div>
         </div>

@@ -3111,42 +3111,59 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-800 pb-20 font-sans selection:bg-indigo-500/30 overflow-x-hidden">
-            <header className="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-20 border-b border-slate-200">
-                <div>
-                    <h1 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Módulo de Estoque</h1>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Gestão de Dados P Taiuva 2026</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    {typeof navigator !== 'undefined' && !navigator.onLine && (
-                        <div className="flex items-center gap-1.5 bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest">
-                            <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                            </span>
-                            Modo Offline
+            <header className="bg-white shadow-sm p-3 md:p-4 sticky top-0 z-20 border-b border-slate-200">
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2.5 md:gap-4 max-w-7xl mx-auto">
+                    <div className="flex justify-between items-center w-full md:w-auto">
+                        <div>
+                            <h1 className="text-base md:text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Módulo de Estoque</h1>
+                            <p className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Gestão de Dados P Taiuva 2026</p>
                         </div>
-                    )}
-                    <div className="flex bg-slate-100 p-1 rounded-2xl overflow-x-auto max-w-[80vw]">
-                        {['history', 'movement_history', 'image_history', 'validity', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'directors_percapita', 'camara_fria', 'sync'].map(tab => (
-                            <button 
-                                key={tab}
-                                onClick={() => setActiveTab(tab)} 
-                                className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                                {tab === 'history' ? 'Consulta & Gestão' : 
-                                 tab === 'movement_history' ? 'Log de Movimentação' : 
-                                 tab === 'image_history' ? 'Notas Fiscais' : 
-                                 tab === 'validity' ? 'Validade' : 
-                                 tab === 'agenda' ? 'Agenda' : 
-                                 tab === 'cronograma' ? 'Cronograma' : 
-                                 tab === 'menu' ? 'Cardápio' : 
-                                 tab === 'receipt' ? 'Controle Doc.' : 
-                                 tab === 'manual_receipt' ? 'Termo Manual' : 
-                                 tab === 'directors_percapita' ? 'Per Capita Diretores' : 
-                                 tab === 'camara_fria' ? 'Câmaras Frias' : 'Sincronização'}
+                        <div className="flex items-center gap-2 md:hidden">
+                            {typeof navigator !== 'undefined' && !navigator.onLine && (
+                                <div className="flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase">
+                                    Modo Offline
+                                </div>
+                            )}
+                            <button onClick={onLogout} className="bg-slate-100 text-slate-600 font-black py-1.5 px-3 rounded-lg text-[10px] uppercase border border-slate-200 shadow-sm hover:bg-slate-200 active:scale-95 transition-all">
+                                Sair
                             </button>
-                        ))}
+                        </div>
                     </div>
-                    <button onClick={onLogout} className="bg-slate-100 text-slate-600 font-black py-2 px-6 rounded-xl text-xs uppercase border border-slate-200 shadow-sm hover:bg-slate-200 active:scale-95 transition-all">Sair</button>
+
+                    <div className="flex items-center gap-2 w-full md:w-auto overflow-hidden">
+                        {typeof navigator !== 'undefined' && !navigator.onLine && (
+                            <div className="hidden md:flex items-center gap-1.5 bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shrink-0">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                                </span>
+                                Modo Offline
+                            </div>
+                        )}
+                        <div className="flex bg-slate-100 p-1 rounded-xl md:rounded-2xl overflow-x-auto w-full md:w-auto shrink max-w-full">
+                            {['history', 'movement_history', 'image_history', 'validity', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'directors_percapita', 'camara_fria', 'sync'].map(tab => (
+                                <button 
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)} 
+                                    className={`px-3 md:px-5 py-1.5 md:py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase transition-all whitespace-nowrap shrink-0 ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                    {tab === 'history' ? 'Consulta & Gestão' : 
+                                     tab === 'movement_history' ? 'Log de Movimentação' : 
+                                     tab === 'image_history' ? 'Notas Fiscais' : 
+                                     tab === 'validity' ? 'Validade' : 
+                                     tab === 'agenda' ? 'Agenda' : 
+                                     tab === 'cronograma' ? 'Cronograma' : 
+                                     tab === 'menu' ? 'Cardápio' : 
+                                     tab === 'receipt' ? 'Controle Doc.' : 
+                                     tab === 'manual_receipt' ? 'Termo Manual' : 
+                                     tab === 'directors_percapita' ? 'Per Capita Diretores' : 
+                                     tab === 'camara_fria' ? 'Câmaras Frias' : 'Sincronização'}
+                                </button>
+                            ))}
+                        </div>
+                        <button onClick={onLogout} className="hidden md:block bg-slate-100 text-slate-600 font-black py-2 px-6 rounded-xl text-xs uppercase border border-slate-200 shadow-sm hover:bg-slate-200 active:scale-95 transition-all shrink-0">
+                            Sair
+                        </button>
+                    </div>
                 </div>
             </header>
 

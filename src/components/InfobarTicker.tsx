@@ -52,9 +52,9 @@ const InfobarTicker: React.FC<InfobarTickerProps> = ({
     );
 
     return (
-        <div className={`${isDark ? 'bg-indigo-600/10 border-b border-indigo-500/20' : 'bg-blue-50 border-b border-blue-100'} overflow-hidden py-2 backdrop-blur-sm print:hidden no-print`}>
-            <div className="max-w-7xl mx-auto px-4 flex items-center gap-6">
-                <span className={`text-[9px] whitespace-nowrap font-black uppercase px-3 py-1 rounded-full border ${
+        <div className={`${isDark ? 'bg-indigo-600/10 border-b border-indigo-500/20' : 'bg-blue-50 border-b border-blue-100'} overflow-hidden py-1.5 sm:py-2 backdrop-blur-sm print:hidden no-print`}>
+            <div className="max-w-7xl mx-auto px-2 sm:px-4 flex items-center gap-2 sm:gap-6">
+                <span className={`text-[8px] sm:text-[9px] shrink-0 whitespace-nowrap font-black uppercase px-2.5 sm:px-3 py-1 rounded-full border ${
                     isDark 
                     ? 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' 
                     : 'text-blue-800 bg-blue-100 border-blue-200'
@@ -63,7 +63,7 @@ const InfobarTicker: React.FC<InfobarTickerProps> = ({
                 </span>
                 <div className="w-full overflow-hidden relative">
                     <motion.div 
-                        className="flex gap-24 whitespace-nowrap"
+                        className="flex gap-12 sm:gap-24 whitespace-nowrap"
                         initial={{ x: 0 }}
                         animate={{ x: "-50%" }}
                         transition={{ 
