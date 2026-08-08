@@ -102,6 +102,13 @@ const Dashboard: React.FC<DashboardProps> = ({
     const dateString = getLocalDateString(date);
     const deliveriesOnDate = ensureArray<Delivery>(supplier.deliveries).filter(d => d.date === dateString);
     
+    // Check if holiday/maintenance
+    const holidayReason = HOLIDAYS_2026[dateString];
+    if (holidayReason && deliveriesOnDate.length === 0) {
+      toast.error(`Agendamento bloqueado: ${holidayReason}`);
+      return;
+    }
+
     // Check if week is allowed
     if (supplier.allowedWeeks && supplier.allowedWeeks.length > 0) {
         const weekNum = getWeekNumber(date);
