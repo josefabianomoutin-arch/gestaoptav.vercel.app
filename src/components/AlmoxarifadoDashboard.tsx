@@ -229,7 +229,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     const [tools, setTools] = useState<any[]>([]);
     const [toolMovements, setToolMovements] = useState<any[]>([]);
     const [loadingTools, setLoadingTools] = useState(true);
-    const [toolsView, setToolsView] = useState<'inventory' | 'movement' | 'logs'>('inventory');
+    const [toolsView, setToolsView] = useState<'inventory' | 'in_use' | 'movement' | 'logs'>('inventory');
 
     const [newTool, setNewTool] = useState({
         name: '',
@@ -258,10 +258,46 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
     const [toolSearch, setToolSearch] = useState('');
     const [toolStatusFilter, setToolStatusFilter] = useState('TODOS');
+    const [toolCategoryFilter, setToolCategoryFilter] = useState('TODOS');
     const [toolMovementSearch, setToolMovementSearch] = useState('');
+    const [toolMovementTypeFilter, setToolMovementTypeFilter] = useState<'TODOS' | 'RETIRADA' | 'DEVOLUÇÃO' | 'PENDENTES'>('TODOS');
+    const [toolMovementResponsibleFilter, setToolMovementResponsibleFilter] = useState('TODOS');
     const [toolBarcodeQuery, setToolBarcodeQuery] = useState('');
     const [toolScanFeedback, setToolScanFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
     const [isToolScannerActive, setIsToolScannerActive] = useState(false);
+
+    // Helper: Find active loan details for a given tool ID
+    const getToolActiveLoan = (toolId: string) => {
+        if (!toolMovements || toolMovements.length === 0) return null;
+        const withdrawals = toolMovements.filter(m => m.toolId === toolId && m.type === 'RETIRADA');
+        if (withdrawals.length === 0) return null;
+        
+        withdrawals.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        const latestWithdrawal = withdrawals[0];
+
+        const returns = toolMovements.filter(m => m.toolId === toolId && m.type === 'DEVOLUÇÃO' && (m.timestamp || 0) >= (latestWithdrawal.timestamp || 0));
+        if (returns.length > 0) return null;
+
+        return latestWithdrawal;
+    };
+
+    // Helper: Initiate a return movement for a borrowed tool
+    const handleInitiateReturn = (tool: any) => {
+        const activeLoan = getToolActiveLoan(tool.id);
+        setNewMovement({
+            toolId: tool.id,
+            type: 'DEVOLUÇÃO',
+            personName: activeLoan?.personName || '',
+            personCpf: activeLoan?.personCpf || '',
+            responsible: currentUser?.name || '',
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toTimeString().slice(0, 5),
+            expectedReturnDate: '',
+            condition: 'BOM',
+            observations: ''
+        });
+        setToolsView('movement');
+    };
 
     const handleScanBarcode = (scannedValue: string) => {
         const val = scannedValue.trim().toUpperCase();
@@ -722,6 +758,201 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         window.print();
                         setTimeout(function() { window.close(); }, 500);
                     }
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    const handlePrintRegisteredToolsReport = (filteredOnly: boolean = false) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const listToPrint = filteredOnly 
+            ? tools.filter(t => {
+                const matchSearch = t.name?.toLowerCase().includes(toolSearch.toLowerCase()) ||
+                    t.registerNumber?.toLowerCase().includes(toolSearch.toLowerCase()) ||
+                    t.toolCode?.toLowerCase().includes(toolSearch.toLowerCase());
+                const matchStatus = toolStatusFilter === 'TODOS' || t.status === toolStatusFilter;
+                const matchCategory = toolCategoryFilter === 'TODOS' || t.category === toolCategoryFilter;
+                return matchSearch && matchStatus && matchCategory;
+            })
+            : tools;
+
+        const totalTools = listToPrint.length;
+        const availableCount = listToPrint.filter(t => t.status === 'DISPONÍVEL').length;
+        const borrowedCount = listToPrint.filter(t => t.status === 'EMPRESTADO').length;
+        const maintenanceCount = listToPrint.filter(t => t.status === 'MANUTENÇÃO' || t.status === 'DANIFICADO').length;
+
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Relatório de Ferramentas Cadastradas</title>
+                <style>
+                    @page { size: A4 landscape; margin: 12mm; }
+                    body { font-family: Arial, sans-serif; font-size: 8.5pt; line-height: 1.3; color: #000; margin: 0; padding: 0; }
+                    h2 { text-align: center; text-transform: uppercase; margin-bottom: 4px; font-size: 13pt; border-bottom: 2px solid #000; padding-bottom: 4px; }
+                    .sub-header { text-align: center; font-size: 8pt; text-transform: uppercase; margin-bottom: 12px; color: #333; font-weight: bold; }
+                    .info-header { margin-bottom: 10px; display: flex; justify-content: space-between; font-weight: bold; font-size: 8.5pt; }
+                    .summary-cards { display: flex; gap: 8px; margin-bottom: 12px; text-transform: uppercase; font-size: 8pt; }
+                    .summary-card { flex: 1; border: 1px solid #000; padding: 5px; text-align: center; background-color: #fafafa; }
+                    .summary-card strong { display: block; font-size: 10.5pt; margin-top: 2px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 8pt; text-transform: uppercase; }
+                    th, td { border: 1px solid #000; padding: 5px 6px; text-align: left; }
+                    th { background-color: #f2f2f2; font-weight: bold; text-align: center; }
+                    .text-center { text-align: center; }
+                    .footer-signature { margin-top: 35px; display: flex; justify-content: space-around; page-break-inside: avoid; }
+                    .sig-line { border-top: 1px solid #000; width: 220px; text-align: center; padding-top: 4px; font-weight: bold; margin-top: 25px; font-size: 8pt; }
+                </style>
+            </head>
+            <body>
+                <h2>Relatório de Inventário - Ferramentas Cadastradas</h2>
+                <div class="sub-header">C.F.A. TAIÚVA - GESTÃO DE PATRIMÔNIO E ALMOXARIFADO</div>
+                <div class="info-header">
+                    <span>TOTAL DE ITENS LISTADOS: ${totalTools}</span>
+                    <span>EMISSÃO: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</span>
+                </div>
+                <div class="summary-cards">
+                    <div class="summary-card">Total de Ferramentas: <strong>${totalTools}</strong></div>
+                    <div class="summary-card">Disponíveis p/ Uso: <strong>${availableCount}</strong></div>
+                    <div class="summary-card">Em Uso / Emprestadas: <strong>${borrowedCount}</strong></div>
+                    <div class="summary-card">Manutenção / Danificadas: <strong>${maintenanceCount}</strong></div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 4%;">Nº</th>
+                            <th style="width: 24%;">NOME DA FERRAMENTA / MODELO</th>
+                            <th style="width: 12%;">Nº CADASTRO</th>
+                            <th style="width: 10%;">CÓDIGO</th>
+                            <th style="width: 11%;">CATEGORIA</th>
+                            <th style="width: 13%;">LOCALIZAÇÃO</th>
+                            <th style="width: 10%;">STATUS</th>
+                            <th style="width: 16%;">RETIRANTE ATUAL / ÚLTIMA MOV.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${listToPrint.length > 0 ? listToPrint.map((tool, idx) => {
+                            const activeLoan = getToolActiveLoan(tool.id);
+                            return `
+                                <tr>
+                                    <td class="text-center">${idx + 1}</td>
+                                    <td><strong>${tool.name || 'SEM NOME'}</strong>${tool.model ? `<br/><span style="font-size:7.5pt; color:#555;">MOD: ${tool.model}</span>` : ''}</td>
+                                    <td class="text-center"><strong>${tool.registerNumber || 'N/A'}</strong></td>
+                                    <td class="text-center">${tool.toolCode || 'N/A'}</td>
+                                    <td class="text-center">${tool.category || 'MANUAL'}</td>
+                                    <td>${tool.location || 'ALMOXARIFADO'}</td>
+                                    <td class="text-center">
+                                        <strong>${tool.status || 'DISPONÍVEL'}</strong>
+                                    </td>
+                                    <td style="font-size: 7.5pt;">
+                                        ${tool.status === 'EMPRESTADO' && activeLoan ? `
+                                            <strong>RETIRADO POR:</strong> ${activeLoan.personName}<br/>
+                                            <strong>CPF:</strong> ${activeLoan.personCpf || 'N/A'}<br/>
+                                            <strong>RESP:</strong> ${activeLoan.responsible}
+                                        ` : (tool.lastMovement || '-')}
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('') : `
+                            <tr>
+                                <td colSpan="8" style="text-align: center; padding: 20px; font-weight: bold;">Nenhuma ferramenta cadastrada encontrada.</td>
+                            </tr>
+                        `}
+                    </tbody>
+                </table>
+                <div class="footer-signature">
+                    <div class="sig-line">
+                        Responsável pelo Almoxarifado
+                    </div>
+                    <div class="sig-line">
+                        Diretoria / Controle Patrimonial
+                    </div>
+                </div>
+                <script>
+                    window.onload = function() { window.print(); }
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    const handlePrintInUseToolsReport = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const borrowedTools = tools.filter(t => t.status === 'EMPRESTADO');
+
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Relatório de Ferramentas em Uso</title>
+                <style>
+                    @page { size: A4 landscape; margin: 12mm; }
+                    body { font-family: Arial, sans-serif; font-size: 8.5pt; line-height: 1.3; color: #000; margin: 0; padding: 0; }
+                    h2 { text-align: center; text-transform: uppercase; margin-bottom: 4px; font-size: 13pt; border-bottom: 2px solid #000; padding-bottom: 4px; }
+                    .sub-header { text-align: center; font-size: 8pt; text-transform: uppercase; margin-bottom: 12px; color: #333; font-weight: bold; }
+                    .info-header { margin-bottom: 10px; display: flex; justify-content: space-between; font-weight: bold; font-size: 8.5pt; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 8pt; text-transform: uppercase; }
+                    th, td { border: 1px solid #000; padding: 5px 6px; text-align: left; }
+                    th { background-color: #f2f2f2; font-weight: bold; text-align: center; }
+                    .text-center { text-align: center; }
+                    .footer-signature { margin-top: 35px; display: flex; justify-content: space-around; page-break-inside: avoid; }
+                    .sig-line { border-top: 1px solid #000; width: 220px; text-align: center; padding-top: 4px; font-weight: bold; margin-top: 25px; font-size: 8pt; }
+                </style>
+            </head>
+            <body>
+                <h2>Relatório de Ferramentas Emprestadas / Em Uso</h2>
+                <div class="sub-header">C.F.A. TAIÚVA - CONTROLE DE ATIVOS EM POSSE DE COLABORADORES</div>
+                <div class="info-header">
+                    <span>TOTAL DE ITENS ATUALMENTE EM USO: ${borrowedTools.length}</span>
+                    <span>EMISSÃO: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 4%;">Nº</th>
+                            <th style="width: 25%;">FERRAMENTA (REG / CÓD)</th>
+                            <th style="width: 22%;">QUEM RETIROU (COLABORADOR / CPF)</th>
+                            <th style="width: 18%;">RESPONSÁVEL AUTORIZADOR</th>
+                            <th style="width: 11%;">DATA / HORA RETIRADA</th>
+                            <th style="width: 10%;">PREV. DEVOLUÇÃO</th>
+                            <th style="width: 10%;">OBSERVAÇÕES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${borrowedTools.length > 0 ? borrowedTools.map((tool, idx) => {
+                            const activeLoan = getToolActiveLoan(tool.id);
+                            return `
+                                <tr>
+                                    <td class="text-center">${idx + 1}</td>
+                                    <td><strong>${tool.name || 'FMT'}</strong><br/>CAD: ${tool.registerNumber || ''} | CÓD: ${tool.toolCode || ''}</td>
+                                    <td><strong>${activeLoan?.personName || 'NÃO INFORMADO'}</strong><br/><span style="font-size:7.5pt; color:#444;">CPF: ${activeLoan?.personCpf || 'N/A'}</span></td>
+                                    <td>${activeLoan?.responsible || 'N/A'}</td>
+                                    <td class="text-center">${activeLoan?.date ? new Date(activeLoan.date + 'T12:00:00').toLocaleDateString('pt-BR') : ''}<br/>${activeLoan?.time || ''}</td>
+                                    <td class="text-center"><strong>${activeLoan?.expectedReturnDate ? new Date(activeLoan.expectedReturnDate + 'T12:00:00').toLocaleDateString('pt-BR') : 'S/ PREVISÃO'}</strong></td>
+                                    <td style="font-size: 7.5pt;">${activeLoan?.observations || 'SEM OBS'}</td>
+                                </tr>
+                            `;
+                        }).join('') : `
+                            <tr>
+                                <td colSpan="7" style="text-align: center; padding: 20px; font-weight: bold;">Nenhuma ferramenta em uso ou emprestada no momento.</td>
+                            </tr>
+                        `}
+                    </tbody>
+                </table>
+                <div class="footer-signature">
+                    <div class="sig-line">
+                        Responsável pelo Almoxarifado
+                    </div>
+                    <div class="sig-line">
+                        Diretoria / Controle Patrimonial
+                    </div>
+                </div>
+                <script>
+                    window.onload = function() { window.print(); }
                 </script>
             </body>
             </html>
@@ -5004,7 +5235,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                             <Wrench className="h-5 w-5 text-indigo-500" />
                                             Controle Geral de Ferramentas
                                         </h3>
-                                        <p className="text-[10px] text-slate-400 font-bold mt-0.5">Cadastre, gerencie e controle a retirada e devolução de ferramentas do almoxarifado</p>
+                                        <p className="text-[10px] text-slate-400 font-bold mt-0.5">Cadastre, gerencie, filtre ferramentas em uso e controle retiradas e devoluções</p>
                                     </div>
                                     <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                                         <button
@@ -5022,36 +5253,68 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                 });
                                                 setIsToolModalOpen(true);
                                             }}
-                                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2 px-4 rounded-xl uppercase tracking-wider text-[9px] transition-all flex items-center gap-1.5 shadow-sm"
+                                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2 px-3.5 rounded-xl uppercase tracking-wider text-[9px] transition-all flex items-center gap-1.5 shadow-sm"
                                         >
                                             <Plus className="h-3.5 w-3.5" />
                                             Nova Ferramenta
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={handlePrintToolsReport}
-                                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2 px-4 rounded-xl uppercase tracking-wider text-[9px] transition-all flex items-center gap-1.5 shadow-sm"
+                                            onClick={() => handlePrintRegisteredToolsReport(false)}
+                                            className="bg-slate-800 hover:bg-slate-900 text-white font-black py-2 px-3.5 rounded-xl uppercase tracking-wider text-[9px] transition-all flex items-center gap-1.5 shadow-sm"
+                                            title="Imprimir Lista Completa de Ferramentas Cadastradas"
                                         >
                                             <Printer className="h-3.5 w-3.5" />
-                                            Imprimir Movimentações
+                                            Lista de Cadastros
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handlePrintInUseToolsReport}
+                                            className="bg-amber-600 hover:bg-amber-700 text-white font-black py-2 px-3.5 rounded-xl uppercase tracking-wider text-[9px] transition-all flex items-center gap-1.5 shadow-sm"
+                                            title="Imprimir Relatório de Ferramentas Atualmente Emprestadas"
+                                        >
+                                            <FileText className="h-3.5 w-3.5" />
+                                            Ferramentas em Uso
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handlePrintToolsReport}
+                                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2 px-3.5 rounded-xl uppercase tracking-wider text-[9px] transition-all flex items-center gap-1.5 shadow-sm"
+                                            title="Imprimir Histórico de Movimentações"
+                                        >
+                                            <Printer className="h-3.5 w-3.5" />
+                                            Histórico
                                         </button>
                                     </div>
                                 </div>
 
                                 {/* Tools Secondary Tabs */}
-                                <div className="flex border-b border-slate-100 gap-6">
+                                <div className="flex border-b border-slate-100 gap-4 sm:gap-6 overflow-x-auto pb-1">
                                     <button
                                         type="button"
                                         onClick={() => setToolsView('inventory')}
-                                        className={`pb-3 text-xs font-black uppercase tracking-wider transition-all relative ${toolsView === 'inventory' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                        className={`pb-3 text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap relative ${toolsView === 'inventory' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
                                     >
                                         Estoque de Ferramentas ({tools.length})
                                         {toolsView === 'inventory' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-full" />}
                                     </button>
                                     <button
                                         type="button"
+                                        onClick={() => setToolsView('in_use')}
+                                        className={`pb-3 text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap relative flex items-center gap-1.5 ${toolsView === 'in_use' ? 'text-amber-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        Ferramentas em Uso ({tools.filter(t => t.status === 'EMPRESTADO').length})
+                                        {tools.filter(t => t.status === 'EMPRESTADO').length > 0 && (
+                                            <span className="bg-amber-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full">
+                                                {tools.filter(t => t.status === 'EMPRESTADO').length}
+                                            </span>
+                                        )}
+                                        {toolsView === 'in_use' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-600 rounded-full" />}
+                                    </button>
+                                    <button
+                                        type="button"
                                         onClick={() => setToolsView('movement')}
-                                        className={`pb-3 text-xs font-black uppercase tracking-wider transition-all relative ${toolsView === 'movement' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                        className={`pb-3 text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap relative ${toolsView === 'movement' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
                                     >
                                         Retirada / Devolução
                                         {toolsView === 'movement' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-full" />}
@@ -5059,7 +5322,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     <button
                                         type="button"
                                         onClick={() => setToolsView('logs')}
-                                        className={`pb-3 text-xs font-black uppercase tracking-wider transition-all relative ${toolsView === 'logs' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                        className={`pb-3 text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap relative ${toolsView === 'logs' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
                                     >
                                         Histórico de Movimentações ({toolMovements.length})
                                         {toolsView === 'logs' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-full" />}
@@ -5077,21 +5340,42 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                     type="text"
                                                     value={toolSearch}
                                                     onChange={e => setToolSearch(e.target.value)}
-                                                    placeholder="Buscar por nome, cadastro, código..."
+                                                    placeholder="Buscar por nome, cadastro, código ou quem retirou..."
                                                     className="w-full h-9 pl-9 pr-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
                                                 />
                                             </div>
+                                            <select
+                                                value={toolCategoryFilter}
+                                                onChange={e => setToolCategoryFilter(e.target.value)}
+                                                className="h-9 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                            >
+                                                <option value="TODOS">Todas Categorias</option>
+                                                <option value="MANUAL">Manual</option>
+                                                <option value="ELÉTRICA">Elétrica</option>
+                                                <option value="MEDIÇÃO">Medição</option>
+                                                <option value="EPI">EPI</option>
+                                                <option value="OUTROS">Outros</option>
+                                            </select>
                                             <select
                                                 value={toolStatusFilter}
                                                 onChange={e => setToolStatusFilter(e.target.value)}
                                                 className="h-9 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
                                             >
                                                 <option value="TODOS">Todos os Status</option>
-                                                <option value="DISPONÍVEL">Disponível</option>
-                                                <option value="EMPRESTADO">Emprestado</option>
-                                                <option value="MANUTENÇÃO">Manutenção</option>
-                                                <option value="DANIFICADO">Danificado</option>
+                                                <option value="DISPONÍVEL">Disponíveis p/ Uso</option>
+                                                <option value="EMPRESTADO">Em Uso / Emprestadas</option>
+                                                <option value="MANUTENÇÃO">Em Manutenção</option>
+                                                <option value="DANIFICADO">Danificadas</option>
                                             </select>
+                                            <button
+                                                type="button"
+                                                onClick={() => handlePrintRegisteredToolsReport(true)}
+                                                className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-[9px] uppercase tracking-wider transition-all flex items-center justify-center gap-1 border border-slate-200 shrink-0"
+                                                title="Imprimir apenas a lista com os filtros atuais"
+                                            >
+                                                <Printer className="h-3.5 w-3.5 text-slate-500" />
+                                                Filtrados
+                                            </button>
                                         </div>
 
                                         {/* Tools Grid */}
@@ -5107,13 +5391,18 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                                 {tools
                                                     .filter(t => {
+                                                        const activeLoan = getToolActiveLoan(t.id);
                                                         const matchSearch = t.name?.toLowerCase().includes(toolSearch.toLowerCase()) ||
                                                             t.registerNumber?.toLowerCase().includes(toolSearch.toLowerCase()) ||
-                                                            t.toolCode?.toLowerCase().includes(toolSearch.toLowerCase());
+                                                            t.toolCode?.toLowerCase().includes(toolSearch.toLowerCase()) ||
+                                                            activeLoan?.personName?.toLowerCase().includes(toolSearch.toLowerCase()) ||
+                                                            activeLoan?.personCpf?.toLowerCase().includes(toolSearch.toLowerCase());
                                                         const matchStatus = toolStatusFilter === 'TODOS' || t.status === toolStatusFilter;
-                                                        return matchSearch && matchStatus;
+                                                        const matchCategory = toolCategoryFilter === 'TODOS' || t.category === toolCategoryFilter;
+                                                        return matchSearch && matchStatus && matchCategory;
                                                     })
                                                     .map(t => {
+                                                        const activeLoan = getToolActiveLoan(t.id);
                                                         const statusColors: Record<string, string> = {
                                                             'DISPONÍVEL': 'bg-emerald-50 text-emerald-700 border-emerald-200',
                                                             'EMPRESTADO': 'bg-amber-50 text-amber-700 border-amber-200',
@@ -5123,9 +5412,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                         };
                                                         const statusLabels: Record<string, string> = {
                                                             'DISPONÍVEL': 'LIBERADA PARA USO',
-                                                            'EMPRESTADO': 'EMPRESTADO',
+                                                            'EMPRESTADO': 'EM EMPRÉSTIMO',
                                                             'MANUTENÇÃO': 'EM MANUTENÇÃO',
-                                                            'DANIFICADO': 'DANIFICADA / INOPERANTE',
+                                                            'DANIFICADO': 'DANIFICADA',
                                                             'DEFAULT': 'DESCONHECIDO'
                                                         };
                                                         const colorClass = statusColors[t.status] || statusColors['DEFAULT'];
@@ -5141,7 +5430,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                                     </div>
                                                                     <div>
                                                                         <h4 className="text-xs font-black text-slate-800 uppercase leading-snug">{t.name}</h4>
-                                                                        <p className="text-[10px] text-slate-400 font-bold mt-0.5 uppercase">Mod: {t.model}</p>
+                                                                        <p className="text-[10px] text-slate-400 font-bold mt-0.5 uppercase">Mod: {t.model || 'N/A'}</p>
                                                                     </div>
                                                                     <div className="grid grid-cols-2 gap-2 text-[9px] bg-slate-50 p-2 rounded-xl border border-slate-100 font-bold uppercase text-slate-500">
                                                                         <div>
@@ -5154,9 +5443,38 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                                         </div>
                                                                         <div className="col-span-2 border-t border-slate-100 pt-1 mt-1">
                                                                             <span className="text-[8px] text-slate-400 block font-normal">ARMAZENAMENTO</span>
-                                                                            {t.location}
+                                                                            {t.location || 'ALMOXARIFADO'}
                                                                         </div>
                                                                     </div>
+
+                                                                    {/* Borrowed/Active Loan Info Banner */}
+                                                                    {t.status === 'EMPRESTADO' && activeLoan && (
+                                                                        <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-2.5 text-[9px] uppercase font-bold text-amber-900 space-y-1">
+                                                                            <div className="flex justify-between items-center text-amber-700 font-black text-[8px] border-b border-amber-200/60 pb-1">
+                                                                                <span>EM POSSE DE COLABORADOR</span>
+                                                                                <span>RETIRADA: {activeLoan.date ? new Date(activeLoan.date + 'T12:00:00').toLocaleDateString('pt-BR') : ''}</span>
+                                                                            </div>
+                                                                            <div>
+                                                                                <span className="text-[8px] text-amber-600 block font-normal">RETIRADO POR</span>
+                                                                                {activeLoan.personName} {activeLoan.personCpf ? `(CPF: ${activeLoan.personCpf})` : ''}
+                                                                            </div>
+                                                                            <div className="flex justify-between items-center text-[8px] pt-0.5">
+                                                                                <span>RESP: <strong>{activeLoan.responsible}</strong></span>
+                                                                                {activeLoan.expectedReturnDate && (
+                                                                                    <span className="text-amber-800 font-black">PREV: {new Date(activeLoan.expectedReturnDate + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                                                                                )}
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleInitiateReturn(t)}
+                                                                                className="w-full mt-1.5 bg-amber-600 hover:bg-amber-700 text-white font-black py-1 px-2 rounded-lg text-[8px] uppercase tracking-wider transition-all flex items-center justify-center gap-1 shadow-xs"
+                                                                            >
+                                                                                <ArrowRightLeft className="h-3 w-3" />
+                                                                                Registrar Devolução
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+
                                                                     <div className="flex flex-col items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
                                                                         <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mb-1">Código de Barras</span>
                                                                         <div className="font-mono text-[9px] font-bold bg-white px-3 py-1 rounded border border-slate-100 text-slate-800 tracking-widest">{t.barcode}</div>
@@ -5202,6 +5520,120 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                                         <Trash2 className="h-3 w-3" />
                                                                     </button>
                                                                 </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Ferramentas em Uso View */}
+                                {toolsView === 'in_use' && (
+                                    <div className="space-y-4">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-amber-50/60 border border-amber-200/80 p-4 rounded-2xl">
+                                            <div>
+                                                <h4 className="text-xs font-black uppercase text-amber-950 flex items-center gap-1.5">
+                                                    <Wrench className="h-4 w-4 text-amber-600" />
+                                                    Ferramentas Atualmente Emprestadas ({tools.filter(t => t.status === 'EMPRESTADO').length})
+                                                </h4>
+                                                <p className="text-[10px] text-amber-800 font-bold mt-0.5">Veja quem retirou cada ferramenta, o responsável autorizador e registre a devolução rápida.</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={handlePrintInUseToolsReport}
+                                                className="bg-amber-600 hover:bg-amber-700 text-white font-black py-2 px-4 rounded-xl uppercase tracking-wider text-[9px] transition-all flex items-center gap-1.5 shadow-sm shrink-0"
+                                            >
+                                                <Printer className="h-3.5 w-3.5" />
+                                                Imprimir Relatório de Empréstimos
+                                            </button>
+                                        </div>
+
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                                            <input
+                                                type="text"
+                                                value={toolSearch}
+                                                onChange={e => setToolSearch(e.target.value)}
+                                                placeholder="Filtrar por ferramenta, colaborador que retirou ou CPF..."
+                                                className="w-full h-9 pl-9 pr-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-amber-400 transition-all text-xs"
+                                            />
+                                        </div>
+
+                                        {tools.filter(t => t.status === 'EMPRESTADO').length === 0 ? (
+                                            <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl text-slate-400 bg-slate-50/50">
+                                                <Check className="h-10 w-10 mx-auto mb-2 text-emerald-500" />
+                                                <p className="font-bold text-xs uppercase text-slate-600">Nenhuma ferramenta emprestada no momento</p>
+                                                <p className="text-[10px] text-slate-400 mt-1">Todas as ferramentas cadastradas estão disponíveis no estoque.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {tools
+                                                    .filter(t => t.status === 'EMPRESTADO')
+                                                    .filter(t => {
+                                                        const activeLoan = getToolActiveLoan(t.id);
+                                                        return t.name?.toLowerCase().includes(toolSearch.toLowerCase()) ||
+                                                            t.registerNumber?.toLowerCase().includes(toolSearch.toLowerCase()) ||
+                                                            t.toolCode?.toLowerCase().includes(toolSearch.toLowerCase()) ||
+                                                            activeLoan?.personName?.toLowerCase().includes(toolSearch.toLowerCase()) ||
+                                                            activeLoan?.personCpf?.toLowerCase().includes(toolSearch.toLowerCase());
+                                                    })
+                                                    .map(t => {
+                                                        const activeLoan = getToolActiveLoan(t.id);
+                                                        return (
+                                                            <div key={t.id} className="bg-white border-2 border-amber-200/90 rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
+                                                                <div className="space-y-3">
+                                                                    <div className="flex justify-between items-start">
+                                                                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{t.category}</span>
+                                                                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border bg-amber-50 text-amber-800 border-amber-300">
+                                                                            EM POSSE DE COLABORADOR
+                                                                        </span>
+                                                                    </div>
+                                                                    <div>
+                                                                        <h4 className="text-xs font-black text-slate-800 uppercase leading-snug">{t.name}</h4>
+                                                                        <p className="text-[9px] text-slate-400 font-bold mt-0.5 uppercase">CAD: {t.registerNumber} | CÓD: {t.toolCode}</p>
+                                                                    </div>
+
+                                                                    <div className="bg-amber-50 p-3 rounded-xl border border-amber-200/80 text-[10px] font-bold uppercase text-amber-950 space-y-1.5">
+                                                                        <div>
+                                                                            <span className="text-[8px] text-amber-700 block font-normal">QUEM RETIROU (COLABORADOR)</span>
+                                                                            <span className="text-xs font-black text-amber-900">{activeLoan?.personName || 'NÃO INFORMADO'}</span>
+                                                                            {activeLoan?.personCpf && (
+                                                                                <span className="block text-[8.5pt] font-semibold text-amber-800">CPF: {activeLoan.personCpf}</span>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="grid grid-cols-2 gap-2 border-t border-amber-200/60 pt-1.5 text-[8.5pt]">
+                                                                            <div>
+                                                                                <span className="text-[8px] text-amber-700 block font-normal">AUTORIZADO POR</span>
+                                                                                {activeLoan?.responsible || 'N/A'}
+                                                                            </div>
+                                                                            <div>
+                                                                                <span className="text-[8px] text-amber-700 block font-normal">DATA RETIRADA</span>
+                                                                                {activeLoan?.date ? new Date(activeLoan.date + 'T12:00:00').toLocaleDateString('pt-BR') : ''} {activeLoan?.time || ''}
+                                                                            </div>
+                                                                        </div>
+                                                                        {activeLoan?.expectedReturnDate && (
+                                                                            <div className="border-t border-amber-200/60 pt-1.5 text-[8.5pt]">
+                                                                                <span className="text-[8px] text-amber-700 block font-normal">PREVISÃO DE RETORNO</span>
+                                                                                <span className="font-black text-amber-900">{new Date(activeLoan.expectedReturnDate + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                                                                            </div>
+                                                                        )}
+                                                                        {activeLoan?.observations && activeLoan.observations !== 'SEM OBSERVAÇÕES' && (
+                                                                            <div className="border-t border-amber-200/60 pt-1 text-[8pt] text-amber-800 italic normal-case">
+                                                                                "{activeLoan.observations}"
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleInitiateReturn(t)}
+                                                                    className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-3 rounded-xl uppercase tracking-wider text-[9px] transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                                                                >
+                                                                    <ArrowRightLeft className="h-3.5 w-3.5" />
+                                                                    Registrar Devolução
+                                                                </button>
                                                             </div>
                                                         );
                                                     })}
@@ -5481,15 +5913,37 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
 
                                 {toolsView === 'logs' && (
                                     <div className="space-y-4">
-                                        <div className="relative">
-                                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                                            <input
-                                                type="text"
-                                                value={toolMovementSearch}
-                                                onChange={e => setToolMovementSearch(e.target.value)}
-                                                placeholder="Filtrar por nome de colaborador, ferramenta, registro de cadastro..."
-                                                className="w-full h-9 pl-9 pr-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
-                                            />
+                                        <div className="flex flex-col sm:flex-row gap-3">
+                                            <div className="relative flex-1">
+                                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                                                <input
+                                                    type="text"
+                                                    value={toolMovementSearch}
+                                                    onChange={e => setToolMovementSearch(e.target.value)}
+                                                    placeholder="Filtrar por nome de colaborador, CPF, ferramenta, registro..."
+                                                    className="w-full h-9 pl-9 pr-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                                />
+                                            </div>
+                                            <select
+                                                value={toolMovementTypeFilter}
+                                                onChange={e => setToolMovementTypeFilter(e.target.value as any)}
+                                                className="h-9 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                            >
+                                                <option value="TODOS">Todas as Operações</option>
+                                                <option value="RETIRADA">Somente Retiradas</option>
+                                                <option value="DEVOLUÇÃO">Somente Devoluções</option>
+                                                <option value="PENDENTES">Pendentes (Não Devolvidas)</option>
+                                            </select>
+                                            <select
+                                                value={toolMovementResponsibleFilter}
+                                                onChange={e => setToolMovementResponsibleFilter(e.target.value)}
+                                                className="h-9 px-3 border border-slate-200 rounded-xl bg-white shadow-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400 transition-all text-xs"
+                                            >
+                                                <option value="TODOS">Todos os Responsáveis</option>
+                                                {Array.from(new Set(toolMovements.map(m => m.responsible).filter(Boolean))).map(resp => (
+                                                    <option key={resp} value={resp}>{resp}</option>
+                                                ))}
+                                            </select>
                                         </div>
 
                                         <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
@@ -5500,9 +5954,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                             <th className="p-4 text-center">Data / Hora</th>
                                                             <th className="p-4">Ferramenta</th>
                                                             <th className="p-4 text-center">Operação</th>
-                                                            <th className="p-4">Colaborador</th>
+                                                            <th className="p-4">Colaborador / Retirante</th>
                                                             <th className="p-4">Autorizado por</th>
-                                                            <th className="p-4 text-center">Status</th>
+                                                            <th className="p-4 text-center">Status Devolução</th>
                                                             <th className="p-4">Previsão / Condição</th>
                                                         </tr>
                                                     </thead>
@@ -5514,10 +5968,22 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                         ) : (
                                                             toolMovements
                                                                 .filter(log => {
-                                                                    return log.toolName?.toLowerCase().includes(toolMovementSearch.toLowerCase()) ||
+                                                                    const matchSearch = log.toolName?.toLowerCase().includes(toolMovementSearch.toLowerCase()) ||
                                                                         log.personName?.toLowerCase().includes(toolMovementSearch.toLowerCase()) ||
+                                                                        log.personCpf?.toLowerCase().includes(toolMovementSearch.toLowerCase()) ||
                                                                         log.registerNumber?.toLowerCase().includes(toolMovementSearch.toLowerCase()) ||
                                                                         log.toolCode?.toLowerCase().includes(toolMovementSearch.toLowerCase());
+
+                                                                    const isNotReturned = log.type === 'RETIRADA' && !toolMovements.some(m => m.toolId === log.toolId && m.type === 'DEVOLUÇÃO' && m.timestamp > log.timestamp);
+
+                                                                    let matchType = true;
+                                                                    if (toolMovementTypeFilter === 'RETIRADA') matchType = log.type === 'RETIRADA';
+                                                                    else if (toolMovementTypeFilter === 'DEVOLUÇÃO') matchType = log.type === 'DEVOLUÇÃO';
+                                                                    else if (toolMovementTypeFilter === 'PENDENTES') matchType = isNotReturned;
+
+                                                                    const matchResp = toolMovementResponsibleFilter === 'TODOS' || log.responsible === toolMovementResponsibleFilter;
+
+                                                                    return matchSearch && matchType && matchResp;
                                                                 })
                                                                 .map(log => {
                                                                     const isNotReturned = log.type === 'RETIRADA' && !toolMovements.some(m => m.toolId === log.toolId && m.type === 'DEVOLUÇÃO' && m.timestamp > log.timestamp);
