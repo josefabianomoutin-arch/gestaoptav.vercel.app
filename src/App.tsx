@@ -307,6 +307,7 @@ const App: React.FC = () => {
     const unsubPublicInfo = onValue(publicInfoRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
+      list.sort((a: any, b: any) => new Date(b.updatedAt || b.date || 0).getTime() - new Date(a.updatedAt || a.date || 0).getTime());
       setPublicInfo(list as PublicInfo[]);
       safeLocalStorageSetItem('cached_publicInfo', JSON.stringify(list));
     });
@@ -1019,7 +1020,26 @@ const App: React.FC = () => {
     try {
       const id = info.id || push(publicInfoRef).key;
       if (!id) throw new Error('Falha ao gerar ID');
-      await set(child(publicInfoRef, id), { ...info, id });
+      const itemToSave = { ...info, id, updatedAt: info.updatedAt || new Date().toISOString() };
+      
+      // Update local state immediately (Optimistic update)
+      setPublicInfo(prev => {
+        const existingIdx = prev.findIndex(item => item.id === id);
+        let updatedList: PublicInfo[];
+        if (existingIdx >= 0) {
+          updatedList = [...prev];
+          updatedList[existingIdx] = itemToSave as PublicInfo;
+        } else {
+          updatedList = [itemToSave as PublicInfo, ...prev];
+        }
+        updatedList.sort((a, b) => new Date(b.updatedAt || b.date || 0).getTime() - new Date(a.updatedAt || a.date || 0).getTime());
+        safeLocalStorageSetItem('cached_publicInfo', JSON.stringify(updatedList));
+        return updatedList;
+      });
+
+      if (database && publicInfoRef) {
+        await set(child(publicInfoRef, id), itemToSave);
+      }
       toast.success('Informação pública salva com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar informação pública:', error);
@@ -1029,7 +1049,15 @@ const App: React.FC = () => {
 
   const handleDeletePublicInfo = async (id: string) => {
     try {
-      await remove(child(publicInfoRef, id));
+      setPublicInfo(prev => {
+        const updatedList = prev.filter(item => item.id !== id);
+        safeLocalStorageSetItem('cached_publicInfo', JSON.stringify(updatedList));
+        return updatedList;
+      });
+
+      if (database && publicInfoRef) {
+        await remove(child(publicInfoRef, id));
+      }
       toast.success('Informação pública removida com sucesso!');
     } catch (error) {
       console.error('Erro ao remover informação pública:', error);

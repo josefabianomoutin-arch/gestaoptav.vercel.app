@@ -416,6 +416,7 @@ export interface PublicInfo {
     content: string;
     date: string;
     sector?: string;
+    imageUrl?: string;
     updatedAt?: string;
     isConfidential?: boolean;
 }

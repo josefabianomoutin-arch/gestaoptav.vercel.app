@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 
 interface InfobarTickerProps {
-    items: { id: string; sector?: string; title: string; content?: string }[];
+    items: { id: string; sector?: string; title: string; content?: string; imageUrl?: string }[];
     defaultText?: string;
     variant?: 'dark' | 'light';
     label?: string;
@@ -24,6 +24,11 @@ const InfobarTicker: React.FC<InfobarTickerProps> = ({
                     <span className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-indigo-500' : 'bg-blue-400'}`}></span>
                     <span className={`uppercase tracking-wider ${isDark ? 'text-indigo-400' : 'text-blue-600'}`}>[{item.sector || 'GERAL'}]</span> 
                     <span>{item.title}</span>
+                    {item.imageUrl && (
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.2 rounded font-black">
+                            🖼️ IMAGEM
+                        </span>
+                    )}
                     {item.content && (
                         <span className={`font-medium opacity-80 ml-1`}>
                              — {item.content}
@@ -37,6 +42,11 @@ const InfobarTicker: React.FC<InfobarTickerProps> = ({
                     <span className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-indigo-500' : 'bg-blue-400'}`}></span>
                     <span className={`uppercase tracking-wider ${isDark ? 'text-indigo-400' : 'text-blue-600'}`}>[{item.sector || 'GERAL'}]</span> 
                     <span>{item.title}</span>
+                    {item.imageUrl && (
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.2 rounded font-black">
+                            🖼️ IMAGEM
+                        </span>
+                    )}
                     {item.content && (
                         <span className={`font-medium opacity-80 ml-1`}>
                              — {item.content}
