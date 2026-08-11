@@ -737,13 +737,19 @@ export const ManageContractSuppliersModal: React.FC<ManageContractSuppliersModal
             commitmentValue: parseFloat(a.commitmentValue.toString().replace(',', '.')) || 0
         })).filter(a => !isNaN(a.totalKg));
 
-        const result = await onSave(finalAssignments);
-        if (result && !result.success) {
-            setSaveError(result.message);
-        } else {
-            onClose();
+        try {
+            const result = await onSave(finalAssignments);
+            if (result && !result.success) {
+                setSaveError(result.message);
+            } else {
+                onClose();
+            }
+        } catch (err: any) {
+            console.error("Erro ao salvar atribuição de itens:", err);
+            setSaveError(err?.message || "Erro inesperado ao salvar item do contrato.");
+        } finally {
+            setIsSaving(false);
         }
-        setIsSaving(false);
     };
 
     return (

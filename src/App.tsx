@@ -90,6 +90,76 @@ const getWeekNumber = (d: Date): number => {
     return weekNo;
 };
 
+// Helpers para operações offline/online ultra-seguras no Firebase
+const safeGet = async (dbRef: any, fallbackValue: any = null, timeoutMs = 2500) => {
+  try {
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), timeoutMs));
+    const snapshotPromise = get(dbRef);
+    const result: any = await Promise.race([snapshotPromise, timeoutPromise]);
+    if (result && typeof result.val === 'function') {
+      const val = result.val();
+      return val !== null && val !== undefined ? val : fallbackValue;
+    }
+    return fallbackValue;
+  } catch (err) {
+    console.warn('safeGet falhou ou deu timeout, utilizando fallback:', err);
+    return fallbackValue;
+  }
+};
+
+const safeRunTransaction = async (
+  dbRef: any,
+  transactionUpdate: (currentData: any) => any,
+  currentFallbackData: any = null,
+  timeoutMs = 3000
+) => {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    try {
+      const newData = transactionUpdate(currentFallbackData);
+      if (newData !== undefined) {
+        await set(dbRef, newData);
+        return { committed: true, snapshot: null };
+      }
+      return { committed: false, snapshot: null };
+    } catch (e) {
+      console.warn('Erro na transação offline, tentando fallback:', e);
+      return { committed: false, snapshot: null };
+    }
+  }
+
+  try {
+    const timeoutPromise = new Promise<{ committed: boolean; snapshot: null }>((resolve) =>
+      setTimeout(() => resolve({ committed: false, snapshot: null }), timeoutMs)
+    );
+    const txPromise = runTransaction(dbRef, transactionUpdate);
+    const result = await Promise.race([txPromise, timeoutPromise]);
+
+    if (result && result.committed) {
+      return result;
+    }
+
+    console.warn('Transação excedeu limite de tempo ou foi abortada, aplicando fallback direto com set');
+    const newData = transactionUpdate(currentFallbackData);
+    if (newData !== undefined) {
+      await set(dbRef, newData);
+      return { committed: true, snapshot: null };
+    }
+    return { committed: false, snapshot: null };
+  } catch (err) {
+    console.warn('Erro na transação Firebase, aplicando fallback com set:', err);
+    try {
+      const newData = transactionUpdate(currentFallbackData);
+      if (newData !== undefined) {
+        await set(dbRef, newData);
+        return { committed: true, snapshot: null };
+      }
+    } catch (fallbackErr) {
+      console.error('Falha crítica no fallback:', fallbackErr);
+    }
+    return { committed: false, snapshot: null };
+  }
+};
+
 const App: React.FC = () => {
   const [user, setUser] = useState<{ name: string; cpf: string; role: UserRole } | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -2282,53 +2352,52 @@ const App: React.FC = () => {
       const entryDate = invoiceDate || date;
       if (mainSupplier) {
         const supplierRef = child(suppliersRef, mainSupplier.cpf);
-        await runTransaction(supplierRef, (currentData: Supplier) => {
-          if (currentData) {
-            let deliveries = Array.isArray(currentData.deliveries) 
-              ? [...currentData.deliveries] 
-              : Object.values(currentData.deliveries || {});
-            
-            // Remover agendamento pendente do mesmo dia
-            deliveries = deliveries.filter((d: any) => !(d.date === entryDate && d.item === 'AGENDAMENTO PENDENTE'));
+        await safeRunTransaction(supplierRef, (currentData: Supplier) => {
+          if (!currentData) currentData = { ...mainSupplier };
+          let deliveries = Array.isArray(currentData.deliveries) 
+            ? [...currentData.deliveries] 
+            : Object.values(currentData.deliveries || {});
+          
+          // Remover agendamento pendente do mesmo dia
+          deliveries = deliveries.filter((d: any) => !(d.date === entryDate && d.item === 'AGENDAMENTO PENDENTE'));
 
-            logEntries.forEach((le, idx) => {
-              const item = items[idx];
-              const newDelivery: any = {
-                id: `manual-${Date.now()}-${idx}`,
-                date: entryDate,
-                time: '08:00',
-                item: item.name,
-                kg: item.kg,
-                value: item.value,
-                invoiceUploaded: true,
-                invoiceNumber: String(invoiceNumber || '').trim(),
-                barcode: item.barcode || barcode || '',
-                type: type,
-                status: 'CONCLUÍDO',
-                lots: [{
-                  id: le.lotId,
-                  lotNumber: item.lotNumber || 'MANUAL',
-                  initialQuantity: item.kg,
-                  remainingQuantity: item.kg
-                }]
-              };
+          logEntries.forEach((le, idx) => {
+            const item = items[idx];
+            const newDelivery: any = {
+              id: `manual-${Date.now()}-${idx}`,
+              date: entryDate,
+              time: '08:00',
+              item: item.name,
+              kg: item.kg,
+              value: item.value,
+              invoiceUploaded: true,
+              invoiceNumber: String(invoiceNumber || '').trim(),
+              barcode: item.barcode || barcode || '',
+              type: type,
+              status: 'CONCLUÍDO',
+              lots: [{
+                id: le.lotId,
+                lotNumber: item.lotNumber || 'MANUAL',
+                initialQuantity: item.kg,
+                remainingQuantity: item.kg
+              }]
+            };
 
-              if (invoiceDate !== undefined) newDelivery.invoiceDate = invoiceDate;
-              if (receiptTermNumber !== undefined) newDelivery.receiptTermNumber = receiptTermNumber;
-              if (pd !== undefined) newDelivery.pd = pd;
-              if (ne !== undefined) newDelivery.ne = ne;
-              if (invoiceUrl !== undefined) newDelivery.invoiceUrl = invoiceUrl;
-              if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
+            if (invoiceDate !== undefined) newDelivery.invoiceDate = invoiceDate;
+            if (receiptTermNumber !== undefined) newDelivery.receiptTermNumber = receiptTermNumber;
+            if (pd !== undefined) newDelivery.pd = pd;
+            if (ne !== undefined) newDelivery.ne = ne;
+            if (invoiceUrl !== undefined) newDelivery.invoiceUrl = invoiceUrl;
+            if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
 
-              deliveries.push(newDelivery);
-            });
-            currentData.deliveries = deliveries;
-          }
+            deliveries.push(newDelivery);
+          });
+          currentData.deliveries = deliveries;
           return currentData;
-        });
+        }, mainSupplier);
       } else {
-        await runTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
-          if (currentData) {
+        await safeRunTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
+          if (!currentData) currentData = { ...perCapitaConfig };
             const findAndAdd = (list: any[] | undefined) => {
               const s = list?.find(p => (cleanStr(p.cpfCnpj || p.cpf) === cleanEntryCpf));
               if (s) {
@@ -2379,9 +2448,8 @@ const App: React.FC = () => {
                  findAndAdd(currentData.estocaveisSuppliers);
               }
             }
-          }
           return currentData;
-        });
+        }, perCapitaConfig);
       }
 
       return { success: true };
@@ -2400,8 +2468,6 @@ const App: React.FC = () => {
       const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
       
       // Identificar fornecedores que PRECISAM ser atualizados no cadastro geral:
-      // 1. Fornecedores que estão nos novos assignments
-      // 2. Fornecedores que atualmente possuem o item mas não estão nos novos assignments
       const suppliersToUpdate = suppliers.filter(s => {
         const isAssigned = assignments.some(a => cleanStr(a.supplierCpf) === cleanStr(s.cpf));
         const hasItem = (s.contractItems || []).some(ci => ci.name === itemName);
@@ -2411,7 +2477,6 @@ const App: React.FC = () => {
       console.log('Total de fornecedores afetados no cadastro geral:', suppliersToUpdate.length);
       
       let count = 0;
-      // Atualizar o cadastro de cada fornecedor individual no Realtime Database
       for (const supplier of suppliersToUpdate) {
         count++;
         const assignment = assignments.find(a => cleanStr(a.supplierCpf) === cleanStr(supplier.cpf));
@@ -2419,8 +2484,8 @@ const App: React.FC = () => {
         
         console.log(`Processando fornecedor ${count}/${suppliersToUpdate.length}: ${supplier.name} (${supplier.id || supplier.cpf})`);
         
-        await runTransaction(supplierRef, (data: Supplier) => {
-          if (!data) return data;
+        await safeRunTransaction(supplierRef, (data: Supplier) => {
+          if (!data) data = { ...supplier };
           
           const otherItems = (data.contractItems || []).filter(ci => ci.name !== itemName);
           
@@ -2445,13 +2510,13 @@ const App: React.FC = () => {
           data.initialValue = otherItems.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0);
           
           return data;
-        });
+        }, supplier, 3000);
       }
 
       // --- Sincronizar com perCapitaConfig em uma única transação limpa ---
-      console.log('Iniciando transação única de sincronização do perCapitaConfig...');
-      await runTransaction(perCapitaConfigRef, (current: any) => {
-        if (!current) return current;
+      console.log('Iniciando sincronização do perCapitaConfig...');
+      await safeRunTransaction(perCapitaConfigRef, (current: any) => {
+        if (!current) current = { ...perCapitaConfig };
 
         const updatedPpais = Array.isArray(current.ppaisProducers) ? [...current.ppaisProducers] : Object.values(current.ppaisProducers || {});
         const updatedPereciveis = Array.isArray(current.pereciveisSuppliers) ? [...current.pereciveisSuppliers] : Object.values(current.pereciveisSuppliers || {});
@@ -2542,9 +2607,9 @@ const App: React.FC = () => {
           pereciveisSuppliers: tempPereciveis,
           estocaveisSuppliers: tempEstocaveis
         };
-      });
+      }, perCapitaConfig, 3000);
 
-      // --- Sincronizar com o item de aquisição correspondente (comprasCode, becCode, category, unitValue) ---
+      // --- Sincronizar com o item de aquisição correspondente ---
       const cleanNormalize = (n: string) => String(n || '').trim().toUpperCase().replace(/\s+/g, ' ');
       const normalizedItem = cleanNormalize(itemName);
       const matchedItem = acquisitionItems.find(i => 
@@ -2574,10 +2639,8 @@ const App: React.FC = () => {
           } : {})
         };
         await set(child(acquisitionItemsRef, matchedItem.id), updatedItem);
-        console.log('Item de aquisição correspondente atualizado com sucesso:', updatedItem);
       }
       
-      console.log('Contratos e Item de Aquisição atualizados com sucesso!');
       return { success: true, message: 'Contratos atualizados' };
     } catch (error) {
       console.error('Erro ao atualizar contratos:', error);
@@ -2588,29 +2651,23 @@ const App: React.FC = () => {
   const handleUpdateAcquisitionItem = async (item: AcquisitionItem) => {
     try {
       const itemRef = child(acquisitionItemsRef, item.id);
-      const oldItemSnapshot = await get(itemRef);
-      const oldItem = oldItemSnapshot.val() as AcquisitionItem | null;
+      const oldItem = acquisitionItems.find(i => i.id === item.id) || null;
 
       await set(itemRef, item);
 
-      // Se o nome mudou, precisamos atualizar em todos os fornecedores
+      // Se o nome mudou, atualizar nos fornecedores
       if (oldItem && oldItem.name !== item.name) {
-        const suppliersSnapshot = await get(suppliersRef);
-        const allSuppliers = suppliersSnapshot.val() || {};
-        
-        for (const cpf in allSuppliers) {
-          const supplier = allSuppliers[cpf] as Supplier;
-          if (supplier.contractItems) {
+        for (const supplier of suppliers) {
+          if (supplier.contractItems && supplier.cpf) {
             const updatedItems = supplier.contractItems.map(ci => 
               ci.name === oldItem.name ? { ...ci, name: item.name } : ci
             );
             if (JSON.stringify(updatedItems) !== JSON.stringify(supplier.contractItems)) {
-              await update(child(suppliersRef, cpf), { contractItems: updatedItems });
+              await update(child(suppliersRef, supplier.cpf), { contractItems: updatedItems });
             }
           }
         }
 
-        // Também atualizar no perCapitaConfig
         const updatedPpais = (perCapitaConfig.ppaisProducers || []).map(p => ({
           ...p,
           contractItems: (p.contractItems || []).map(ci => ci.name === oldItem.name ? { ...ci, name: item.name } : ci)
@@ -2640,25 +2697,18 @@ const App: React.FC = () => {
   const handleDeleteAcquisitionItem = async (id: string) => {
     try {
       const itemRef = child(acquisitionItemsRef, id);
-      const itemSnapshot = await get(itemRef);
-      const item = itemSnapshot.val() as AcquisitionItem | null;
+      const item = acquisitionItems.find(i => i.id === id) || null;
 
       if (item) {
-        // Remover de todos os fornecedores
-        const suppliersSnapshot = await get(suppliersRef);
-        const allSuppliers = suppliersSnapshot.val() || {};
-        
-        for (const cpf in allSuppliers) {
-          const supplier = allSuppliers[cpf] as Supplier;
-          if (supplier.contractItems) {
+        for (const supplier of suppliers) {
+          if (supplier.contractItems && supplier.cpf) {
             const updatedItems = supplier.contractItems.filter(ci => ci.name !== item.name);
             if (updatedItems.length !== supplier.contractItems.length) {
-              await update(child(suppliersRef, cpf), { contractItems: updatedItems });
+              await update(child(suppliersRef, supplier.cpf), { contractItems: updatedItems });
             }
           }
         }
 
-        // Também remover do perCapitaConfig
         const updatedPpais = (perCapitaConfig.ppaisProducers || []).map(p => ({
           ...p,
           contractItems: (p.contractItems || []).map(ci => ci.name === item.name ? null : ci).filter(Boolean)
@@ -2843,7 +2893,7 @@ const App: React.FC = () => {
 
             if (mainSupplier) {
                 const deliveriesRef = child(suppliersRef, `${mainSupplier.cpf}/deliveries`);
-                await runTransaction(deliveriesRef, (currentDeliveries) => {
+                await safeRunTransaction(deliveriesRef, (currentDeliveries) => {
                     let deliveries = Array.isArray(currentDeliveries) 
                         ? [...currentDeliveries] 
                         : (currentDeliveries ? Object.values(currentDeliveries) : []);
@@ -2853,7 +2903,7 @@ const App: React.FC = () => {
                     
                     deliveries.push(newDelivery as any);
                     return deliveries;
-                });
+                }, mainSupplier.deliveries || []);
             } else {
                 // Determine which list and index the producer belongs to
                 let listKey: string | null = null;
@@ -2878,7 +2928,7 @@ const App: React.FC = () => {
                 if (listKey && producerIdx !== -1) {
                     // Update only the specific producer's deliveries to avoid locking the entire config
                     const producerDeliveriesRef = child(perCapitaConfigRef, `${listKey}/${producerIdx}/deliveries`);
-                    await runTransaction(producerDeliveriesRef, (currentDeliveries) => {
+                    await safeRunTransaction(producerDeliveriesRef, (currentDeliveries) => {
                         let deliveries = Array.isArray(currentDeliveries) 
                             ? [...currentDeliveries] 
                             : (currentDeliveries ? Object.values(currentDeliveries) : []);
@@ -2888,7 +2938,7 @@ const App: React.FC = () => {
                         
                         deliveries.push(newDelivery);
                         return deliveries;
-                    });
+                    }, []);
                 }
             }
         }
@@ -2943,28 +2993,26 @@ const App: React.FC = () => {
                 const deliveriesPath = `${mainSupplier.cpf}/deliveries`;
                 const deliveriesRef = child(suppliersRef, deliveriesPath);
                 
-                const transactionResult = await runTransaction(deliveriesRef, (currentDeliveries) => {
-                    if (currentDeliveries) {
-                        const deliveries = Array.isArray(currentDeliveries) ? currentDeliveries : Object.values(currentDeliveries);
-                        let found = false;
-                        const updatedDeliveries = deliveries.map(d => {
-                            if (d.item === payload.itemName && String(d.invoiceNumber) === String(payload.inboundInvoice)) {
-                                if (d.lots) {
-                                    const lotIndex = d.lots.findIndex((l: any) => l.lotNumber === payload.lotNumber);
-                                    if (lotIndex !== -1) {
-                                        updatedLotQty = (d.lots[lotIndex].remainingQuantity || 0) - payload.quantity;
-                                        d.lots[lotIndex].remainingQuantity = updatedLotQty;
-                                        found = true;
-                                    }
+                const transactionResult = await safeRunTransaction(deliveriesRef, (currentDeliveries) => {
+                    const deliveries = Array.isArray(currentDeliveries) ? currentDeliveries : (currentDeliveries ? Object.values(currentDeliveries) : []);
+                    let found = false;
+                    const updatedDeliveries = deliveries.map(d => {
+                        if (d.item === payload.itemName && String(d.invoiceNumber) === String(payload.inboundInvoice)) {
+                            if (d.lots) {
+                                const lotIndex = d.lots.findIndex((l: any) => l.lotNumber === payload.lotNumber);
+                                if (lotIndex !== -1) {
+                                    updatedLotQty = (d.lots[lotIndex].remainingQuantity || 0) - payload.quantity;
+                                    d.lots[lotIndex].remainingQuantity = updatedLotQty;
+                                    found = true;
                                 }
                             }
-                            return d;
-                        });
-                        
-                        if (found) return updatedDeliveries;
-                    }
-                    return; // Abort
-                });
+                        }
+                        return d;
+                    });
+                    
+                    if (found) return updatedDeliveries;
+                    return currentDeliveries;
+                }, mainSupplier.deliveries || []);
                 transactionCommitted = transactionResult.committed;
             } else {
                 console.log("Atualizando produtor PerCapita via transação específica...");
@@ -2987,27 +3035,25 @@ const App: React.FC = () => {
 
                 if (listKey && producerIdx !== -1) {
                     const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${producerIdx}/deliveries`);
-                    const transactionResult = await runTransaction(deliveriesRef, (currentDeliveries) => {
-                        if (currentDeliveries) {
-                            const deliveries = Array.isArray(currentDeliveries) ? currentDeliveries : Object.values(currentDeliveries);
-                            let found = false;
-                            const updatedDeliveries = deliveries.map(d => {
-                                if (d.item === payload.itemName && String(d.invoiceNumber) === String(payload.inboundInvoice)) {
-                                    if (d.lots) {
-                                        const lotIndex = d.lots.findIndex((l: any) => l.lotNumber === payload.lotNumber);
-                                        if (lotIndex !== -1) {
-                                            updatedLotQty = (d.lots[lotIndex].remainingQuantity || 0) - payload.quantity;
-                                            d.lots[lotIndex].remainingQuantity = updatedLotQty;
-                                            found = true;
-                                        }
+                    const transactionResult = await safeRunTransaction(deliveriesRef, (currentDeliveries) => {
+                        const deliveries = Array.isArray(currentDeliveries) ? currentDeliveries : (currentDeliveries ? Object.values(currentDeliveries) : []);
+                        let found = false;
+                        const updatedDeliveries = deliveries.map(d => {
+                            if (d.item === payload.itemName && String(d.invoiceNumber) === String(payload.inboundInvoice)) {
+                                if (d.lots) {
+                                    const lotIndex = d.lots.findIndex((l: any) => l.lotNumber === payload.lotNumber);
+                                    if (lotIndex !== -1) {
+                                        updatedLotQty = (d.lots[lotIndex].remainingQuantity || 0) - payload.quantity;
+                                        d.lots[lotIndex].remainingQuantity = updatedLotQty;
+                                        found = true;
                                     }
                                 }
-                                return d;
-                            });
-                            if (found) return updatedDeliveries;
-                        }
-                        return;
-                    });
+                            }
+                            return d;
+                        });
+                        if (found) return updatedDeliveries;
+                        return currentDeliveries;
+                    }, []);
                     transactionCommitted = transactionResult.committed;
                 }
             }

@@ -103,6 +103,12 @@ const Dashboard: React.FC<DashboardProps> = ({
     const deliveriesOnDate = ensureArray<Delivery>(supplier.deliveries).filter(d => d.date === dateString);
     
     // Check if holiday/maintenance
+    const isMaintenance = dateString >= '2026-08-10' && dateString <= '2026-08-14';
+    if (isMaintenance && deliveriesOnDate.length === 0) {
+      toast.error('Agendamento bloqueado: Manutenção da câmara fria');
+      return;
+    }
+
     const holidayReason = HOLIDAYS_2026[dateString];
     if (holidayReason && deliveriesOnDate.length === 0) {
       toast.error(`Agendamento bloqueado: ${holidayReason}`);

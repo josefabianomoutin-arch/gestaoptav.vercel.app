@@ -92,20 +92,24 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeek
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
       const holidayName = HOLIDAYS_2026[dateString];
       const isHoliday = !!holidayName;
+      const isMaintenance = dateString >= '2026-08-10' && dateString <= '2026-08-14';
       
-      const isAllowed = isDateAllowed(currentDate);
+      const isAllowed = isDateAllowed(currentDate) && !isMaintenance;
       
       const currentWeekNum = getWeekNumber(currentDate);
       const hasDeliveryInSameWeekOnOtherDate = scheduledWeeksSet.has(currentWeekNum) && deliveriesOnThisDate.length === 0;
       
       const hasDeliveries = deliveriesOnThisDate.length > 0;
-      // Não permite agendar em feriados nem finais de semana, a menos que já existam entregas registradas (por admin)
+      // Não permite agendar em feriados, finais de semana ou manutenção da câmara fria, a menos que já existam entregas registradas (por admin)
       const isClickable = ((isAllowed && !isWeekend && !isHoliday && !hasDeliveryInSameWeekOnOtherDate) || hasDeliveries);
       
       let dayClasses = "p-2 text-center border-r border-b border-gray-200 h-20 flex flex-col justify-center items-center relative transition-all";
 
       let tooltipTitle = undefined;
-      if (isHoliday) {
+      if (isMaintenance) {
+        dayClasses += " bg-amber-100/90 text-amber-900 cursor-not-allowed border-amber-300 overflow-hidden";
+        tooltipTitle = "manutenção da câmara fria";
+      } else if (isHoliday) {
         dayClasses += " bg-gray-200 text-gray-400 cursor-not-allowed overflow-hidden";
       } else if (hasDeliveryInSameWeekOnOtherDate) {
         dayClasses += " bg-gray-100 text-gray-300 cursor-not-allowed opacity-60";
@@ -136,12 +140,20 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeek
       }
 
       grid.push(
-        <div key={day} className={dayClasses} title={tooltipTitle} onClick={() => isClickable && !isHoliday && onDayClick(currentDate)}>
+        <div key={day} className={dayClasses} title={tooltipTitle} onClick={() => isClickable && !isHoliday && !isMaintenance && onDayClick(currentDate)}>
           <span className="text-xs md:text-sm font-mono z-10">{day}</span>
           
-          {isHoliday && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-1 opacity-40 select-none hover:opacity-100 transition-opacity z-20">
-               <span className="text-[9px] md:text-[10px] leading-tight text-center font-black uppercase text-rose-500 bg-white/80 border border-rose-200 px-1 py-0.5 rounded shadow-sm">{holidayName}</span>
+          {isMaintenance && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-0.5 select-none z-20">
+               <span className="text-[7px] md:text-[9px] leading-tight text-center font-black uppercase text-amber-900 bg-amber-200/95 border border-amber-400 px-1 py-0.5 rounded shadow-sm break-words line-clamp-2 max-w-full">
+                 Manutenção câmara fria
+               </span>
+            </div>
+          )}
+
+          {!isMaintenance && isHoliday && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-0.5 opacity-60 select-none hover:opacity-100 transition-opacity z-20">
+               <span className="text-[7px] md:text-[10px] leading-tight text-center font-black uppercase text-rose-500 bg-white/90 border border-rose-200 px-1 py-0.5 rounded shadow-sm break-words line-clamp-2 max-w-full">{holidayName}</span>
             </div>
           )}
 

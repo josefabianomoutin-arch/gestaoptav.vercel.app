@@ -3500,7 +3500,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             )}
 
                             <div className="p-4 min-h-[400px]">
-                                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                                     {filteredImages.length > 0 ? (
                                         filteredImages.map(log => (
                                             <div key={log.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-xl hover:border-indigo-200 transition-all group flex flex-col h-full relative">
@@ -3531,15 +3531,15 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                     
                                                     {/* Floating Date Badge */}
                                                     <div className="absolute top-1 right-1 bg-white/90 backdrop-blur-md px-1 py-0.5 rounded shadow-sm border border-white/20">
-                                                        <span className="text-[6px] font-mono font-bold text-indigo-950">{(log.date || '').split('-').reverse().join('/')}</span>
-                                                    </div>
-                                                </div>
+                                                         <span className="text-[8px] font-mono font-bold text-indigo-950">{(log.date || "").split("-").reverse().join("/")}</span>
+                                                     </div>
+                                                 </div>
 
-                                                <div className="p-2 flex flex-col flex-grow">
+                                                 <div className="p-3 flex flex-col flex-grow">
                                                     {(() => {
                                                         const hasPd = !!log.pd && log.pd !== '0' && log.pd !== 0 && String(log.pd).trim() !== '';
                                                         return (
-                                                            <div className={`text-center py-1.5 px-2 rounded-lg text-[7px] font-black uppercase tracking-wider mb-2 border ${
+                                                            <div className={`text-center py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider mb-2 border ${
                                                                 hasPd 
                                                                 ? 'bg-yellow-400 text-yellow-950 border-yellow-500 shadow-xs' 
                                                                 : 'bg-yellow-400 text-yellow-950 border-yellow-500 animate-pulse shadow-sm'
@@ -3549,25 +3549,25 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                                         );
                                                     })()}
                                                     <div className="mb-1">
-                                                        <div className="flex flex-wrap gap-0.5 mb-1">
-                                                            <span className={`text-[5px] font-black ${log.type === 'entrada' ? 'bg-emerald-500' : 'bg-rose-500'} text-white px-1 py-0.5 rounded uppercase tracking-tighter shadow-sm`}>{log.type}</span>
-                                                            {log.pd && <span className="text-[5px] font-black bg-indigo-500 text-white px-1 py-0.5 rounded uppercase tracking-tighter shadow-sm">PD {log.pd}</span>}
-                                                            {log.ne && <span className="text-[5px] font-black bg-[#ecfdf5] text-[#064e3b] border border-[#047857] px-1 py-0.5 rounded uppercase tracking-tighter shadow-sm">NE {log.ne}</span>}
+                                                        <div className="flex flex-wrap gap-1 mb-1">
+                                                            <span className={`text-[8px] font-black ${log.type === 'entrada' ? 'bg-emerald-500' : 'bg-rose-500'} text-white px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm`}>{log.type}</span>
+                                                            {log.pd && <span className="text-[8px] font-black bg-indigo-500 text-white px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">PD {log.pd}</span>}
+                                                            {log.ne && <span className="text-[8px] font-black bg-[#ecfdf5] text-[#064e3b] border border-[#047857] px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">NE {log.ne}</span>}
                                                         </div>
-                                                        <h4 className="text-[8px] font-black text-slate-800 uppercase leading-tight mb-0.5 line-clamp-2 h-7 group-hover:text-indigo-600 transition-colors">{log.supplierName}</h4>
+                                                        <h4 className="text-[10px] font-black text-slate-800 uppercase leading-snug mb-0.5 line-clamp-2 min-h-[1.75rem] group-hover:text-indigo-600 transition-colors">{log.supplierName}</h4>
                                                     </div>
 
                                                     <div className="mt-auto">
-                                                        <p className="text-[6px] text-slate-400 font-bold uppercase truncate mb-1" title={log.itemName}>{log.itemName}</p>
+                                                        <p className="text-[9px] text-slate-500 font-bold uppercase truncate mb-1" title={log.itemName}>{log.itemName}</p>
                                                         
-                                                        <div className="pt-1 border-t border-slate-50 grid grid-cols-2 gap-1">
+                                                        <div className="pt-1.5 border-t border-slate-100 grid grid-cols-2 gap-1">
                                                             <div className="flex flex-col">
-                                                                <span className="text-slate-400 text-[5px] uppercase font-black tracking-tighter">NF</span>
-                                                                <span className="text-slate-900 font-mono text-[7px] font-black truncate">{log.inboundInvoice || log.outboundInvoice || log.invoiceNumber || '-'}</span>
+                                                                <span className="text-slate-400 text-[8px] uppercase font-black tracking-tighter">NF</span>
+                                                                <span className="text-slate-900 font-mono text-[9px] font-black truncate">{log.inboundInvoice || log.outboundInvoice || log.invoiceNumber || '-'}</span>
                                                             </div>
                                                             <div className="text-right flex flex-col">
-                                                                <span className="text-slate-400 text-[5px] uppercase font-black tracking-tighter block">QTD</span>
-                                                                <span className="text-indigo-700 font-black text-[7px] italic">{Number(log.quantity).toFixed(1)}</span>
+                                                                <span className="text-slate-400 text-[8px] uppercase font-black tracking-tighter block">QTD</span>
+                                                                <span className="text-indigo-700 font-black text-[9px] italic">{Number(log.quantity).toFixed(1)}</span>
                                                             </div>
                                                         </div>
                                                     </div>

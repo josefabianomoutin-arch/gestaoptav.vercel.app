@@ -41,6 +41,7 @@ const DeliveryModal: React.FC<DeliveryModalProps> = ({ date, onClose, onSave, mo
       await onSave(time, observations);
     } catch (err) {
       console.error("Erro ao agendar:", err);
+    } finally {
       setIsSaving(false);
     }
   };
