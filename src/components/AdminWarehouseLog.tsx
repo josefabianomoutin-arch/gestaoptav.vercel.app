@@ -8,11 +8,14 @@ import {
     Clock,
     Eye,
     FileText,
-    ImageIcon
+    ImageIcon,
+    ClipboardList,
+    Layers
 } from 'lucide-react';
 import type { WarehouseMovement, Supplier } from '../types';
 import { roundToTwoDecimalPlaces, ensureArray, generateStandardLabelStyles } from '../lib/utils';
 import ConfirmModal from './ConfirmModal';
+import AdminInvoiceDeductionMap from './AdminInvoiceDeductionMap';
 
 const monthNamesInOrder = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -60,6 +63,7 @@ const getSundayOfWeek = (year: number, weekNum: number): Date => {
 };
 
 const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, suppliers, onDeleteEntry, perCapitaConfig }) => {
+    const [activeLogSubTab, setActiveLogSubTab] = useState<'history' | 'invoice_deduction'>('history');
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<'all' | 'entrada' | 'saída'>('all');
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -867,10 +871,43 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
     };
 
     return (
-        <div className="bg-white p-3 md:p-5 rounded-[2rem] shadow-sm max-w-full mx-auto animate-fade-in space-y-6">
-            
-            {/* CABEÇALHO E FILTROS */}
-            <div className="space-y-4">
+        <div className="space-y-6 animate-fade-in">
+            {/* SUB-ABA NAVEGAÇÃO SUPERIOR */}
+            <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/80 w-fit shadow-xs">
+                <button
+                    onClick={() => setActiveLogSubTab('history')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        activeLogSubTab === 'history'
+                            ? 'bg-white text-zinc-900 shadow-sm border border-slate-200/60'
+                            : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                >
+                    <ClipboardList className="h-4 w-4 text-indigo-600" />
+                    Log Geral de Movimentações
+                </button>
+                <button
+                    onClick={() => setActiveLogSubTab('invoice_deduction')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        activeLogSubTab === 'invoice_deduction'
+                            ? 'bg-white text-zinc-900 shadow-sm border border-slate-200/60'
+                            : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                >
+                    <Layers className="h-4 w-4 text-amber-500" />
+                    Mapa de NFs & Dedução Contratual
+                </button>
+            </div>
+
+            {activeLogSubTab === 'invoice_deduction' ? (
+                <AdminInvoiceDeductionMap
+                    warehouseLog={combinedLog}
+                    suppliers={suppliers}
+                    perCapitaConfig={perCapitaConfig}
+                />
+            ) : (
+                <div className="bg-white p-3 md:p-5 rounded-[2rem] shadow-sm max-w-full mx-auto space-y-6">
+                    {/* CABEÇALHO E FILTROS */}
+                    <div className="space-y-4">
                 <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 pb-4 border-b border-gray-50">
                     <div className="flex flex-col gap-2">
                         <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 italic">Relatório de Ativos em Atraso (Quebra de Contrato):</span>
@@ -1345,6 +1382,8 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                 </div>
             ) : (
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center text-gray-400 italic font-black uppercase tracking-[0.2em] text-[10px]">Sem registros para este filtro</div>
+            )}
+                </div>
             )}
 
             <ConfirmModal 
