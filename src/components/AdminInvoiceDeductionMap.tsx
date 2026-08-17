@@ -13,7 +13,9 @@ import {
     AlertCircle,
     Receipt,
     Maximize2,
-    Minimize2
+    Minimize2,
+    Eye,
+    X
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -98,6 +100,7 @@ const findBestMatchingContractItem = (deliveryItemName: string, contractItems: C
     const delNorm = superNormalize(deliveryItemName);
     const delShortNorm = superNormalize(cleanShortTitle(deliveryItemName));
     const delTokens = getMeaningfulTokens(deliveryItemName);
+    const delFirstToken = delTokens.length > 0 ? delTokens[0] : '';
 
     let bestItem: ContractItem | null = null;
     let highestScore = 0;
@@ -107,6 +110,7 @@ const findBestMatchingContractItem = (deliveryItemName: string, contractItems: C
         const ciNorm = superNormalize(ci.name);
         const ciShortNorm = superNormalize(cleanShortTitle(ci.name));
         const ciTokens = getMeaningfulTokens(ci.name);
+        const ciFirstToken = ciTokens.length > 0 ? ciTokens[0] : '';
 
         let score = 0;
 
@@ -118,15 +122,24 @@ const findBestMatchingContractItem = (deliveryItemName: string, contractItems: C
         else if (delShortNorm && ciShortNorm && delShortNorm === ciShortNorm) {
             score = 900;
         } 
-        // 3. Substring containment
+        // 3. Primary keyword / First noun match (e.g. Beterraba with Beterraba, Chuchu with Chuchu)
+        else if (delFirstToken && ciFirstToken && delFirstToken === ciFirstToken) {
+            score = 750;
+            // Add bonus if more tokens match
+            for (let i = 1; i < delTokens.length; i++) {
+                if (ciTokens.includes(delTokens[i])) {
+                    score += 50;
+                }
+            }
+        }
+        // 4. Substring containment
         else if (ciNorm.includes(delNorm) || delNorm.includes(ciNorm)) {
             score = 600 + Math.min(delNorm.length, ciNorm.length);
         } else if (ciShortNorm.includes(delShortNorm) || delShortNorm.includes(ciShortNorm)) {
             score = 500 + Math.min(delShortNorm.length, ciShortNorm.length);
         }
-
-        // 4. Token overlap scoring
-        if (delTokens.length > 0 && ciTokens.length > 0) {
+        // 5. Token overlap scoring
+        else if (delTokens.length > 0 && ciTokens.length > 0) {
             let matchingTokensCount = 0;
             for (const dt of delTokens) {
                 if (ciTokens.includes(dt)) {
@@ -142,7 +155,7 @@ const findBestMatchingContractItem = (deliveryItemName: string, contractItems: C
             }
         }
 
-        if (score > highestScore && score >= 40) {
+        if (score > highestScore && score >= 50) {
             highestScore = score;
             bestItem = ci;
         }
@@ -170,6 +183,9 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
     const [selectedYear, setSelectedYear] = useState<number>(2026);
     const [periodRange, setPeriodRange] = useState<'may_to_dec' | 'all_year'>('may_to_dec');
     const [compactView, setCompactView] = useState<boolean>(true);
+
+    // Modal state to inspect individual NF items
+    const [inspectedNfMonth, setInspectedNfMonth] = useState<string | null>(null);
 
     // Selected supplier
     const currentSupplier = useMemo(() => {
@@ -316,7 +332,8 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
             return {
                 items: [],
                 monthTotals: {},
-                grandTotals: DEFAULT_GRAND_TOTALS
+                grandTotals: DEFAULT_GRAND_TOTALS,
+                consolidatedList: []
             };
         }
 
@@ -345,6 +362,9 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
             kg: number;
             value: number;
             invoiceNumber: string;
+            pdNumber?: string;
+            neNumber?: string;
+            lotNumber?: string;
         }
 
         const consolidatedList: ConsolidatedEntry[] = [];
@@ -369,7 +389,10 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                 itemName,
                 kg,
                 value,
-                invoiceNumber: nf
+                invoiceNumber: nf,
+                pdNumber: l.pdNumber || '',
+                neNumber: l.neNumber || '',
+                lotNumber: l.lotNumber || ''
             });
         });
 
@@ -392,7 +415,10 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                     itemName,
                     kg,
                     value,
-                    invoiceNumber: nf
+                    invoiceNumber: nf,
+                    pdNumber: d.pd || d.pdNumber || '',
+                    neNumber: d.ne || d.neNumber || '',
+                    lotNumber: d.lotNumber || ''
                 });
             }
         });
@@ -431,14 +457,18 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
 
                     let belongsToThisMonth = false;
 
-                    // If entry has an NF and assigned NF matches
+                    // If month has an assigned NF and entry has an NF
                     if (cleanAssignedNf && cleanEntryNf) {
                         belongsToThisMonth = cleanAssignedNf === cleanEntryNf;
                     } 
-                    // If entry is dated in this month
-                    else if (isDateInMonth) {
-                        // Belongs here if no assigned NF or entry has no NF or entry's NF isn't assigned elsewhere
+                    // If month has an assigned NF but entry has no NF, place if date matches
+                    else if (cleanAssignedNf && !cleanEntryNf && isDateInMonth) {
                         belongsToThisMonth = true;
+                    }
+                    // If month has NO assigned NF, place if date matches and entry NF isn't mapped to another displayed month
+                    else if (!cleanAssignedNf && isDateInMonth) {
+                        const isNfAssignedElsewhere = Object.entries(monthNfMap).some(([k, nf]) => k !== m.key && normalizeNfDigits(nf) === cleanEntryNf);
+                        belongsToThisMonth = !isNfAssignedElsewhere;
                     }
 
                     if (belongsToThisMonth) {
@@ -507,7 +537,8 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                 remainingValue: grandRemainingValue,
                 remainingWeight: grandRemainingWeight,
                 percentDelivered: Number.isFinite(percentDelivered) ? percentDelivered : 0
-            }
+            },
+            consolidatedList
         };
     }, [currentSupplier, contractItems, displayedMonths, monthNfMap, warehouseLog, selectedYear]);
 
@@ -530,6 +561,61 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
             };
         });
     }, [displayedMonths, monthNfMap, matrixData]);
+
+    // Entries for the inspected NF Modal
+    const inspectedNfDetails = useMemo(() => {
+        if (!inspectedNfMonth || !currentSupplier) return null;
+        const monthObj = displayedMonths.find(m => m.key === inspectedNfMonth);
+        if (!monthObj) return null;
+
+        const assignedNf = monthNfMap[inspectedNfMonth] || '';
+        const cleanAssignedNf = normalizeNfDigits(assignedNf);
+        const monthPrefix = `${selectedYear}-${inspectedNfMonth}`;
+
+        // Get all matching entries from consolidatedList
+        const matchingEntries = matrixData.consolidatedList.filter(entry => {
+            const cleanEntryNf = normalizeNfDigits(entry.invoiceNumber);
+            const isDateInMonth = entry.date.startsWith(monthPrefix);
+
+            if (cleanAssignedNf && cleanEntryNf) {
+                return cleanAssignedNf === cleanEntryNf;
+            } else if (cleanAssignedNf && !cleanEntryNf && isDateInMonth) {
+                return true;
+            } else if (!cleanAssignedNf && isDateInMonth) {
+                return true;
+            }
+            return false;
+        });
+
+        const mappedItems = matchingEntries.map(e => {
+            const matchedCi = findBestMatchingContractItem(e.itemName, contractItems);
+            const valPerKg = e.kg > 0 && e.value > 0 ? e.value / e.kg : (matchedCi?.valuePerKg || 0);
+            return {
+                rawName: e.itemName,
+                matchedContractItem: matchedCi?.name || 'Não vinculado ao contrato',
+                shortTitle: matchedCi ? cleanShortTitle(matchedCi.name) : cleanShortTitle(e.itemName),
+                kg: e.kg,
+                valPerKg,
+                value: e.value > 0 ? e.value : (e.kg * valPerKg),
+                date: e.date,
+                invoiceNumber: e.invoiceNumber || assignedNf || 'S/N',
+                pdNumber: e.pdNumber,
+                neNumber: e.neNumber,
+                lotNumber: e.lotNumber
+            };
+        });
+
+        const totalWeight = mappedItems.reduce((sum, it) => sum + it.kg, 0);
+        const totalValue = mappedItems.reduce((sum, it) => sum + it.value, 0);
+
+        return {
+            monthObj,
+            assignedNf,
+            mappedItems,
+            totalWeight,
+            totalValue
+        };
+    }, [inspectedNfMonth, currentSupplier, displayedMonths, monthNfMap, selectedYear, matrixData, contractItems]);
 
     // 8. Print Layout Generator
     const handlePrintTable = () => {
@@ -939,7 +1025,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                                 Resumo de Pesos e Valores por Nota Fiscal
                             </h3>
                             <p className="text-[10px] text-slate-400 font-medium">
-                                Total consolidado por cada mês e número de NF emitido pelo produtor
+                                Total consolidado por cada mês e número de NF emitido pelo produtor (Clique para ver os itens de cada nota)
                             </p>
                         </div>
                     </div>
@@ -952,11 +1038,13 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                     {invoiceSummaryList.map(item => (
                         <div 
                             key={item.monthKey}
-                            className={`p-2.5 rounded-2xl border transition-all ${
+                            onClick={() => (item.weight > 0 || item.nfNumber) && setInspectedNfMonth(item.monthKey)}
+                            className={`p-2.5 rounded-2xl border transition-all cursor-pointer ${
                                 (item.weight || 0) > 0
-                                    ? 'bg-amber-50/60 border-amber-300/80 shadow-2xs'
-                                    : 'bg-slate-50/50 border-slate-200/50 opacity-70'
+                                    ? 'bg-amber-50/60 border-amber-300/80 shadow-2xs hover:bg-amber-100/70 hover:scale-[1.02]'
+                                    : 'bg-slate-50/50 border-slate-200/50 opacity-70 hover:opacity-100'
                             }`}
+                            title={item.weight > 0 ? "Clique para inspecionar os itens desta nota fiscal" : undefined}
                         >
                             <div className="flex items-center justify-between gap-1 mb-1">
                                 <span className="text-[10px] font-black uppercase text-slate-700">{item.monthName}</span>
@@ -983,6 +1071,13 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                                     </span>
                                 </div>
                             </div>
+
+                            {item.weight > 0 && (
+                                <div className="mt-1.5 pt-1 border-t border-amber-200/60 flex items-center justify-between text-[8px] text-amber-800 font-bold">
+                                    <span>{item.itemCount} itens</span>
+                                    <Eye className="h-2.5 w-2.5" />
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -1060,8 +1155,19 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                                         className="p-1.5 text-center bg-slate-100 text-slate-900 border-r border-slate-200 border-b border-slate-200"
                                     >
                                         <div className="text-[10px] font-black uppercase tracking-tight">{m.name}</div>
-                                        <div className="text-[9px] font-bold text-amber-800 font-mono">
-                                            {monthNfMap[m.key] ? `NF ${monthNfMap[m.key]}` : <span className="text-slate-400 italic text-[8px]">S/ NF</span>}
+                                        <div className="text-[9px] font-bold text-amber-800 font-mono flex items-center justify-center gap-1">
+                                            {monthNfMap[m.key] ? (
+                                                <button 
+                                                    onClick={() => setInspectedNfMonth(m.key)} 
+                                                    className="hover:underline flex items-center gap-0.5 cursor-pointer text-amber-900"
+                                                    title="Clique para ver os itens detalhados desta NF"
+                                                >
+                                                    <span>NF {monthNfMap[m.key]}</span>
+                                                    <Eye className="h-2.5 w-2.5" />
+                                                </button>
+                                            ) : (
+                                                <span className="text-slate-400 italic text-[8px]">S/ NF</span>
+                                            )}
                                         </div>
                                     </th>
                                 ))}
@@ -1296,6 +1402,108 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                     </p>
                 </div>
             </div>
+
+            {/* MODAL: INSPECT INDIVIDUAL NF ITEMS */}
+            {inspectedNfDetails && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+                    <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-2xl w-full overflow-hidden space-y-0 animate-scale-up">
+                        {/* Header */}
+                        <div className="p-4 bg-amber-500 text-white flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-2 bg-white/20 rounded-xl">
+                                    <Receipt className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-sm uppercase tracking-tight">
+                                        Detalhamento da Nota Fiscal {inspectedNfDetails.assignedNf ? `NF #${inspectedNfDetails.assignedNf}` : 'Sem Número'}
+                                    </h3>
+                                    <p className="text-[11px] text-amber-100 font-medium">
+                                        Mês de Referência: <strong>{inspectedNfDetails.monthObj.name} ({inspectedNfDetails.monthObj.fullName})</strong> | Fornecedor: <strong>{currentSupplier?.name}</strong>
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setInspectedNfMonth(null)}
+                                className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all cursor-pointer"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        {/* Body content */}
+                        <div className="p-4 space-y-3 max-h-[65vh] overflow-y-auto custom-scrollbar">
+                            <div className="flex items-center justify-between text-xs text-slate-500">
+                                <span>{inspectedNfDetails.mappedItems.length} registros cadastrados para esta NF</span>
+                                <div className="flex gap-2">
+                                    <span className="font-bold text-slate-900">Peso Total: <strong className="font-mono">{formatNumber(inspectedNfDetails.totalWeight, 2, 2)} Kg</strong></span>
+                                    <span className="font-bold text-emerald-700">Valor Total: <strong className="font-mono">{formatCurrency(inspectedNfDetails.totalValue)}</strong></span>
+                                </div>
+                            </div>
+
+                            {inspectedNfDetails.mappedItems.length === 0 ? (
+                                <div className="p-6 text-center text-slate-400 font-bold text-xs bg-slate-50 rounded-2xl border border-slate-100">
+                                    Nenhum item individual encontrado especificamente para esta NF no período.
+                                </div>
+                            ) : (
+                                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+                                    <table className="w-full text-left text-xs border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-100 text-slate-700 font-black text-[10px] uppercase border-b border-slate-200">
+                                                <th className="p-2.5">Item da NF / Contrato</th>
+                                                <th className="p-2.5 text-center">Peso (Kg)</th>
+                                                <th className="p-2.5 text-center">Preço (R$/Kg)</th>
+                                                <th className="p-2.5 text-right">Valor Total (R$)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {inspectedNfDetails.mappedItems.map((item, idx) => (
+                                                <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="p-2.5">
+                                                        <div className="font-black text-slate-900">{item.shortTitle}</div>
+                                                        <div className="text-[9px] text-slate-400 truncate max-w-xs">{item.rawName}</div>
+                                                        {item.date && (
+                                                            <div className="text-[8px] text-slate-400 mt-0.5">
+                                                                Data: {new Date(item.date + 'T12:00:00').toLocaleDateString('pt-BR')} {item.pdNumber ? `| PD: ${item.pdNumber}` : ''}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-2.5 text-center font-mono font-bold text-slate-900">
+                                                        {formatNumber(item.kg, 2, 2)}
+                                                    </td>
+                                                    <td className="p-2.5 text-center font-mono text-slate-600">
+                                                        {formatCurrency(item.valPerKg)}
+                                                    </td>
+                                                    <td className="p-2.5 text-right font-mono font-black text-emerald-700">
+                                                        {formatCurrency(item.value)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr className="bg-slate-50 font-black text-slate-900 border-t border-slate-200">
+                                                <td className="p-2.5 uppercase text-[10px]">Total Consolidado da NF</td>
+                                                <td className="p-2.5 text-center font-mono text-amber-900">{formatNumber(inspectedNfDetails.totalWeight, 2, 2)}</td>
+                                                <td className="p-2.5 text-center">-</td>
+                                                <td className="p-2.5 text-right font-mono text-emerald-700">{formatCurrency(inspectedNfDetails.totalValue)}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex justify-end">
+                            <button
+                                onClick={() => setInspectedNfMonth(null)}
+                                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                            >
+                                Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
