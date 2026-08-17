@@ -551,7 +551,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         ppaisProducers.forEach(p => {
             (Object.values(p.deliveries || {}) as Delivery[]).forEach(d => {
                 const m = getMonthFromDate(d.date);
-                if (m) execution[m]['PPAIS'] += d.value || 0;
+                if (m && execution[m]) {
+                    execution[m]['PPAIS'] = (execution[m]['PPAIS'] || 0) + (Number(d.value) || 0);
+                }
             });
         });
 
@@ -559,7 +561,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         pereciveisSuppliers.forEach(p => {
             (Object.values(p.deliveries || {}) as Delivery[]).forEach(d => {
                 const m = getMonthFromDate(d.date);
-                if (m) execution[m]['PERECÍVEIS'] += d.value || 0;
+                if (m && execution[m]) {
+                    execution[m]['PERECÍVEIS'] = (execution[m]['PERECÍVEIS'] || 0) + (Number(d.value) || 0);
+                }
             });
         });
 
@@ -567,7 +571,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         estocaveisSuppliers.forEach(p => {
             (Object.values(p.deliveries || {}) as Delivery[]).forEach(d => {
                 const m = getMonthFromDate(d.date);
-                if (m) execution[m]['ESTOCÁVEIS'] += d.value || 0;
+                if (m && execution[m]) {
+                    execution[m]['ESTOCÁVEIS'] = (execution[m]['ESTOCÁVEIS'] || 0) + (Number(d.value) || 0);
+                }
             });
         });
 
@@ -1352,7 +1358,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                         <div className="bg-indigo-600 text-white p-8 rounded-3xl shadow-xl border border-indigo-400/20 relative overflow-hidden">
                             <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest mb-4">Saldo de Quota</p>
                             <h3 className="text-5xl font-black tracking-tighter italic font-mono">
-                                {formatCurrency((Object.values(monthlyQuota) as number[]).reduce((a: number, b: number) => a + b, 0) - (Object.values(monthlyExecution) as Record<string, number>[]).reduce((acc: number, curr: Record<string, number>) => acc + (Object.values(curr) as number[]).reduce((a: number, b: number) => a + b, 0), 0))}
+                                {formatCurrency((Object.values(monthlyQuota) as number[]).reduce((a: number, b: number) => a + (b || 0), 0) - (Object.values(monthlyExecution) as Record<string, number>[]).reduce((acc: number, curr: Record<string, number>) => acc + (Object.values(curr || {}) as number[]).reduce((a: number, b: number) => a + (b || 0), 0), 0))}
                             </h3>
                             <p className="text-[10px] font-bold text-indigo-200 mt-4 uppercase tracking-widest">Disponível para Empenho</p>
                         </div>
@@ -1479,7 +1485,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 </thead>
                                 <tbody className="divide-y divide-zinc-100">
                                     {months.map(m => {
-                                        const execution = (Object.values(monthlyExecution[m]) as number[]).reduce((a: number, b: number) => a + b, 0);
+                                        const execution = (Object.values(monthlyExecution[m] || {}) as number[]).reduce((a: number, b: number) => a + (b || 0), 0);
                                         const quota = monthlyQuota[m] || 0;
                                         const balance = quota - execution;
                                         return (

@@ -216,13 +216,9 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
 
         allPCSupers.forEach((s: any) => {
             const schedule = s?.monthlySchedule || {};
-            const monthsNamesMatch = [
-                monthName, 
-                monthName.toLowerCase(), 
-                monthName.toUpperCase(), 
-                monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase()
-            ];
-            const weeks = monthsNamesMatch.reduce((acc, m) => acc.length > 0 ? acc : (schedule[m] || []), [] as number[]);
+            const cleanTarget = monthName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const matchingKey = Object.keys(schedule).find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === cleanTarget);
+            const weeks = matchingKey ? ensureArray(schedule[matchingKey]) : [];
             
             if (weeks.length > 0) {
                 const items = ensureArray(s.contractItems) as any[];

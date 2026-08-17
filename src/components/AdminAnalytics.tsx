@@ -109,7 +109,10 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], perCapi
             if (producerData?.monthlySchedule) {
                 activeMonths = months.filter(m => {
                     const sch = producerData?.monthlySchedule;
-                    return (sch?.[m] || sch?.[m.toUpperCase()] || sch?.[m.toLowerCase()] || sch?.[m.charAt(0).toUpperCase() + m.slice(1).toLowerCase()] || []).length > 0;
+                    if (!sch || typeof sch !== 'object') return false;
+                    const cleanM = m.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const matchingKey = Object.keys(sch).find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === cleanM);
+                    return matchingKey ? ensureArray(sch[matchingKey]).length > 0 : false;
                 });
             } else if (isItesp) {
                 activeMonths = months.slice(0, 4);

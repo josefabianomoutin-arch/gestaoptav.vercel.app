@@ -82,16 +82,8 @@ try {
   console.error("Erro ao inicializar Firebase:", error);
 }
 
-const getWeekNumber = (d: Date): number => {
-    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    return weekNo;
-};
-
 // Helpers para operações offline/online ultra-seguras no Firebase
-const safeGet = async (dbRef: any, fallbackValue: any = null, timeoutMs = 2500) => {
+const _safeGet = async (dbRef: any, fallbackValue: any = null, timeoutMs = 2500) => {
   try {
     const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), timeoutMs));
     const snapshotPromise = get(dbRef);
