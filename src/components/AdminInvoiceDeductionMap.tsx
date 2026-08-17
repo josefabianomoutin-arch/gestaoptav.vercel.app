@@ -60,7 +60,7 @@ const formatNumber = (val: number | null | undefined, minDec = 0, maxDec = 2): s
     return num.toLocaleString('pt-BR', { minimumFractionDigits: minDec, maximumFractionDigits: maxDec });
 };
 
-// Helper to clean long technical BEC descriptions into a short title
+// Helper to clean long technical BEC descriptions into a short title (before first semicolon or colon)
 const cleanShortTitle = (name: string): string => {
     if (!name) return '';
     const firstPart = name.split(/[;:\n]/)[0].trim();
@@ -74,94 +74,75 @@ const normalizeNfDigits = (nf: string | null | undefined): string => {
     return digits ? parseInt(digits, 10).toString() : String(nf).trim().toLowerCase();
 };
 
-// Stop words to ignore during token matching
-const STOP_WORDS = new Set([
-    'de', 'do', 'da', 'dos', 'das', 'em', 'no', 'na', 'para', 'com', 'e', 'ou', 'kg', 'un', 'pct',
-    'conforme', 'obedecer', 'informacoes', 'contidas', 'normas', 'padroes', 'site', 'bec', 'sp', 'gov', 'br',
-    'anvisa', 'procedimentos', 'adm', 'determinados', 'pela', 'recebimento', 'embalagem', 'primaria', 'secundaria',
-    'tipo', 'sabor', 'marca', 'qualidade', 'classe', 'extra', 'primeira', 'segunda', 'edital', 'item', 'contrato'
-]);
-
-// Helper to get meaningful tokens from an item name
-const getMeaningfulTokens = (name: string): string[] => {
-    if (!name) return [];
-    return name
+// Extract normalized primary product head (e.g. "beterraba", "chuchu", "pepino", "repolho", "batata doce", "cenoura", "abobora", "abobrinha")
+const getProductHead = (name: string): string => {
+    if (!name) return '';
+    const rawHead = name.split(/[;:(\n]/)[0].trim();
+    return rawHead
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
-        .split(/[\s,;:./\-()]+/)
-        .filter(w => w.length > 2 && !STOP_WORDS.has(w));
+        .replace(/[^a-z0-9\s]/g, '')
+        .trim();
 };
 
-// Robust Matcher that finds the BEST matching contract item for a delivery (preventing duplication)
+// Robust Matcher that finds the EXACT matching contract item for a delivery
 const findBestMatchingContractItem = (deliveryItemName: string, contractItems: ContractItem[]): ContractItem | null => {
     if (!deliveryItemName || !Array.isArray(contractItems) || contractItems.length === 0) return null;
 
-    const delNorm = superNormalize(deliveryItemName);
-    const delShortNorm = superNormalize(cleanShortTitle(deliveryItemName));
-    const delTokens = getMeaningfulTokens(deliveryItemName);
-    const delFirstToken = delTokens.length > 0 ? delTokens[0] : '';
+    const delFullNorm = superNormalize(deliveryItemName);
+    const delHead = getProductHead(deliveryItemName);
 
-    let bestItem: ContractItem | null = null;
-    let highestScore = 0;
+    // 1. Direct full string exact match
+    const exactFull = contractItems.find(ci => ci && superNormalize(ci.name) === delFullNorm);
+    if (exactFull) return exactFull;
 
+    // 2. Direct product head exact match (e.g. "beterraba" === "beterraba", "batata doce" === "batata doce")
+    if (delHead) {
+        // First try exact head match
+        const exactHead = contractItems.find(ci => ci && getProductHead(ci.name) === delHead);
+        if (exactHead) return exactHead;
+
+        // Try where one head starts with the other or matches first word (e.g. "batata doce" with "batata doce")
+        const delWords = delHead.split(/\s+/).filter(Boolean);
+        const prefixHead = contractItems.find(ci => {
+            if (!ci || !ci.name) return false;
+            const ciHead = getProductHead(ci.name);
+            if (!ciHead) return false;
+            const ciWords = ciHead.split(/\s+/).filter(Boolean);
+            
+            if (delWords.length > 0 && ciWords.length > 0) {
+                // Must have exact first word match (e.g. "beterraba" === "beterraba", "abobora" === "abobora", "abobrinha" === "abobrinha")
+                if (delWords[0] === ciWords[0]) {
+                    // If multi-word like "batata doce", check second word if available
+                    if (delWords.length > 1 && ciWords.length > 1) {
+                        return delWords[1] === ciWords[1];
+                    }
+                    return true;
+                }
+            }
+            return false;
+        });
+        if (prefixHead) return prefixHead;
+    }
+
+    // 3. Fallback: Search for the contract item whose product head appears in the delivery name as a whole word
     for (const ci of contractItems) {
         if (!ci || !ci.name) continue;
-        const ciNorm = superNormalize(ci.name);
-        const ciShortNorm = superNormalize(cleanShortTitle(ci.name));
-        const ciTokens = getMeaningfulTokens(ci.name);
-        const ciFirstToken = ciTokens.length > 0 ? ciTokens[0] : '';
+        const ciHead = getProductHead(ci.name);
+        if (!ciHead) continue;
 
-        let score = 0;
-
-        // 1. Exact full normalized match
-        if (delNorm === ciNorm) {
-            score = 1000;
-        } 
-        // 2. Exact short title match
-        else if (delShortNorm && ciShortNorm && delShortNorm === ciShortNorm) {
-            score = 900;
-        } 
-        // 3. Primary keyword / First noun match (e.g. Beterraba with Beterraba, Chuchu with Chuchu)
-        else if (delFirstToken && ciFirstToken && delFirstToken === ciFirstToken) {
-            score = 750;
-            // Add bonus if more tokens match
-            for (let i = 1; i < delTokens.length; i++) {
-                if (ciTokens.includes(delTokens[i])) {
-                    score += 50;
-                }
+        const ciFirstWord = ciHead.split(/\s+/)[0];
+        if (ciFirstWord.length >= 3) {
+            const regex = new RegExp(`\\b${ciFirstWord}\\b`, 'i');
+            const normalizedDel = deliveryItemName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            if (regex.test(normalizedDel)) {
+                return ci;
             }
-        }
-        // 4. Substring containment
-        else if (ciNorm.includes(delNorm) || delNorm.includes(ciNorm)) {
-            score = 600 + Math.min(delNorm.length, ciNorm.length);
-        } else if (ciShortNorm.includes(delShortNorm) || delShortNorm.includes(ciShortNorm)) {
-            score = 500 + Math.min(delShortNorm.length, ciShortNorm.length);
-        }
-        // 5. Token overlap scoring
-        else if (delTokens.length > 0 && ciTokens.length > 0) {
-            let matchingTokensCount = 0;
-            for (const dt of delTokens) {
-                if (ciTokens.includes(dt)) {
-                    matchingTokensCount++;
-                } else if (ciTokens.some(ct => ct.startsWith(dt) || dt.startsWith(ct))) {
-                    matchingTokensCount += 0.8;
-                }
-            }
-
-            const tokenScore = matchingTokensCount * 60;
-            if (tokenScore > score) {
-                score = tokenScore;
-            }
-        }
-
-        if (score > highestScore && score >= 50) {
-            highestScore = score;
-            bestItem = ci;
         }
     }
 
-    return bestItem;
+    return null;
 };
 
 export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> = ({
@@ -231,11 +212,12 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
             // ignore
         }
 
-        // 3. Auto-detect from warehouse movements and deliveries
+        // 3. Auto-detect from deliveries and warehouse movements
         const newMap: Record<string, string> = {};
         const supNameNorm = superNormalize(currentSupplier.name || '');
         const supCpfDigits = String(currentSupplier.cpf || '').replace(/\D/g, '');
 
+        const supplierDeliveries = ensureArray<any>(currentSupplier.deliveries);
         const supplierLogs = (warehouseLog || []).filter(l => {
             if (!l) return false;
             const logName = superNormalize(l.supplierName || '');
@@ -243,21 +225,10 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
             return (supCpfDigits && logCpf === supCpfDigits) || (supNameNorm && (logName.includes(supNameNorm) || supNameNorm.includes(logName)));
         });
 
-        const supplierDeliveries = ensureArray<any>(currentSupplier.deliveries);
-
         displayedMonths.forEach(m => {
             const monthPrefix = `${selectedYear}-${m.key}`;
             
-            const monthLog = supplierLogs.find(l => {
-                const dateStr = l.date || (typeof l.timestamp === 'number' ? new Date(l.timestamp).toISOString().split('T')[0] : '');
-                return dateStr.startsWith(monthPrefix) && (l.inboundInvoice || l.invoiceNumber);
-            });
-
-            if (monthLog) {
-                newMap[m.key] = String(monthLog.inboundInvoice || monthLog.invoiceNumber || '').trim();
-                return;
-            }
-
+            // Look first in supplier.deliveries
             const monthDelivery = supplierDeliveries.find(d => {
                 const dateStr = String(d.date || '');
                 return dateStr.startsWith(monthPrefix) && d.invoiceNumber;
@@ -265,6 +236,17 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
 
             if (monthDelivery) {
                 newMap[m.key] = String(monthDelivery.invoiceNumber || '').trim();
+                return;
+            }
+
+            // Otherwise look in warehouseLog
+            const monthLog = supplierLogs.find(l => {
+                const dateStr = l.date || (typeof l.timestamp === 'number' ? new Date(l.timestamp).toISOString().split('T')[0] : '');
+                return dateStr.startsWith(monthPrefix) && (l.inboundInvoice || l.invoiceNumber);
+            });
+
+            if (monthLog) {
+                newMap[m.key] = String(monthLog.inboundInvoice || monthLog.invoiceNumber || '').trim();
             }
         });
 
@@ -304,6 +286,10 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         const supNameNorm = superNormalize(currentSupplier.name || '');
         const supCpfDigits = String(currentSupplier.cpf || '').replace(/\D/g, '');
 
+        ensureArray<any>(currentSupplier.deliveries).forEach(d => {
+            if (d.invoiceNumber) nfs.add(String(d.invoiceNumber).trim());
+        });
+
         (warehouseLog || []).forEach(l => {
             const logName = superNormalize(l.supplierName || '');
             const logCpf = String(l.supplierCpf || '').replace(/\D/g, '');
@@ -311,10 +297,6 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                 if (l.inboundInvoice) nfs.add(String(l.inboundInvoice).trim());
                 if (l.invoiceNumber) nfs.add(String(l.invoiceNumber).trim());
             }
-        });
-
-        ensureArray<any>(currentSupplier.deliveries).forEach(d => {
-            if (d.invoiceNumber) nfs.add(String(d.invoiceNumber).trim());
         });
 
         return Array.from(nfs).filter(Boolean);
@@ -326,7 +308,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         return ensureArray<ContractItem>(currentSupplier.contractItems).filter(it => it && it.name);
     }, [currentSupplier]);
 
-    // 6. Calculate Consolidated Matrix Data
+    // 6. Calculate Consolidated Matrix Data (WITHOUT duplicate entries)
     const matrixData = useMemo(() => {
         if (!currentSupplier) {
             return {
@@ -340,7 +322,10 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         const supNameNorm = superNormalize(currentSupplier.name || '');
         const supCpfDigits = String(currentSupplier.cpf || '').replace(/\D/g, '');
 
-        // 1. Gather all raw inbound movements from warehouseLog
+        // 1. Gather deliveries from supplier (Primary source for NF items)
+        const supplierDeliveries = ensureArray<any>(currentSupplier.deliveries);
+
+        // 2. Gather raw inbound movements from warehouseLog
         const supplierLogs = (warehouseLog || []).filter(l => {
             if (!l) return false;
             const isEntrada = !l.type || String(l.type).toLowerCase().trim() === 'entrada';
@@ -351,10 +336,6 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
             return (supCpfDigits && logCpf === supCpfDigits) || (supNameNorm && (logName.includes(supNameNorm) || supNameNorm.includes(logName)));
         });
 
-        // 2. Gather all deliveries from supplier
-        const supplierDeliveries = ensureArray<any>(currentSupplier.deliveries);
-
-        // 3. Consolidated and deduplicated delivery entries
         interface ConsolidatedEntry {
             id: string;
             date: string;
@@ -368,20 +349,64 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         }
 
         const consolidatedList: ConsolidatedEntry[] = [];
-        const seenKeys = new Set<string>();
+        const processedNfs = new Set<string>();
+        const seenItemKeys = new Set<string>();
 
-        // Process warehouse entries
+        // Step A: Process supplierDeliveries first (official invoice breakdown)
+        supplierDeliveries.forEach((d, idx) => {
+            const dateStr = String(d.date || d.invoiceDate || '');
+            const itemName = d.itemName || d.item || '';
+            const kg = Number(d.kg ?? d.quantity ?? 0);
+            const value = Number(d.value || 0);
+            const nf = String(d.invoiceNumber || '').trim();
+            const cleanNf = normalizeNfDigits(nf);
+
+            if (kg <= 0 && value <= 0) return;
+            if (itemName === 'AGENDAMENTO PENDENTE') return;
+
+            const productKey = getProductHead(itemName);
+            const itemKey = `${cleanNf}_${productKey}_${kg.toFixed(2)}`;
+            if (seenItemKeys.has(itemKey)) return;
+            seenItemKeys.add(itemKey);
+
+            if (cleanNf) {
+                processedNfs.add(cleanNf);
+            }
+
+            consolidatedList.push({
+                id: d.id || `del_${idx}`,
+                date: dateStr,
+                itemName,
+                kg,
+                value,
+                invoiceNumber: nf,
+                pdNumber: d.pd || d.pdNumber || '',
+                neNumber: d.ne || d.neNumber || '',
+                lotNumber: d.lotNumber || ''
+            });
+        });
+
+        // Step B: Process warehouseLog for entries that weren't captured in supplier.deliveries
         supplierLogs.forEach((l, idx) => {
             const dateStr = l.date || (typeof l.timestamp === 'number' ? new Date(l.timestamp).toISOString().split('T')[0] : '');
             const itemName = l.itemName || l.item || '';
             const kg = Number(l.quantity ?? l.kg ?? l.weight ?? 0);
             const value = Number(l.value || 0);
             const nf = String(l.inboundInvoice || l.invoiceNumber || '').trim();
+            const cleanNf = normalizeNfDigits(nf);
 
             if (kg <= 0 && value <= 0) return;
+            if (itemName === 'AGENDAMENTO PENDENTE') return;
 
-            const dedupKey = `${dateStr}_${superNormalize(itemName)}_${kg.toFixed(2)}_${normalizeNfDigits(nf)}`;
-            seenKeys.add(dedupKey);
+            // If this NF was already comprehensively processed in Step A, skip duplicating from log
+            if (cleanNf && processedNfs.has(cleanNf)) {
+                return;
+            }
+
+            const productKey = getProductHead(itemName);
+            const itemKey = `${cleanNf}_${productKey}_${kg.toFixed(2)}`;
+            if (seenItemKeys.has(itemKey)) return;
+            seenItemKeys.add(itemKey);
 
             consolidatedList.push({
                 id: l.id || `wh_${idx}`,
@@ -394,33 +419,6 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                 neNumber: l.neNumber || '',
                 lotNumber: l.lotNumber || ''
             });
-        });
-
-        // Process supplier.deliveries (add only if not already captured from warehouseLog)
-        supplierDeliveries.forEach((d, idx) => {
-            const dateStr = String(d.date || '');
-            const itemName = d.itemName || d.item || '';
-            const kg = Number(d.kg ?? d.quantity ?? 0);
-            const value = Number(d.value || 0);
-            const nf = String(d.invoiceNumber || '').trim();
-
-            if (kg <= 0 && value <= 0) return;
-
-            const dedupKey = `${dateStr}_${superNormalize(itemName)}_${kg.toFixed(2)}_${normalizeNfDigits(nf)}`;
-            if (!seenKeys.has(dedupKey)) {
-                seenKeys.add(dedupKey);
-                consolidatedList.push({
-                    id: d.id || `del_${idx}`,
-                    date: dateStr,
-                    itemName,
-                    kg,
-                    value,
-                    invoiceNumber: nf,
-                    pdNumber: d.pd || d.pdNumber || '',
-                    neNumber: d.ne || d.neNumber || '',
-                    lotNumber: d.lotNumber || ''
-                });
-            }
         });
 
         // 4. Initialize Month Totals
@@ -448,7 +446,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
 
                 // Find all consolidated entries that belong to this item and this month/NF
                 consolidatedList.forEach(entry => {
-                    // Check item match using the best match scoring
+                    // Check item match using the exact product head matcher
                     const matchedItem = findBestMatchingContractItem(entry.itemName, contractItems);
                     if (!matchedItem || matchedItem.name !== item.name) return;
 
