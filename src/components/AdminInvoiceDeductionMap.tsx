@@ -67,6 +67,9 @@ const cleanShortTitle = (name: string): string => {
     return firstPart.replace(/\s+/g, ' ');
 };
 
+// Normalized invoice string for comparison (consistent with AdminInvoices)
+const cleanStr = (s: any): string => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+
 // Normalized invoice digits for comparison
 const normalizeNfDigits = (nf: string | null | undefined): string => {
     if (!nf) return '';
@@ -74,71 +77,64 @@ const normalizeNfDigits = (nf: string | null | undefined): string => {
     return digits ? parseInt(digits, 10).toString() : String(nf).trim().toLowerCase();
 };
 
-// Extract normalized primary product head (e.g. "beterraba", "chuchu", "pepino", "repolho", "batata doce", "cenoura", "abobora", "abobrinha")
-const getProductHead = (name: string): string => {
-    if (!name) return '';
-    const rawHead = name.split(/[;:(\n]/)[0].trim();
-    return rawHead
+// Clean item text for normalized comparison
+const normalizeItemText = (text: string | null | undefined): string => {
+    if (!text) return '';
+    return String(text)
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
         .trim();
 };
 
-// Robust Matcher that finds the EXACT matching contract item for a delivery
+// Extract normalized primary product head (e.g. "beterraba", "chuchu", "pepino", "repolho", "batata doce", "cenoura", "abobora", "abobrinha")
+const getProductHead = (name: string | null | undefined): string => {
+    if (!name) return '';
+    const rawHead = String(name).split(/[;:(\n]/)[0].trim();
+    return normalizeItemText(rawHead);
+};
+
+// Robust Matcher that finds the EXACT matching contract item for a delivery (prevents false matches between similar words)
 const findBestMatchingContractItem = (deliveryItemName: string, contractItems: ContractItem[]): ContractItem | null => {
     if (!deliveryItemName || !Array.isArray(contractItems) || contractItems.length === 0) return null;
 
-    const delFullNorm = superNormalize(deliveryItemName);
+    const delFullNorm = normalizeItemText(deliveryItemName);
     const delHead = getProductHead(deliveryItemName);
 
     // 1. Direct full string exact match
-    const exactFull = contractItems.find(ci => ci && superNormalize(ci.name) === delFullNorm);
+    const exactFull = contractItems.find(ci => ci && normalizeItemText(ci.name) === delFullNorm);
     if (exactFull) return exactFull;
 
-    // 2. Direct product head exact match (e.g. "beterraba" === "beterraba", "batata doce" === "batata doce")
+    // 2. Direct product head exact match (e.g. "beterraba" === "beterraba", "abobrinha" === "abobrinha", "abobora" === "abobora")
     if (delHead) {
         // First try exact head match
         const exactHead = contractItems.find(ci => ci && getProductHead(ci.name) === delHead);
         if (exactHead) return exactHead;
 
-        // Try where one head starts with the other or matches first word (e.g. "batata doce" with "batata doce")
-        const delWords = delHead.split(/\s+/).filter(Boolean);
+        // Try where one head starts with the other with space boundary (e.g. "batata doce" with "batata doce rosada")
         const prefixHead = contractItems.find(ci => {
             if (!ci || !ci.name) return false;
             const ciHead = getProductHead(ci.name);
             if (!ciHead) return false;
-            const ciWords = ciHead.split(/\s+/).filter(Boolean);
-            
-            if (delWords.length > 0 && ciWords.length > 0) {
-                // Must have exact first word match (e.g. "beterraba" === "beterraba", "abobora" === "abobora", "abobrinha" === "abobrinha")
-                if (delWords[0] === ciWords[0]) {
-                    // If multi-word like "batata doce", check second word if available
-                    if (delWords.length > 1 && ciWords.length > 1) {
-                        return delWords[1] === ciWords[1];
-                    }
-                    return true;
-                }
-            }
+            if (ciHead === delHead) return true;
+            if (delHead.startsWith(ciHead + ' ') || ciHead.startsWith(delHead + ' ')) return true;
             return false;
         });
         if (prefixHead) return prefixHead;
-    }
 
-    // 3. Fallback: Search for the contract item whose product head appears in the delivery name as a whole word
-    for (const ci of contractItems) {
-        if (!ci || !ci.name) continue;
-        const ciHead = getProductHead(ci.name);
-        if (!ciHead) continue;
-
-        const ciFirstWord = ciHead.split(/\s+/)[0];
-        if (ciFirstWord.length >= 3) {
-            const regex = new RegExp(`\\b${ciFirstWord}\\b`, 'i');
-            const normalizedDel = deliveryItemName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            if (regex.test(normalizedDel)) {
-                return ci;
-            }
+        // Fallback: match by first word if length >= 4 and exact match (e.g. "beterraba" === "beterraba")
+        // Ensuring distinct words like "abobora" and "abobrinha" never cross-match!
+        const delFirstWord = delHead.split(/\s+/)[0];
+        if (delFirstWord && delFirstWord.length >= 4) {
+            const firstWordMatch = contractItems.find(ci => {
+                if (!ci || !ci.name) return false;
+                const ciHead = getProductHead(ci.name);
+                const ciFirstWord = ciHead.split(/\s+/)[0];
+                return ciFirstWord === delFirstWord;
+            });
+            if (firstWordMatch) return firstWordMatch;
         }
     }
 
@@ -319,22 +315,17 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
             };
         }
 
-        const supNameNorm = superNormalize(currentSupplier.name || '');
-        const supCpfDigits = String(currentSupplier.cpf || '').replace(/\D/g, '');
+        // Helper to check if two CPFs are identical or share same root
+        const isSameCpf = (c1: string, c2: string): boolean => {
+            if (!c1 || !c2) return false;
+            if (c1 === c2) return true;
+            if (c1.length === 11 && c2.length === 14 && c2.startsWith(c1)) return true;
+            if (c1.length === 14 && c2.length === 11 && c1.startsWith(c2)) return true;
+            return false;
+        };
 
-        // 1. Gather deliveries from supplier (Primary source for NF items)
-        const supplierDeliveries = ensureArray<any>(currentSupplier.deliveries);
-
-        // 2. Gather raw inbound movements from warehouseLog
-        const supplierLogs = (warehouseLog || []).filter(l => {
-            if (!l) return false;
-            const isEntrada = !l.type || String(l.type).toLowerCase().trim() === 'entrada';
-            if (!isEntrada) return false;
-
-            const logName = superNormalize(l.supplierName || '');
-            const logCpf = String(l.supplierCpf || '').replace(/\D/g, '');
-            return (supCpfDigits && logCpf === supCpfDigits) || (supNameNorm && (logName.includes(supNameNorm) || supNameNorm.includes(logName)));
-        });
+        const supCleanName = cleanStr(currentSupplier.name || '');
+        const supCleanCpf = cleanStr(currentSupplier.cpf || '');
 
         interface ConsolidatedEntry {
             id: string;
@@ -346,78 +337,137 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
             pdNumber?: string;
             neNumber?: string;
             lotNumber?: string;
+            barcode?: string;
         }
 
-        const consolidatedList: ConsolidatedEntry[] = [];
-        const processedNfs = new Set<string>();
-        const seenItemKeys = new Set<string>();
+        // Group supplier deliveries into unique invoice entries (identical to Gestão de Entradas)
+        const supplierDeliveries = ensureArray<any>(currentSupplier.deliveries);
+        const groupedInvoices: Record<string, {
+            invoiceNumber: string;
+            date: string;
+            items: any[];
+        }> = {};
 
-        // Step A: Process supplierDeliveries first (official invoice breakdown)
         supplierDeliveries.forEach((d, idx) => {
-            const dateStr = String(d.date || d.invoiceDate || '');
-            const itemName = d.itemName || d.item || '';
-            const kg = Number(d.kg ?? d.quantity ?? 0);
-            const value = Number(d.value || 0);
-            const nf = String(d.invoiceNumber || '').trim();
-            const cleanNf = normalizeNfDigits(nf);
+            if (!d || (d.item === 'AGENDAMENTO PENDENTE' && !d.invoiceNumber)) return;
+            const invNum = String(d.invoiceNumber || 'S/N').trim();
+            const cleanDInvoice = cleanStr(invNum);
+            const dItemName = String(d.item || d.itemName || '').trim();
+            const cleanDItem = cleanStr(dItemName);
+            const cleanDId = cleanStr(d.id);
+            const dKg = Number(d.kg ?? d.quantity ?? 0);
 
-            if (kg <= 0 && value <= 0) return;
-            if (itemName === 'AGENDAMENTO PENDENTE') return;
+            // Find matching movement in warehouseLog to retrieve recorded value, lot, barcode
+            const itemMovement = (warehouseLog || []).find(log => {
+                if (!log) return false;
+                const cleanLogInv = cleanStr(log.invoiceNumber || log.inboundInvoice || log.outboundInvoice);
+                const cleanLogItem = cleanStr(log.item || log.itemName);
+                const cleanLogId = cleanStr(log.id);
+                return cleanLogInv === cleanDInvoice &&
+                    (cleanLogItem === cleanDItem || (cleanLogId && cleanLogId === cleanDId)) &&
+                    (cleanStr(log.supplierName) === supCleanName || isSameCpf(cleanStr(log.supplierCpf), supCleanCpf));
+            });
 
-            const productKey = getProductHead(itemName);
-            const itemKey = `${cleanNf}_${productKey}_${kg.toFixed(2)}`;
-            if (seenItemKeys.has(itemKey)) return;
-            seenItemKeys.add(itemKey);
+            const itemValue = Number((itemMovement as any)?.value ?? d.value ?? 0);
+            const itemDate = String(d.invoiceDate || d.date || (itemMovement as any)?.date || '');
 
-            if (cleanNf) {
-                processedNfs.add(cleanNf);
+            if (!groupedInvoices[invNum]) {
+                groupedInvoices[invNum] = {
+                    invoiceNumber: invNum,
+                    date: itemDate,
+                    items: []
+                };
+            } else if (itemDate && (!groupedInvoices[invNum].date || new Date(itemDate) < new Date(groupedInvoices[invNum].date))) {
+                groupedInvoices[invNum].date = itemDate;
             }
 
-            consolidatedList.push({
-                id: d.id || `del_${idx}`,
-                date: dateStr,
-                itemName,
-                kg,
-                value,
-                invoiceNumber: nf,
-                pdNumber: d.pd || d.pdNumber || '',
-                neNumber: d.ne || d.neNumber || '',
-                lotNumber: d.lotNumber || ''
+            // Deduplicate items within the same invoice by item name, kg, and ID
+            const alreadyExists = groupedInvoices[invNum].items.some(existing => {
+                const sameId = cleanDId && cleanStr(existing.id) === cleanDId;
+                const sameItem = cleanStr(existing.item) === cleanDItem && Math.abs(Number(existing.kg || 0) - dKg) < 0.001;
+                return sameId || sameItem;
             });
+
+            if (!alreadyExists && (dKg > 0 || itemValue > 0)) {
+                groupedInvoices[invNum].items.push({
+                    id: d.id || `del_${invNum}_${idx}`,
+                    item: dItemName,
+                    kg: dKg,
+                    value: itemValue,
+                    date: itemDate,
+                    barcode: (itemMovement as any)?.barcode || d.barcode || '',
+                    lotNumber: (itemMovement as any)?.lotNumber || d.lotNumber || '',
+                    pd: (itemMovement as any)?.pdNumber || d.pd || d.pdNumber || '',
+                    ne: (itemMovement as any)?.neNumber || d.ne || d.neNumber || ''
+                });
+            }
         });
 
-        // Step B: Process warehouseLog for entries that weren't captured in supplier.deliveries
-        supplierLogs.forEach((l, idx) => {
-            const dateStr = l.date || (typeof l.timestamp === 'number' ? new Date(l.timestamp).toISOString().split('T')[0] : '');
-            const itemName = l.itemName || l.item || '';
-            const kg = Number(l.quantity ?? l.kg ?? l.weight ?? 0);
-            const value = Number(l.value || 0);
-            const nf = String(l.inboundInvoice || l.invoiceNumber || '').trim();
-            const cleanNf = normalizeNfDigits(nf);
+        // Mirror any additional entries from warehouseLog for this supplier
+        (warehouseLog || []).forEach((log, idx) => {
+            if (!log) return;
+            const logItemName = String(log.item || log.itemName || '').trim();
+            if (!logItemName || logItemName === 'AGENDAMENTO PENDENTE') return;
 
-            if (kg <= 0 && value <= 0) return;
-            if (itemName === 'AGENDAMENTO PENDENTE') return;
+            const isEntrada = !log.type || String(log.type).toLowerCase().trim() === 'entrada';
+            if (!isEntrada) return;
 
-            // If this NF was already comprehensively processed in Step A, skip duplicating from log
-            if (cleanNf && processedNfs.has(cleanNf)) {
-                return;
+            const logName = cleanStr(log.supplierName);
+            const logCpf = cleanStr(log.supplierCpf);
+            const isMatch = (supCleanCpf && isSameCpf(logCpf, supCleanCpf)) || (supCleanName && (logName.includes(supCleanName) || supCleanName.includes(logName)));
+            if (!isMatch) return;
+
+            const invNum = String(log.inboundInvoice || log.invoiceNumber || 'S/N').trim();
+            const cleanLogItem = cleanStr(logItemName);
+            const logKg = Number(log.quantity ?? log.kg ?? log.weight ?? 0);
+            const logValue = Number(log.value || 0);
+            const logDate = String(log.date || (typeof log.timestamp === 'number' ? new Date(log.timestamp).toISOString().split('T')[0] : ''));
+
+            if (!groupedInvoices[invNum]) {
+                groupedInvoices[invNum] = {
+                    invoiceNumber: invNum,
+                    date: logDate,
+                    items: []
+                };
             }
 
-            const productKey = getProductHead(itemName);
-            const itemKey = `${cleanNf}_${productKey}_${kg.toFixed(2)}`;
-            if (seenItemKeys.has(itemKey)) return;
-            seenItemKeys.add(itemKey);
+            const alreadyExists = groupedInvoices[invNum].items.some(existing => {
+                const sameId = log.id && cleanStr(existing.id) === cleanStr(log.id);
+                const sameItem = cleanStr(existing.item) === cleanLogItem && Math.abs(Number(existing.kg || 0) - logKg) < 0.001;
+                return sameId || sameItem;
+            });
 
-            consolidatedList.push({
-                id: l.id || `wh_${idx}`,
-                date: dateStr,
-                itemName,
-                kg,
-                value,
-                invoiceNumber: nf,
-                pdNumber: l.pdNumber || '',
-                neNumber: l.neNumber || '',
-                lotNumber: l.lotNumber || ''
+            if (!alreadyExists && (logKg > 0 || logValue > 0)) {
+                groupedInvoices[invNum].items.push({
+                    id: log.id || `wh_${invNum}_${idx}`,
+                    item: logItemName,
+                    kg: logKg,
+                    value: logValue,
+                    date: logDate,
+                    barcode: log.barcode || '',
+                    lotNumber: log.lotNumber || '',
+                    pd: log.pdNumber || '',
+                    ne: log.neNumber || ''
+                });
+            }
+        });
+
+        // Flatten into consolidated list of entries
+        const consolidatedList: ConsolidatedEntry[] = [];
+        Object.values(groupedInvoices).forEach(inv => {
+            inv.items.forEach(it => {
+                consolidatedList.push({
+                    id: it.id,
+                    date: it.date || inv.date,
+                    itemName: it.item,
+                    kg: Number(it.kg || 0),
+                    value: Number(it.value || 0),
+                    invoiceNumber: inv.invoiceNumber,
+                    pdNumber: it.pd,
+                    neNumber: it.ne,
+                    lotNumber: it.lotNumber,
+                    barcode: it.barcode
+                });
             });
         });
 
