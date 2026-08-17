@@ -221,15 +221,17 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
     const handleUpdateProducers = useCallback(async (newProducers: PerCapitaSupplier[]) => {
         setPpaisProducers(newProducers);
-        const newConfig: Partial<PerCapitaConfig> = {
+        const newConfig: PerCapitaConfig = {
+            ...perCapitaConfig,
             ppaisProducers: newProducers,
         };
         try {
-            const result = await onUpdatePerCapitaConfig(newConfig);
+            const result = await onUpdatePerCapitaConfig({ ppaisProducers: newProducers });
             if (result && result.success) {
                 setIsDirty(false);
+                toast.success('Produtores PPAIS salvos com sucesso!');
                 if (onSyncPPAISToAgenda) {
-                    await onSyncPPAISToAgenda();
+                    await onSyncPPAISToAgenda(newConfig);
                 }
             } else {
                 console.error("Erro ao salvar produtores:", result);
@@ -239,19 +241,21 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             console.error("Failed to save producers:", error);
             toast.error("Erro ao salvar produtores.");
         }
-    }, [onUpdatePerCapitaConfig, onSyncPPAISToAgenda]);
+    }, [onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
 
     const handleUpdatePereciveisSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
         setPereciveisSuppliers(newSuppliers);
-        const newConfig: Partial<PerCapitaConfig> = {
+        const newConfig: PerCapitaConfig = {
+            ...perCapitaConfig,
             pereciveisSuppliers: newSuppliers,
         };
         try {
-            const result = await onUpdatePerCapitaConfig(newConfig);
+            const result = await onUpdatePerCapitaConfig({ pereciveisSuppliers: newSuppliers });
             if (result && result.success) {
                 setIsDirty(false);
+                toast.success('Fornecedores de Perecíveis salvos com sucesso!');
                 if (onSyncPPAISToAgenda) {
-                    await onSyncPPAISToAgenda();
+                    await onSyncPPAISToAgenda(newConfig);
                 }
             } else {
                 console.error("Erro ao salvar fornecedores (pereciveis):", result);
@@ -261,19 +265,21 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             console.error("Failed to save suppliers (pereciveis):", error);
             toast.error("Erro ao salvar fornecedores (pereciveis).");
         }
-    }, [onUpdatePerCapitaConfig, onSyncPPAISToAgenda]);
+    }, [onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
 
     const handleUpdateEstocaveisSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
         setEstocaveisSuppliers(newSuppliers);
-        const newConfig: Partial<PerCapitaConfig> = {
+        const newConfig: PerCapitaConfig = {
+            ...perCapitaConfig,
             estocaveisSuppliers: newSuppliers,
         };
         try {
-            const result = await onUpdatePerCapitaConfig(newConfig);
+            const result = await onUpdatePerCapitaConfig({ estocaveisSuppliers: newSuppliers });
             if (result && result.success) {
                 setIsDirty(false);
+                toast.success('Fornecedores de Estocáveis salvos com sucesso!');
                 if (onSyncPPAISToAgenda) {
-                    await onSyncPPAISToAgenda();
+                    await onSyncPPAISToAgenda(newConfig);
                 }
             } else {
                 console.error("Erro ao salvar fornecedores (estocaveis):", result);
@@ -283,7 +289,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             console.error("Failed to save suppliers (estocaveis):", error);
             toast.error("Erro ao salvar fornecedores (estocaveis).");
         }
-    }, [onUpdatePerCapitaConfig, onSyncPPAISToAgenda]);
+    }, [onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
 
     const ppaisAsSuppliers = useMemo(() => {
         return ppaisProducers.filter(Boolean).map(p => ({

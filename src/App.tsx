@@ -17,7 +17,7 @@ import ServiceOrderDashboard from './components/ServiceOrderDashboard';
 import InfobarTicker from './components/InfobarTicker';
 import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
 import { app } from './firebaseConfig';
-import { getCombinedSuppliers } from './lib/supplierUtils';
+import { getCombinedSuppliers, calculateAllowedWeeksFromSchedule, getWeekNumber } from './lib/supplierUtils';
 import { ensureArray, safeLocalStorageSetItem } from './lib/utils';
 
 let database: any;
@@ -1020,7 +1020,16 @@ const App: React.FC = () => {
     try {
       const id = info.id || push(publicInfoRef).key;
       if (!id) throw new Error('Falha ao gerar ID');
-      const itemToSave = { ...info, id, updatedAt: info.updatedAt || new Date().toISOString() };
+      const itemToSave: PublicInfo = {
+        id,
+        sector: (info.sector || 'GERAL').trim().toUpperCase(),
+        title: (info.title || '').trim(),
+        content: (info.content || '').trim(),
+        imageUrl: info.imageUrl || '',
+        updatedAt: info.updatedAt || new Date().toISOString(),
+        date: info.date || new Date().toISOString().split('T')[0],
+        isConfidential: Boolean(info.isConfidential)
+      };
       
       // Update local state immediately (Optimistic update)
       setPublicInfo(prev => {
@@ -1028,9 +1037,9 @@ const App: React.FC = () => {
         let updatedList: PublicInfo[];
         if (existingIdx >= 0) {
           updatedList = [...prev];
-          updatedList[existingIdx] = itemToSave as PublicInfo;
+          updatedList[existingIdx] = itemToSave;
         } else {
-          updatedList = [itemToSave as PublicInfo, ...prev];
+          updatedList = [itemToSave, ...prev];
         }
         updatedList.sort((a, b) => new Date(b.updatedAt || b.date || 0).getTime() - new Date(a.updatedAt || a.date || 0).getTime());
         safeLocalStorageSetItem('cached_publicInfo', JSON.stringify(updatedList));
@@ -1075,21 +1084,16 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSyncPPAISToAgenda = async () => {
-    const producers = ensureArray(perCapitaConfig.ppaisProducers);
-    const pereciveis = ensureArray(perCapitaConfig.pereciveisSuppliers);
+  const handleSyncPPAISToAgenda = async (overrideConfig?: PerCapitaConfig) => {
+    const configToUse = overrideConfig || perCapitaConfig;
+    const producers = ensureArray(configToUse?.ppaisProducers);
+    const pereciveis = ensureArray(configToUse?.pereciveisSuppliers);
     const allPerCapita = [...producers, ...pereciveis];
 
     if (allPerCapita.length === 0) {
       toast.error('Nenhum cadastro Per Capita encontrado.');
       return;
     }
-
-    const year = 2026;
-    const monthNames = [
-      'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
-    ];
 
     try {
       // Get all current suppliers to handle the "not registered" ones
@@ -1099,23 +1103,7 @@ const App: React.FC = () => {
 
       for (const entry of allPerCapita) {
         // Calculate weeks for the entire year (Jan-Dec) to keep both contracts independent
-        const newWeeks: number[] = [];
-        for (let m = 0; m <= 11; m++) { // January (index 0) to December (index 11)
-          const monthName = monthNames[m];
-          const weekOfMonthListRaw = entry.monthlySchedule?.[monthName.charAt(0).toUpperCase() + monthName.slice(1)] || entry.monthlySchedule?.[monthName] || [];
-          const weekOfMonthList = ensureArray(weekOfMonthListRaw);
-          
-          if (weekOfMonthList.length > 0) {
-            const firstDayOfMonth = new Date(year, m, 1);
-            const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
-            
-            weekOfMonthList.forEach((weekIdx: any) => {
-              // weekIdx is 1, 2, 3, 4
-              newWeeks.push(firstWeekOfYear + (Number(weekIdx) - 1));
-            });
-          }
-        }
-        const uniqueNewWeeks = Array.from(new Set(newWeeks)).sort((a, b) => a - b);
+        const uniqueNewWeeks = calculateAllowedWeeksFromSchedule(entry.monthlySchedule, 2026);
 
         const supplierRef = child(suppliersRef, entry.cpfCnpj);
         const existingSupplier = allSuppliers[entry.cpfCnpj] as Supplier | null;
@@ -1191,8 +1179,12 @@ const App: React.FC = () => {
 
   const handleUpdatePerCapitaConfig = async (newConfig: Partial<PerCapitaConfig>) => {
     try {
-      console.log('Tentando atualizar PerCapitaConfig...');
-      await update(perCapitaConfigRef, newConfig);
+      console.log('Tentando atualizar PerCapitaConfig...', newConfig);
+      for (const [key, value] of Object.entries(newConfig)) {
+        if (value !== undefined) {
+          await set(child(perCapitaConfigRef, key), value);
+        }
+      }
       return { success: true };
     } catch (e) {
       console.error('Erro ao atualizar PerCapitaConfig:', e);
@@ -4019,28 +4011,8 @@ const App: React.FC = () => {
         
         console.log('--- Debug: PerCapitaEntry in scheduling ---', perCapitaEntry);
         if (isRegisteredForNextPeriod && perCapitaEntry?.monthlySchedule) {
-            const year = 2026;
-            const monthNames = [
-                'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-                'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
-            ];
-            const extraWeeks = new Set<number>();
-            const schedule = perCapitaEntry.monthlySchedule || {};
-            Object.entries(schedule).forEach(([monthName, weekOfMonthList]) => {
-                const monthIndex = monthNames.indexOf(monthName.toLowerCase());
-                if (monthIndex === -1) return;
-                
-                const weeksList = ensureArray<any>(weekOfMonthList);
-                if (weeksList.length > 0) {
-                    const firstDayOfMonth = new Date(year, monthIndex, 1);
-                    const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
-                    
-                    weeksList.forEach((weekIdx: any) => {
-                        extraWeeks.add(firstWeekOfYear + (Number(weekIdx) - 1));
-                    });
-                }
-            });
-            finalWeeks = Array.from(new Set([...finalWeeks, ...Array.from(extraWeeks)])).sort((a, b) => a - b);
+            const extraWeeks = calculateAllowedWeeksFromSchedule(perCapitaEntry.monthlySchedule, 2026);
+            finalWeeks = Array.from(new Set([...finalWeeks, ...extraWeeks])).sort((a, b) => a - b);
         }
 
         const pDeliveriesRaw = ensureArray<any>(perCapitaEntry?.deliveries);
@@ -4095,37 +4067,8 @@ const App: React.FC = () => {
         const existingSupplier = suppliers.find(s => s && s.cpf && String(s.cpf).replace(/\D/g, '') === String(pCpf).replace(/\D/g, ''));
         const q1Weeks = ensureArray<number>(existingSupplier?.allowedWeeks).filter(w => w <= 18);
         
-        const weeks: number[] = [...q1Weeks];
-        const year = 2026;
-        const monthNames = [
-            'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-            'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
-        ];
-
-        try {
-          const schedule = p.monthlySchedule || {};
-          Object.entries(schedule).forEach(([monthName, weekOfMonthList]) => {
-              const monthIndex = monthNames.indexOf(monthName.toLowerCase());
-              if (monthIndex === -1) return;
-
-              const weeksList = ensureArray<any>(weekOfMonthList);
-              if (weeksList.length > 0) {
-                  const firstDayOfMonth = new Date(year, monthIndex, 1);
-                  const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
-                  
-                  weeksList.forEach((weekIdx: any) => {
-                      const wVal = Number(String(weekIdx).replace(/\D/g, '')) || 0;
-                      if (wVal > 0) {
-                        weeks.push(firstWeekOfYear + (wVal - 1));
-                      }
-                  });
-              }
-          });
-        } catch (err) {
-          console.error("Error processing perCapita schedule for mapping:", err);
-        }
-
-        const finalWeeks = Array.from(new Set(weeks)).sort((a, b) => a - b);
+        const scheduleWeeks = calculateAllowedWeeksFromSchedule(p.monthlySchedule, 2026);
+        const finalWeeks = Array.from(new Set([...q1Weeks, ...scheduleWeeks])).sort((a, b) => a - b);
         
         const pDeliveriesRaw = ensureArray<any>(p.deliveries);
         const extDeliveriesRaw = ensureArray<any>(existingSupplier?.deliveries);

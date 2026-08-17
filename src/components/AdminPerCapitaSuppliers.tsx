@@ -92,15 +92,27 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
     };
 
     const handleEdit = (supplier: PerCapitaSupplier) => {
-        setName(supplier.name);
-        setCpfCnpj(supplier.cpfCnpj.replace(/[^\d]/g, ''));
-        setProcessNumber(supplier.processNumber);
+        setName(supplier.name || '');
+        setCpfCnpj(supplier.cpfCnpj ? supplier.cpfCnpj.replace(/[^\d]/g, '') : '');
+        setProcessNumber(supplier.processNumber || '');
         setContractNumber(supplier.contractNumber || '');
         setAddress(supplier.address || '');
         setCity(supplier.city || '');
         setRepresentativeName(supplier.representativeName || '');
-        setRepresentativeCpf(supplier.representativeCpf || '');
-        setMonthlySchedule(supplier.monthlySchedule || {});
+        setRepresentativeCpf(supplier.representativeCpf ? supplier.representativeCpf.replace(/[^\d]/g, '') : '');
+        
+        const normalizedSchedule: Record<string, number[]> = {};
+        if (supplier.monthlySchedule) {
+            Object.entries(supplier.monthlySchedule).forEach(([k, v]) => {
+                const matchedMonth = months.find(m => m.toLowerCase() === k.toLowerCase() || m.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+                const targetKey = matchedMonth || k;
+                const weeks = ensureArray(v).map(w => Number(String(w).replace(/\D/g, ''))).filter(w => !isNaN(w) && w > 0).sort((a, b) => a - b);
+                if (weeks.length > 0) {
+                    normalizedSchedule[targetKey] = weeks;
+                }
+            });
+        }
+        setMonthlySchedule(normalizedSchedule);
         setEditingId(supplier.id);
         setIsAdding(true);
     };
@@ -110,6 +122,14 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
             toast.error(`Preencha os campos obrigatórios: Nome, CPF/CNPJ e Número do Processo.`);
             return;
         }
+
+        const cleanMonthlySchedule: Record<string, number[]> = {};
+        Object.entries(monthlySchedule).forEach(([m, weeks]) => {
+            const cleanWeeks = ensureArray(weeks).map(w => Number(w)).filter(w => !isNaN(w) && w > 0).sort((a, b) => a - b);
+            if (cleanWeeks.length > 0) {
+                cleanMonthlySchedule[m] = cleanWeeks;
+            }
+        });
 
         const existing = editingId ? suppliers.find(p => p.id === editingId) : null;
         
@@ -124,7 +144,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
             city: city.toUpperCase(),
             representativeName: representativeName.toUpperCase(),
             representativeCpf,
-            monthlySchedule,
+            monthlySchedule: cleanMonthlySchedule,
         };
 
         let updatedSuppliers: PerCapitaSupplier[];
@@ -156,12 +176,16 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
             const currentWeeks = prev[month] || [];
             const newWeeks = currentWeeks.includes(week)
                 ? currentWeeks.filter(w => w !== week)
-                : [...currentWeeks, week].sort();
+                : [...currentWeeks, week].sort((a, b) => a - b);
             
-            return {
+            const updated = {
                 ...prev,
                 [month]: newWeeks
             };
+            if (newWeeks.length === 0) {
+                delete updated[month];
+            }
+            return updated;
         });
     };
 
@@ -398,24 +422,38 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                                         </td>
                                         <td className="p-6">
                                             <div className="flex flex-col gap-2 max-w-[300px]">
-                                                {months.filter(m => (supplier.monthlySchedule?.[m] || []).length > 0).length > 0 ? (
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        {months.filter(m => (supplier.monthlySchedule?.[m] || []).length > 0).map(m => (
-                                                            <div key={m} className={`flex flex-col ${colorClasses.bgLight} border ${colorClasses.borderLight} rounded-lg p-1.5 min-w-[60px]`}>
-                                                                <span className={`text-[8px] font-black ${colorClasses.text} uppercase mb-1 border-b ${colorClasses.borderLight} pb-0.5`}>{m.substring(0, 3)}</span>
-                                                                <div className="flex gap-0.5">
-                                                                    {(supplier.monthlySchedule[m] || []).map(w => (
-                                                                        <span key={w} className={`w-4 h-4 flex items-center justify-center ${colorClasses.bg} text-white rounded-[4px] text-[7px] font-black`}>
-                                                                            {w}
-                                                                        </span>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-gray-300 italic text-[10px]">Nenhum agendamento</span>
-                                                )}
+                                                {(() => {
+                                                    const getSupplierMonthWeeks = (sch: any, monthName: string): number[] => {
+                                                        if (!sch || typeof sch !== 'object') return [];
+                                                        const cleanMonth = monthName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                                                        const matchedKey = Object.keys(sch).find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === cleanMonth);
+                                                        if (!matchedKey) return [];
+                                                        return ensureArray(sch[matchedKey]).map(w => Number(String(w).replace(/\D/g, ''))).filter(w => !isNaN(w) && w > 0).sort((a, b) => a - b);
+                                                    };
+                                                    const scheduledMonths = months.filter(m => getSupplierMonthWeeks(supplier.monthlySchedule, m).length > 0);
+                                                    if (scheduledMonths.length === 0) {
+                                                        return <span className="text-gray-300 italic text-[10px]">Nenhum agendamento</span>;
+                                                    }
+                                                    return (
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {scheduledMonths.map(m => {
+                                                                const weeks = getSupplierMonthWeeks(supplier.monthlySchedule, m);
+                                                                return (
+                                                                    <div key={m} className={`flex flex-col ${colorClasses.bgLight} border ${colorClasses.borderLight} rounded-lg p-1.5 min-w-[60px]`}>
+                                                                        <span className={`text-[8px] font-black ${colorClasses.text} uppercase mb-1 border-b ${colorClasses.borderLight} pb-0.5`}>{m.substring(0, 3)}</span>
+                                                                        <div className="flex gap-0.5">
+                                                                            {weeks.map(w => (
+                                                                                <span key={w} className={`w-4 h-4 flex items-center justify-center ${colorClasses.bg} text-white rounded-[4px] text-[7px] font-black`}>
+                                                                                    {w}
+                                                                                </span>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         </td>
                                         <td className="p-6 text-right">

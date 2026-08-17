@@ -9,6 +9,63 @@ export const getWeekNumber = (d: Date): number => {
     return weekNo;
 };
 
+export const calculateAllowedWeeksFromSchedule = (monthlySchedule: Record<string, number[]> | undefined | null, year = 2026): number[] => {
+    if (!monthlySchedule || typeof monthlySchedule !== 'object') return [];
+    
+    const monthNames = [
+        'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+        'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+    ];
+
+    const allowedWeeksSet = new Set<number>();
+
+    for (let m = 0; m <= 11; m++) {
+        const monthName = monthNames[m];
+        
+        // Find matching key case-insensitively and accent-insensitively
+        const matchingKey = Object.keys(monthlySchedule).find(k => {
+            const cleanK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const cleanM = monthName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            return cleanK === cleanM;
+        });
+        if (!matchingKey) continue;
+
+        const rawWeeks = monthlySchedule[matchingKey];
+        const selectedWeeks = ensureArray(rawWeeks).map(w => Number(String(w).replace(/\D/g, ''))).filter(w => !isNaN(w) && w > 0);
+        if (selectedWeeks.length === 0) continue;
+
+        // Calculate actual calendar row weeks for this month in the specified year
+        const firstDay = new Date(year, m, 1);
+        const lastDay = new Date(year, m + 1, 0).getDate();
+        const totalDays = firstDay.getDay() + lastDay;
+        const totalRows = Math.ceil(totalDays / 7);
+
+        const monthRowWeeks: number[] = [];
+        for (let r = 0; r < totalRows; r++) {
+            const rowDate = new Date(year, m, (r * 7) + 1 - firstDay.getDay() + 3);
+            monthRowWeeks.push(getWeekNumber(rowDate));
+        }
+
+        selectedWeeks.forEach(w => {
+            if (w >= 1 && w <= 5) {
+                const targetRowIndex = w - 1;
+                if (targetRowIndex < monthRowWeeks.length) {
+                    allowedWeeksSet.add(monthRowWeeks[targetRowIndex]);
+                }
+                // If S5 was selected and month has a 6th row (e.g. August 31, May 31), include the final week
+                if (w === 5 && monthRowWeeks.length > 5) {
+                    allowedWeeksSet.add(monthRowWeeks[5]);
+                }
+            } else if (w > 5 && w <= 53) {
+                // Direct ISO week number
+                allowedWeeksSet.add(w);
+            }
+        });
+    }
+
+    return Array.from(allowedWeeksSet).sort((a, b) => a - b);
+};
+
 export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any): Supplier[] => {
     const producers = ensureArray(perCapitaConfig?.ppaisProducers);
     const pereciveis = ensureArray(perCapitaConfig?.pereciveisSuppliers);
@@ -21,29 +78,7 @@ export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any
     };
 
     const mapToSupplier = (p: any) => {
-        const weeks: number[] = [];
-        const year = 2026;
-        const monthNames = [
-            'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-            'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
-        ];
-
-        const schedule = p.monthlySchedule || {};
-        Object.entries(schedule).forEach(([monthName, weekOfMonthList]) => {
-            const monthIndex = monthNames.indexOf(monthName.toLowerCase());
-            if (monthIndex === -1) return;
-
-            const weeksList = ensureArray<any>(weekOfMonthList);
-            if (weeksList.length > 0) {
-                const firstDayOfMonth = new Date(year, monthIndex, 1);
-                const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
-                
-                weeksList.forEach((weekIdx: any) => {
-                    weeks.push(firstWeekOfYear + (parseNum(weekIdx) - 1));
-                });
-            }
-        });
-
+        const weeks = calculateAllowedWeeksFromSchedule(p.monthlySchedule, 2026);
         const deliveriesRaw = ensureArray<any>(p.deliveries);
         const deliveries = deliveriesRaw.filter((d: any) => d && d.id);
         const contractItemsRaw = ensureArray<any>(p.contractItems);
@@ -53,7 +88,7 @@ export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any
             ...p,
             cpf: p.cpfCnpj || p.cpf,
             deliveries: deliveries,
-            allowedWeeks: Array.from(new Set(weeks)),
+            allowedWeeks: weeks,
             contractItems: contractItems,
             initialValue: contractItems.reduce((acc: any, curr: any) => acc + (parseNum(curr.totalKg) * parseNum(curr.valuePerKg || 0)), 0)
         } as Supplier;
