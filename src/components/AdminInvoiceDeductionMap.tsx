@@ -18,8 +18,8 @@ import {
 import { toast } from 'sonner';
 
 interface AdminInvoiceDeductionMapProps {
-    warehouseLog: WarehouseMovement[];
-    suppliers: Supplier[];
+    warehouseLog?: WarehouseMovement[];
+    suppliers?: Supplier[];
     perCapitaConfig?: PerCapitaConfig;
 }
 
@@ -37,6 +37,16 @@ const MONTHS_ORDER = [
     { key: '11', name: 'Nov/26', fullName: 'Novembro' },
     { key: '12', name: 'Dez/26', fullName: 'Dezembro' }
 ];
+
+const DEFAULT_GRAND_TOTALS = {
+    contractValue: 0,
+    contractWeight: 0,
+    deliveredValue: 0,
+    deliveredWeight: 0,
+    remainingValue: 0,
+    remainingWeight: 0,
+    percentDelivered: 0
+};
 
 const formatCurrency = (val: number | null | undefined): string => {
     const num = Number(val || 0);
@@ -62,34 +72,83 @@ const normalizeNfDigits = (nf: string | null | undefined): string => {
     return digits ? parseInt(digits, 10).toString() : String(nf).trim().toLowerCase();
 };
 
-// Robust item name matcher between Contract Item and Movement/Delivery
-const isItemMatching = (contractName: string, movementName: string): boolean => {
-    if (!contractName || !movementName) return false;
-    const cNorm = superNormalize(contractName);
-    const mNorm = superNormalize(movementName);
-    if (cNorm === mNorm || cNorm.includes(mNorm) || mNorm.includes(cNorm)) return true;
+// Stop words to ignore during token matching
+const STOP_WORDS = new Set([
+    'de', 'do', 'da', 'dos', 'das', 'em', 'no', 'na', 'para', 'com', 'e', 'ou', 'kg', 'un', 'pct',
+    'conforme', 'obedecer', 'informacoes', 'contidas', 'normas', 'padroes', 'site', 'bec', 'sp', 'gov', 'br',
+    'anvisa', 'procedimentos', 'adm', 'determinados', 'pela', 'recebimento', 'embalagem', 'primaria', 'secundaria',
+    'tipo', 'sabor', 'marca', 'qualidade', 'classe', 'extra', 'primeira', 'segunda', 'edital', 'item', 'contrato'
+]);
 
-    const shortC = superNormalize(cleanShortTitle(contractName));
-    const shortM = superNormalize(cleanShortTitle(movementName));
-    if (shortC && shortM && (shortC === shortM || shortC.includes(shortM) || shortM.includes(shortC))) return true;
+// Helper to get meaningful tokens from an item name
+const getMeaningfulTokens = (name: string): string[] => {
+    if (!name) return [];
+    return name
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .split(/[\s,;:./\-()]+/)
+        .filter(w => w.length > 2 && !STOP_WORDS.has(w));
+};
 
-    // Word tokens matching (ignore stop words)
-    const stopWords = new Set([
-        'de', 'do', 'da', 'dos', 'das', 'em', 'no', 'na', 'para', 'com', 'e', 'ou', 'kg', 'un',
-        'conforme', 'obedecer', 'informacoes', 'contidas', 'normas', 'padroes', 'site', 'bec', 'sp', 'gov', 'br',
-        'anvisa', 'procedimentos', 'adm', 'determinados', 'pela', 'recebimento', 'embalagem', 'primaria', 'secundaria',
-        'congelada', 'congelado', 'fresco', 'fresca', 'tipo', 'sabor', 'marca', 'qualidade', 'classe', 'extra'
-    ]);
-    const wordsC = contractName.toLowerCase().split(/[\s,;:./-]+/).filter(w => w.length > 2 && !stopWords.has(w));
-    const wordsM = movementName.toLowerCase().split(/[\s,;:./-]+/).filter(w => w.length > 2 && !stopWords.has(w));
+// Robust Matcher that finds the BEST matching contract item for a delivery (preventing duplication)
+const findBestMatchingContractItem = (deliveryItemName: string, contractItems: ContractItem[]): ContractItem | null => {
+    if (!deliveryItemName || !Array.isArray(contractItems) || contractItems.length === 0) return null;
 
-    if (wordsC.length > 0 && wordsM.length > 0) {
-        const matches = wordsM.filter(w => wordsC.includes(w) || wordsC.some(cw => cw.includes(w) || w.includes(cw)));
-        if (matches.length >= 1) {
-            return true;
+    const delNorm = superNormalize(deliveryItemName);
+    const delShortNorm = superNormalize(cleanShortTitle(deliveryItemName));
+    const delTokens = getMeaningfulTokens(deliveryItemName);
+
+    let bestItem: ContractItem | null = null;
+    let highestScore = 0;
+
+    for (const ci of contractItems) {
+        if (!ci || !ci.name) continue;
+        const ciNorm = superNormalize(ci.name);
+        const ciShortNorm = superNormalize(cleanShortTitle(ci.name));
+        const ciTokens = getMeaningfulTokens(ci.name);
+
+        let score = 0;
+
+        // 1. Exact full normalized match
+        if (delNorm === ciNorm) {
+            score = 1000;
+        } 
+        // 2. Exact short title match
+        else if (delShortNorm && ciShortNorm && delShortNorm === ciShortNorm) {
+            score = 900;
+        } 
+        // 3. Substring containment
+        else if (ciNorm.includes(delNorm) || delNorm.includes(ciNorm)) {
+            score = 600 + Math.min(delNorm.length, ciNorm.length);
+        } else if (ciShortNorm.includes(delShortNorm) || delShortNorm.includes(ciShortNorm)) {
+            score = 500 + Math.min(delShortNorm.length, ciShortNorm.length);
+        }
+
+        // 4. Token overlap scoring
+        if (delTokens.length > 0 && ciTokens.length > 0) {
+            let matchingTokensCount = 0;
+            for (const dt of delTokens) {
+                if (ciTokens.includes(dt)) {
+                    matchingTokensCount++;
+                } else if (ciTokens.some(ct => ct.startsWith(dt) || dt.startsWith(ct))) {
+                    matchingTokensCount += 0.8;
+                }
+            }
+
+            const tokenScore = matchingTokensCount * 60;
+            if (tokenScore > score) {
+                score = tokenScore;
+            }
+        }
+
+        if (score > highestScore && score >= 40) {
+            highestScore = score;
+            bestItem = ci;
         }
     }
-    return false;
+
+    return bestItem;
 };
 
 export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> = ({
@@ -99,7 +158,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
 }) => {
     // 1. Combine all available suppliers (Direct + Per Capita / PPAIS)
     const allSuppliers = useMemo(() => {
-        const combined = getCombinedSuppliers(suppliers, perCapitaConfig);
+        const combined = getCombinedSuppliers(suppliers || [], perCapitaConfig);
         return combined.filter(s => s && (ensureArray(s.contractItems).length > 0 || (s.initialValue || 0) > 0 || ensureArray(s.deliveries).length > 0));
     }, [suppliers, perCapitaConfig]);
 
@@ -114,6 +173,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
 
     // Selected supplier
     const currentSupplier = useMemo(() => {
+        if (allSuppliers.length === 0) return null;
         return allSuppliers.find(s => s.cpf === selectedSupplierCpf) || allSuppliers[0] || null;
     }, [allSuppliers, selectedSupplierCpf]);
 
@@ -158,13 +218,13 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         // 3. Auto-detect from warehouse movements and deliveries
         const newMap: Record<string, string> = {};
         const supNameNorm = superNormalize(currentSupplier.name || '');
-        const supCpfNorm = String(currentSupplier.cpf || '').replace(/\D/g, '');
+        const supCpfDigits = String(currentSupplier.cpf || '').replace(/\D/g, '');
 
-        const supplierLogs = warehouseLog.filter(l => {
+        const supplierLogs = (warehouseLog || []).filter(l => {
             if (!l) return false;
             const logName = superNormalize(l.supplierName || '');
             const logCpf = String(l.supplierCpf || '').replace(/\D/g, '');
-            return (supCpfNorm && logCpf === supCpfNorm) || (supNameNorm && (logName.includes(supNameNorm) || supNameNorm.includes(logName)));
+            return (supCpfDigits && logCpf === supCpfDigits) || (supNameNorm && (logName.includes(supNameNorm) || supNameNorm.includes(logName)));
         });
 
         const supplierDeliveries = ensureArray<any>(currentSupplier.deliveries);
@@ -226,12 +286,12 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         const nfs = new Set<string>();
 
         const supNameNorm = superNormalize(currentSupplier.name || '');
-        const supCpfNorm = String(currentSupplier.cpf || '').replace(/\D/g, '');
+        const supCpfDigits = String(currentSupplier.cpf || '').replace(/\D/g, '');
 
-        warehouseLog.forEach(l => {
+        (warehouseLog || []).forEach(l => {
             const logName = superNormalize(l.supplierName || '');
             const logCpf = String(l.supplierCpf || '').replace(/\D/g, '');
-            if ((supCpfNorm && logCpf === supCpfNorm) || (supNameNorm && (logName.includes(supNameNorm) || supNameNorm.includes(logName)))) {
+            if ((supCpfDigits && logCpf === supCpfDigits) || (supNameNorm && (logName.includes(supNameNorm) || supNameNorm.includes(logName)))) {
                 if (l.inboundInvoice) nfs.add(String(l.inboundInvoice).trim());
                 if (l.invoiceNumber) nfs.add(String(l.invoiceNumber).trim());
             }
@@ -244,85 +304,106 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         return Array.from(nfs).filter(Boolean);
     }, [currentSupplier, warehouseLog]);
 
-    // 5. Calculate Data for Table Matrix
+    // 5. Contract Items of Current Supplier
     const contractItems = useMemo(() => {
         if (!currentSupplier) return [];
         return ensureArray<ContractItem>(currentSupplier.contractItems).filter(it => it && it.name);
     }, [currentSupplier]);
 
-    // Map deliveries and logs by NF and Month
+    // 6. Calculate Consolidated Matrix Data
     const matrixData = useMemo(() => {
-        if (!currentSupplier) return { items: [], monthTotals: {}, grandTotals: {} as any };
+        if (!currentSupplier) {
+            return {
+                items: [],
+                monthTotals: {},
+                grandTotals: DEFAULT_GRAND_TOTALS
+            };
+        }
 
         const supNameNorm = superNormalize(currentSupplier.name || '');
-        const supCpfNorm = String(currentSupplier.cpf || '').replace(/\D/g, '');
+        const supCpfDigits = String(currentSupplier.cpf || '').replace(/\D/g, '');
 
-        const supplierLogs = warehouseLog.filter(l => {
+        // 1. Gather all raw inbound movements from warehouseLog
+        const supplierLogs = (warehouseLog || []).filter(l => {
             if (!l) return false;
+            const isEntrada = !l.type || String(l.type).toLowerCase().trim() === 'entrada';
+            if (!isEntrada) return false;
+
             const logName = superNormalize(l.supplierName || '');
             const logCpf = String(l.supplierCpf || '').replace(/\D/g, '');
-            return (supCpfNorm && logCpf === supCpfNorm) || (supNameNorm && (logName.includes(supNameNorm) || supNameNorm.includes(logName)));
+            return (supCpfDigits && logCpf === supCpfDigits) || (supNameNorm && (logName.includes(supNameNorm) || supNameNorm.includes(logName)));
         });
 
+        // 2. Gather all deliveries from supplier
         const supplierDeliveries = ensureArray<any>(currentSupplier.deliveries);
 
-        // Helper to find weight and value for an item under an assigned NF or month
-        const getItemDeliveryForMonth = (itemName: string, monthKey: string, nfNumber: string) => {
-            const cleanNf = normalizeNfDigits(nfNumber);
-            const monthPrefix = `${selectedYear}-${monthKey}`;
+        // 3. Consolidated and deduplicated delivery entries
+        interface ConsolidatedEntry {
+            id: string;
+            date: string;
+            itemName: string;
+            kg: number;
+            value: number;
+            invoiceNumber: string;
+        }
 
-            let totalWeight = 0;
-            let unitPrice = 0;
+        const consolidatedList: ConsolidatedEntry[] = [];
+        const seenKeys = new Set<string>();
 
-            // 1. Check in warehouse logs
-            supplierLogs.forEach(l => {
-                const logItem = l.itemName || l.item || '';
-                const logNf = normalizeNfDigits(l.inboundInvoice || l.invoiceNumber || '');
-                const logDate = l.date || (typeof l.timestamp === 'number' ? new Date(l.timestamp).toISOString().split('T')[0] : '');
+        // Process warehouse entries
+        supplierLogs.forEach((l, idx) => {
+            const dateStr = l.date || (typeof l.timestamp === 'number' ? new Date(l.timestamp).toISOString().split('T')[0] : '');
+            const itemName = l.itemName || l.item || '';
+            const kg = Number(l.quantity ?? l.kg ?? l.weight ?? 0);
+            const value = Number(l.value || 0);
+            const nf = String(l.inboundInvoice || l.invoiceNumber || '').trim();
 
-                const isMatch = isItemMatching(itemName, logItem);
-                const isNfMatch = cleanNf ? (logNf === cleanNf || String(l.inboundInvoice || l.invoiceNumber || '').includes(nfNumber)) : logDate.startsWith(monthPrefix);
-                const isTypeEntrada = !l.type || String(l.type).toLowerCase().trim() === 'entrada';
+            if (kg <= 0 && value <= 0) return;
 
-                if (isMatch && isNfMatch && isTypeEntrada) {
-                    const weight = Number(l.quantity || l.kg || l.weight || 0);
-                    totalWeight += weight;
-                    if (l.value && weight > 0) {
-                        unitPrice = l.value / weight;
-                    }
-                }
+            const dedupKey = `${dateStr}_${superNormalize(itemName)}_${kg.toFixed(2)}_${normalizeNfDigits(nf)}`;
+            seenKeys.add(dedupKey);
+
+            consolidatedList.push({
+                id: l.id || `wh_${idx}`,
+                date: dateStr,
+                itemName,
+                kg,
+                value,
+                invoiceNumber: nf
             });
+        });
 
-            // 2. Also check in supplier.deliveries if not found or to complement
-            if (totalWeight === 0) {
-                supplierDeliveries.forEach(d => {
-                    const dItem = d.itemName || d.item || '';
-                    const dNf = normalizeNfDigits(d.invoiceNumber || '');
-                    const dDate = String(d.date || '');
+        // Process supplier.deliveries (add only if not already captured from warehouseLog)
+        supplierDeliveries.forEach((d, idx) => {
+            const dateStr = String(d.date || '');
+            const itemName = d.itemName || d.item || '';
+            const kg = Number(d.kg ?? d.quantity ?? 0);
+            const value = Number(d.value || 0);
+            const nf = String(d.invoiceNumber || '').trim();
 
-                    const isMatch = isItemMatching(itemName, dItem);
-                    const isNfMatch = cleanNf ? (dNf === cleanNf || String(d.invoiceNumber || '').includes(nfNumber)) : dDate.startsWith(monthPrefix);
+            if (kg <= 0 && value <= 0) return;
 
-                    if (isMatch && isNfMatch) {
-                        const weight = Number(d.kg || 0);
-                        totalWeight += weight;
-                        if (d.value && weight > 0) {
-                            unitPrice = d.value / weight;
-                        }
-                    }
+            const dedupKey = `${dateStr}_${superNormalize(itemName)}_${kg.toFixed(2)}_${normalizeNfDigits(nf)}`;
+            if (!seenKeys.has(dedupKey)) {
+                seenKeys.add(dedupKey);
+                consolidatedList.push({
+                    id: d.id || `del_${idx}`,
+                    date: dateStr,
+                    itemName,
+                    kg,
+                    value,
+                    invoiceNumber: nf
                 });
             }
+        });
 
-            return { totalWeight, unitPrice };
-        };
-
-        // Month-level Totals (for the subtotal row)
+        // 4. Initialize Month Totals
         const monthTotals: Record<string, { weight: number; value: number }> = {};
         displayedMonths.forEach(m => {
             monthTotals[m.key] = { weight: 0, value: 0 };
         });
 
-        // Compute rows for each contract item
+        // 5. Compute matrix rows for each contract item
         const items = contractItems.map(item => {
             const valPerKg = Number(item.valuePerKg || 0);
             const totalContractKg = Number(item.totalKg || 0);
@@ -333,28 +414,62 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
 
             displayedMonths.forEach(m => {
                 const assignedNf = monthNfMap[m.key] || '';
-                const delivery = getItemDeliveryForMonth(item.name, m.key, assignedNf);
-                
-                const itemPrice = delivery.unitPrice > 0 ? delivery.unitPrice : valPerKg;
-                const weight = delivery.totalWeight;
-                const totalVal = weight * itemPrice;
+                const cleanAssignedNf = normalizeNfDigits(assignedNf);
+                const monthPrefix = `${selectedYear}-${m.key}`;
+
+                let cellWeight = 0;
+                let cellValue = 0;
+
+                // Find all consolidated entries that belong to this item and this month/NF
+                consolidatedList.forEach(entry => {
+                    // Check item match using the best match scoring
+                    const matchedItem = findBestMatchingContractItem(entry.itemName, contractItems);
+                    if (!matchedItem || matchedItem.name !== item.name) return;
+
+                    const cleanEntryNf = normalizeNfDigits(entry.invoiceNumber);
+                    const isDateInMonth = entry.date.startsWith(monthPrefix);
+
+                    let belongsToThisMonth = false;
+
+                    // If entry has an NF and assigned NF matches
+                    if (cleanAssignedNf && cleanEntryNf) {
+                        belongsToThisMonth = cleanAssignedNf === cleanEntryNf;
+                    } 
+                    // If entry is dated in this month
+                    else if (isDateInMonth) {
+                        // Belongs here if no assigned NF or entry has no NF or entry's NF isn't assigned elsewhere
+                        belongsToThisMonth = true;
+                    }
+
+                    if (belongsToThisMonth) {
+                        cellWeight += entry.kg;
+                        if (entry.value > 0) {
+                            cellValue += entry.value;
+                        } else {
+                            cellValue += entry.kg * valPerKg;
+                        }
+                    }
+                });
+
+                const effectiveUnitPrice = cellWeight > 0 && cellValue > 0 ? cellValue / cellWeight : valPerKg;
 
                 monthsValues[m.key] = {
-                    weight,
-                    valPerKg: itemPrice,
-                    totalVal
+                    weight: cellWeight,
+                    valPerKg: effectiveUnitPrice,
+                    totalVal: cellValue
                 };
 
-                itemTotalDeliveredWeight += weight;
-                itemTotalDeliveredValue += totalVal;
+                itemTotalDeliveredWeight += cellWeight;
+                itemTotalDeliveredValue += cellValue;
 
                 // Add to month column total
-                monthTotals[m.key].weight += weight;
-                monthTotals[m.key].value += totalVal;
+                monthTotals[m.key].weight += cellWeight;
+                monthTotals[m.key].value += cellValue;
             });
 
+            const totalContractValue = totalContractKg * valPerKg;
             const remainingWeight = Math.max(0, totalContractKg - itemTotalDeliveredWeight);
-            const remainingValue = remainingWeight * valPerKg;
+            const remainingValue = Math.max(0, totalContractValue - itemTotalDeliveredValue);
 
             return {
                 name: item.name,
@@ -362,6 +477,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                 unit: item.unit || 'Kg',
                 valPerKg,
                 totalContractKg,
+                totalContractValue,
                 monthsValues,
                 itemTotalDeliveredWeight,
                 itemTotalDeliveredValue,
@@ -370,13 +486,15 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
             };
         });
 
-        // Grand Totals across all items and months
-        const grandContractValue = contractItems.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0);
+        // 6. Grand Totals across all items and months
+        const calculatedContractValue = contractItems.reduce((acc, curr) => acc + (Number(curr.totalKg || 0) * Number(curr.valuePerKg || 0)), 0);
+        const grandContractValue = calculatedContractValue > 0 ? calculatedContractValue : Number(currentSupplier.initialValue || 0);
         const grandContractWeight = contractItems.reduce((acc, curr) => acc + Number(curr.totalKg || 0), 0);
         const grandDeliveredValue = items.reduce((acc, curr) => acc + curr.itemTotalDeliveredValue, 0);
         const grandDeliveredWeight = items.reduce((acc, curr) => acc + curr.itemTotalDeliveredWeight, 0);
         const grandRemainingValue = Math.max(0, grandContractValue - grandDeliveredValue);
         const grandRemainingWeight = Math.max(0, grandContractWeight - grandDeliveredWeight);
+        const percentDelivered = grandContractValue > 0 ? (grandDeliveredValue / grandContractValue) * 100 : 0;
 
         return {
             items,
@@ -388,32 +506,32 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                 deliveredWeight: grandDeliveredWeight,
                 remainingValue: grandRemainingValue,
                 remainingWeight: grandRemainingWeight,
-                percentDelivered: grandContractValue > 0 ? (grandDeliveredValue / grandContractValue) * 100 : 0
+                percentDelivered: Number.isFinite(percentDelivered) ? percentDelivered : 0
             }
         };
     }, [currentSupplier, contractItems, displayedMonths, monthNfMap, warehouseLog, selectedYear]);
 
-    // 6. Summary of Invoices List (Cards showing weight and value for each NF)
+    // 7. Summary of Invoices List (Cards showing weight and value for each NF)
     const invoiceSummaryList = useMemo(() => {
         return displayedMonths.map(m => {
             const nf = monthNfMap[m.key] || '';
             const totals = matrixData.monthTotals[m.key] || { weight: 0, value: 0 };
-            const activeItemsCount = matrixData.items.filter(it => (it.monthsValues[m.key]?.weight || 0) > 0).length;
+            const activeItemsCount = (matrixData.items || []).filter(it => (it?.monthsValues?.[m.key]?.weight || 0) > 0).length;
 
             return {
                 monthKey: m.key,
                 monthName: m.name,
                 fullName: m.fullName,
                 nfNumber: nf,
-                weight: totals.weight,
-                value: totals.value,
+                weight: totals.weight || 0,
+                value: totals.value || 0,
                 itemCount: activeItemsCount,
-                hasData: totals.weight > 0 || Boolean(nf)
+                hasData: (totals.weight || 0) > 0 || Boolean(nf)
             };
         });
     }, [displayedMonths, monthNfMap, matrixData]);
 
-    // 7. Print Layout Generator
+    // 8. Print Layout Generator
     const handlePrintTable = () => {
         if (!currentSupplier) return;
 
@@ -442,9 +560,9 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         const monthYellowTotals = displayedMonths.map(m => {
             const mTotals = matrixData.monthTotals[m.key] || { weight: 0, value: 0 };
             return `
-                <td class="yellow-cell font-bold text-center">${mTotals.weight > 0 ? formatNumber(mTotals.weight, 0, 2) : '-'}</td>
+                <td class="yellow-cell font-bold text-center">${(mTotals.weight || 0) > 0 ? formatNumber(mTotals.weight, 0, 2) : '-'}</td>
                 <td class="yellow-cell text-center">-</td>
-                <td class="yellow-cell font-bold text-right">${mTotals.value > 0 ? formatCurrency(mTotals.value) : '-'}</td>
+                <td class="yellow-cell font-bold text-right">${(mTotals.value || 0) > 0 ? formatCurrency(mTotals.value) : '-'}</td>
             `;
         }).join('');
 
@@ -452,9 +570,9 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
             const monthCells = displayedMonths.map(m => {
                 const cell = it.monthsValues[m.key] || { weight: 0, valPerKg: it.valPerKg, totalVal: 0 };
                 return `
-                    <td class="text-center font-bold">${cell.weight > 0 ? formatNumber(cell.weight, 0, 2) : '-'}</td>
-                    <td class="text-center font-mono text-muted">${cell.weight > 0 ? formatCurrency(cell.valPerKg) : '-'}</td>
-                    <td class="text-right font-bold font-mono">${cell.totalVal > 0 ? formatCurrency(cell.totalVal) : '-'}</td>
+                    <td class="text-center font-bold">${(cell.weight || 0) > 0 ? formatNumber(cell.weight, 0, 2) : '-'}</td>
+                    <td class="text-center font-mono text-muted">${(cell.weight || 0) > 0 ? formatCurrency(cell.valPerKg) : '-'}</td>
+                    <td class="text-right font-bold font-mono">${(cell.totalVal || 0) > 0 ? formatCurrency(cell.totalVal) : '-'}</td>
                 `;
             }).join('');
 
@@ -587,7 +705,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         printWindow.document.close();
     };
 
-    // 8. Export to CSV
+    // 9. Export to CSV
     const handleExportCSV = () => {
         if (!currentSupplier) return;
 
@@ -605,15 +723,15 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
             ...displayedMonths.flatMap(m => {
                 const cell = it.monthsValues[m.key] || { weight: 0, valPerKg: 0, totalVal: 0 };
                 return [
-                    cell.weight.toFixed(2).replace('.', ','),
-                    cell.valPerKg.toFixed(2).replace('.', ','),
-                    cell.totalVal.toFixed(2).replace('.', ',')
+                    (cell.weight || 0).toFixed(2).replace('.', ','),
+                    (cell.valPerKg || 0).toFixed(2).replace('.', ','),
+                    (cell.totalVal || 0).toFixed(2).replace('.', ',')
                 ];
             }),
-            it.itemTotalDeliveredValue.toFixed(2).replace('.', ','),
-            it.totalContractKg.toFixed(2).replace('.', ','),
-            it.remainingValue.toFixed(2).replace('.', ','),
-            it.remainingWeight.toFixed(2).replace('.', ',')
+            (it.itemTotalDeliveredValue || 0).toFixed(2).replace('.', ','),
+            (it.totalContractKg || 0).toFixed(2).replace('.', ','),
+            (it.remainingValue || 0).toFixed(2).replace('.', ','),
+            (it.remainingWeight || 0).toFixed(2).replace('.', ',')
         ]);
 
         const totalsRow = [
@@ -621,15 +739,15 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
             ...displayedMonths.flatMap(m => {
                 const mt = matrixData.monthTotals[m.key] || { weight: 0, value: 0 };
                 return [
-                    mt.weight.toFixed(2).replace('.', ','),
+                    (mt.weight || 0).toFixed(2).replace('.', ','),
                     '-',
-                    mt.value.toFixed(2).replace('.', ',')
+                    (mt.value || 0).toFixed(2).replace('.', ',')
                 ];
             }),
-            matrixData.grandTotals.deliveredValue.toFixed(2).replace('.', ','),
-            matrixData.grandTotals.deliveredWeight.toFixed(2).replace('.', ','),
-            matrixData.grandTotals.remainingValue.toFixed(2).replace('.', ','),
-            matrixData.grandTotals.remainingWeight.toFixed(2).replace('.', ',')
+            (matrixData.grandTotals.deliveredValue || 0).toFixed(2).replace('.', ','),
+            (matrixData.grandTotals.deliveredWeight || 0).toFixed(2).replace('.', ','),
+            (matrixData.grandTotals.remainingValue || 0).toFixed(2).replace('.', ','),
+            (matrixData.grandTotals.remainingWeight || 0).toFixed(2).replace('.', ',')
         ];
 
         const csvContent = '\uFEFF' + [
@@ -651,6 +769,18 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         document.body.removeChild(link);
         toast.success('Arquivo CSV gerado com sucesso!');
     };
+
+    if (allSuppliers.length === 0) {
+        return (
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center space-y-3">
+                <Receipt className="h-10 w-10 text-amber-500 mx-auto" />
+                <h3 className="text-base font-black text-slate-900 uppercase">Nenhum Fornecedor com Itens Contratados</h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    Cadastre os contratos ou produtores no módulo de Fornecedores / Per Capita para visualizar o mapa de dedução de notas fiscais.
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-4 animate-fade-in text-slate-800">
@@ -814,7 +944,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                         </div>
                     </div>
                     <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/60">
-                        {invoiceSummaryList.filter(i => i.weight > 0).length} NFs com Movimentação
+                        {invoiceSummaryList.filter(i => (i.weight || 0) > 0).length} NFs com Movimentação
                     </span>
                 </div>
 
@@ -823,7 +953,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                         <div 
                             key={item.monthKey}
                             className={`p-2.5 rounded-2xl border transition-all ${
-                                item.weight > 0
+                                (item.weight || 0) > 0
                                     ? 'bg-amber-50/60 border-amber-300/80 shadow-2xs'
                                     : 'bg-slate-50/50 border-slate-200/50 opacity-70'
                             }`}
@@ -843,13 +973,13 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                                 <div>
                                     <span className="text-[8px] font-bold uppercase text-slate-400 block">Peso da NF:</span>
                                     <span className="text-xs font-black text-slate-900 font-mono">
-                                        {item.weight > 0 ? `${formatNumber(item.weight, 0, 2)} kg` : '-'}
+                                        {(item.weight || 0) > 0 ? `${formatNumber(item.weight, 0, 2)} kg` : '-'}
                                     </span>
                                 </div>
                                 <div>
                                     <span className="text-[8px] font-bold uppercase text-slate-400 block">Valor da NF:</span>
                                     <span className="text-xs font-black text-emerald-700 font-mono">
-                                        {item.value > 0 ? formatCurrency(item.value) : '-'}
+                                        {(item.value || 0) > 0 ? formatCurrency(item.value) : '-'}
                                     </span>
                                 </div>
                             </div>
@@ -975,7 +1105,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                                     return (
                                         <React.Fragment key={m.key}>
                                             <td className="p-1 text-center font-black border-r border-yellow-300 font-mono text-[10px]">
-                                                {mTotals.weight > 0 ? formatNumber(mTotals.weight, 0, 2) : '-'}
+                                                {(mTotals.weight || 0) > 0 ? formatNumber(mTotals.weight, 0, 2) : '-'}
                                             </td>
                                             {!compactView && (
                                                 <td className="p-1 text-center border-r border-yellow-300 font-mono text-[9px] text-yellow-900">
@@ -983,7 +1113,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                                                 </td>
                                             )}
                                             <td className="p-1 text-right font-black border-r border-slate-300 font-mono text-[10px]">
-                                                {mTotals.value > 0 ? formatCurrency(mTotals.value) : '-'}
+                                                {(mTotals.value || 0) > 0 ? formatCurrency(mTotals.value) : '-'}
                                             </td>
                                         </React.Fragment>
                                     );
@@ -1041,23 +1171,23 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                                             return (
                                                 <React.Fragment key={m.key}>
                                                     {/* Peso */}
-                                                    <td className={`p-1 text-center font-bold border-r border-slate-100 font-mono text-[10px] ${cell.weight > 0 ? 'text-slate-900' : 'text-slate-300'}`}>
-                                                        {cell.weight > 0 ? formatNumber(cell.weight, 0, 2) : '-'}
+                                                    <td className={`p-1 text-center font-bold border-r border-slate-100 font-mono text-[10px] ${(cell.weight || 0) > 0 ? 'text-slate-900' : 'text-slate-300'}`}>
+                                                        {(cell.weight || 0) > 0 ? formatNumber(cell.weight, 0, 2) : '-'}
                                                     </td>
 
                                                     {/* Valor Kg (when not compact) */}
                                                     {!compactView && (
-                                                        <td className={`p-1 text-center font-mono text-[9px] border-r border-slate-100 ${cell.weight > 0 ? 'text-slate-600' : 'text-slate-300'}`}>
-                                                            {cell.weight > 0 ? formatCurrency(cell.valPerKg) : '-'}
+                                                        <td className={`p-1 text-center font-mono text-[9px] border-r border-slate-100 ${(cell.weight || 0) > 0 ? 'text-slate-600' : 'text-slate-300'}`}>
+                                                            {(cell.weight || 0) > 0 ? formatCurrency(cell.valPerKg) : '-'}
                                                         </td>
                                                     )}
 
                                                     {/* Valor Total */}
                                                     <td 
-                                                        className={`p-1 text-right font-bold font-mono border-r border-slate-200 text-[10px] ${cell.totalVal > 0 ? 'text-emerald-700' : 'text-slate-300'}`}
-                                                        title={cell.weight > 0 ? `${formatNumber(cell.weight, 0, 2)} ${it.unit} x ${formatCurrency(cell.valPerKg)}` : undefined}
+                                                        className={`p-1 text-right font-bold font-mono border-r border-slate-200 text-[10px] ${(cell.totalVal || 0) > 0 ? 'text-emerald-700' : 'text-slate-300'}`}
+                                                        title={(cell.weight || 0) > 0 ? `${formatNumber(cell.weight, 0, 2)} ${it.unit} x ${formatCurrency(cell.valPerKg)}` : undefined}
                                                     >
-                                                        {cell.totalVal > 0 ? formatCurrency(cell.totalVal) : (cell.weight > 0 ? 'R$ 0,00' : '-')}
+                                                        {(cell.totalVal || 0) > 0 ? formatCurrency(cell.totalVal) : ((cell.weight || 0) > 0 ? 'R$ 0,00' : '-')}
                                                     </td>
                                                 </React.Fragment>
                                             );
@@ -1149,7 +1279,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                         {formatCurrency(matrixData.grandTotals.deliveredValue)}
                     </p>
                     <p className="text-[10px] text-slate-500">
-                        Peso entregue: <strong className="font-mono text-emerald-700">{formatNumber(matrixData.grandTotals.deliveredWeight, 2, 2)} Kg</strong> ({matrixData.grandTotals.percentDelivered.toFixed(1)}%)
+                        Peso entregue: <strong className="font-mono text-emerald-700">{formatNumber(matrixData.grandTotals.deliveredWeight, 2, 2)} Kg</strong> ({(matrixData.grandTotals?.percentDelivered || 0).toFixed(1)}%)
                     </p>
                 </div>
 
