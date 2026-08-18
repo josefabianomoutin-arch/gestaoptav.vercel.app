@@ -22,15 +22,19 @@ export const calculateAllowedWeeksFromSchedule = (monthlySchedule: Record<string
     for (let m = 0; m <= 11; m++) {
         const monthName = monthNames[m];
         
-        const matchingKey = Object.keys(monthlySchedule).find(k => {
+        const matchingKeys = Object.keys(monthlySchedule).filter(k => {
             const cleanK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             const cleanM = monthName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             return cleanK === cleanM;
         });
-        if (!matchingKey) continue;
+        if (matchingKeys.length === 0) continue;
 
-        const rawWeeks = monthlySchedule[matchingKey];
-        const selectedWeeks = ensureArray(rawWeeks).map(w => Number(String(w).replace(/\D/g, ''))).filter(w => !isNaN(w) && w > 0);
+        const rawWeeks: any[] = [];
+        matchingKeys.forEach(k => {
+            rawWeeks.push(...ensureArray(monthlySchedule[k]));
+        });
+
+        const selectedWeeks = Array.from(new Set(rawWeeks.map(w => Number(String(w).replace(/\D/g, ''))).filter(w => !isNaN(w) && w > 0)));
         if (selectedWeeks.length === 0) continue;
 
         const firstDay = new Date(year, m, 1);
@@ -41,21 +45,23 @@ export const calculateAllowedWeeksFromSchedule = (monthlySchedule: Record<string
         const totalRows = Math.ceil(totalDaysInGrid / 7);
 
         for (let r = 0; r < totalRows; r++) {
-            let hasAnyDayInMonth = false;
+            let hasBusinessDayInMonth = false;
             // Use the same reference day (Wednesday) as Calendar.tsx to guarantee ISO week match
             const rowDate = new Date(year, m, (r * 7) + 1 - firstDay.getDay() + 3);
             const rowWeek = getWeekNumber(rowDate);
 
-            // A week in the calendar grid represents a row.
-            // We consider the week as valid for this month if there is AT LEAST ONE day of THIS month in this row.
+            // A delivery week (S1-S5) represents a business week where deliveries can occur.
+            // Check if there is at least one working day (Monday to Friday, d = 1 to 5) belonging to THIS month in this row.
             for (let d = 0; d < 7; d++) {
                 const dayOfMonth = (r * 7) + d + 1 - firstDay.getDay();
                 if (dayOfMonth >= 1 && dayOfMonth <= lastDay) {
-                    hasAnyDayInMonth = true;
+                    if (d >= 1 && d <= 5) { // 1 = Monday, ..., 5 = Friday
+                        hasBusinessDayInMonth = true;
+                    }
                 }
             }
 
-            if (hasAnyDayInMonth) {
+            if (hasBusinessDayInMonth) {
                 if (!businessRowWeeks.includes(rowWeek)) {
                     businessRowWeeks.push(rowWeek);
                 }
