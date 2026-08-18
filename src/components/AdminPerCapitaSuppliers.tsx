@@ -5,6 +5,7 @@ import type { PerCapitaSupplier, Delivery } from '../types';
 import ConfirmModal from './ConfirmModal';
 import html2pdf from 'html2pdf.js';
 import { FileText, Upload, AlertCircle, X, Download, Trash2, Calendar } from 'lucide-react';
+import { ensureArray } from '../lib/utils';
 
 interface AdminPerCapitaSuppliersProps {
     suppliers: PerCapitaSupplier[];
