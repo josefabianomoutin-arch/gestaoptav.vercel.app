@@ -36,73 +36,42 @@ export const calculateAllowedWeeksFromSchedule = (monthlySchedule: Record<string
         const firstDay = new Date(year, m, 1);
         const lastDay = new Date(year, m + 1, 0).getDate();
         
-        const allRowWeeks: number[] = [];
         const businessRowWeeks: number[] = [];
         const totalDaysInGrid = firstDay.getDay() + lastDay;
         const totalRows = Math.ceil(totalDaysInGrid / 7);
 
         for (let r = 0; r < totalRows; r++) {
             let hasBusinessDay = false;
-            let rowWeek: number | null = null;
+            // Use the same reference day (Wednesday) as Calendar.tsx to guarantee ISO week match
+            const rowDate = new Date(year, m, (r * 7) + 1 - firstDay.getDay() + 3);
+            const rowWeek = getWeekNumber(rowDate);
+
             for (let d = 0; d < 7; d++) {
                 const dayOfMonth = (r * 7) + d + 1 - firstDay.getDay();
                 if (dayOfMonth >= 1 && dayOfMonth <= lastDay) {
                     const date = new Date(year, m, dayOfMonth);
-                    const wNo = getWeekNumber(date);
-                    if (rowWeek === null) rowWeek = wNo;
                     const dayOfWeek = date.getDay();
                     if (dayOfWeek !== 0 && dayOfWeek !== 6) {
                         hasBusinessDay = true;
                     }
                 }
             }
-            if (rowWeek === null) {
-                const rowDate = new Date(year, m, (r * 7) + 1 - firstDay.getDay() + 3);
-                rowWeek = getWeekNumber(rowDate);
-            }
-            allRowWeeks.push(rowWeek);
+
             if (hasBusinessDay) {
-                businessRowWeeks.push(rowWeek);
+                if (!businessRowWeeks.includes(rowWeek)) {
+                    businessRowWeeks.push(rowWeek);
+                }
             }
         }
 
         selectedWeeks.forEach(w => {
-            if (w === 1) {
-                if (businessRowWeeks.length > 0) allowedWeeksSet.add(businessRowWeeks[0]);
-                if (allRowWeeks.length > 0) allowedWeeksSet.add(allRowWeeks[0]);
-            } else if (w === 2) {
-                if (businessRowWeeks.length > 1) {
-                    allowedWeeksSet.add(businessRowWeeks[1]);
-                } else if (allRowWeeks.length > 1) {
-                    allowedWeeksSet.add(allRowWeeks[1]);
-                }
-            } else if (w === 3) {
-                if (businessRowWeeks.length > 2) {
-                    allowedWeeksSet.add(businessRowWeeks[2]);
-                } else if (allRowWeeks.length > 2) {
-                    allowedWeeksSet.add(allRowWeeks[2]);
-                }
-            } else if (w === 4) {
-                if (businessRowWeeks.length > 3) {
-                    allowedWeeksSet.add(businessRowWeeks[3]);
-                } else if (allRowWeeks.length > 3) {
-                    allowedWeeksSet.add(allRowWeeks[3]);
-                }
-            } else if (w === 5) {
-                if (businessRowWeeks.length >= 5) {
-                    allowedWeeksSet.add(businessRowWeeks[3]);
-                    allowedWeeksSet.add(businessRowWeeks[4]);
-                    if (businessRowWeeks.length > 5) allowedWeeksSet.add(businessRowWeeks[5]);
-                } else if (businessRowWeeks.length === 4) {
-                    allowedWeeksSet.add(businessRowWeeks[3]);
+            if (w >= 1 && w <= 5) {
+                const idx = w - 1;
+                if (businessRowWeeks.length > idx) {
+                    allowedWeeksSet.add(businessRowWeeks[idx]);
                 } else if (businessRowWeeks.length > 0) {
+                    // Fallback para a última semana útil do mês se a semana solicitada não existir
                     allowedWeeksSet.add(businessRowWeeks[businessRowWeeks.length - 1]);
-                }
-                if (allRowWeeks.length >= 5) {
-                    allowedWeeksSet.add(allRowWeeks[4]);
-                }
-                if (allRowWeeks.length >= 6) {
-                    allowedWeeksSet.add(allRowWeeks[5]);
                 }
             } else if (w > 5 && w <= 53) {
                 allowedWeeksSet.add(w);
