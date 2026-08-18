@@ -482,8 +482,59 @@ const App: React.FC = () => {
         }
       }
 
-      if (totalCleanedCount > 0) {
-        toast.info(`Limpeza de duplicados idênticos concluída: ${totalCleanedCount} registros idênticos foram unificados.`);
+      // 3. Limpeza de itens de contrato duplicados (contractItems)
+      let itemsCleanedCount = 0;
+      
+      const cleanContractItems = (items: any[]) => {
+        if (!items || !Array.isArray(items)) return items;
+        const uniqueItems = new Map<string, any>();
+        items.forEach(item => {
+          if (!item || !item.name) return;
+          const key = String(item.name).toUpperCase().trim();
+          if (uniqueItems.has(key)) {
+            itemsCleanedCount++;
+          } else {
+            uniqueItems.set(key, item);
+          }
+        });
+        return Array.from(uniqueItems.values());
+      };
+
+      if (suppliers && suppliers.length > 0) {
+        for (const sup of suppliers) {
+          if (!sup || !sup.contractItems || !Array.isArray(sup.contractItems) || sup.contractItems.length === 0) continue;
+          const cleanedItems = cleanContractItems(sup.contractItems);
+          if (cleanedItems.length !== sup.contractItems.length) {
+            await set(child(suppliersRef, `${sup.id || sup.cpf}/contractItems`), cleanedItems);
+          }
+        }
+      }
+
+      if (perCapitaConfig) {
+        const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+        for (const listKey of lists) {
+          const list = ensureArray(perCapitaConfig[listKey]);
+          let listNeedsUpdate = false;
+          const updatedList = [...list];
+
+          for (let idx = 0; idx < updatedList.length; idx++) {
+            const p = updatedList[idx];
+            if (!p || !p.contractItems || !Array.isArray(p.contractItems)) continue;
+            const cleanedItems = cleanContractItems(p.contractItems);
+            if (cleanedItems.length !== p.contractItems.length) {
+              updatedList[idx] = { ...p, contractItems: cleanedItems };
+              listNeedsUpdate = true;
+            }
+          }
+
+          if (listNeedsUpdate) {
+             await set(child(perCapitaConfigRef, listKey), updatedList);
+          }
+        }
+      }
+
+      if (totalCleanedCount > 0 || itemsCleanedCount > 0) {
+        toast.info(`Limpeza concluída: ${totalCleanedCount} entregas duplicadas e ${itemsCleanedCount} itens duplicados no contrato removidos.`);
       } else {
         console.log("Nenhum agendamento duplicado idêntico encontrado para limpar.");
       }
@@ -838,7 +889,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogin = (nameInput: string, passwordInput: string) => {
+  const handleLogin = async (nameInput: string, passwordInput: string) => {
     const cleanName = (nameInput || '').trim().toUpperCase();
     const rawPass = (passwordInput || '').trim();
 
@@ -964,11 +1015,52 @@ const App: React.FC = () => {
     }
 
     if (!isSuppliersLoaded || !isPerCapitaConfigLoaded) {
-      toast.info('Sincronizando banco de dados de acessos...', {
-        description: 'Os dados de produtores e fornecedores estão sendo sincronizados do servidor em segundo plano. Por favor, aguarde alguns segundos e tente entrar novamente.',
-        style: { background: '#2563eb', color: '#fff', border: 'none' }
-      });
-      return 'loading';
+      toast.info('Buscando dados no servidor...');
+      try {
+        const db = getDatabase(app);
+        const [supSnap, perCapitaSnap] = await Promise.all([
+          get(ref(db, 'suppliers')),
+          get(ref(db, 'perCapitaConfig'))
+        ]);
+        
+        let found = false;
+        if (perCapitaSnap.exists()) {
+          const config = perCapitaSnap.val() || {};
+          const dbPpais = ensureArray(config.ppaisProducers).find(matchProducerOrSupplier);
+          if (dbPpais) {
+            setUser({ name: dbPpais.name, cpf: dbPpais.cpfCnpj || dbPpais.cpf || numericPass, role: 'producer' });
+            found = true;
+          }
+          if (!found) {
+            const dbPereciveis = ensureArray(config.pereciveisSuppliers).find(matchProducerOrSupplier);
+            if (dbPereciveis) {
+              setUser({ name: dbPereciveis.name, cpf: dbPereciveis.cpfCnpj || dbPereciveis.cpf || numericPass, role: 'pereciveis_supplier' });
+              found = true;
+            }
+          }
+          if (!found) {
+            const dbEstocaveis = ensureArray(config.estocaveisSuppliers).find(matchProducerOrSupplier);
+            if (dbEstocaveis) {
+              setUser({ name: dbEstocaveis.name, cpf: dbEstocaveis.cpfCnpj || dbEstocaveis.cpf || numericPass, role: 'estocaveis_supplier' });
+              found = true;
+            }
+          }
+        }
+        
+        if (!found && supSnap.exists()) {
+           const supData = supSnap.val() || {};
+           const supArray = Array.isArray(supData) ? supData : Object.values(supData);
+           const dbSupplier: any = supArray.find(s => matchProducerOrSupplier(s));
+           if (dbSupplier) {
+             setUser({ name: dbSupplier.name, cpf: dbSupplier.cpf || dbSupplier.cnpj || numericPass, role: 'supplier' });
+             found = true;
+           }
+        }
+        
+        if (found) return true;
+      } catch (e) {
+        console.error("Direct fetch failed", e);
+      }
     }
     
     return false;

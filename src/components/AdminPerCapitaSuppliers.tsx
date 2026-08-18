@@ -115,6 +115,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
         setMonthlySchedule(normalizedSchedule);
         setEditingId(supplier.id);
         setIsAdding(true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleSave = () => {

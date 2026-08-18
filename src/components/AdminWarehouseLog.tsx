@@ -17,6 +17,8 @@ import { roundToTwoDecimalPlaces, ensureArray, generateStandardLabelStyles } fro
 import ConfirmModal from './ConfirmModal';
 import AdminInvoiceDeductionMap from './AdminInvoiceDeductionMap';
 
+import AdminInvoiceLookup from './AdminInvoiceLookup';
+
 const monthNamesInOrder = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -63,7 +65,7 @@ const getSundayOfWeek = (year: number, weekNum: number): Date => {
 };
 
 const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, suppliers, onDeleteEntry, perCapitaConfig }) => {
-    const [activeLogSubTab, setActiveLogSubTab] = useState<'history' | 'invoice_deduction'>('history');
+    const [activeLogSubTab, setActiveLogSubTab] = useState<'history' | 'invoice_deduction' | 'invoice_lookup'>('history');
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<'all' | 'entrada' | 'saída'>('all');
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -896,10 +898,27 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     <Layers className="h-4 w-4 text-amber-500" />
                     Mapa de NFs & Dedução Contratual
                 </button>
+                <button
+                    onClick={() => setActiveLogSubTab('invoice_lookup')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        activeLogSubTab === 'invoice_lookup'
+                            ? 'bg-white text-zinc-900 shadow-sm border border-slate-200/60'
+                            : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                >
+                    <Search className="h-4 w-4 text-emerald-500" />
+                    Pesquisa por NF
+                </button>
             </div>
 
             {activeLogSubTab === 'invoice_deduction' ? (
                 <AdminInvoiceDeductionMap
+                    warehouseLog={combinedLog}
+                    suppliers={suppliers}
+                    perCapitaConfig={perCapitaConfig}
+                />
+            ) : activeLogSubTab === 'invoice_lookup' ? (
+                <AdminInvoiceLookup
                     warehouseLog={combinedLog}
                     suppliers={suppliers}
                     perCapitaConfig={perCapitaConfig}
