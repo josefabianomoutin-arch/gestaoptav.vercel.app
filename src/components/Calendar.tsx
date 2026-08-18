@@ -19,7 +19,7 @@ const getWeekNumber = (d: Date): number => {
     return weekNo;
 };
 
-const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeeks, activeContractPeriod }) => {
+const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeeks, monthlySchedule, activeContractPeriod }) => {
 
   const deliveriesByDate = useMemo(() => {
     const map = new Map<string, Delivery[]>();
