@@ -94,6 +94,7 @@ const AdminPublicInfo: React.FC<AdminPublicInfoProps> = ({ infoList, onSave, onD
       setCurrentInfo({});
     } catch (err) {
       console.error(err);
+      toast.error('Erro ao salvar os dados da informação.');
     } finally {
       setIsSubmitting(false);
     }

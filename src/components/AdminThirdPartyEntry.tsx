@@ -42,6 +42,11 @@ const AdminThirdPartyEntry: React.FC<AdminThirdPartyEntryProps> = ({ logs, onReg
             videoRef.current.srcObject = cameraStream;
             videoRef.current.play().catch(err => console.error("Error playing video:", err));
         }
+        return () => {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+        };
     }, [cameraStream]);
 
     const topScrollRef = React.useRef<HTMLDivElement>(null);

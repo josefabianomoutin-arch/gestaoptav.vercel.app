@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { WarehouseMovement, Supplier, PerCapitaConfig } from '../types';
-import { ensureArray, superNormalize } from '../lib/utils';
-import { Search, FileText, Package, Scale, DollarSign, Building2, AlertCircle, X } from 'lucide-react';
+import { ensureArray } from '../lib/utils';
+import { Search, FileText, Package, Building2, AlertCircle, X } from 'lucide-react';
 import { getCombinedSuppliers } from '../lib/supplierUtils';
 
 interface AdminInvoiceLookupProps {

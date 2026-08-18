@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import type { FinancialRecord } from '../types';
 import ConfirmModal from './ConfirmModal';
+import { toast } from 'sonner';
 
 interface AdminFinancialManagerProps {
   records: FinancialRecord[];
@@ -449,12 +450,12 @@ const AdminFinancialManager: React.FC<AdminFinancialManagerProps> = ({ records, 
         const res = await onSave(recordToSave as FinancialRecord);
         if (res && res.success) {
             setFormData(initialFormState);
-            alert('Registro salvo com sucesso!');
+            toast.success('Registro salvo com sucesso!');
         } else {
-            alert(res?.message || 'Falha ao salvar registro.');
+            toast.error(res?.message || 'Falha ao salvar registro.');
         }
     } catch {
-        alert("Erro de conexão. Tente novamente.");
+        toast.error("Erro de conexão. Tente novamente.");
     } finally {
         setIsSaving(false);
     }

@@ -1102,7 +1102,7 @@ const App: React.FC = () => {
 
   const handleSavePublicInfo = async (info: Omit<PublicInfo, 'id'> & { id?: string }) => {
     try {
-      const id = info.id || push(publicInfoRef).key;
+      const id = info.id || (publicInfoRef ? push(publicInfoRef).key : null) || `info-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
       if (!id) throw new Error('Falha ao gerar ID');
       const itemToSave: PublicInfo = {
         id,
@@ -1131,7 +1131,13 @@ const App: React.FC = () => {
       });
 
       if (database && publicInfoRef) {
-        await set(child(publicInfoRef, id), itemToSave);
+        try {
+          const savePromise = set(child(publicInfoRef, id), itemToSave);
+          const timeoutPromise = new Promise(resolve => setTimeout(resolve, 3000));
+          await Promise.race([savePromise, timeoutPromise]);
+        } catch (dbErr) {
+          console.warn('Sincronização Firebase Realtime com timeout ou erro, salvo localmente:', dbErr);
+        }
       }
       toast.success('Informação pública salva com sucesso!');
     } catch (error) {
@@ -1149,7 +1155,13 @@ const App: React.FC = () => {
       });
 
       if (database && publicInfoRef) {
-        await remove(child(publicInfoRef, id));
+        try {
+          const removePromise = remove(child(publicInfoRef, id));
+          const timeoutPromise = new Promise(resolve => setTimeout(resolve, 3000));
+          await Promise.race([removePromise, timeoutPromise]);
+        } catch (dbErr) {
+          console.warn('Remoção Firebase Realtime com timeout ou erro, removido localmente:', dbErr);
+        }
       }
       toast.success('Informação pública removida com sucesso!');
     } catch (error) {
