@@ -195,7 +195,7 @@ const App: React.FC = () => {
   const [directorPerCapita, setDirectorPerCapita] = useState<any>(() => getCachedState('directorPerCapita', null));
   const [isPasswordsLoaded, setIsPasswordsLoaded] = useState(() => !!localStorage.getItem('cached_systemPasswords'));
   const [isSuppliersLoaded, setIsSuppliersLoaded] = useState(() => !!localStorage.getItem('cached_suppliers'));
-  const [isPerCapitaConfigLoaded, setIsPerCapitaConfigLoaded] = useState(() => !!localStorage.getItem('cached_perCapitaConfig'));e(false);
+  const [isPerCapitaConfigLoaded, setIsPerCapitaConfigLoaded] = useState(() => !!localStorage.getItem('cached_perCapitaConfig'));
 
   console.log("App mounted, user:", user);
 
