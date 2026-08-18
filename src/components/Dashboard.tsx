@@ -23,7 +23,6 @@ const SIMULATED_TODAY = new Date('2026-05-07T00:00:00');
 interface DashboardProps {
   supplier: Supplier;
   type?: 'PRODUTOR' | 'FORNECEDOR';
-  monthlySchedule?: Record<string, number[]>;
   isRegisteredForNextPeriod?: boolean;
   onLogout: () => void;
   onScheduleDelivery: (supplierCpf: string, date: string, time: string, observations?: string, invoiceNumber?: string, invoiceUrl?: string) => void;
@@ -51,7 +50,6 @@ const getWeekNumber = (d: Date): number => {
 const Dashboard: React.FC<DashboardProps> = ({ 
   supplier, 
   type = 'PRODUTOR',
-  monthlySchedule,
   isRegisteredForNextPeriod = false,
   onLogout, 
   onScheduleDelivery, 
@@ -119,12 +117,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     let isWeekAllowed = true;
     const weekNum = getWeekNumber(date);
     
-    if (monthlySchedule && Object.keys(monthlySchedule).length > 0) {
-        const allMonthlyWeeks = Object.values(monthlySchedule).flat();
-        if (allMonthlyWeeks.length > 0 && !allMonthlyWeeks.includes(weekNum)) {
-            isWeekAllowed = false;
-        }
-    } else if (supplier.allowedWeeks && supplier.allowedWeeks.length > 0) {
+    if (supplier.allowedWeeks && supplier.allowedWeeks.length > 0) {
         if (!supplier.allowedWeeks.includes(weekNum)) {
             isWeekAllowed = false;
         }
@@ -354,11 +347,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const availableDatesList: string[] = [];
     const daysInMonthObj = new Date(selectedYear, monthIndex + 1, 0).getDate();
-    const targetMonthNameKey = targetMonthName.split(' ')[0];
-    const validWeeksForPC = supplier?.monthlySchedule?.[targetMonthNameKey] || 
-                            supplier?.monthlySchedule?.[targetMonthNameKey.toUpperCase()] || 
-                            supplier?.monthlySchedule?.[targetMonthNameKey.toLowerCase()] ||
-                            supplier?.monthlySchedule?.[targetMonthNameKey.charAt(0).toUpperCase() + targetMonthNameKey.slice(1).toLowerCase()];
     const allowedWeeksArray = supplier.allowedWeeks || [];
 
     const getWeekNumberLocal = (d: Date): number => {
@@ -378,15 +366,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         const isHoliday = !!HOLIDAYS_2026[dateStrRaw];
         
         if (!isWeekend && !isHoliday) {
-            const hasAnyMonthlySchedule = supplier?.monthlySchedule && Object.keys(supplier.monthlySchedule).length > 0;
-            if (hasAnyMonthlySchedule) {
-                if (validWeeksForPC && validWeeksForPC.length > 0) {
-                    const wNum = getWeekNumberLocal(new Date(dateStrRaw + 'T12:00:00'));
-                    if (validWeeksForPC.includes(wNum)) {
-                        availableDatesList.push(date.toLocaleDateString('pt-BR'));
-                    }
-                }
-            } else if (allowedWeeksArray.length > 0) {
+            if (allowedWeeksArray.length > 0) {
                 const wNum = getWeekNumberLocal(new Date(dateStrRaw + 'T12:00:00'));
                 if (allowedWeeksArray.includes(wNum)) {
                     availableDatesList.push(date.toLocaleDateString('pt-BR'));
@@ -622,10 +602,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const deliveriesList = ensureArray<any>(supplier.deliveries);
-  let allowedWeeksArray = supplier.allowedWeeks || [];
-  if (supplier?.monthlySchedule && Object.keys(supplier.monthlySchedule).length > 0) {
-    allowedWeeksArray = Object.values(supplier.monthlySchedule).flat();
-  }
+  const allowedWeeksArray = supplier.allowedWeeks || [];
   const todayWeek = getWeekNumber(SIMULATED_TODAY);
   const currentMonthIdx = SIMULATED_TODAY.getMonth(); // 4 for May 2026
 
@@ -656,19 +633,9 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   // Helper to verify if a week belongs to any of the arrived months
   const isWeekInArrivedMonth = (w: number): boolean => {
-    if (supplier?.monthlySchedule && Object.keys(supplier.monthlySchedule).length > 0) {
-      return arrivedMonths.some(mName => {
-        const weeksForMonth = supplier?.monthlySchedule?.[mName] || 
-                              supplier?.monthlySchedule?.[mName.toUpperCase()] || 
-                              supplier?.monthlySchedule?.[mName.toLowerCase()] || 
-                              supplier?.monthlySchedule?.[mName.charAt(0).toUpperCase() + mName.slice(1).toLowerCase()] || [];
-        return weeksForMonth.includes(w);
-      });
-    } else {
-      const wMonthIdx = getWeekMonth(w);
-      const wMonthName = monthsList[wMonthIdx];
-      return arrivedMonths.includes(wMonthName);
-    }
+    const wMonthIdx = getWeekMonth(w);
+    const wMonthName = monthsList[wMonthIdx];
+    return arrivedMonths.includes(wMonthName);
   };
 
   const lateWeeks: number[] = [];
@@ -734,17 +701,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   // 4. Current month alert check: are there ANY allowed weeks in the current month (May) that do not have a scheduled delivery yet?
   const currentMonthName = monthsList[currentMonthIdx]; // "maio"
   const isWeekInCurrentMonth = (w: number): boolean => {
-    if (supplier?.monthlySchedule && Object.keys(supplier.monthlySchedule).length > 0) {
-      const weeksForMonth = supplier?.monthlySchedule?.[currentMonthName] || 
-                            supplier?.monthlySchedule?.[currentMonthName.toUpperCase()] || 
-                            supplier?.monthlySchedule?.[currentMonthName.toLowerCase()] || 
-                            supplier?.monthlySchedule?.[currentMonthName.charAt(0).toUpperCase() + currentMonthName.slice(1).toLowerCase()] || [];
-      return weeksForMonth.includes(w);
-    } else {
-      const wMonthIdx = getWeekMonth(w);
-      const wMonthName = monthsList[wMonthIdx];
-      return wMonthName === currentMonthName;
-    }
+    const wMonthIdx = getWeekMonth(w);
+    const wMonthName = monthsList[wMonthIdx];
+    return wMonthName === currentMonthName;
   };
 
   const hasPendingSchedulingInCurrentMonth = allowedWeeksArray.some(w => {
@@ -916,7 +875,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                     onDayClick={handleDayClick} 
                     deliveries={ensureArray<Delivery>(supplier.deliveries)} 
                     allowedWeeks={supplier.allowedWeeks}
-                    monthlySchedule={monthlySchedule}
                     activeContractPeriod={activeContractPeriod}
                   />
               </div>

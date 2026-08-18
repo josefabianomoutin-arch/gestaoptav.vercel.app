@@ -4123,7 +4123,6 @@ const App: React.FC = () => {
           <Dashboard 
             supplier={supplierWithUpdatedData} 
             isRegisteredForNextPeriod={isRegisteredForNextPeriod}
-            monthlySchedule={perCapitaEntry?.monthlySchedule}
             onUpdateInvoiceUrl={handleUpdateInvoiceUrl}
             onLogout={handleLogout} 
             onScheduleDelivery={handleScheduleDelivery}
@@ -4180,7 +4179,6 @@ const App: React.FC = () => {
           <Dashboard 
             supplier={mappedSupplier} 
             type={(user.role === 'producer' || (p as any).type === 'PRODUTOR') ? 'PRODUTOR' : 'FORNECEDOR'}
-            monthlySchedule={p.monthlySchedule}
             isRegisteredForNextPeriod={true}
             onUpdateInvoiceUrl={handleUpdateInvoiceUrl}
             onLogout={handleLogout} 

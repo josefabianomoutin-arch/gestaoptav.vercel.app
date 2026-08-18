@@ -7,7 +7,6 @@ interface CalendarProps {
   onDayClick: (date: Date) => void;
   deliveries: Delivery[];
   allowedWeeks?: number[];
-  monthlySchedule?: Record<string, number[]>;
   activeContractPeriod?: '1_QUAD' | '2_3_QUAD';
 }
 
@@ -19,7 +18,7 @@ const getWeekNumber = (d: Date): number => {
     return weekNo;
 };
 
-const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeeks, monthlySchedule, activeContractPeriod }) => {
+const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeeks, activeContractPeriod }) => {
 
   const deliveriesByDate = useMemo(() => {
     const map = new Map<string, Delivery[]>();
@@ -63,12 +62,7 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeek
     let isWeekAllowed = true;
     const weekNum = getWeekNumber(date);
     
-    if (monthlySchedule && Object.keys(monthlySchedule).length > 0) {
-      const allMonthlyWeeks = Object.values(monthlySchedule).flat();
-      if (allMonthlyWeeks.length > 0 && !allMonthlyWeeks.includes(weekNum)) {
-        isWeekAllowed = false;
-      }
-    } else if (allowedWeeks && allowedWeeks.length > 0) {
+    if (allowedWeeks && allowedWeeks.length > 0) {
       if (!allowedWeeks.includes(weekNum)) {
         isWeekAllowed = false;
       }
