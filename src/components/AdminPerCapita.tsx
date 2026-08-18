@@ -12,6 +12,7 @@ import AdminContractGenerator from './AdminContractGenerator';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import type { PerCapitaSupplier } from '../types';
 import { roundToTwoDecimalPlaces, ensureArray } from '../lib/utils';
+import { calculateAllowedWeeksFromSchedule } from '../lib/supplierUtils';
 
 interface AdminPerCapitaProps {
   suppliers: Supplier[];
@@ -296,7 +297,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             ...p,
             cpf: p.cpfCnpj || p.cpf,
             deliveries: ensureArray(p.deliveries),
-            allowedWeeks: [],
+            allowedWeeks: calculateAllowedWeeksFromSchedule(p.monthlySchedule, 2026),
             initialValue: ensureArray(p.contractItems).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
         } as Supplier));
     }, [ppaisProducers]);
@@ -306,7 +307,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             ...p,
             cpf: p.cpfCnpj || p.cpf,
             deliveries: ensureArray(p.deliveries),
-            allowedWeeks: [],
+            allowedWeeks: calculateAllowedWeeksFromSchedule(p.monthlySchedule, 2026),
             initialValue: ensureArray(p.contractItems).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
         } as Supplier));
     }, [pereciveisSuppliers]);
@@ -316,7 +317,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             ...p,
             cpf: p.cpfCnpj || p.cpf,
             deliveries: ensureArray(p.deliveries),
-            allowedWeeks: [],
+            allowedWeeks: calculateAllowedWeeksFromSchedule(p.monthlySchedule, 2026),
             initialValue: ensureArray(p.contractItems).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
         } as Supplier));
     }, [estocaveisSuppliers]);

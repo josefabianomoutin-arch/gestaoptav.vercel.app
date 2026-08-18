@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { WarehouseMovement, Supplier } from '../types';
 import { roundToTwoDecimalPlaces, ensureArray, generateStandardLabelStyles } from '../lib/utils';
+import { calculateAllowedWeeksFromSchedule } from '../lib/supplierUtils';
 import ConfirmModal from './ConfirmModal';
 import AdminInvoiceDeductionMap from './AdminInvoiceDeductionMap';
 
@@ -263,18 +264,15 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                         else status = 'EM ANDAMENTO';
                     }
 
-                    const [activeYearStr, activeMonthStr] = activeMonthTab.split('-');
+                    const [activeYearStr] = activeMonthTab.split('-');
                     const activeYear = parseInt(activeYearStr);
-                    const activeMonthIdx = parseInt(activeMonthStr) - 1;
 
-                    const firstDayOfMonth = new Date(activeYear, activeMonthIdx, 1);
-                    const firstWeekOfYear = getWeekNumber(firstDayOfMonth);
                     const today = new Date();
 
                     let isLate = false;
                     if (status !== 'CONCLUÍDO') {
-                        for (const w of weeks) {
-                            const absoluteWeek = firstWeekOfYear + (Number(w) - 1);
+                        const targetWeeks = calculateAllowedWeeksFromSchedule({ [cleanTarget]: weeks }, activeYear);
+                        for (const absoluteWeek of targetWeeks) {
                             const sunday = getSundayOfWeek(activeYear, absoluteWeek);
                             
                             if (today > sunday) {
