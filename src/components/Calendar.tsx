@@ -92,7 +92,7 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeek
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
       const holidayName = HOLIDAYS_2026[dateString];
       const isHoliday = !!holidayName;
-      const isMaintenance = dateString >= '2026-08-10' && dateString <= '2026-08-14';
+      const isMaintenance = false; // Manutenção de Agosto removida conforme solicitado
       
       const isAllowed = isDateAllowed(currentDate) && !isMaintenance;
       
@@ -100,16 +100,13 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeek
       const hasDeliveryInSameWeekOnOtherDate = scheduledWeeksSet.has(currentWeekNum) && deliveriesOnThisDate.length === 0;
       
       const hasDeliveries = deliveriesOnThisDate.length > 0;
-      // Não permite agendar em feriados, finais de semana ou manutenção da câmara fria, a menos que já existam entregas registradas (por admin)
+      // Não permite agendar em feriados, finais de semana, a menos que já existam entregas registradas (por admin)
       const isClickable = ((isAllowed && !isWeekend && !isHoliday && !hasDeliveryInSameWeekOnOtherDate) || hasDeliveries);
       
       let dayClasses = "p-2 text-center border-r border-b border-gray-200 h-20 flex flex-col justify-center items-center relative transition-all";
 
       let tooltipTitle = undefined;
-      if (isMaintenance) {
-        dayClasses += " bg-amber-100/90 text-amber-900 cursor-not-allowed border-amber-300 overflow-hidden";
-        tooltipTitle = "manutenção da câmara fria";
-      } else if (isHoliday) {
+      if (isHoliday) {
         dayClasses += " bg-gray-200 text-gray-400 cursor-not-allowed overflow-hidden";
       } else if (hasDeliveryInSameWeekOnOtherDate) {
         dayClasses += " bg-gray-100 text-gray-300 cursor-not-allowed opacity-60";
