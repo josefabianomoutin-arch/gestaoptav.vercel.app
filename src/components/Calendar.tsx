@@ -60,11 +60,22 @@ const Calendar: React.FC<CalendarProps> = ({ onDayClick, deliveries, allowedWeek
     }
 
     // Se houver semanas permitidas definidas, verifica se a semana da data está nelas
-    if (allowedWeeks && allowedWeeks.length > 0) {
-      const weekNum = getWeekNumber(date);
-      if (!allowedWeeks.includes(weekNum)) {
-        return false;
+    let isWeekAllowed = true;
+    const weekNum = getWeekNumber(date);
+    
+    if (monthlySchedule && Object.keys(monthlySchedule).length > 0) {
+      const allMonthlyWeeks = Object.values(monthlySchedule).flat();
+      if (allMonthlyWeeks.length > 0 && !allMonthlyWeeks.includes(weekNum)) {
+        isWeekAllowed = false;
       }
+    } else if (allowedWeeks && allowedWeeks.length > 0) {
+      if (!allowedWeeks.includes(weekNum)) {
+        isWeekAllowed = false;
+      }
+    }
+
+    if (!isWeekAllowed) {
+      return false;
     }
 
     // Liberado para todos os produtores nas datas disponíveis (dias úteis)

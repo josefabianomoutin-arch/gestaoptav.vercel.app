@@ -116,12 +116,23 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
 
     // Check if week is allowed
-    if (supplier.allowedWeeks && supplier.allowedWeeks.length > 0) {
-        const weekNum = getWeekNumber(date);
-        if (!supplier.allowedWeeks.includes(weekNum) && deliveriesOnDate.length === 0) {
-            toast.error(`Agendamento bloqueado: A semana ${weekNum} não está liberada para o seu contrato.`);
-            return;
+    let isWeekAllowed = true;
+    const weekNum = getWeekNumber(date);
+    
+    if (monthlySchedule && Object.keys(monthlySchedule).length > 0) {
+        const allMonthlyWeeks = Object.values(monthlySchedule).flat();
+        if (allMonthlyWeeks.length > 0 && !allMonthlyWeeks.includes(weekNum)) {
+            isWeekAllowed = false;
         }
+    } else if (supplier.allowedWeeks && supplier.allowedWeeks.length > 0) {
+        if (!supplier.allowedWeeks.includes(weekNum)) {
+            isWeekAllowed = false;
+        }
+    }
+
+    if (!isWeekAllowed && deliveriesOnDate.length === 0) {
+        toast.error(`Agendamento bloqueado: A semana ${weekNum} não está liberada para o seu contrato.`);
+        return;
     }
 
     setSelectedDate(date);
@@ -367,10 +378,13 @@ const Dashboard: React.FC<DashboardProps> = ({
         const isHoliday = !!HOLIDAYS_2026[dateStrRaw];
         
         if (!isWeekend && !isHoliday) {
-            if (validWeeksForPC && validWeeksForPC.length > 0) {
-                const wNum = getWeekNumberLocal(new Date(dateStrRaw + 'T12:00:00'));
-                if (validWeeksForPC.includes(wNum)) {
-                    availableDatesList.push(date.toLocaleDateString('pt-BR'));
+            const hasAnyMonthlySchedule = supplier?.monthlySchedule && Object.keys(supplier.monthlySchedule).length > 0;
+            if (hasAnyMonthlySchedule) {
+                if (validWeeksForPC && validWeeksForPC.length > 0) {
+                    const wNum = getWeekNumberLocal(new Date(dateStrRaw + 'T12:00:00'));
+                    if (validWeeksForPC.includes(wNum)) {
+                        availableDatesList.push(date.toLocaleDateString('pt-BR'));
+                    }
                 }
             } else if (allowedWeeksArray.length > 0) {
                 const wNum = getWeekNumberLocal(new Date(dateStrRaw + 'T12:00:00'));
@@ -608,7 +622,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const deliveriesList = ensureArray<any>(supplier.deliveries);
-  const allowedWeeksArray = supplier.allowedWeeks || [];
+  let allowedWeeksArray = supplier.allowedWeeks || [];
+  if (supplier?.monthlySchedule && Object.keys(supplier.monthlySchedule).length > 0) {
+    allowedWeeksArray = Object.values(supplier.monthlySchedule).flat();
+  }
   const todayWeek = getWeekNumber(SIMULATED_TODAY);
   const currentMonthIdx = SIMULATED_TODAY.getMonth(); // 4 for May 2026
 
