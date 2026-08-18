@@ -1026,20 +1026,20 @@ const App: React.FC = () => {
         let found = false;
         if (perCapitaSnap.exists()) {
           const config = perCapitaSnap.val() || {};
-          const dbPpais = ensureArray(config.ppaisProducers).find(matchProducerOrSupplier);
+          const dbPpais = ensureArray<any>(config.ppaisProducers).find(matchProducerOrSupplier);
           if (dbPpais) {
             setUser({ name: dbPpais.name, cpf: dbPpais.cpfCnpj || dbPpais.cpf || numericPass, role: 'producer' });
             found = true;
           }
           if (!found) {
-            const dbPereciveis = ensureArray(config.pereciveisSuppliers).find(matchProducerOrSupplier);
+            const dbPereciveis = ensureArray<any>(config.pereciveisSuppliers).find(matchProducerOrSupplier);
             if (dbPereciveis) {
               setUser({ name: dbPereciveis.name, cpf: dbPereciveis.cpfCnpj || dbPereciveis.cpf || numericPass, role: 'pereciveis_supplier' });
               found = true;
             }
           }
           if (!found) {
-            const dbEstocaveis = ensureArray(config.estocaveisSuppliers).find(matchProducerOrSupplier);
+            const dbEstocaveis = ensureArray<any>(config.estocaveisSuppliers).find(matchProducerOrSupplier);
             if (dbEstocaveis) {
               setUser({ name: dbEstocaveis.name, cpf: dbEstocaveis.cpfCnpj || dbEstocaveis.cpf || numericPass, role: 'estocaveis_supplier' });
               found = true;

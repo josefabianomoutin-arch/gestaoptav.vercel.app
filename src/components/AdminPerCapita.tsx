@@ -23,7 +23,7 @@ interface AdminPerCapitaProps {
   onDeleteAcquisitionItem: (id: string) => Promise<{ success: boolean, message: string }>;
   acquisitionItems: AcquisitionItem[];
   onUpdateSupplierObservations?: (cpf: string, observations: string) => Promise<{ success: boolean; message?: string }>;
-  onSyncPPAISToAgenda?: () => Promise<void>;
+  onSyncPPAISToAgenda?: (config?: PerCapitaConfig) => Promise<void>;
   onSaveInvoice?: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => Promise<any>;
   onDeleteDelivery?: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean }>;
 }
@@ -1911,7 +1911,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                     <div className="flex gap-3">
                                         {activeSubTab === 'PPAIS' && onSyncPPAISToAgenda && (
                                             <button 
-                                                onClick={onSyncPPAISToAgenda}
+                                                onClick={() => onSyncPPAISToAgenda()}
                                                 className="px-8 py-3 bg-emerald-600 text-white font-black rounded-xl uppercase text-xs tracking-widest hover:bg-emerald-700 shadow-lg transition-all active:scale-95 flex items-center gap-2"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>

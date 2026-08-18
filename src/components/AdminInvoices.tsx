@@ -155,7 +155,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
     // Now group each unified supplier's deliveries into invoices!
     suppliers.forEach(supplier => {
       const deliveries = ensureArray(supplier.deliveries);
-      const grouped = deliveries.reduce((acc, d) => {
+      const grouped = deliveries.reduce((acc: Record<string, any>, d: any) => {
         if (!d || (d.item === 'AGENDAMENTO PENDENTE' && !d.invoiceNumber)) return acc;
         const invoiceNum = String(d.invoiceNumber || 'S/N').trim();
         const cleanDInvoice = cleanStr(invoiceNum);

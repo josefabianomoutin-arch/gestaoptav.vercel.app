@@ -94,6 +94,7 @@ export interface WarehouseMovement {
     pdNumber?: string;
     neNumber?: string;
     value?: number;
+    totalValue?: number;
     weight?: number;
     invoiceUrl?: string;
     lotId?: string;
@@ -242,6 +243,7 @@ export interface ThirdPartyEntryLog {
     exitTime?: string;
     observations?: string;
     idNumber?: string;
+    barcode?: string;
 }
 
 export interface AcquisitionItem {

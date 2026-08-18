@@ -34,12 +34,15 @@ interface FinanceDashboardProps {
   temperatureLogs?: any[];
   onRegisterTemperatureLog?: (log: any) => Promise<{ success: boolean; message: string }>;
   onDeleteTemperatureLog?: (id: string) => Promise<void>;
+  marmitaWeightLogs?: any[];
+  onRegisterMarmitaWeightLog?: (log: any) => Promise<{ success: boolean; message: string }>;
+  onDeleteMarmitaWeightLog?: (id: string) => Promise<void>;
   onUpdatePerCapitaConfig?: (config: Partial<PerCapitaConfig>) => Promise<any>;
   onUpdateContractForItem?: (itemName: string, assignments: any[]) => Promise<{ success: boolean; message: string }>;
   onUpdateAcquisitionItem?: (item: AcquisitionItem) => Promise<{ success: boolean; message: string }>;
   onDeleteAcquisitionItem?: (id: string) => Promise<{ success: boolean; message: string }>;
   onUpdateSupplierObservations?: (cpf: string, observations: string) => Promise<{ success: boolean; message?: string }>;
-  onSyncPPAISToAgenda?: () => Promise<void>;
+  onSyncPPAISToAgenda?: (config?: PerCapitaConfig) => Promise<void>;
   onSaveInvoice?: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: any[], invoiceDate?: string) => Promise<any>;
   onDeleteDelivery?: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean }>;
   onUpdateDailyMenu?: (menus: DailyMenus) => Promise<any>;

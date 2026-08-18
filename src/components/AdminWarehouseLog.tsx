@@ -274,7 +274,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     let isLate = false;
                     if (status !== 'CONCLUÍDO') {
                         for (const w of weeks) {
-                            const absoluteWeek = firstWeekOfYear + (w - 1);
+                            const absoluteWeek = firstWeekOfYear + (Number(w) - 1);
                             const sunday = getSundayOfWeek(activeYear, absoluteWeek);
                             
                             if (today > sunday) {

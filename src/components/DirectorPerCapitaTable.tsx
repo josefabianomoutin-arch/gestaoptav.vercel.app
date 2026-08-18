@@ -40,6 +40,7 @@ interface OrderData {
 interface SubTabData {
   activeOrder: OrderData;
   history?: Record<string, OrderData>;
+  limpezaHistory?: Record<string, OrderData>;
 }
 
 interface DirectorPerCapitaData {

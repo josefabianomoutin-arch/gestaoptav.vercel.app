@@ -515,7 +515,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                     }
                     // If month has NO assigned NF, place if date matches and entry NF isn't mapped to another displayed month
                     else if (!cleanAssignedNf && isDateInMonth) {
-                        const isNfAssignedElsewhere = Object.entries(monthNfMap).some(([k, nf]) => k !== m.key && normalizeNfDigits(nf) === cleanEntryNf);
+                        const isNfAssignedElsewhere = Object.entries(monthNfMap).some(([k, nf]) => k !== m.key && normalizeNfDigits(nf as string) === cleanEntryNf);
                         belongsToThisMonth = !isNfAssignedElsewhere;
                     }
 
