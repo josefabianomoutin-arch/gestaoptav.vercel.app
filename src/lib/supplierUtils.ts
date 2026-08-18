@@ -41,23 +41,21 @@ export const calculateAllowedWeeksFromSchedule = (monthlySchedule: Record<string
         const totalRows = Math.ceil(totalDaysInGrid / 7);
 
         for (let r = 0; r < totalRows; r++) {
-            let hasBusinessDay = false;
+            let hasAnyDayInMonth = false;
             // Use the same reference day (Wednesday) as Calendar.tsx to guarantee ISO week match
             const rowDate = new Date(year, m, (r * 7) + 1 - firstDay.getDay() + 3);
             const rowWeek = getWeekNumber(rowDate);
 
+            // A week in the calendar grid represents a row.
+            // We consider the week as valid for this month if there is AT LEAST ONE day of THIS month in this row.
             for (let d = 0; d < 7; d++) {
                 const dayOfMonth = (r * 7) + d + 1 - firstDay.getDay();
                 if (dayOfMonth >= 1 && dayOfMonth <= lastDay) {
-                    const date = new Date(year, m, dayOfMonth);
-                    const dayOfWeek = date.getDay();
-                    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                        hasBusinessDay = true;
-                    }
+                    hasAnyDayInMonth = true;
                 }
             }
 
-            if (hasBusinessDay) {
+            if (hasAnyDayInMonth) {
                 if (!businessRowWeeks.includes(rowWeek)) {
                     businessRowWeeks.push(rowWeek);
                 }
