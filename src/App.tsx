@@ -152,37 +152,50 @@ const safeRunTransaction = async (
   }
 };
 
+const getCachedState = <T,>(key: string, fallback: T): T => {
+  try {
+    const saved = localStorage.getItem(`cached_${key}`);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed !== undefined && parsed !== null) return parsed;
+    }
+  } catch (e) {
+    console.error(`Error parsing cached_${key}:`, e);
+  }
+  return fallback;
+};
+
 const App: React.FC = () => {
   const [user, setUser] = useState<{ name: string; cpf: string; role: UserRole } | null>(null);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [warehouseLog, setWarehouseLog] = useState<WarehouseMovement[]>([]);
-  const [perCapitaConfig, setPerCapitaConfig] = useState<PerCapitaConfig>({});
-  const [cleaningLogs, setCleaningLogs] = useState<CleaningLog[]>([]);
-  const [segregationLogs, setSegregationLogs] = useState<SegregationLog[]>([]);
-  const [temperatureLogs, setTemperatureLogs] = useState<any[]>([]);
-  const [marmitaWeightLogs, setMarmitaWeightLogs] = useState<MarmitaWeightLog[]>([]);
-  const [epiLogs, setEpiLogs] = useState<EpiLog[]>([]);
-  const [directorWithdrawals, setDirectorWithdrawals] = useState<DirectorPerCapitaLog[]>([]);
-  const [standardMenu, setStandardMenu] = useState<StandardMenu>({});
-  const [dailyMenus, setDailyMenus] = useState<DailyMenus>({});
-  const [financialRecords, setFinancialRecords] = useState<FinancialRecord[]>([]);
-  const [thirdPartyEntries, setThirdPartyEntries] = useState<ThirdPartyEntryLog[]>([]);
-  const [acquisitionItems, setAcquisitionItems] = useState<AcquisitionItem[]>([]);
-  const [vehicleExitOrders, setVehicleExitOrders] = useState<VehicleExitOrder[]>([]);
-  const [vehicleInspections, setVehicleInspections] = useState<VehicleInspection[]>([]);
-  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
-  const [vehicleAssets, setVehicleAssets] = useState<VehicleAsset[]>([]);
-  const [driverAssets, setDriverAssets] = useState<DriverAsset[]>([]);
-  const [validationRoles, setValidationRoles] = useState<ValidationRole[]>([]);
-  const [systemPasswords, setSystemPasswords] = useState<Record<string, string>>({});
-  const [maintenanceSchedules, setMaintenanceSchedules] = useState<MaintenanceSchedule[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => getCachedState('suppliers', []));
+  const [warehouseLog, setWarehouseLog] = useState<WarehouseMovement[]>(() => getCachedState('warehouseLog', []));
+  const [perCapitaConfig, setPerCapitaConfig] = useState<PerCapitaConfig>(() => getCachedState('perCapitaConfig', {}));
+  const [cleaningLogs, setCleaningLogs] = useState<CleaningLog[]>(() => getCachedState('cleaningLogs', []));
+  const [segregationLogs, setSegregationLogs] = useState<SegregationLog[]>(() => getCachedState('segregationLogs', []));
+  const [temperatureLogs, setTemperatureLogs] = useState<any[]>(() => getCachedState('temperatureLogs', []));
+  const [marmitaWeightLogs, setMarmitaWeightLogs] = useState<MarmitaWeightLog[]>(() => getCachedState('marmitaWeightLogs', []));
+  const [epiLogs, setEpiLogs] = useState<EpiLog[]>(() => getCachedState('epiLogs', []));
+  const [directorWithdrawals, setDirectorWithdrawals] = useState<DirectorPerCapitaLog[]>(() => getCachedState('directorWithdrawals', []));
+  const [standardMenu, setStandardMenu] = useState<StandardMenu>(() => getCachedState('standardMenu', {}));
+  const [dailyMenus, setDailyMenus] = useState<DailyMenus>(() => getCachedState('dailyMenus', {}));
+  const [financialRecords, setFinancialRecords] = useState<FinancialRecord[]>(() => getCachedState('financialRecords', []));
+  const [thirdPartyEntries, setThirdPartyEntries] = useState<ThirdPartyEntryLog[]>(() => getCachedState('thirdPartyEntries', []));
+  const [acquisitionItems, setAcquisitionItems] = useState<AcquisitionItem[]>(() => getCachedState('acquisitionItems', []));
+  const [vehicleExitOrders, setVehicleExitOrders] = useState<VehicleExitOrder[]>(() => getCachedState('vehicleExitOrders', []));
+  const [vehicleInspections, setVehicleInspections] = useState<VehicleInspection[]>(() => getCachedState('vehicleInspections', []));
+  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>(() => getCachedState('serviceOrders', []));
+  const [vehicleAssets, setVehicleAssets] = useState<VehicleAsset[]>(() => getCachedState('vehicleAssets', []));
+  const [driverAssets, setDriverAssets] = useState<DriverAsset[]>(() => getCachedState('driverAssets', []));
+  const [validationRoles, setValidationRoles] = useState<ValidationRole[]>(() => getCachedState('validationRoles', []));
+  const [systemPasswords, setSystemPasswords] = useState<Record<string, string>>(() => getCachedState('systemPasswords', {}));
+  const [maintenanceSchedules, setMaintenanceSchedules] = useState<MaintenanceSchedule[]>(() => getCachedState('maintenanceSchedules', []));
   const [_dailyAllowances, setDailyAllowances] = useState<any[]>([]);
   const [_staff, setStaff] = useState<any[]>([]);
-  const [publicInfo, setPublicInfo] = useState<PublicInfo[]>([]);
-  const [directorPerCapita, setDirectorPerCapita] = useState<any>(null);
-  const [isPasswordsLoaded, setIsPasswordsLoaded] = useState(false);
-  const [isSuppliersLoaded, setIsSuppliersLoaded] = useState(false);
-  const [isPerCapitaConfigLoaded, setIsPerCapitaConfigLoaded] = useState(false);
+  const [publicInfo, setPublicInfo] = useState<PublicInfo[]>(() => getCachedState('publicInfo', []));
+  const [directorPerCapita, setDirectorPerCapita] = useState<any>(() => getCachedState('directorPerCapita', null));
+  const [isPasswordsLoaded, setIsPasswordsLoaded] = useState(() => !!localStorage.getItem('cached_systemPasswords'));
+  const [isSuppliersLoaded, setIsSuppliersLoaded] = useState(() => !!localStorage.getItem('cached_suppliers'));
+  const [isPerCapitaConfigLoaded, setIsPerCapitaConfigLoaded] = useState(() => !!localStorage.getItem('cached_perCapitaConfig'));e(false);
 
   console.log("App mounted, user:", user);
 
@@ -1276,11 +1289,20 @@ const App: React.FC = () => {
   const handleUpdatePerCapitaConfig = async (newConfig: Partial<PerCapitaConfig>) => {
     try {
       console.log('Tentando atualizar PerCapitaConfig...', newConfig);
-      for (const [key, value] of Object.entries(newConfig)) {
+      // Atualiza o estado em memória e localStorage imediatamente para resposta instantânea (0ms)
+      setPerCapitaConfig(prev => {
+        const merged = { ...prev, ...newConfig };
+        safeLocalStorageSetItem('cached_perCapitaConfig', JSON.stringify(merged));
+        return merged;
+      });
+
+      const updatePromises = Object.entries(newConfig).map(([key, value]) => {
         if (value !== undefined) {
-          await set(child(perCapitaConfigRef, key), value);
+          return set(child(perCapitaConfigRef, key), value);
         }
-      }
+        return Promise.resolve();
+      });
+      await Promise.all(updatePromises);
       return { success: true };
     } catch (e) {
       console.error('Erro ao atualizar PerCapitaConfig:', e);

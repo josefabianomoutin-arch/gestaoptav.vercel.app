@@ -78,18 +78,18 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS' | 'CONTRACT' | 'ATA' | 'SCHEDULE'>('ITEMS');
     const [pereciveisSubTab, setPereciveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
     const [estocaveisSubTab, setEstocaveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
-    const [staffCount, setStaffCount] = useState<number>(() => parseInt(localStorage.getItem('perCapita_staffCount') || '0', 10));
-    const [inmateCount, setInmateCount] = useState<number>(() => parseInt(localStorage.getItem('perCapita_inmateCount') || '0', 10));
-    const [customPerCapita, setCustomPerCapita] = useState<Record<string, string>>({});
-    const [seiProcessNumbers, setSeiProcessNumbers] = useState<Record<string, string>>({});
-    const [seiProcessDefinitions, setSeiProcessDefinitions] = useState<Record<string, string>>({});
-    const [monthlyQuota, setMonthlyQuota] = useState<Record<string, number>>({});
-    const [monthlyResource, setMonthlyResource] = useState<Record<string, number>>({});
-    const [ptresResources, setPtresResources] = useState<Record<string, { pieces: number; services: number }>>({});
-    const [ppaisProducers, setPpaisProducers] = useState<PerCapitaSupplier[]>([]);
-    const [pereciveisSuppliers, setPereciveisSuppliers] = useState<PerCapitaSupplier[]>([]);
-    const [estocaveisSuppliers, setEstocaveisSuppliers] = useState<PerCapitaSupplier[]>([]);
-    const [monthlyAdvances, setMonthlyAdvances] = useState<Record<string, number>>({});
+    const [staffCount, setStaffCount] = useState<number>(() => perCapitaConfig?.staffCount !== undefined ? Number(perCapitaConfig.staffCount) : parseInt(localStorage.getItem('perCapita_staffCount') || '0', 10));
+    const [inmateCount, setInmateCount] = useState<number>(() => perCapitaConfig?.inmateCount !== undefined ? Number(perCapitaConfig.inmateCount) : parseInt(localStorage.getItem('perCapita_inmateCount') || '0', 10));
+    const [customPerCapita, setCustomPerCapita] = useState<Record<string, string>>(() => perCapitaConfig?.customValues || {});
+    const [seiProcessNumbers, setSeiProcessNumbers] = useState<Record<string, string>>(() => perCapitaConfig?.seiProcessNumbers || {});
+    const [seiProcessDefinitions, setSeiProcessDefinitions] = useState<Record<string, string>>(() => perCapitaConfig?.seiProcessDefinitions || {});
+    const [monthlyQuota, setMonthlyQuota] = useState<Record<string, number>>(() => perCapitaConfig?.monthlyQuota || {});
+    const [monthlyResource, setMonthlyResource] = useState<Record<string, number>>(() => perCapitaConfig?.monthlyResource || {});
+    const [ptresResources, setPtresResources] = useState<Record<string, { pieces: number; services: number }>>(() => perCapitaConfig?.ptresResources || {});
+    const [ppaisProducers, setPpaisProducers] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.ppaisProducers));
+    const [pereciveisSuppliers, setPereciveisSuppliers] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.pereciveisSuppliers));
+    const [estocaveisSuppliers, setEstocaveisSuppliers] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.estocaveisSuppliers));
+    const [monthlyAdvances, setMonthlyAdvances] = useState<Record<string, number>>(() => perCapitaConfig?.monthlyAdvances || {});
     const [showComparison, setShowComparison] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -115,11 +115,14 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             setMonthlyQuota(perCapitaConfig.monthlyQuota || {});
             setMonthlyResource(perCapitaConfig.monthlyResource || {});
             setPtresResources(perCapitaConfig.ptresResources || {});
+            setPpaisProducers(ensureArray(perCapitaConfig.ppaisProducers));
+            setPereciveisSuppliers(ensureArray(perCapitaConfig.pereciveisSuppliers));
+            setEstocaveisSuppliers(ensureArray(perCapitaConfig.estocaveisSuppliers));
+        } else {
+            if (perCapitaConfig.ppaisProducers) setPpaisProducers(ensureArray(perCapitaConfig.ppaisProducers));
+            if (perCapitaConfig.pereciveisSuppliers) setPereciveisSuppliers(ensureArray(perCapitaConfig.pereciveisSuppliers));
+            if (perCapitaConfig.estocaveisSuppliers) setEstocaveisSuppliers(ensureArray(perCapitaConfig.estocaveisSuppliers));
         }
-        
-        setPpaisProducers(ensureArray(perCapitaConfig.ppaisProducers));
-        setPereciveisSuppliers(ensureArray(perCapitaConfig.pereciveisSuppliers));
-        setEstocaveisSuppliers(ensureArray(perCapitaConfig.estocaveisSuppliers));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [perCapitaConfig]);
 
