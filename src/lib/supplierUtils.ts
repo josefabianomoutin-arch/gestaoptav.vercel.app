@@ -22,7 +22,6 @@ export const calculateAllowedWeeksFromSchedule = (monthlySchedule: Record<string
     for (let m = 0; m <= 11; m++) {
         const monthName = monthNames[m];
         
-        // Find matching key case-insensitively and accent-insensitively
         const matchingKey = Object.keys(monthlySchedule).find(k => {
             const cleanK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             const cleanM = monthName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -34,30 +33,43 @@ export const calculateAllowedWeeksFromSchedule = (monthlySchedule: Record<string
         const selectedWeeks = ensureArray(rawWeeks).map(w => Number(String(w).replace(/\D/g, ''))).filter(w => !isNaN(w) && w > 0);
         if (selectedWeeks.length === 0) continue;
 
-        // Calculate actual calendar row weeks for this month in the specified year
         const firstDay = new Date(year, m, 1);
         const lastDay = new Date(year, m + 1, 0).getDate();
-        const totalDays = firstDay.getDay() + lastDay;
-        const totalRows = Math.ceil(totalDays / 7);
+        
+        const businessRowWeeks: number[] = [];
+        const totalDaysInGrid = firstDay.getDay() + lastDay;
+        const totalRows = Math.ceil(totalDaysInGrid / 7);
 
-        const monthRowWeeks: number[] = [];
         for (let r = 0; r < totalRows; r++) {
-            const rowDate = new Date(year, m, (r * 7) + 1 - firstDay.getDay() + 3);
-            monthRowWeeks.push(getWeekNumber(rowDate));
+            let hasBusinessDay = false;
+            for (let d = 0; d < 7; d++) {
+                const dayOfMonth = (r * 7) + d + 1 - firstDay.getDay();
+                if (dayOfMonth >= 1 && dayOfMonth <= lastDay) {
+                    const date = new Date(year, m, dayOfMonth);
+                    const dayOfWeek = date.getDay();
+                    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                        hasBusinessDay = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (hasBusinessDay) {
+                const rowDate = new Date(year, m, (r * 7) + 1 - firstDay.getDay() + 3);
+                businessRowWeeks.push(getWeekNumber(rowDate));
+            }
         }
 
         selectedWeeks.forEach(w => {
             if (w >= 1 && w <= 5) {
                 const targetRowIndex = w - 1;
-                if (targetRowIndex < monthRowWeeks.length) {
-                    allowedWeeksSet.add(monthRowWeeks[targetRowIndex]);
+                if (targetRowIndex < businessRowWeeks.length) {
+                    allowedWeeksSet.add(businessRowWeeks[targetRowIndex]);
                 }
-                // If S5 was selected and month has a 6th row (e.g. August 31, May 31), include the final week
-                if (w === 5 && monthRowWeeks.length > 5) {
-                    allowedWeeksSet.add(monthRowWeeks[5]);
+                if (w === 5 && businessRowWeeks.length > 5) {
+                    allowedWeeksSet.add(businessRowWeeks[5]);
                 }
             } else if (w > 5 && w <= 53) {
-                // Direct ISO week number
                 allowedWeeksSet.add(w);
             }
         });

@@ -4170,7 +4170,7 @@ const App: React.FC = () => {
           initialValue: ensureArray<any>(p.contractItems).reduce((acc: number, curr: any) => acc + (safeParseNum(curr.totalKg) * safeParseNum(curr.valuePerKg)), 0),
           contractItems: ensureArray<any>(p.contractItems),
           deliveries: Array.from(new Map<string, any>([...pDeliveriesRaw, ...extDeliveriesRaw].filter(d => d && d.id).map(d => [String(d.id), d])).values()),
-          allowedWeeks: finalWeeks.length > 0 ? finalWeeks : [1, 2, 3, 4, 5],
+          allowedWeeks: finalWeeks,
           address: p.address || '',
           city: p.city || '',
           processNumber: p.processNumber || ''
