@@ -178,10 +178,19 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         return MONTHS_ORDER;
     }, [periodRange]);
 
-    // 2. User Overrides State (keyed by CPF -> monthKey -> NF)
+    // 2. User Overrides State (keyed by CPF -> monthKey -> NF/NE)
     const [userNfOverrides, setUserNfOverrides] = useState<Record<string, Record<string, string>>>(() => {
         try {
             const saved = localStorage.getItem('user_nf_overrides_map');
+            return saved ? JSON.parse(saved) : {};
+        } catch {
+            return {};
+        }
+    });
+
+    const [userNeOverrides, setUserNeOverrides] = useState<Record<string, Record<string, string>>>(() => {
+        try {
+            const saved = localStorage.getItem('user_ne_overrides_map');
             return saved ? JSON.parse(saved) : {};
         } catch {
             return {};
@@ -249,6 +258,73 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         return newMap;
     }, [currentSupplier, userNfOverrides, displayedMonths, selectedYear, warehouseLog]);
 
+    // Reactively compute monthNeMap (Nota de Empenho) from user overrides, localStorage, deliveries and warehouseLog
+    const monthNeMap = useMemo(() => {
+        if (!currentSupplier) return {};
+
+        // 1. Check in-memory overrides
+        const currentOverrides = userNeOverrides[currentSupplier.cpf];
+        if (currentOverrides && Object.keys(currentOverrides).length > 0) {
+            return currentOverrides;
+        }
+
+        // 2. Check localStorage
+        try {
+            const saved = localStorage.getItem(`ne_deduction_map_${currentSupplier.cpf}`);
+            if (saved) {
+                return JSON.parse(saved);
+            }
+        } catch {
+            // ignore
+        }
+
+        // 3. Auto-detect from deliveries, warehouse movements, and supplier profile
+        const newMap: Record<string, string> = {};
+        const supNameNorm = superNormalize(currentSupplier.name || '');
+        const supCpfDigits = String(currentSupplier.cpf || '').replace(/\D/g, '');
+
+        const supplierDeliveries = ensureArray<any>(currentSupplier.deliveries);
+        const supplierLogs = (warehouseLog || []).filter(l => {
+            if (!l) return false;
+            const logName = superNormalize(l.supplierName || '');
+            const logCpf = String(l.supplierCpf || '').replace(/\D/g, '');
+            return (supCpfDigits && logCpf === supCpfDigits) || (supNameNorm && (logName.includes(supNameNorm) || supNameNorm.includes(logName)));
+        });
+
+        displayedMonths.forEach(m => {
+            const monthPrefix = `${selectedYear}-${m.key}`;
+            
+            // Look in supplier.deliveries
+            const monthDelivery = supplierDeliveries.find(d => {
+                const dateStr = String(d.date || '');
+                return dateStr.startsWith(monthPrefix) && (d.ne || d.neNumber || d.receiptTermNumber);
+            });
+
+            if (monthDelivery) {
+                newMap[m.key] = String(monthDelivery.ne || monthDelivery.neNumber || monthDelivery.receiptTermNumber || '').trim();
+                return;
+            }
+
+            // Look in warehouseLog
+            const monthLog = supplierLogs.find(l => {
+                const dateStr = l.date || (typeof l.timestamp === 'number' ? new Date(l.timestamp).toISOString().split('T')[0] : '');
+                return dateStr.startsWith(monthPrefix) && (l.neNumber || l.ne);
+            });
+
+            if (monthLog) {
+                newMap[m.key] = String(monthLog.neNumber || monthLog.ne || '').trim();
+                return;
+            }
+
+            // Default fallback if supplier has a contract NE
+            if ((currentSupplier as any).neNumber || (currentSupplier as any).ne) {
+                newMap[m.key] = String((currentSupplier as any).neNumber || (currentSupplier as any).ne).trim();
+            }
+        });
+
+        return newMap;
+    }, [currentSupplier, userNeOverrides, displayedMonths, selectedYear, warehouseLog]);
+
     // Save NF mapping to state & localStorage
     const handleNfChange = useCallback((monthKey: string, nfValue: string) => {
         if (!currentSupplier) return;
@@ -261,7 +337,35 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         });
     }, [currentSupplier, monthNfMap]);
 
-    // Reset NFs to auto-detection
+    // Save NE mapping to state & localStorage
+    const handleNeChange = useCallback((monthKey: string, neValue: string) => {
+        if (!currentSupplier) return;
+        setUserNeOverrides(prev => {
+            const supOverrides = { ...(prev[currentSupplier.cpf] || monthNeMap), [monthKey]: neValue };
+            const next = { ...prev, [currentSupplier.cpf]: supOverrides };
+            safeLocalStorageSetItem('user_ne_overrides_map', JSON.stringify(next));
+            safeLocalStorageSetItem(`ne_deduction_map_${currentSupplier.cpf}`, JSON.stringify(supOverrides));
+            return next;
+        });
+    }, [currentSupplier, monthNeMap]);
+
+    // Replicate single NE to all displayed months for convenience
+    const handleReplicateNeToAllMonths = useCallback((baseNe: string) => {
+        if (!currentSupplier || !baseNe) return;
+        setUserNeOverrides(prev => {
+            const supOverrides: Record<string, string> = { ...(prev[currentSupplier.cpf] || monthNeMap) };
+            displayedMonths.forEach(m => {
+                supOverrides[m.key] = baseNe;
+            });
+            const next = { ...prev, [currentSupplier.cpf]: supOverrides };
+            safeLocalStorageSetItem('user_ne_overrides_map', JSON.stringify(next));
+            safeLocalStorageSetItem(`ne_deduction_map_${currentSupplier.cpf}`, JSON.stringify(supOverrides));
+            return next;
+        });
+        toast.success(`Nota de Empenho "${baseNe}" copiada para todos os meses.`);
+    }, [currentSupplier, monthNeMap, displayedMonths]);
+
+    // Reset NFs and NEs to auto-detection
     const handleResetNfs = useCallback(() => {
         if (!currentSupplier) return;
         setUserNfOverrides(prev => {
@@ -271,7 +375,14 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
             localStorage.removeItem(`nf_deduction_map_${currentSupplier.cpf}`);
             return next;
         });
-        toast.success('Mapeamento de NFs redefinido para a detecção automática.');
+        setUserNeOverrides(prev => {
+            const next = { ...prev };
+            delete next[currentSupplier.cpf];
+            safeLocalStorageSetItem('user_ne_overrides_map', JSON.stringify(next));
+            localStorage.removeItem(`ne_deduction_map_${currentSupplier.cpf}`);
+            return next;
+        });
+        toast.success('Mapeamento de NFs e Notas de Empenho (NE) redefinido para a detecção automática.');
     }, [currentSupplier]);
 
     // 4. List all distinct NFs found in database for this supplier
@@ -296,6 +407,35 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         });
 
         return Array.from(nfs).filter(Boolean);
+    }, [currentSupplier, warehouseLog]);
+
+    // List all distinct NEs (Notas de Empenho) found in database for this supplier
+    const availableNesForSupplier = useMemo(() => {
+        if (!currentSupplier) return [];
+        const nes = new Set<string>();
+
+        const supNameNorm = superNormalize(currentSupplier.name || '');
+        const supCpfDigits = String(currentSupplier.cpf || '').replace(/\D/g, '');
+
+        if ((currentSupplier as any).neNumber) nes.add(String((currentSupplier as any).neNumber).trim());
+        if ((currentSupplier as any).ne) nes.add(String((currentSupplier as any).ne).trim());
+
+        ensureArray<any>(currentSupplier.deliveries).forEach(d => {
+            if (d.ne) nes.add(String(d.ne).trim());
+            if (d.neNumber) nes.add(String(d.neNumber).trim());
+            if (d.receiptTermNumber) nes.add(String(d.receiptTermNumber).trim());
+        });
+
+        (warehouseLog || []).forEach(l => {
+            const logName = superNormalize(l.supplierName || '');
+            const logCpf = String(l.supplierCpf || '').replace(/\D/g, '');
+            if ((supCpfDigits && logCpf === supCpfDigits) || (supNameNorm && (logName.includes(supNameNorm) || supNameNorm.includes(logName)))) {
+                if (l.neNumber) nes.add(String(l.neNumber).trim());
+                if (l.ne) nes.add(String(l.ne).trim());
+            }
+        });
+
+        return Array.from(nes).filter(Boolean);
     }, [currentSupplier, warehouseLog]);
 
     // 5. Contract Items of Current Supplier
@@ -594,6 +734,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
     const invoiceSummaryList = useMemo(() => {
         return displayedMonths.map(m => {
             const nf = monthNfMap[m.key] || '';
+            const ne = monthNeMap[m.key] || '';
             const totals = matrixData.monthTotals[m.key] || { weight: 0, value: 0 };
             const activeItemsCount = (matrixData.items || []).filter(it => (it?.monthsValues?.[m.key]?.weight || 0) > 0).length;
 
@@ -602,13 +743,14 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                 monthName: m.name,
                 fullName: m.fullName,
                 nfNumber: nf,
+                neNumber: ne,
                 weight: totals.weight || 0,
                 value: totals.value || 0,
                 itemCount: activeItemsCount,
-                hasData: (totals.weight || 0) > 0 || Boolean(nf)
+                hasData: (totals.weight || 0) > 0 || Boolean(nf) || Boolean(ne)
             };
         });
-    }, [displayedMonths, monthNfMap, matrixData]);
+    }, [displayedMonths, monthNfMap, monthNeMap, matrixData]);
 
     // Entries for the inspected NF Modal
     const inspectedNfDetails = useMemo(() => {
@@ -617,6 +759,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         if (!monthObj) return null;
 
         const assignedNf = monthNfMap[inspectedNfMonth] || '';
+        const assignedNe = monthNeMap[inspectedNfMonth] || '';
         const cleanAssignedNf = normalizeNfDigits(assignedNf);
         const monthPrefix = `${selectedYear}-${inspectedNfMonth}`;
 
@@ -648,7 +791,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                 date: e.date,
                 invoiceNumber: e.invoiceNumber || assignedNf || 'S/N',
                 pdNumber: e.pdNumber,
-                neNumber: e.neNumber,
+                neNumber: e.neNumber || assignedNe,
                 lotNumber: e.lotNumber
             };
         });
@@ -659,11 +802,12 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
         return {
             monthObj,
             assignedNf,
+            assignedNe,
             mappedItems,
             totalWeight,
             totalValue
         };
-    }, [inspectedNfMonth, currentSupplier, displayedMonths, monthNfMap, selectedYear, matrixData, contractItems]);
+    }, [inspectedNfMonth, currentSupplier, displayedMonths, monthNfMap, monthNeMap, selectedYear, matrixData, contractItems]);
 
     // 8. Print Layout Generator
     const handlePrintTable = () => {
@@ -677,10 +821,12 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
 
         const monthsHeaders = displayedMonths.map(m => {
             const nf = monthNfMap[m.key] ? `NF - ${monthNfMap[m.key]}` : '-';
+            const ne = monthNeMap[m.key] ? `<div style="font-size:6.5pt;color:#1e3a8a;font-weight:bold;">NE: ${monthNeMap[m.key]}</div>` : '';
             return `
                 <th colspan="3" class="month-header">
                     <div class="month-title">${m.name}</div>
                     <div class="month-nf">${nf}</div>
+                    ${ne}
                 </th>
             `;
         }).join('');
@@ -1070,10 +1216,10 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                         </div>
                         <div>
                             <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight">
-                                Resumo de Pesos e Valores por Nota Fiscal
+                                Resumo de Pesos e Valores por Nota Fiscal e Empenho (NE)
                             </h3>
                             <p className="text-[10px] text-slate-400 font-medium">
-                                Total consolidado por cada mês e número de NF emitido pelo produtor (Clique para ver os itens de cada nota)
+                                Total consolidado por cada mês, número de NF e Nota de Empenho (Clique para ver os itens de cada nota)
                             </p>
                         </div>
                     </div>
@@ -1096,13 +1242,20 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                         >
                             <div className="flex items-center justify-between gap-1 mb-1">
                                 <span className="text-[10px] font-black uppercase text-slate-700">{item.monthName}</span>
-                                {item.nfNumber ? (
-                                    <span className="text-[9px] font-black text-amber-900 bg-amber-200/90 px-1.5 py-0.2 rounded font-mono">
-                                        NF {item.nfNumber}
-                                    </span>
-                                ) : (
-                                    <span className="text-[8px] text-slate-400 italic">S/ NF</span>
-                                )}
+                                <div className="flex flex-col items-end gap-0.5">
+                                    {item.nfNumber ? (
+                                        <span className="text-[9px] font-black text-amber-900 bg-amber-200/90 px-1.5 py-0.2 rounded font-mono">
+                                            NF {item.nfNumber}
+                                        </span>
+                                    ) : (
+                                        <span className="text-[8px] text-slate-400 italic">S/ NF</span>
+                                    )}
+                                    {item.neNumber && (
+                                        <span className="text-[7.5px] font-black text-blue-900 bg-blue-100 px-1 py-0.2 rounded font-mono border border-blue-200/60" title={`Empenho: ${item.neNumber}`}>
+                                            NE {item.neNumber}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                             
                             <div className="space-y-0.5 mt-1.5">
@@ -1134,41 +1287,78 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
             {/* MAIN COMPACT DEDUCTION TABLE */}
             <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden">
                 
-                {/* NF Input Control Bar for each month */}
-                <div className="p-3.5 bg-slate-50/90 border-b border-slate-200">
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                {/* NF & NE Input Control Bar for each month */}
+                <div className="p-3.5 bg-slate-50/90 border-b border-slate-200 space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5">
                             <FileText className="h-4 w-4 text-amber-600" />
                             <span className="text-xs font-black text-slate-800 uppercase tracking-tight">
-                                Mapeamento / Número das Notas Fiscais:
+                                Mapeamento / Número das Notas Fiscais e Notas de Empenho (NE):
                             </span>
                             <span className="text-[10px] text-slate-500 font-normal italic hidden md:inline">
-                                (Informe o número da NF para que o sistema relacione automaticamente os pesos e valores)
+                                (Informe o número da NF e do Empenho para vincular os dados a cada mês)
                             </span>
                         </div>
-                        <button
-                            onClick={handleResetNfs}
-                            className="flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg shadow-2xs transition-all cursor-pointer"
-                            title="Restaurar identificação automática de notas fiscais"
-                        >
-                            <RefreshCw className="h-3 w-3 text-slate-500" />
-                            Redefinir Auto-Detecção
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleResetNfs}
+                                className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg shadow-2xs transition-all cursor-pointer"
+                                title="Restaurar identificação automática de notas fiscais e empenhos"
+                            >
+                                <RefreshCw className="h-3 w-3 text-slate-500" />
+                                Redefinir Auto-Detecção
+                            </button>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2">
                         {displayedMonths.map(m => (
-                            <div key={m.key} className="bg-white p-1.5 rounded-xl border border-slate-200 shadow-2xs space-y-0.5">
-                                <span className="text-[9px] font-black uppercase text-slate-500 block truncate">{m.name}</span>
-                                <div>
-                                    <input 
-                                        type="text"
-                                        list="supplier-nfs-datalist"
-                                        placeholder="Ex: 116"
-                                        value={monthNfMap[m.key] || ''}
-                                        onChange={(e) => handleNfChange(m.key, e.target.value)}
-                                        className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-200 rounded-lg px-1.5 py-0.5 text-[11px] font-black text-slate-900 text-center font-mono outline-none focus:ring-2 focus:ring-amber-400 transition-all"
-                                    />
+                            <div key={m.key} className="bg-white p-2 rounded-xl border border-slate-200 shadow-2xs space-y-1.5 hover:border-slate-300 transition-colors">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase text-slate-800 block truncate">{m.name}</span>
+                                    {monthNeMap[m.key] && (
+                                        <button
+                                            onClick={() => handleReplicateNeToAllMonths(monthNeMap[m.key])}
+                                            className="text-[7.5px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-1 py-0.2 rounded border border-blue-200/80 cursor-pointer transition-colors"
+                                            title="Copiar este número de Empenho para todos os meses"
+                                        >
+                                            Replicar
+                                        </button>
+                                    )}
+                                </div>
+                                
+                                <div className="space-y-1.5">
+                                    {/* NF Input */}
+                                    <div>
+                                        <div className="text-[8px] font-bold text-slate-500 uppercase tracking-tight mb-0.5">
+                                            Nº NF:
+                                        </div>
+                                        <input 
+                                            type="text"
+                                            list="supplier-nfs-datalist"
+                                            placeholder="Ex: 116"
+                                            value={monthNfMap[m.key] || ''}
+                                            onChange={(e) => handleNfChange(m.key, e.target.value)}
+                                            className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-200 focus:border-amber-500 rounded-lg px-1.5 py-0.5 text-[11px] font-black text-slate-900 text-center font-mono outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+                                            title={`Número da Nota Fiscal para ${m.name}`}
+                                        />
+                                    </div>
+
+                                    {/* NE Input (Nota de Empenho) */}
+                                    <div>
+                                        <div className="text-[8px] font-bold text-blue-700 uppercase tracking-tight mb-0.5 flex items-center justify-between">
+                                            <span>Nº Empenho:</span>
+                                        </div>
+                                        <input 
+                                            type="text"
+                                            list="supplier-nes-datalist"
+                                            placeholder="Ex: 2026NE001"
+                                            value={monthNeMap[m.key] || ''}
+                                            onChange={(e) => handleNeChange(m.key, e.target.value)}
+                                            className="w-full bg-blue-50/50 hover:bg-blue-50 focus:bg-white border border-blue-200 focus:border-blue-500 rounded-lg px-1.5 py-0.5 text-[11px] font-black text-blue-950 text-center font-mono outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                                            title={`Número da Nota de Empenho para ${m.name}`}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -1177,6 +1367,13 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                         <datalist id="supplier-nfs-datalist">
                             {availableNfsForSupplier.map(nf => (
                                 <option key={nf} value={nf} />
+                            ))}
+                        </datalist>
+                    )}
+                    {availableNesForSupplier.length > 0 && (
+                        <datalist id="supplier-nes-datalist">
+                            {availableNesForSupplier.map(ne => (
+                                <option key={ne} value={ne} />
                             ))}
                         </datalist>
                     )}
@@ -1203,7 +1400,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                                         className="p-1.5 text-center bg-slate-100 text-slate-900 border-r border-slate-200 border-b border-slate-200"
                                     >
                                         <div className="text-[10px] font-black uppercase tracking-tight">{m.name}</div>
-                                        <div className="text-[9px] font-bold text-amber-800 font-mono flex items-center justify-center gap-1">
+                                        <div className="text-[9px] font-bold text-amber-800 font-mono flex flex-col items-center justify-center gap-0.5">
                                             {monthNfMap[m.key] ? (
                                                 <button 
                                                     onClick={() => setInspectedNfMonth(m.key)} 
@@ -1215,6 +1412,11 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                                                 </button>
                                             ) : (
                                                 <span className="text-slate-400 italic text-[8px]">S/ NF</span>
+                                            )}
+                                            {monthNeMap[m.key] && (
+                                                <span className="text-blue-800 text-[8px] font-mono bg-blue-50 px-1 py-0.2 rounded border border-blue-200/60" title={`Nota de Empenho: ${monthNeMap[m.key]}`}>
+                                                    NE {monthNeMap[m.key]}
+                                                </span>
                                             )}
                                         </div>
                                     </th>
@@ -1463,7 +1665,7 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
                                 </div>
                                 <div>
                                     <h3 className="font-black text-sm uppercase tracking-tight">
-                                        Detalhamento da Nota Fiscal {inspectedNfDetails.assignedNf ? `NF #${inspectedNfDetails.assignedNf}` : 'Sem Número'}
+                                        Detalhamento da Nota Fiscal {inspectedNfDetails.assignedNf ? `NF #${inspectedNfDetails.assignedNf}` : 'Sem Número'} {inspectedNfDetails.assignedNe ? `| Empenho: ${inspectedNfDetails.assignedNe}` : ''}
                                     </h3>
                                     <p className="text-[11px] text-amber-100 font-medium">
                                         Mês de Referência: <strong>{inspectedNfDetails.monthObj.name} ({inspectedNfDetails.monthObj.fullName})</strong> | Fornecedor: <strong>{currentSupplier?.name}</strong>
