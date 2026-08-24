@@ -225,7 +225,8 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             const schedule = s?.monthlySchedule || {};
             const cleanTarget = monthName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             const matchingKey = Object.keys(schedule).find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === cleanTarget);
-            const weeks = matchingKey ? ensureArray(schedule[matchingKey]) : [];
+            const rawWeeks = matchingKey ? ensureArray(schedule[matchingKey]) : [];
+            const weeks: number[] = rawWeeks.map((w: any) => Number(w)).filter((n: number) => !isNaN(n));
             
             if (weeks.length > 0) {
                 const items = ensureArray(s.contractItems) as any[];

@@ -93,6 +93,7 @@ export interface WarehouseMovement {
     nlNumber?: string;
     pdNumber?: string;
     neNumber?: string;
+    ne?: string;
     value?: number;
     totalValue?: number;
     weight?: number;
