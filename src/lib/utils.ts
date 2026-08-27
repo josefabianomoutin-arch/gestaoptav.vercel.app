@@ -148,25 +148,54 @@ export function roundToTwoDecimalPlaces(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
+export function sanitizeForFirebase<T>(data: T): T {
+  if (data === undefined) return null as any;
+  if (data === null || typeof data !== 'object') return data;
+
+  if (Array.isArray(data)) {
+    return data
+      .filter((item) => item !== undefined && item !== null)
+      .map((item) => sanitizeForFirebase(item)) as any;
+  }
+
+  const cleanObj: any = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) {
+      cleanObj[key] = sanitizeForFirebase(value);
+    }
+  }
+  return cleanObj;
+}
+
 export function ensureArray<T>(data: T[] | Record<string, T> | undefined | null): T[] {
   if (!data) return [];
   if (Array.isArray(data)) {
-    return data.map((item: any, idx: number) => {
-      if (item && typeof item === 'object' && !item.id) {
-        return { ...item, id: `arr-idx-${idx}` };
-      }
-      return item;
-    }) as T[];
+    return data
+      .filter((item: any) => item !== undefined && item !== null)
+      .map((item: any, idx: number) => {
+        if (item && typeof item === 'object') {
+          const cleanItem = sanitizeForFirebase(item);
+          if (!cleanItem.id) {
+            return { ...cleanItem, id: `arr-idx-${idx}` };
+          }
+          return cleanItem;
+        }
+        return item;
+      }) as T[];
   }
   if (typeof data === 'object') {
-    return Object.entries(data).map(([key, value]: [string, any]) => {
-      if (value && typeof value === 'object') {
-        if (!value.id) {
-          return { ...value, id: key };
+    return Object.entries(data)
+      .filter(([_, value]) => value !== undefined && value !== null)
+      .map(([key, value]: [string, any]) => {
+        if (value && typeof value === 'object') {
+          const cleanVal = sanitizeForFirebase(value);
+          if (!cleanVal.id) {
+            return { ...cleanVal, id: key };
+          }
+          return cleanVal;
         }
-      }
-      return value;
-    }) as T[];
+        return value;
+      }) as T[];
   }
   return [];
 }

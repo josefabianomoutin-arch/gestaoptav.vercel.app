@@ -18,7 +18,7 @@ import InfobarTicker from './components/InfobarTicker';
 import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
 import { app } from './firebaseConfig';
 import { getCombinedSuppliers, calculateAllowedWeeksFromSchedule, getWeekNumber } from './lib/supplierUtils';
-import { ensureArray, safeLocalStorageSetItem } from './lib/utils';
+import { ensureArray, safeLocalStorageSetItem, sanitizeForFirebase } from './lib/utils';
 
 let database: any;
 let rootRef: any;
@@ -1447,24 +1447,27 @@ const App: React.FC = () => {
           if (idx !== -1) {
             const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
             let isDuplicateTransaction = false;
-            await runTransaction(deliveriesRef, (current) => {
-              const list = ensureArray<any>(current);
+            const newId = `manual-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+            const newDelivery = sanitizeForFirebase({
+              id: newId,
+              date: String(date || ''),
+              time: String(time || ''),
+              item: 'AGENDAMENTO PENDENTE',
+              invoiceUploaded: false,
+              observations: observations ? String(observations) : ''
+            });
+
+            await safeRunTransaction(deliveriesRef, (current) => {
+              const list = ensureArray<any>(current)
+                .filter(d => d && typeof d === 'object' && (d.date || d.id))
+                .map(d => sanitizeForFirebase(d));
               const hasDuplicate = list.some(d => d && d.date === date && d.time === time);
               if (hasDuplicate) {
                 isDuplicateTransaction = true;
                 return current;
               }
-              const newId = `manual-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-              const newDelivery = {
-                id: newId,
-                date,
-                time,
-                item: 'AGENDAMENTO PENDENTE',
-                invoiceUploaded: false,
-                observations: observations || ''
-              };
-              return [...list, newDelivery];
-            });
+              return sanitizeForFirebase([...list, newDelivery]);
+            }, producers[idx]?.deliveries || []);
             
             if (isDuplicateTransaction) {
               toast.error(`Agendamento já existente para este fornecedor em ${date} às ${time}.`);
@@ -1487,24 +1490,27 @@ const App: React.FC = () => {
           }
           const deliveriesRef = child(suppliersRef, `${refId}/deliveries`);
           let isDuplicateTransaction = false;
-          await runTransaction(deliveriesRef, (current) => {
-            const list = ensureArray<any>(current);
+          const newId = `manual-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+          const newDelivery = sanitizeForFirebase({
+            id: newId,
+            date: String(date || ''),
+            time: String(time || ''),
+            item: 'AGENDAMENTO PENDENTE',
+            invoiceUploaded: false,
+            observations: observations ? String(observations) : ''
+          });
+
+          await safeRunTransaction(deliveriesRef, (current) => {
+            const list = ensureArray<any>(current)
+              .filter(d => d && typeof d === 'object' && (d.date || d.id))
+              .map(d => sanitizeForFirebase(d));
             const hasDuplicate = list.some(d => d && d.date === date && d.time === time);
             if (hasDuplicate) {
               isDuplicateTransaction = true;
               return current;
             }
-            const newId = `manual-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-            const newDelivery = {
-              id: newId,
-              date,
-              time,
-              item: 'AGENDAMENTO PENDENTE',
-              invoiceUploaded: false,
-              observations: observations || ''
-            };
-            return [...list, newDelivery];
-          });
+            return sanitizeForFirebase([...list, newDelivery]);
+          }, mainSupplier?.deliveries || []);
 
           if (isDuplicateTransaction) {
             toast.error(`Agendamento já existente para este fornecedor em ${date} às ${time}.`);
@@ -1712,21 +1718,10 @@ const App: React.FC = () => {
           const pDeliveries = Array.isArray(p.deliveries) ? p.deliveries : Object.values(p.deliveries || {});
           if (pDeliveries.some((d: any) => d && d.id === deliveryId)) {
             const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
-            await runTransaction(deliveriesRef, (current) => {
-              if (!current) return current;
-              const isArr = Array.isArray(current);
-              const list = isArr ? current : Object.values(current);
-              const filtered = list.filter(d => d && d.id !== deliveryId);
-              if (isArr) return filtered;
-              const resultObj: any = {};
-              Object.keys(current).forEach((key) => {
-                const val = current[key];
-                if (val && val.id !== deliveryId) {
-                  resultObj[key] = val;
-                }
-              });
-              return resultObj;
-            });
+            await safeRunTransaction(deliveriesRef, (current) => {
+              const list = ensureArray<any>(current).filter(d => d && typeof d === 'object' && d.id !== deliveryId);
+              return sanitizeForFirebase(list);
+            }, pDeliveries);
             return { success: true };
           }
         }
@@ -1738,21 +1733,10 @@ const App: React.FC = () => {
         const mDeliveries = Array.isArray(mainSupplier.deliveries) ? mainSupplier.deliveries : Object.values(mainSupplier.deliveries || {});
         if (mDeliveries.some((d: any) => d && d.id === deliveryId)) {
           const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
-          await runTransaction(deliveriesRef, (current) => {
-            if (!current) return current;
-            const isArr = Array.isArray(current);
-            const list = isArr ? current : Object.values(current);
-            const filtered = list.filter(d => d && d.id !== deliveryId);
-            if (isArr) return filtered;
-            const resultObj: any = {};
-            Object.keys(current).forEach((key) => {
-              const val = current[key];
-              if (val && val.id !== deliveryId) {
-                resultObj[key] = val;
-              }
-            });
-            return resultObj;
-          });
+          await safeRunTransaction(deliveriesRef, (current) => {
+            const list = ensureArray<any>(current).filter(d => d && typeof d === 'object' && d.id !== deliveryId);
+            return sanitizeForFirebase(list);
+          }, mDeliveries);
           return { success: true };
         }
       }
@@ -1914,11 +1898,13 @@ const App: React.FC = () => {
         const idx = producers.findIndex((p: any) => p && (match(p.cpfCnpj, targetCpf) || match(p.cpf, targetCpf)));
         if (idx !== -1) {
           const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
-          await runTransaction(deliveriesRef, (current) => {
-            const list = ensureArray<any>(current);
+          await safeRunTransaction(deliveriesRef, (current) => {
+            const list = ensureArray<any>(current)
+              .filter(d => d && typeof d === 'object')
+              .map(d => sanitizeForFirebase(d));
             const otherDeliveries = list.filter(d => d && !deliveryIds.includes(d.id));
-            return [...otherDeliveries, ...enrichedDeliveries];
-          });
+            return sanitizeForFirebase([...otherDeliveries, ...enrichedDeliveries]);
+          }, producers[idx]?.deliveries || []);
           saveSuccess = true;
           break;
         }
@@ -1927,11 +1913,13 @@ const App: React.FC = () => {
       // 2. Try Main Suppliers
       if (!saveSuccess && mainSupplier) {
         const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
-        await runTransaction(deliveriesRef, (current) => {
-          const list = ensureArray<any>(current);
+        await safeRunTransaction(deliveriesRef, (current) => {
+          const list = ensureArray<any>(current)
+            .filter(d => d && typeof d === 'object')
+            .map(d => sanitizeForFirebase(d));
           const otherDeliveries = list.filter(d => d && !deliveryIds.includes(d.id));
-          return [...otherDeliveries, ...enrichedDeliveries];
-        });
+          return sanitizeForFirebase([...otherDeliveries, ...enrichedDeliveries]);
+        }, mainSupplier?.deliveries || []);
         saveSuccess = true;
       }
 
@@ -2052,26 +2040,22 @@ const App: React.FC = () => {
         if (idx !== -1) {
           const p = producers[idx];
           if (p && p.deliveries) {
-              Object.keys(p.deliveries).forEach(key => {
-                  if (p.deliveries[key] && deliveryIds.includes(p.deliveries[key].id)) {
-                      updates[`perCapitaConfig/${listKey}/${idx}/deliveries/${key}`] = null;
-                      
-                  }
-              });
+            const rawDeliveries = ensureArray(p.deliveries).filter(d => d && typeof d === 'object');
+            const filtered = rawDeliveries.filter(d => d && !deliveryIds.includes(d.id));
+            if (filtered.length !== rawDeliveries.length) {
+              updates[`perCapitaConfig/${listKey}/${idx}/deliveries`] = sanitizeForFirebase(filtered);
+            }
           }
         }
       }
 
       // 2. Delete from Main Suppliers
       const mainSupplier = (suppliers || []).find(s => s && match(s.cpf, targetCpf));
-      if (mainSupplier) {
-        if (mainSupplier.deliveries) {
-            Object.keys(mainSupplier.deliveries).forEach(key => {
-                if (mainSupplier.deliveries[key] && deliveryIds.includes(mainSupplier.deliveries[key].id)) {
-                    updates[`suppliers/${mainSupplier.id || targetCpf}/deliveries/${key}`] = null;
-                    
-                }
-            });
+      if (mainSupplier && mainSupplier.deliveries) {
+        const rawDeliveries = ensureArray(mainSupplier.deliveries).filter(d => d && typeof d === 'object');
+        const filtered = rawDeliveries.filter(d => d && !deliveryIds.includes(d.id));
+        if (filtered.length !== rawDeliveries.length) {
+          updates[`suppliers/${mainSupplier.id || targetCpf}/deliveries`] = sanitizeForFirebase(filtered);
         }
       }
       if (Object.keys(updates).length > 0) {
