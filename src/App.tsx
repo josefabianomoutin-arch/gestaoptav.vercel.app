@@ -1379,14 +1379,20 @@ const App: React.FC = () => {
   const handleScheduleDelivery = useCallback(async (supplierCpf: string, date: string, time: string, observations?: string) => {
     try {
       console.log('Agendando entrega:', { supplierCpf, date, time, observations });
-      const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+      const cleanDigits = (s: any) => String(s || '').replace(/\D/g, '');
       const match = (a: any, b: any) => {
-        const ca = clean(a);
-        const cb = clean(b);
-        if (!ca || !cb) return false;
-        return ca === cb || (ca.length === 11 && cb.length === 14 && cb.startsWith(ca)) || (cb.length === 11 && ca.length === 14 && ca.startsWith(cb));
+        const da = cleanDigits(a);
+        const db = cleanDigits(b);
+        if (!da || !db) return false;
+        if (da === db) return true;
+        if (da.length === 11 && db.length === 14 && db.startsWith(da)) return true;
+        if (db.length === 11 && da.length === 14 && da.startsWith(db)) return true;
+        const noZeroA = da.replace(/^0+/, '');
+        const noZeroB = db.replace(/^0+/, '');
+        if (noZeroA && noZeroB && noZeroA === noZeroB) return true;
+        return false;
       };
-      const targetCpf = clean(supplierCpf);
+      const targetCpf = supplierCpf;
 
       // Verify if there is already a delivery in the same week
       const dateParts = date.split('-');
@@ -2021,8 +2027,20 @@ const App: React.FC = () => {
 
   const handleCancelDeliveries = useCallback(async (supplierCpf: string, deliveryIds: string[]) => {
     try {
-      const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
-      const targetCpf = clean(supplierCpf);
+      const cleanDigits = (s: any) => String(s || '').replace(/\D/g, '');
+      const match = (a: any, b: any) => {
+        const da = cleanDigits(a);
+        const db = cleanDigits(b);
+        if (!da || !db) return false;
+        if (da === db) return true;
+        if (da.length === 11 && db.length === 14 && db.startsWith(da)) return true;
+        if (db.length === 11 && da.length === 14 && da.startsWith(db)) return true;
+        const noZeroA = da.replace(/^0+/, '');
+        const noZeroB = db.replace(/^0+/, '');
+        if (noZeroA && noZeroB && noZeroA === noZeroB) return true;
+        return false;
+      };
+      const targetCpf = supplierCpf;
       
       const updates: any = {};
 
@@ -2030,7 +2048,7 @@ const App: React.FC = () => {
       const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
-        const idx = producers.findIndex((p: any) => p && clean(p.cpfCnpj || p.cpf) === targetCpf);
+        const idx = producers.findIndex((p: any) => p && match(p.cpfCnpj || p.cpf, targetCpf));
         if (idx !== -1) {
           const p = producers[idx];
           if (p && p.deliveries) {
@@ -2045,7 +2063,7 @@ const App: React.FC = () => {
       }
 
       // 2. Delete from Main Suppliers
-      const mainSupplier = (suppliers || []).find(s => s && clean(s.cpf) === targetCpf);
+      const mainSupplier = (suppliers || []).find(s => s && match(s.cpf, targetCpf));
       if (mainSupplier) {
         if (mainSupplier.deliveries) {
             Object.keys(mainSupplier.deliveries).forEach(key => {
@@ -4089,26 +4107,34 @@ const App: React.FC = () => {
       );
     }
 
-    if (user.role === 'supplier') {
-      const currentMonth = new Date().getMonth();
-      const isMayOrLater = currentMonth >= 4; // 0-indexed, 4 is May
-      
+    if (['producer', 'supplier', 'pereciveis_supplier', 'estocaveis_supplier', 'supplier_estocavel'].includes(user.role)) {
+      const cleanDigits = (s: any) => String(s || '').replace(/\D/g, '');
+      const matchCpf = (a: any, b: any) => {
+        const da = cleanDigits(a);
+        const db = cleanDigits(b);
+        if (!da || !db) return false;
+        if (da === db) return true;
+        if (da.length === 11 && db.length === 14 && db.startsWith(da)) return true;
+        if (db.length === 11 && da.length === 14 && da.startsWith(db)) return true;
+        const noZeroA = da.replace(/^0+/, '');
+        const noZeroB = db.replace(/^0+/, '');
+        if (noZeroA && noZeroB && noZeroA === noZeroB) return true;
+        return false;
+      };
+
       const ppaisList = ensureArray<any>(perCapitaConfig?.ppaisProducers);
       const pereciveisList = ensureArray<any>(perCapitaConfig?.pereciveisSuppliers);
       const estocaveisList = ensureArray<any>(perCapitaConfig?.estocaveisSuppliers);
-      
-      // Try searching for the user in the per-capita lists
-      const ppaisEntry = ppaisList.find((p: any) => p && (p.cpfCnpj || p.cpf) && String(p.cpfCnpj || p.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
-      const pereciveisEntry = pereciveisList.find((p: any) => p && (p.cpfCnpj || p.cpf) && String(p.cpfCnpj || p.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
-      const estocaveisEntry = estocaveisList.find((p: any) => p && (p.cpfCnpj || p.cpf) && String(p.cpfCnpj || p.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
-      
-      // Also check if they are in the main suppliers list
-      const currentSupplier = suppliers.find(s => s && s.cpf && String(s.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
-      
-      const perCapitaEntry: any = ppaisEntry || pereciveisEntry || estocaveisEntry;
-      const isRegisteredForNextPeriod = !!perCapitaEntry || !!currentSupplier;
+      const allPC = [...ppaisList, ...pereciveisList, ...estocaveisList];
 
-      if (isMayOrLater && !isRegisteredForNextPeriod) {
+      const perCapitaEntry = allPC.find((p: any) => p && matchCpf(p.cpfCnpj || p.cpf, user.cpf));
+      const existingSupplier = (suppliers || []).find(s => s && matchCpf(s.cpf, user.cpf));
+
+      const isRegisteredForNextPeriod = !!perCapitaEntry || !!existingSupplier;
+      const currentMonth = new Date().getMonth();
+      const isMayOrLater = currentMonth >= 4; // 0-indexed, 4 is May
+
+      if (isMayOrLater && !isRegisteredForNextPeriod && user.role === 'supplier') {
         return (
           <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
             <div className="bg-white p-8 rounded-3xl shadow-xl border border-red-100 text-center max-w-md">
@@ -4123,39 +4149,51 @@ const App: React.FC = () => {
         );
       }
 
-      if (currentSupplier) {
-        // Calculate weeks from Per Capita if registered
-        let finalWeeks = ensureArray<number>(currentSupplier.allowedWeeks).filter(w => w <= 18);
+      const primaryObj: any = perCapitaEntry || existingSupplier;
+
+      if (primaryObj) {
+        const pCpf = (primaryObj as any).cpfCnpj || (primaryObj as any).cpf || user.cpf || '';
         
-        console.log('--- Debug: PerCapitaEntry in scheduling ---', perCapitaEntry);
-        if (isRegisteredForNextPeriod && perCapitaEntry?.monthlySchedule) {
-            const extraWeeks = calculateAllowedWeeksFromSchedule(perCapitaEntry.monthlySchedule, 2026);
-            finalWeeks = Array.from(new Set([...finalWeeks, ...extraWeeks])).sort((a, b) => a - b);
-        }
+        // Combine allowed weeks from all sources without stripping weeks > 18
+        const sDirectWeeks = ensureArray<number>(existingSupplier?.allowedWeeks);
+        const pcDirectWeeks = ensureArray<number>(perCapitaEntry?.allowedWeeks);
+        const sScheduleWeeks = existingSupplier?.monthlySchedule ? calculateAllowedWeeksFromSchedule(existingSupplier.monthlySchedule, 2026) : [];
+        const pcScheduleWeeks = perCapitaEntry?.monthlySchedule ? calculateAllowedWeeksFromSchedule(perCapitaEntry.monthlySchedule, 2026) : [];
+
+        const finalWeeks = Array.from(new Set([...sDirectWeeks, ...pcDirectWeeks, ...sScheduleWeeks, ...pcScheduleWeeks]))
+          .map(Number)
+          .filter(w => !isNaN(w) && w > 0)
+          .sort((a, b) => a - b);
 
         const pDeliveriesRaw = ensureArray<any>(perCapitaEntry?.deliveries);
-        const extDeliveriesRaw = ensureArray<any>(currentSupplier.deliveries);
-        const mergedDeliveries = Array.from(
-          new Map<string, any>(
-            [...pDeliveriesRaw, ...extDeliveriesRaw]
-              .filter(d => d && d.id)
-              .map(d => [String(d.id), d])
-          ).values()
-        );
+        const extDeliveriesRaw = ensureArray<any>(existingSupplier?.deliveries);
 
-         const supplierWithUpdatedData = {
-          ...currentSupplier,
-          deliveries: mergedDeliveries,
+        const safeParseNum = (val: any) => {
+            if (typeof val === 'number') return val;
+            const str = String(val || '0').replace(',', '.');
+            const parsed = parseFloat(str);
+            return isNaN(parsed) ? 0 : parsed;
+        };
+
+        const contractItems = ensureArray<any>(perCapitaEntry?.contractItems || existingSupplier?.contractItems || primaryObj.contractItems);
+
+        const mappedSupplier: Supplier = {
+          ...primaryObj,
+          name: primaryObj.name || existingSupplier?.name || perCapitaEntry?.name || 'Produtor / Fornecedor',
+          cpf: pCpf,
+          initialValue: contractItems.reduce((acc: number, curr: any) => acc + (safeParseNum(curr.totalKg) * safeParseNum(curr.valuePerKg)), 0),
+          contractItems: contractItems,
+          deliveries: Array.from(new Map<string, any>([...pDeliveriesRaw, ...extDeliveriesRaw].filter(d => d && (d.id || d.date)).map(d => [String(d.id || `${d.date}_${d.time}`), d])).values()),
           allowedWeeks: finalWeeks,
-          contractItems: perCapitaEntry?.contractItems || currentSupplier.contractItems || [],
-          address: perCapitaEntry?.address || currentSupplier.address || '',
-          city: perCapitaEntry?.city || currentSupplier.city || '',
-          processNumber: perCapitaEntry?.processNumber || currentSupplier.processNumber || ''
+          address: primaryObj.address || existingSupplier?.address || perCapitaEntry?.address || '',
+          city: primaryObj.city || existingSupplier?.city || perCapitaEntry?.city || '',
+          processNumber: primaryObj.processNumber || existingSupplier?.processNumber || perCapitaEntry?.processNumber || ''
         };
 
         return (
           <Dashboard 
-            supplier={supplierWithUpdatedData} 
+            supplier={mappedSupplier} 
+            type={(user.role === 'producer' || (primaryObj as any).type === 'PRODUTOR') ? 'PRODUTOR' : 'FORNECEDOR'}
             isRegisteredForNextPeriod={isRegisteredForNextPeriod}
             onUpdateInvoiceUrl={handleUpdateInvoiceUrl}
             onLogout={handleLogout} 
@@ -4167,65 +4205,7 @@ const App: React.FC = () => {
           />
         );
       }
-    }
-
-    if (['producer', 'supplier', 'pereciveis_supplier', 'estocaveis_supplier', 'supplier_estocavel'].includes(user.role)) {
-      const allPC = [
-        ...ensureArray(perCapitaConfig?.ppaisProducers),
-        ...ensureArray(perCapitaConfig?.pereciveisSuppliers),
-        ...ensureArray(perCapitaConfig?.estocaveisSuppliers)
-      ];
-      
-      const p = allPC.find(s => s && (s.cpfCnpj || s.cpf) && String(s.cpfCnpj || s.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''))
-               || suppliers.find(s => s && s.cpf && String(s.cpf).replace(/\D/g, '') === String(user.cpf).replace(/\D/g, ''));
-
-      if (p) {
-        const pCpf = (p as any).cpfCnpj || (p as any).cpf || '';
-        const existingSupplier = suppliers.find(s => s && s.cpf && String(s.cpf).replace(/\D/g, '') === String(pCpf).replace(/\D/g, ''));
-        const q1Weeks = ensureArray<number>(existingSupplier?.allowedWeeks).filter(w => w <= 18);
-        
-        const scheduleWeeks = calculateAllowedWeeksFromSchedule(p.monthlySchedule, 2026);
-        const finalWeeks = Array.from(new Set([...q1Weeks, ...scheduleWeeks])).sort((a, b) => a - b);
-        
-        const pDeliveriesRaw = ensureArray<any>(p.deliveries);
-        const extDeliveriesRaw = ensureArray<any>(existingSupplier?.deliveries);
-
-        const safeParseNum = (val: any) => {
-            if (typeof val === 'number') return val;
-            const str = String(val || '0').replace(',', '.');
-            const parsed = parseFloat(str);
-            return isNaN(parsed) ? 0 : parsed;
-        };
-
-        const mappedSupplier: Supplier = {
-          ...p,
-          name: p.name || 'Produtor',
-          cpf: pCpf,
-          initialValue: ensureArray<any>(p.contractItems).reduce((acc: number, curr: any) => acc + (safeParseNum(curr.totalKg) * safeParseNum(curr.valuePerKg)), 0),
-          contractItems: ensureArray<any>(p.contractItems),
-          deliveries: Array.from(new Map<string, any>([...pDeliveriesRaw, ...extDeliveriesRaw].filter(d => d && d.id).map(d => [String(d.id), d])).values()),
-          allowedWeeks: finalWeeks,
-          address: p.address || '',
-          city: p.city || '',
-          processNumber: p.processNumber || ''
-        };
-        return (
-          <Dashboard 
-            supplier={mappedSupplier} 
-            type={(user.role === 'producer' || (p as any).type === 'PRODUTOR') ? 'PRODUTOR' : 'FORNECEDOR'}
-            isRegisteredForNextPeriod={true}
-            onUpdateInvoiceUrl={handleUpdateInvoiceUrl}
-            onLogout={handleLogout} 
-            onScheduleDelivery={handleScheduleDelivery}
-            onCancelDeliveries={handleCancelDeliveries}
-            onSaveInvoice={handleSaveInvoice}
-            emailModalData={null}
-            onCloseEmailModal={() => {}}
-          />
-        );
-      }
-    }
- else {
+    } else {
       // Role not recognized or not handled above
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">

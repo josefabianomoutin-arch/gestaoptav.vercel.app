@@ -98,7 +98,9 @@ export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any
     };
 
     const mapToSupplier = (p: any) => {
-        const weeks = calculateAllowedWeeksFromSchedule(p.monthlySchedule, 2026);
+        const weeksFromSchedule = calculateAllowedWeeksFromSchedule(p.monthlySchedule, 2026);
+        const rawAllowedWeeks = ensureArray<number>(p.allowedWeeks);
+        const weeks = Array.from(new Set([...rawAllowedWeeks, ...weeksFromSchedule])).sort((a, b) => a - b);
         const deliveriesRaw = ensureArray<any>(p.deliveries);
         const deliveries = deliveriesRaw.filter((d: any) => d && d.id);
         const contractItemsRaw = ensureArray<any>(p.contractItems);
