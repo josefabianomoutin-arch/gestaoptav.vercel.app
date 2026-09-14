@@ -1262,40 +1262,81 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         const month = monthNames[dateObj.getMonth()];
         const year = dateObj.getFullYear();
 
+        let barcodeSvgHtml = '';
+        try {
+            const tempSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            JsBarcode(tempSvg, order.id || order.plate || 'ORDEM', {
+                format: "CODE128",
+                width: 1.8,
+                height: 44,
+                displayValue: true,
+                fontSize: 10,
+                textMargin: 3,
+                margin: 0
+            });
+            tempSvg.setAttribute("style", "max-width: 100%; height: auto; display: block; margin: 0 auto;");
+            barcodeSvgHtml = tempSvg.outerHTML;
+        } catch (e) {
+            console.error("Error generating SVG barcode synchronously:", e);
+        }
+
         const htmlContent = `
             <html>
             <head>
                 <title>Ordem de Saída de Veículo - ${order.plate}</title>
                 <style>
-                    @page { size: A4; margin: 15mm; }
-                    body { font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.4; color: #000; margin: 0; padding: 0; }
-                    .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 5px; }
+                    @page { size: A4 portrait; margin: 12mm 15mm; }
+                    body { font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.35; color: #000; margin: 0; padding: 0; }
+                    .header { text-align: center; margin-bottom: 12px; border-bottom: 2px solid #000; padding-bottom: 4px; }
                     .header h1 { font-size: 13pt; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
                     .header h2 { font-size: 10pt; margin: 2px 0; font-weight: normal; font-style: italic; }
                     
-                    .title { text-align: center; font-weight: bold; font-size: 14pt; margin: 15px 0; text-transform: uppercase; text-decoration: underline; }
-                    
-                    .content-section { margin-bottom: 15px; text-align: justify; }
+                    .content-section { margin-bottom: 12px; text-align: justify; line-height: 1.4; }
                     .field-value { border-bottom: 1px solid #000; display: inline-block; padding: 0 5px; font-weight: bold; text-transform: uppercase; }
                     
-                    .companions-section { margin-top: 15px; border: 1px solid #000; padding: 10px; border-radius: 5px; }
-                    .companions-title { font-weight: bold; text-transform: uppercase; font-size: 9pt; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 2px; }
+                    .date-location { text-align: right; margin: 12px 0; font-weight: bold; }
+
+                    .companions-section { margin-top: 10px; border: 1px solid #000; padding: 8px 10px; border-radius: 4px; }
+                    .companions-title { font-weight: bold; text-transform: uppercase; font-size: 8.5pt; margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px; }
                     .companions-table { width: 100%; border-collapse: collapse; }
-                    .companions-table td { padding: 4px 0; border-bottom: 1px dotted #ccc; font-size: 10pt; }
+                    .companions-table td { padding: 3px 0; border-bottom: 1px dotted #ccc; font-size: 9.5pt; }
                     .companions-table tr:last-child td { border-bottom: none; }
                     
-                    .footer-note { font-size: 8pt; text-align: center; margin: 15px 0; padding: 8px; border: 1px dashed #666; background-color: #f9f9f9; line-height: 1.2; }
+                    .footer-note { font-size: 7.5pt; text-align: center; margin: 10px 0; padding: 6px 8px; border: 1px dashed #666; background-color: #f9f9f9; line-height: 1.25; }
                     
-                    .signatures-container { margin-top: 20px; }
-                    .signatures-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-                    .signature-box { border: 1px solid #000; padding: 10px; min-height: 80px; position: relative; display: flex; flex-direction: column; justify-content: space-between; }
-                    .signature-box .box-title { font-weight: bold; font-size: 8pt; text-transform: uppercase; margin-bottom: 5px; }
-                    .signature-line { border-top: 1px solid #000; text-align: center; font-size: 8pt; margin-top: 10px; padding-top: 2px; font-weight: bold; }
+                    .signatures-container { margin-top: 12px; }
+                    .signatures-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+                    .signature-box { border: 1px solid #000; padding: 8px 10px; min-height: 75px; position: relative; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; }
+                    .signature-box .box-title { font-weight: bold; font-size: 8pt; text-transform: uppercase; margin-bottom: 4px; }
+                    .signature-line { border-top: 1px solid #000; text-align: center; font-size: 8pt; margin-top: 8px; padding-top: 2px; font-weight: bold; }
                     
-                    .date-location { text-align: right; margin: 15px 0; font-weight: bold; }
+                    .fct-section { display: flex; align-items: center; justify-content: center; border: 1px solid #000; padding: 8px 10px; font-size: 9.5pt; box-sizing: border-box; }
                     
-                    .fct-section { display: flex; align-items: center; justify-content: center; border: 1px solid #000; padding: 10px; font-size: 10pt; }
-                    
+                    .barcode-box { 
+                        margin-top: 12px; 
+                        border: 1px solid #000; 
+                        border-radius: 4px; 
+                        padding: 8px 12px; 
+                        text-align: center; 
+                        display: flex; 
+                        flex-direction: column; 
+                        align-items: center; 
+                        justify-content: center; 
+                        min-height: 75px; 
+                        box-sizing: border-box; 
+                        background-color: #fff;
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+                    .barcode-box .box-title { 
+                        font-weight: bold; 
+                        font-size: 8pt; 
+                        text-transform: uppercase; 
+                        margin-bottom: 4px; 
+                        letter-spacing: 0.5px; 
+                        color: #000;
+                    }
+
                     @media print {
                         .no-print { display: none; }
                         body { -webkit-print-color-adjust: exact; }
@@ -1306,10 +1347,8 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 <div class="header">
                     <h1>SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA</h1>
                     <h2>Coordenadoria das Unidades Prisionais da Região Norte do Estado</h2>
-                    <h1 style="margin-top: 2px; font-size: 14pt;">PENITENCIÁRIA DE TAIÚVA</h1>
+                    <h1 style="margin-top: 2px; font-size: 13pt;">PENITENCIÁRIA DE TAIÚVA</h1>
                 </div>
-
-                <div class="title">ORDEM DE SAÍDA DE VEÍCULO</div>
 
                 <div class="content-section">
                     Autorizo a saída do veículo <span class="field-value" style="min-width: 150px;">${order.vehicle}</span>, 
@@ -1383,30 +1422,36 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                     </div>
                 </div>
                 
-                <div style="margin-top: 25px; text-align: center; border-top: 1px dashed #777; padding-top: 12px;">
-                    <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #444; margin-bottom: 5px;">
-                        Controle Portaria / Subportaria - Código da Ordem
+                <div class="barcode-box">
+                    <div class="box-title">CONTROLE PORTARIA / SUB-PORTARIA - CÓDIGO DA ORDEM</div>
+                    <div id="barcode-container" style="display: flex; justify-content: center; width: 100%;">
+                        ${barcodeSvgHtml || '<svg id="barcode-print" style="max-width: 100%; height: auto; display: block; margin: 0 auto;"></svg>'}
                     </div>
-                    <svg id="barcode-print"></svg>
                 </div>
                 
                 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
                 <script>
                     window.onload = () => {
-                        try {
-                            JsBarcode("#barcode-print", "${order.id}", {
-                                format: "CODE128",
-                                width: 1.8,
-                                height: 45,
-                                displayValue: true,
-                                fontSize: 10,
-                                margin: 0
-                            });
-                        } catch(e) {
-                            console.error("Barcode generation error:", e);
+                        const fallbackSvg = document.getElementById("barcode-print");
+                        if (fallbackSvg) {
+                            try {
+                                JsBarcode(fallbackSvg, "${order.id || order.plate || 'ORDEM'}", {
+                                    format: "CODE128",
+                                    width: 1.8,
+                                    height: 44,
+                                    displayValue: true,
+                                    fontSize: 10,
+                                    textMargin: 3,
+                                    margin: 0
+                                });
+                            } catch(e) {
+                                console.error("Barcode generation error:", e);
+                            }
                         }
-                        window.print();
-                        setTimeout(() => window.close(), 500);
+                        setTimeout(() => {
+                            window.print();
+                            window.close();
+                        }, 400);
                     };
                 </script>
             </body>
