@@ -105,6 +105,22 @@ export function safeLocalStorageSetItem(key: string, value: string): boolean {
       } catch (err) {
         console.warn("Failed to prune cached_thirdPartyEntries:", err);
       }
+    } else if (key === 'cached_vehicleExitOrders') {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          // Prune heavy base64 data URLs from localStorage cache to prevent quota overflow and freezing
+          const trimmed = parsed.map((order: any) => {
+            if (order && order.pdfUrl && typeof order.pdfUrl === 'string' && (order.pdfUrl.startsWith('data:') || order.pdfUrl.length > 200)) {
+              return { ...order, pdfUrl: '' };
+            }
+            return order;
+          });
+          processedValue = JSON.stringify(trimmed.slice(0, 300));
+        }
+      } catch (err) {
+        console.warn("Failed to prune cached_vehicleExitOrders:", err);
+      }
     }
 
     localStorage.setItem(key, processedValue);

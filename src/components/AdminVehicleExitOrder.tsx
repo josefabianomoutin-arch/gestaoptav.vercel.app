@@ -62,6 +62,588 @@ const Barcode: React.FC<{ value: string }> = ({ value }) => {
     return <svg ref={svgRef}></svg>;
 };
 
+const defaultOrderFormData = {
+    date: new Date().toISOString().split('T')[0],
+    vehicle: '',
+    plate: '',
+    assetNumber: '',
+    responsibleServer: '',
+    serverRole: '',
+    destination: '',
+    fctNumber: '',
+    companions: [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
+    observations: '',
+    exitTime: '',
+    exitDate: '',
+    returnTime: '',
+    returnDate: ''
+};
+
+const OrderTableRow = React.memo<{
+    order: VehicleExitOrder;
+    securityMode?: boolean;
+    readOnly?: boolean;
+    hideEdit?: boolean;
+    allowDelete?: boolean;
+    hasAnyExitOrReturnTime: boolean;
+    isUploadingPdf: boolean;
+    onEdit: (order: VehicleExitOrder) => void;
+    onPrint: (order: VehicleExitOrder) => void;
+    onOpenBarcode: (order: VehicleExitOrder) => void;
+    onOpenPdf: (pdfUrl: string) => void;
+    onOpenValidation: (order: VehicleExitOrder) => void;
+    onAttachPdf: (order: VehicleExitOrder) => void;
+    onDeleteOrder?: (id: string) => void;
+}>(({
+    order,
+    securityMode,
+    readOnly,
+    hideEdit,
+    allowDelete,
+    hasAnyExitOrReturnTime,
+    isUploadingPdf,
+    onEdit,
+    onPrint,
+    onOpenBarcode,
+    onOpenPdf,
+    onOpenValidation,
+    onAttachPdf,
+    onDeleteOrder
+}) => {
+    return (
+        <tr key={order.id} className={`hover:bg-gray-50 transition-colors ${!order.validationRole && !order.exitTime ? 'bg-red-50/30' : ''}`}>
+            <td className="p-4 font-bold text-gray-600">
+                {order.date.split('-').reverse().join('/')}
+                {!order.validationRole && !order.exitTime && (
+                    <div className="mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black bg-red-100 text-red-600 uppercase animate-pulse">
+                            Aguardando Validação
+                        </span>
+                    </div>
+                )}
+            </td>
+            <td className="p-4">
+                <div className="font-black text-gray-800 uppercase">{order.vehicle}</div>
+                <div className="text-[10px] text-indigo-500 font-mono flex-wrap flex items-center gap-1.5">
+                    <span className="font-black">{order.plate}</span>
+                    {order.pdfUrl && (
+                        <button 
+                            type="button"
+                            onClick={() => onOpenPdf(order.pdfUrl!)}
+                            className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-1 hover:bg-indigo-100"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            PDF
+                        </button>
+                    )}
+                    {order.id && (
+                        <button 
+                            type="button"
+                            onClick={() => onOpenBarcode(order)}
+                            className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-1 hover:bg-indigo-100"
+                            title="Visualizar Código de Barras da Ordem"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Código
+                        </button>
+                    )}
+                </div>
+            </td>
+            <td className="p-4">
+                <div className="font-bold text-gray-700 uppercase">{order.responsibleServer}</div>
+                <div className="text-[10px] text-gray-400 uppercase">{order.serverRole}</div>
+            </td>
+            <td className="p-4 font-bold text-gray-600 uppercase">{order.destination}</td>
+            <td className="p-4 font-mono text-gray-500">{order.fctNumber}</td>
+            {hasAnyExitOrReturnTime && (
+                <>
+                    <td className="p-4 text-center">
+                        {order.exitTime ? (
+                            <div className="flex flex-col items-center">
+                                <span className="text-indigo-600 font-black text-xs">{order.exitTime}</span>
+                                <span className="text-[9px] text-gray-400 font-bold">{(order.exitDate || order.date).split('-').reverse().join('/')}</span>
+                            </div>
+                        ) : <span className="text-gray-300">--:--</span>}
+                    </td>
+                    <td className="p-4 text-center">
+                        {order.returnTime ? (
+                            <div className="flex flex-col items-center">
+                                <span className="text-emerald-600 font-black text-xs">{order.returnTime}</span>
+                                <span className="text-[9px] text-gray-400 font-bold">{(order.returnDate || order.date).split('-').reverse().join('/')}</span>
+                            </div>
+                        ) : <span className="text-gray-300">--:--</span>}
+                    </td>
+                </>
+            )}
+            <td className="p-4">
+                <div className="flex items-center justify-center gap-2">
+                    {securityMode ? (
+                        <button 
+                            type="button"
+                            onClick={() => onEdit(order)}
+                            className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                            title="Registrar Horários"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </button>
+                    ) : (
+                        <>
+                            {!readOnly && !hideEdit && (
+                                <button 
+                                    type="button"
+                                    onClick={() => onEdit(order)} 
+                                    className={`p-2 rounded-xl transition-all ${order.validationRole ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                                    title={order.validationRole ? "Registrar Horários" : "Editar"}
+                                >
+                                    {order.validationRole ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                    )}
+                                </button>
+                            )}
+                            {!readOnly && (
+                                <button 
+                                    type="button"
+                                    onClick={() => onPrint(order)}
+                                    className="p-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all shadow-sm"
+                                    title="Imprimir / Baixar PDF"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                    </svg>
+                                </button>
+                            )}
+                            {!readOnly && (
+                                <button 
+                                    type="button"
+                                    onClick={() => onOpenValidation(order)} 
+                                    className={`p-2 rounded-xl transition-all ${order.validationRole ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                                    title={order.validationRole ? "Validado" : "Validar Saída"}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </button>
+                            )}
+                            {!readOnly && (
+                                <button 
+                                    type="button"
+                                    onClick={() => onAttachPdf(order)}
+                                    disabled={isUploadingPdf}
+                                    className={`p-2 rounded-xl transition-all ${order.pdfUrl ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                                    title={order.pdfUrl ? "Substituir PDF" : "Anexar PDF"}
+                                >
+                                    {isUploadingPdf ? (
+                                        <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                    )}
+                                </button>
+                            )}
+                            {onDeleteOrder && !readOnly && allowDelete && (
+                                <button 
+                                    type="button"
+                                    onClick={() => onDeleteOrder(order.id)} 
+                                    className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors" 
+                                    title="Excluir"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                            )}
+                        </>
+                    )}
+                </div>
+            </td>
+        </tr>
+    );
+});
+
+const VehicleExitOrderModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    editingOrder: VehicleExitOrder | null;
+    securityMode?: boolean;
+    vehicleAssets: VehicleAsset[];
+    driverAssets: DriverAsset[];
+    availableVehicles: VehicleAsset[];
+    initialData: any;
+    onSubmitDirect: (data: any) => Promise<void>;
+    onProceedToChecklist: (data: any) => void;
+    isSubmitting: boolean;
+}> = ({
+    isOpen,
+    onClose,
+    editingOrder,
+    securityMode,
+    vehicleAssets,
+    driverAssets,
+    availableVehicles,
+    initialData,
+    onSubmitDirect,
+    onProceedToChecklist,
+    isSubmitting
+}) => {
+    const [localFormData, setLocalFormData] = useState<any>(initialData || defaultOrderFormData);
+
+    if (!isOpen) return null;
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (isSubmitting) return;
+
+        if (editingOrder || securityMode) {
+            onSubmitDirect(localFormData);
+        } else {
+            if (!localFormData.fctNumber || !localFormData.destination || !localFormData.responsibleServer || !localFormData.vehicle || !localFormData.serverRole) {
+                alert('Por favor, preencha todos os campos obrigatórios (FCT, Destino, Responsável, Cargo e Veículo).');
+                return;
+            }
+            onProceedToChecklist(localFormData);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-2 md:p-4">
+            <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto custom-scrollbar border border-white/20">
+                <div className="p-4 md:p-6">
+                    <div className="flex justify-between items-center mb-4 border-b pb-3">
+                        <div>
+                            <h3 className="text-lg md:text-xl font-black text-gray-900 uppercase tracking-tighter italic">
+                                {(securityMode || editingOrder?.validationRole) ? 'Registrar Horários' : editingOrder ? 'Editar Ordem' : 'Nova Ordem de Saída'}
+                            </h3>
+                            <p className="text-gray-400 font-bold text-[8px] uppercase tracking-widest mt-0.5">
+                                {(securityMode || editingOrder?.validationRole) ? 'Informe os horários de saída e retorno' : 'Preencha os dados do deslocamento'}
+                            </p>
+                        </div>
+                        <button 
+                            type="button"
+                            onClick={onClose} 
+                            className="p-1.5 bg-gray-100 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-500 transition-all"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        {(securityMode || editingOrder?.validationRole) ? (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Data de Saída</label>
+                                    <input 
+                                        type="date" 
+                                        value={localFormData.exitDate || ''} 
+                                        onChange={e => setLocalFormData((prev: any) => ({ ...prev, exitDate: e.target.value }))}
+                                        className="w-full h-10 px-3 border-2 border-indigo-100 rounded-xl bg-indigo-50 font-black text-indigo-900 focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs text-center"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Saída</label>
+                                    <input 
+                                        type="time" 
+                                        value={localFormData.exitTime || ''} 
+                                        onChange={e => setLocalFormData((prev: any) => ({ ...prev, exitTime: e.target.value }))}
+                                        className="w-full h-10 px-3 border-2 border-indigo-100 rounded-xl bg-indigo-50 font-black text-indigo-900 focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs text-center"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Data de Retorno</label>
+                                    <input 
+                                        type="date" 
+                                        value={localFormData.returnDate || ''} 
+                                        onChange={e => setLocalFormData((prev: any) => ({ ...prev, returnDate: e.target.value }))}
+                                        className="w-full h-10 px-3 border-2 border-emerald-100 rounded-xl bg-emerald-50 font-black text-emerald-900 focus:bg-white focus:border-emerald-500 transition-all outline-none text-xs text-center"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Retorno</label>
+                                    <input 
+                                        type="time" 
+                                        value={localFormData.returnTime || ''} 
+                                        onChange={e => setLocalFormData((prev: any) => ({ ...prev, returnTime: e.target.value }))}
+                                        className="w-full h-10 px-3 border-2 border-emerald-100 rounded-xl bg-emerald-50 font-black text-emerald-900 focus:bg-white focus:border-emerald-500 transition-all outline-none text-xs text-center"
+                                    />
+                                </div>
+                                <div className="col-span-2 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Resumo da Ordem</p>
+                                    <p className="text-xs font-bold text-gray-700">{localFormData.vehicle} - {localFormData.plate}</p>
+                                    <p className="text-[10px] font-medium text-gray-500">{localFormData.responsibleServer}</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Data</label>
+                                        <input 
+                                            type="date" 
+                                            required
+                                            value={localFormData.date}
+                                            onChange={e => setLocalFormData((prev: any) => ({ ...prev, date: e.target.value }))}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Selecionar Veículo da Frota</label>
+                                        <div className="flex flex-col gap-1">
+                                            <select
+                                                value={vehicleAssets.find(v => (v.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === (localFormData.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, ''))?.id || ''}
+                                                onChange={e => {
+                                                    const selectedId = e.target.value;
+                                                    const found = vehicleAssets.find(v => v.id === selectedId);
+                                                    if (found) {
+                                                        setLocalFormData((prev: any) => ({
+                                                            ...prev,
+                                                            vehicle: found.model,
+                                                            plate: found.plate,
+                                                            assetNumber: found.assetNumber || ''
+                                                        }));
+                                                    }
+                                                }}
+                                                className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs text-indigo-950"
+                                            >
+                                                <option value="">-- Selecione o Veículo ({availableVehicles.length} disponíveis) --</option>
+                                                {availableVehicles.map(v => (
+                                                    <option key={v.id} value={v.id}>
+                                                        {v.model} | PLACA: {v.plate} {v.assetNumber ? `| PATR: ${v.assetNumber}` : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <input 
+                                                type="text" 
+                                                required
+                                                placeholder="Modelo / Nome do Veículo"
+                                                value={localFormData.vehicle}
+                                                onChange={e => setLocalFormData((prev: any) => ({ ...prev, vehicle: e.target.value.toUpperCase() }))}
+                                                className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Placa</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            placeholder="Ex: FSP4J81"
+                                            value={localFormData.plate}
+                                            onChange={e => setLocalFormData((prev: any) => ({ ...prev, plate: e.target.value.toUpperCase() }))}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-mono"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Patrimônio</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            placeholder="Ex: 1710"
+                                            value={localFormData.assetNumber}
+                                            onChange={e => setLocalFormData((prev: any) => ({ ...prev, assetNumber: e.target.value.toUpperCase() }))}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-3">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Funcionário Responsável</label>
+                                        <div className="flex flex-col gap-1">
+                                            <select
+                                                value={driverAssets.find(d => (d.name || '').toUpperCase() === (localFormData.responsibleServer || '').toUpperCase())?.id || ''}
+                                                onChange={e => {
+                                                    const selectedId = e.target.value;
+                                                    const found = driverAssets.find(d => d.id === selectedId);
+                                                    if (found) {
+                                                        setLocalFormData((prev: any) => ({
+                                                            ...prev,
+                                                            responsibleServer: found.name,
+                                                            serverRole: found.role
+                                                        }));
+                                                    }
+                                                }}
+                                                className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs text-indigo-950"
+                                            >
+                                                <option value="">-- Selecione o Responsável Cadastrado --</option>
+                                                {driverAssets.map(d => (
+                                                    <option key={d.id} value={d.id}>
+                                                        {d.name} ({d.role})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <input 
+                                                type="text" 
+                                                required
+                                                placeholder="Nome Completo do Responsável"
+                                                value={localFormData.responsibleServer}
+                                                onChange={e => setLocalFormData((prev: any) => ({ ...prev, responsibleServer: e.target.value.toUpperCase() }))}
+                                                className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Cargo</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            placeholder="Ex: POLICIAL PENAL"
+                                            value={localFormData.serverRole}
+                                            onChange={e => setLocalFormData((prev: any) => ({ ...prev, serverRole: e.target.value.toUpperCase() }))}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Destino</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            placeholder="Ex: ARARAQUARA - SP"
+                                            value={localFormData.destination}
+                                            onChange={e => setLocalFormData((prev: any) => ({ ...prev, destination: e.target.value.toUpperCase() }))}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 space-y-3">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[9px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                            Acompanhantes
+                                        </label>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setLocalFormData((prev: any) => ({ ...prev, companions: [...(prev.companions || []), { name: '', rg: '' }] }))}
+                                            className="text-[8px] font-black text-indigo-600 uppercase hover:underline"
+                                        >
+                                            + Adicionar
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                        {(localFormData.companions || []).map((c: any, i: number) => (
+                                            <div key={i} className="bg-white p-2 rounded-lg border border-gray-200 shadow-sm space-y-1.5 relative group">
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newCompanions = (localFormData.companions || []).filter((_: any, idx: number) => idx !== i);
+                                                        setLocalFormData((prev: any) => ({ ...prev, companions: newCompanions }));
+                                                    }}
+                                                    className="absolute -top-1 -right-1 bg-red-100 text-red-600 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                </button>
+                                                <div className="space-y-0.5">
+                                                    <label className="text-[7px] font-black text-gray-400 uppercase">Nome ({i + 1})</label>
+                                                    <input 
+                                                        type="text" 
+                                                        value={c.name}
+                                                        onChange={e => {
+                                                            const newCompanions = [...(localFormData.companions || [])];
+                                                            newCompanions[i] = { ...newCompanions[i], name: e.target.value.toUpperCase() };
+                                                            setLocalFormData((prev: any) => ({ ...prev, companions: newCompanions }));
+                                                        }}
+                                                        className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-gray-50 font-bold outline-none focus:border-indigo-500 transition-all text-[10px]"
+                                                    />
+                                                </div>
+                                                <div className="space-y-0.5">
+                                                    <label className="text-[7px] font-black text-gray-400 uppercase">RG</label>
+                                                    <input 
+                                                        type="text" 
+                                                        value={c.rg}
+                                                        onChange={e => {
+                                                            const newCompanions = [...(localFormData.companions || [])];
+                                                            newCompanions[i] = { ...newCompanions[i], rg: e.target.value.toUpperCase() };
+                                                            setLocalFormData((prev: any) => ({ ...prev, companions: newCompanions }));
+                                                        }}
+                                                        className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-gray-50 font-bold outline-none focus:border-indigo-500 transition-all text-[10px]"
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Número da FCT (Anexar)</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            placeholder="Ex: 1630/2025"
+                                            value={localFormData.fctNumber}
+                                            onChange={e => setLocalFormData((prev: any) => ({ ...prev, fctNumber: e.target.value.toUpperCase() }))}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-mono"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Observações</label>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Opcional"
+                                            value={localFormData.observations}
+                                            onChange={e => setLocalFormData((prev: any) => ({ ...prev, observations: e.target.value.toUpperCase() }))}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Saída</label>
+                                        <input 
+                                            type="time" 
+                                            value={localFormData.exitTime || ''} 
+                                            onChange={e => setLocalFormData((prev: any) => ({ ...prev, exitTime: e.target.value }))}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Retorno</label>
+                                        <input 
+                                            type="time" 
+                                            value={localFormData.returnTime || ''} 
+                                            onChange={e => setLocalFormData((prev: any) => ({ ...prev, returnTime: e.target.value }))}
+                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
+                                        />
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        <div className="flex gap-3 pt-1">
+                            <button 
+                                type="button"
+                                onClick={onClose}
+                                disabled={isSubmitting}
+                                className="flex-1 h-10 bg-gray-100 text-gray-500 font-black rounded-xl hover:bg-gray-200 transition-all uppercase text-[9px] tracking-widest disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="flex-[2] h-10 rounded-xl font-black transition-all shadow-xl active:scale-95 uppercase text-[9px] tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700"
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Processando...</span>
+                                    </>
+                                ) : (
+                                    <span>{securityMode ? 'Salvar Horários' : editingOrder ? 'Salvar Alterações' : 'Continuar para Checklist'}</span>
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({ 
     orders = [], onRegister, onUpdate, onDelete,
     vehicleAssets = [], onRegisterVehicleAsset, onUpdateVehicleAsset, onDeleteVehicleAsset,
@@ -76,7 +658,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     showGateTab = false,
     allowDelete = false, // Add this
 }) => {
-    const [activeSubTab, setActiveSubTab] = useState<'orders' | 'assets' | 'gate' | 'inspections'>('orders');
+    const [activeSubTab, setActiveSubTab] = useState<'orders' | 'assets' | 'gate' | 'inspections'>(() => securityMode ? 'gate' : 'orders');
     const [activeAssetTab, setActiveAssetTab] = useState<'vehicles' | 'drivers' | 'roles'>('vehicles');
 
     // Barcode scanning state variables
@@ -220,6 +802,21 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                     if (!element) return;
 
                     html5QrCode = new Html5Qrcode("vehicle-qr-reader");
+
+                    const onCodeScanned = (decodedText: string) => {
+                        if (isStopped) return;
+                        isStopped = true;
+                        handleScanVehicleBarcode(decodedText);
+                        if (html5QrCode && html5QrCode.isScanning) {
+                            html5QrCode.stop()
+                                .catch(err => console.warn("Erro ao parar camera:", err))
+                                .finally(() => {
+                                    setIsVehicleScannerActive(false);
+                                });
+                        } else {
+                            setIsVehicleScannerActive(false);
+                        }
+                    };
                     
                     const startScanner = async () => {
                         try {
@@ -229,14 +826,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                     fps: 10,
                                     qrbox: { width: 220, height: 220 }
                                 },
-                                (decodedText) => {
-                                    handleScanVehicleBarcode(decodedText);
-                                    setIsVehicleScannerActive(false);
-                                    if (html5QrCode && html5QrCode.isScanning && !isStopped) {
-                                        isStopped = true;
-                                        html5QrCode.stop().catch(err => console.warn("Erro ao parar camera:", err));
-                                    }
-                                },
+                                onCodeScanned,
                                 () => {}
                             );
                         } catch (err) {
@@ -249,14 +839,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                         fps: 10,
                                         qrbox: { width: 220, height: 220 }
                                     },
-                                    (decodedText) => {
-                                        handleScanVehicleBarcode(decodedText);
-                                        setIsVehicleScannerActive(false);
-                                        if (html5QrCode && html5QrCode.isScanning && !isStopped) {
-                                            isStopped = true;
-                                            html5QrCode.stop().catch(stopErr => console.warn("Erro:", stopErr));
-                                        }
-                                    },
+                                    onCodeScanned,
                                     () => {}
                                 );
                             } catch (fallbackErr) {
@@ -268,14 +851,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                         await html5QrCode?.start(
                                             cameraId,
                                             { fps: 10, qrbox: { width: 220, height: 220 } },
-                                            (decodedText) => {
-                                                handleScanVehicleBarcode(decodedText);
-                                                setIsVehicleScannerActive(false);
-                                                if (html5QrCode && html5QrCode.isScanning && !isStopped) {
-                                                    isStopped = true;
-                                                    html5QrCode.stop().catch(() => {});
-                                                }
-                                            },
+                                            onCodeScanned,
                                             () => {}
                                         );
                                     } else {
@@ -298,16 +874,14 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 clearTimeout(timer);
                 isStopped = true;
                 if (html5QrCode) {
-                    const stopScanner = async () => {
-                        try {
-                            if (html5QrCode && html5QrCode.isScanning) {
-                                await html5QrCode.stop();
-                            }
-                        } catch (err) {
-                            console.warn("Erro ao parar camera no cleanup:", err);
+                    try {
+                        if (html5QrCode.isScanning) {
+                            html5QrCode.stop().catch(err => console.warn("Erro ao parar camera no cleanup:", err));
                         }
-                    };
-                    stopScanner();
+                        html5QrCode.clear();
+                    } catch (e) {
+                        console.warn("Erro no clear do html5QrCode:", e);
+                    }
                 }
             };
         }
@@ -327,24 +901,10 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     const [validationPassword, setValidationPassword] = useState('');
     const [isUploadingPdf, setIsUploadingPdf] = useState<string | null>(null);
     const [editingOrder, setEditingOrder] = useState<VehicleExitOrder | null>(null);
-    const [formData, setFormData] = useState<any>({
-        date: new Date().toISOString().split('T')[0],
-        vehicle: '',
-        plate: '',
-        assetNumber: '',
-        responsibleServer: '',
-        serverRole: '',
-        destination: '',
-        fctNumber: '',
-        companions: [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
-        observations: '',
-        exitTime: '',
-        exitDate: '',
-        returnTime: '',
-        returnDate: '',
-        validationRole: '',
-        validatedBy: ''
-    });
+    const [pendingOrderData, setPendingOrderData] = useState<any>(null);
+    const isSubmittingRef = useRef(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formData, setFormData] = useState<any>(defaultOrderFormData);
 
     // Gate Control State
     const [isCameraActive, setIsCameraActive] = useState(false);
@@ -374,7 +934,6 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         wipers: null as boolean | 'NA' | null,
         bypassed: false
     });
-    const [isChecklistCompleted, setIsChecklistCompleted] = useState(false);
 
     // Confirmation Modal State
     const [confirmConfig, setConfirmConfig] = useState<{
@@ -414,13 +973,51 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         });
     }, [vehicleAssets, inTransitPlates, editingOrder]);
 
-    const [prevSecurityMode, setPrevSecurityMode] = useState(securityMode);
-    if (securityMode !== prevSecurityMode) {
-        setPrevSecurityMode(securityMode);
-        if (securityMode && activeSubTab !== 'gate') {
-            setActiveSubTab('gate');
+    const stopCamera = useCallback(() => {
+        if (autoScanIntervalRef.current) {
+            clearInterval(autoScanIntervalRef.current);
+            autoScanIntervalRef.current = null;
         }
-    }
+        setIsAutoScanEnabled(false);
+        if (cameraStream) {
+            try {
+                cameraStream.getTracks().forEach(track => track.stop());
+            } catch (e) {
+                console.warn("Error stopping camera tracks:", e);
+            }
+            setCameraStream(null);
+        }
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+        setIsCameraActive(false);
+        setRecognitionStatus('idle');
+    }, [cameraStream]);
+
+    const handleSwitchSubTab = useCallback((tab: 'orders' | 'assets' | 'gate' | 'inspections') => {
+        if (tab !== 'gate') {
+            stopCamera();
+            setIsVehicleScannerActive(false);
+        }
+        setActiveSubTab(tab);
+    }, [stopCamera]);
+
+    // Teardown on component unmount
+    useEffect(() => {
+        return () => {
+            if (autoScanIntervalRef.current) {
+                clearInterval(autoScanIntervalRef.current);
+                autoScanIntervalRef.current = null;
+            }
+            if (cameraStream) {
+                try {
+                    cameraStream.getTracks().forEach(track => track.stop());
+                } catch (e) {
+                    console.warn("Error stopping camera tracks on unmount:", e);
+                }
+            }
+        };
+    }, [cameraStream]);
 
     const startCamera = async () => {
         setCameraError(null);
@@ -451,23 +1048,6 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             videoRef.current.play().catch(err => console.error("Video play error:", err));
         }
     }, [isCameraActive, cameraStream]);
-
-    const stopCamera = () => {
-        if (autoScanIntervalRef.current) {
-            clearInterval(autoScanIntervalRef.current);
-            autoScanIntervalRef.current = null;
-        }
-        setIsAutoScanEnabled(false);
-        if (cameraStream) {
-            cameraStream.getTracks().forEach(track => track.stop());
-            setCameraStream(null);
-        }
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
-        }
-        setIsCameraActive(false);
-        setRecognitionStatus('idle');
-    };
 
     const captureAndRecognizePlate = useCallback(async () => {
         if (!videoRef.current || !canvasRef.current || isProcessingPlate) return;
@@ -591,11 +1171,21 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         }
     };
 
+    const capturePlateRef = useRef(captureAndRecognizePlate);
+    const recognitionStatusRef = useRef(recognitionStatus);
+    const isProcessingPlateRef = useRef(isProcessingPlate);
+
+    useEffect(() => {
+        capturePlateRef.current = captureAndRecognizePlate;
+        recognitionStatusRef.current = recognitionStatus;
+        isProcessingPlateRef.current = isProcessingPlate;
+    }, [captureAndRecognizePlate, recognitionStatus, isProcessingPlate]);
+
     useEffect(() => {
         if (isAutoScanEnabled && isCameraActive) {
             autoScanIntervalRef.current = setInterval(() => {
-                if (recognitionStatus === 'idle') {
-                    captureAndRecognizePlate();
+                if (recognitionStatusRef.current === 'idle' && !isProcessingPlateRef.current) {
+                    capturePlateRef.current();
                 }
             }, 5000); // Scan every 5 seconds
         } else {
@@ -608,9 +1198,10 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         return () => {
             if (autoScanIntervalRef.current) {
                 clearInterval(autoScanIntervalRef.current);
+                autoScanIntervalRef.current = null;
             }
         };
-    }, [isAutoScanEnabled, isCameraActive, recognitionStatus, captureAndRecognizePlate]);
+    }, [isAutoScanEnabled, isCameraActive]);
 
     const handleQuickRegister = async (order: VehicleExitOrder, type: 'exit' | 'return') => {
         const now = new Date();
@@ -626,24 +1217,8 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
     const handleOpenNewOrderModal = () => {
         setEditingOrder(null);
-        setFormData({
-            date: new Date().toISOString().split('T')[0],
-            vehicle: '',
-            plate: '',
-            assetNumber: '',
-            responsibleServer: '',
-            serverRole: '',
-            destination: '',
-            fctNumber: '',
-            companions: [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
-            observations: '',
-            exitTime: '',
-            exitDate: '',
-            returnTime: '',
-            returnDate: '',
-            validationRole: '',
-            validatedBy: ''
-        });
+        setPendingOrderData({ ...defaultOrderFormData });
+        setFormData({ ...defaultOrderFormData });
         setIsModalOpen(true);
     };
 
@@ -667,7 +1242,10 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
     const handlePrint = (order: VehicleExitOrder) => {
         const printWindow = window.open('', '_blank');
-        if (!printWindow) return;
+        if (!printWindow) {
+            alert("Não foi possível abrir a janela de impressão. Verifique se o bloqueador de pop-ups está ativado no navegador.");
+            return;
+        }
 
         const formatDate = (dateStr: string) => {
             if (!dateStr) return '';
@@ -725,9 +1303,6 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 </style>
             </head>
             <body>
-                <div style="position: absolute; top: 15mm; right: 15mm; text-align: center;">
-                    <svg id="barcode-print"></svg>
-                </div>
                 <div class="header">
                     <h1>SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA</h1>
                     <h2>Coordenadoria das Unidades Prisionais da Região Norte do Estado</h2>
@@ -806,6 +1381,13 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                             </div>
                         </div>
                     </div>
+                </div>
+                
+                <div style="margin-top: 25px; text-align: center; border-top: 1px dashed #777; padding-top: 12px;">
+                    <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #444; margin-bottom: 5px;">
+                        Controle Portaria / Subportaria - Código da Ordem
+                    </div>
+                    <svg id="barcode-print"></svg>
                 </div>
                 
                 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
@@ -970,266 +1552,82 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         }
     };
 
+    const hasAnyExitOrReturnTime = useMemo(() => {
+        return Boolean(securityMode || orders.some(o => o.exitTime || o.returnTime));
+    }, [securityMode, orders]);
+
+    const pendingValidationOrdersCount = useMemo(() => {
+        return orders.filter(o => !o.validationRole && !o.exitTime).length;
+    }, [orders]);
+
     const groupedOrders = useMemo(() => {
         const filteredOrders = printMonth 
             ? orders.filter(o => o.date.startsWith(printMonth))
             : orders;
 
-        return {
-            withPdf: filteredOrders.filter(o => o.pdfUrl),
-            withoutPdf: filteredOrders.filter(o => !o.pdfUrl)
-        };
+        const withPdf = filteredOrders
+            .filter(o => o.pdfUrl)
+            .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+        const withoutPdf = filteredOrders
+            .filter(o => !o.pdfUrl)
+            .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+        return { withPdf, withoutPdf };
     }, [orders, printMonth]);
 
-    const renderOrderRow = (order: VehicleExitOrder) => (
-        <tr key={order.id} className={`hover:bg-gray-50 transition-colors ${!order.validationRole && !order.exitTime ? 'bg-red-50/30' : ''}`}>
-            <td className="p-4 font-bold text-gray-600">
-                {order.date.split('-').reverse().join('/')}
-                {!order.validationRole && !order.exitTime && (
-                    <div className="mt-1">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black bg-red-100 text-red-600 uppercase animate-pulse">
-                            Aguardando Validação
-                        </span>
-                    </div>
-                )}
-            </td>
-            <td className="p-4">
-                <div className="font-black text-gray-800 uppercase">{order.vehicle}</div>
-                <div className="text-[10px] text-indigo-500 font-mono flex-wrap flex items-center gap-1.5">
-                    <span className="font-black">{order.plate}</span>
-                    {order.pdfUrl && (
-                        <button 
-                            onClick={() => handleOpenPdf(order.pdfUrl!)}
-                            className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-1 hover:bg-indigo-100"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                            PDF
-                        </button>
-                    )}
-                    {order.id && (
-                        <button 
-                            onClick={() => setBarcodeModalOrder(order)}
-                            className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-1 hover:bg-indigo-100"
-                            title="Visualizar Código de Barras da Ordem"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            Código
-                        </button>
-                    )}
-                </div>
-            </td>
-            <td className="p-4">
-                <div className="font-bold text-gray-700 uppercase">{order.responsibleServer}</div>
-                <div className="text-[10px] text-gray-400 uppercase">{order.serverRole}</div>
-            </td>
-            <td className="p-4 font-bold text-gray-600 uppercase">{order.destination}</td>
-            <td className="p-4 font-mono text-gray-500">{order.fctNumber}</td>
-            {(securityMode || orders.some(o => o.exitTime || o.returnTime)) && (
-                <>
-                    <td className="p-4 text-center">
-                        {order.exitTime ? (
-                            <div className="flex flex-col items-center">
-                                <span className="text-indigo-600 font-black text-xs">{order.exitTime}</span>
-                                <span className="text-[9px] text-gray-400 font-bold">{(order.exitDate || order.date).split('-').reverse().join('/')}</span>
-                            </div>
-                        ) : <span className="text-gray-300">--:--</span>}
-                    </td>
-                    <td className="p-4 text-center">
-                        {order.returnTime ? (
-                            <div className="flex flex-col items-center">
-                                <span className="text-emerald-600 font-black text-xs">{order.returnTime}</span>
-                                <span className="text-[9px] text-gray-400 font-bold">{(order.returnDate || order.date).split('-').reverse().join('/')}</span>
-                            </div>
-                        ) : <span className="text-gray-300">--:--</span>}
-                    </td>
-                </>
-            )}
-            <td className="p-4">
-                <div className="flex items-center justify-center gap-2">
-                    {securityMode ? (
-                        <button 
-                            onClick={() => handleEdit(order)}
-                            className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
-                            title="Registrar Horários"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        </button>
-                    ) : (
-                        <>
-                            {!readOnly && !hideEdit && (
-                                <button 
-                                    onClick={() => handleEdit(order)} 
-                                    className={`p-2 rounded-xl transition-all ${order.validationRole ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
-                                    title={order.validationRole ? "Registrar Horários" : "Editar"}
-                                >
-                                    {order.validationRole ? (
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    ) : (
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                    )}
-                                </button>
-                            )}
-                            {!readOnly && (
-                                <button 
-                                    onClick={() => handlePrint(order)}
-                                    className="p-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all shadow-sm"
-                                    title="Imprimir / Baixar PDF"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                                    </svg>
-                                </button>
-                            )}
-                            {!readOnly && (
-                                <button 
-                                    onClick={() => handleOpenValidation(order)} 
-                                    className={`p-2 rounded-xl transition-all ${order.validationRole ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
-                                    title={order.validationRole ? "Validado" : "Validar Saída"}
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                </button>
-                            )}
-                            {!readOnly && (
-                                <button 
-                                    onClick={() => handleAttachPdf(order)}
-                                    disabled={isUploadingPdf === order.id}
-                                    className={`p-2 rounded-xl transition-all ${order.pdfUrl ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
-                                    title={order.pdfUrl ? "Substituir PDF" : "Anexar PDF"}
-                                >
-                                    {isUploadingPdf === order.id ? (
-                                        <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                                    ) : (
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                                    )}
-                                </button>
-                            )}
-                            {onDelete && !readOnly && allowDelete && (
-                                <button 
-                                    onClick={() => {
-                                        setConfirmConfig({
-                                            isOpen: true,
-                                            title: 'Excluir Ordem de Saída',
-                                            message: 'Tem certeza que deseja excluir esta ordem?',
-                                            variant: 'danger',
-                                            onConfirm: async () => {
-                                                console.log("Confirming deletion for order ID:", order.id);
-                                                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-                                                try {
-                                                    await onDelete(order.id);
-                                                } catch (error) {
-                                                    console.error("Error deleting order:", error);
-                                                    alert("Erro ao excluir a ordem.");
-                                                }
-                                            }
-                                        });
-                                    }} 
-                                    className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors" 
-                                    title="Excluir"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                </button>
-                            )}
+    const handleProceedToChecklist = useCallback((data: any) => {
+        setPendingOrderData(data);
+        setFormData(data);
+        setIsModalOpen(false);
+        setVehicleChecklist({
+            water: null,
+            oil: null,
+            tires: null,
+            lights: null,
+            wipers: null,
+            bypassed: false
+        });
+        setIsChecklistModalOpen(true);
+    }, []);
 
-                        </>
-                    )}
-                </div>
-            </td>
-        </tr>
-    );
+    const handleFinalizeOrder = useCallback(async (orderData: any, checklist: typeof vehicleChecklist) => {
+        if (isSubmittingRef.current) return;
+        isSubmittingRef.current = true;
+        setIsSubmitting(true);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+        try {
+            const finalData = { ...(orderData || {}) };
+            if (finalData.exitTime) {
+                if (!finalData.exitDate) finalData.exitDate = finalData.date;
+            } else {
+                finalData.exitDate = '';
+            }
+            
+            if (finalData.returnTime) {
+                if (!finalData.returnDate) finalData.returnDate = finalData.date;
+            } else {
+                finalData.returnDate = '';
+            }
 
-        // Validation
-        if (!formData.fctNumber || !formData.destination || !formData.responsibleServer || !formData.vehicle || !formData.serverRole) {
-            alert('Por favor, preencha todos os campos obrigatórios (FCT, Destino, Responsável, Cargo e Veículo).');
-            return;
-        }
-
-        const finalData = { ...formData };
-        if (finalData.exitTime) {
-            if (!finalData.exitDate) finalData.exitDate = finalData.date;
-        } else {
-            finalData.exitDate = '';
-        }
-        
-        if (finalData.returnTime) {
-            if (!finalData.returnDate) finalData.returnDate = finalData.date;
-        } else {
-            finalData.returnDate = '';
-        }
-
-        if (editingOrder) {
-            const orderStatus = finalData.returnTime ? 'concluida' as const : 'aberta' as const;
-            await onUpdate({
-                ...editingOrder,
-                ...finalData,
-                status: orderStatus,
-                id: editingOrder.id,
-                checklist: editingOrder.checklist || undefined
-            });
-            setIsModalOpen(false);
-            setEditingOrder(null);
-            setFormData({
-                date: new Date().toISOString().split('T')[0],
-                vehicle: '',
-                plate: '',
-                assetNumber: '',
-                responsibleServer: '',
-                serverRole: '',
-                destination: '',
-                fctNumber: '',
-                companions: [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
-                observations: '',
-                exitTime: '',
-                exitDate: '',
-                returnTime: '',
-                returnDate: '',
-                validationRole: '',
-                validatedBy: ''
-            });
-        } else if (isChecklistCompleted) {
-            // Se o checklist já foi completado, salva no banco
-            const orderWithChecklist = {
+            const orderWithChecklist: Omit<VehicleExitOrder, 'id'> = {
                 ...finalData,
                 checklist: {
-                    water: vehicleChecklist.water ?? 'NA',
-                    oil: vehicleChecklist.oil ?? 'NA',
-                    tires: vehicleChecklist.tires ?? 'NA',
-                    lights: vehicleChecklist.lights ?? 'NA',
-                    wipers: vehicleChecklist.wipers ?? 'NA',
-                    bypassed: vehicleChecklist.bypassed || false
+                    water: checklist.water ?? 'NA',
+                    oil: checklist.oil ?? 'NA',
+                    tires: checklist.tires ?? 'NA',
+                    lights: checklist.lights ?? 'NA',
+                    wipers: checklist.wipers ?? 'NA',
+                    bypassed: checklist.bypassed || false
                 }
             };
 
             await onRegister(orderWithChecklist);
+            
+            setIsChecklistModalOpen(false);
             setIsModalOpen(false);
+            setPendingOrderData(null);
             setEditingOrder(null);
-            setIsChecklistCompleted(false); // Reseta para o próximo
-            setFormData({
-                date: new Date().toISOString().split('T')[0],
-                vehicle: '',
-                plate: '',
-                assetNumber: '',
-                responsibleServer: '',
-                serverRole: '',
-                destination: '',
-                fctNumber: '',
-                companions: [{ name: '', rg: '' }, { name: '', rg: '' }, { name: '', rg: '' }],
-                observations: '',
-                exitTime: '',
-                exitDate: '',
-                returnTime: '',
-                returnDate: '',
-                validationRole: '',
-                validatedBy: ''
-            });
-        } else {
-            // Se for um novo cadastro e não fez o checklist, abre o checklist
             setVehicleChecklist({
                 water: null,
                 oil: null,
@@ -1238,21 +1636,83 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 wipers: null,
                 bypassed: false
             });
-            setIsModalOpen(false); // Fecha o modal da ordem para não travar
-            setIsChecklistModalOpen(true);
+        } catch (err: any) {
+            console.error("Erro ao registrar ordem:", err);
+            alert(`Erro ao registrar ordem: ${err?.message || err}`);
+        } finally {
+            isSubmittingRef.current = false;
+            setIsSubmitting(false);
         }
-    };
+    }, [onRegister]);
+
+    const handleSubmitDirect = useCallback(async (formDataToSave: any) => {
+        if (isSubmittingRef.current) return;
+        isSubmittingRef.current = true;
+        setIsSubmitting(true);
+
+        try {
+            const finalData = { ...formDataToSave };
+            if (finalData.exitTime) {
+                if (!finalData.exitDate) finalData.exitDate = finalData.date;
+            } else {
+                finalData.exitDate = '';
+            }
+            
+            if (finalData.returnTime) {
+                if (!finalData.returnDate) finalData.returnDate = finalData.date;
+            } else {
+                finalData.returnDate = '';
+            }
+
+            if (editingOrder) {
+                const orderStatus = finalData.returnTime ? 'concluida' as const : 'aberta' as const;
+                await onUpdate({
+                    ...editingOrder,
+                    ...finalData,
+                    status: orderStatus,
+                    id: editingOrder.id,
+                    checklist: editingOrder.checklist || undefined
+                });
+                setIsModalOpen(false);
+                setEditingOrder(null);
+                setPendingOrderData(null);
+            }
+        } catch (err: any) {
+            console.error("Erro ao salvar alterações:", err);
+            alert(`Erro ao salvar alterações: ${err?.message || err}`);
+        } finally {
+            isSubmittingRef.current = false;
+            setIsSubmitting(false);
+        }
+    }, [editingOrder, onUpdate]);
+
+    const handleDeleteOrder = useCallback((orderId: string) => {
+        if (!onDelete) return;
+        setConfirmConfig({
+            isOpen: true,
+            title: 'Excluir Ordem de Saída',
+            message: 'Tem certeza que deseja excluir esta ordem?',
+            variant: 'danger',
+            onConfirm: async () => {
+                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                try {
+                    await onDelete(orderId);
+                } catch (error) {
+                    console.error("Error deleting order:", error);
+                    alert("Erro ao excluir a ordem.");
+                }
+            }
+        });
+    }, [onDelete]);
 
     const handleConfirmChecklist = async () => {
-        // Apenas marca como completado e volta para a ordem
-        setIsChecklistCompleted(true);
-        setIsChecklistModalOpen(false);
-        setIsModalOpen(true);
+        if (!pendingOrderData) return;
+        await handleFinalizeOrder(pendingOrderData, vehicleChecklist);
     };
 
     const handleEdit = (order: VehicleExitOrder) => {
         setEditingOrder(order);
-        setFormData({
+        const editData = {
             date: order.date,
             vehicle: order.vehicle,
             plate: order.plate,
@@ -1269,7 +1729,9 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             returnDate: order.returnDate || '',
             validationRole: order.validationRole || '',
             validatedBy: order.validatedBy || ''
-        });
+        };
+        setPendingOrderData(editData);
+        setFormData(editData);
         setIsModalOpen(true);
     };
 
@@ -1392,14 +1854,14 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
                 <div className="flex flex-wrap gap-2 bg-gray-100/50 p-2 rounded-3xl backdrop-blur-sm border border-gray-200/50">
                     <button 
-                        onClick={() => setActiveSubTab('orders')}
+                        onClick={() => handleSwitchSubTab('orders')}
                         className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'orders' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-500 hover:bg-white/50'}`}
                     >
                         Ordens
                     </button>
                     {(securityMode || showGateTab) && (
                         <button 
-                            onClick={() => setActiveSubTab('gate')}
+                            onClick={() => handleSwitchSubTab('gate')}
                             className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'gate' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-500 hover:bg-white/50'}`}
                         >
                             Sub Portaria
@@ -1408,13 +1870,13 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                     {!readOnly && !hideAssets && (
                         <>
                             <button 
-                                onClick={() => setActiveSubTab('inspections')}
+                                onClick={() => handleSwitchSubTab('inspections')}
                                 className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'inspections' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-500 hover:bg-white/50'}`}
                             >
                                 Inspeções
                             </button>
                             <button 
-                                onClick={() => setActiveSubTab('assets')}
+                                onClick={() => handleSwitchSubTab('assets')}
                                 className={`px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'assets' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-500 hover:bg-white/50'}`}
                             >
                                 Cadastros
@@ -1426,7 +1888,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
             {activeSubTab === 'orders' && (
                 <div className="relative z-10 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    {orders.some(o => !o.validationRole && !o.exitTime) && (
+                    {pendingValidationOrdersCount > 0 && (
                         <div className="bg-red-50 border border-red-200 p-4 rounded-3xl flex items-center gap-4 animate-pulse">
                             <div className="bg-red-100 p-2 rounded-full text-red-600">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1435,7 +1897,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                             </div>
                             <div>
                                 <h4 className="text-xs font-black text-red-900 uppercase">Atenção: Ordens Aguardando Validação</h4>
-                                <p className="text-[10px] text-red-600 font-bold uppercase">Existem {orders.filter(o => !o.validationRole && !o.exitTime).length} ordens de saída que precisam ser validadas antes da liberação do veículo.</p>
+                                <p className="text-[10px] text-red-600 font-bold uppercase">Existem {pendingValidationOrdersCount} ordens de saída que precisam ser validadas antes da liberação do veículo.</p>
                             </div>
                         </div>
                     )}
@@ -1505,7 +1967,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                         <th className="p-6 text-left">Responsável</th>
                                         <th className="p-6 text-left">Destino</th>
                                         <th className="p-6 text-left">FCT</th>
-                                        {(securityMode || orders.some(o => o.exitTime || o.returnTime)) && (
+                                        {hasAnyExitOrReturnTime && (
                                             <>
                                                 <th className="p-6 text-center">Saída</th>
                                                 <th className="p-6 text-center">Retorno</th>
@@ -1525,7 +1987,25 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                             Ordens com Anexo (PDF)
                                                         </td>
                                                     </tr>
-                                                    {groupedOrders.withPdf.sort((a,b) => (b.date || '').localeCompare(a.date || '')).map(order => renderOrderRow(order))}
+                                                    {groupedOrders.withPdf.map(order => (
+                                                        <OrderTableRow
+                                                            key={order.id}
+                                                            order={order}
+                                                            securityMode={securityMode}
+                                                            readOnly={readOnly}
+                                                            hideEdit={hideEdit}
+                                                            allowDelete={allowDelete}
+                                                            hasAnyExitOrReturnTime={hasAnyExitOrReturnTime}
+                                                            isUploadingPdf={isUploadingPdf === order.id}
+                                                            onEdit={handleEdit}
+                                                            onPrint={handlePrint}
+                                                            onOpenBarcode={setBarcodeModalOrder}
+                                                            onOpenPdf={handleOpenPdf}
+                                                            onOpenValidation={handleOpenValidation}
+                                                            onAttachPdf={handleAttachPdf}
+                                                            onDeleteOrder={handleDeleteOrder}
+                                                        />
+                                                    ))}
                                                 </>
                                             )}
                                             {/* Ordens sem Anexo */}
@@ -1536,7 +2016,25 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                             Ordens sem Anexo
                                                         </td>
                                                     </tr>
-                                                    {groupedOrders.withoutPdf.sort((a,b) => (b.date || '').localeCompare(a.date || '')).map(order => renderOrderRow(order))}
+                                                    {groupedOrders.withoutPdf.map(order => (
+                                                        <OrderTableRow
+                                                            key={order.id}
+                                                            order={order}
+                                                            securityMode={securityMode}
+                                                            readOnly={readOnly}
+                                                            hideEdit={hideEdit}
+                                                            allowDelete={allowDelete}
+                                                            hasAnyExitOrReturnTime={hasAnyExitOrReturnTime}
+                                                            isUploadingPdf={isUploadingPdf === order.id}
+                                                            onEdit={handleEdit}
+                                                            onPrint={handlePrint}
+                                                            onOpenBarcode={setBarcodeModalOrder}
+                                                            onOpenPdf={handleOpenPdf}
+                                                            onOpenValidation={handleOpenValidation}
+                                                            onAttachPdf={handleAttachPdf}
+                                                            onDeleteOrder={handleDeleteOrder}
+                                                        />
+                                                    ))}
                                                 </>
                                             )}
                                         </>
@@ -1655,7 +2153,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         )}
                     </div>
 
-                    {orders.some(o => !o.validationRole && !o.exitTime) && (
+                    {pendingValidationOrdersCount > 0 && (
                         <div className="bg-amber-50 border border-amber-200 p-4 rounded-3xl flex items-center gap-4">
                             <div className="bg-amber-100 p-2 rounded-full text-amber-600">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2274,329 +2772,23 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             )}
 
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-2 md:p-4">
-                    <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto custom-scrollbar border border-white/20">
-                        <div className="p-4 md:p-6">
-                            <div className="flex justify-between items-center mb-4 border-b pb-3">
-                                <div>
-                                    <h3 className="text-lg md:text-xl font-black text-gray-900 uppercase tracking-tighter italic">
-                                        {isChecklistCompleted ? 'Finalizar Cadastro' : (securityMode || editingOrder?.validationRole) ? 'Registrar Horários' : editingOrder ? 'Editar Ordem' : 'Nova Ordem de Saída'}
-                                    </h3>
-                                    <p className="text-gray-400 font-bold text-[8px] uppercase tracking-widest mt-0.5">
-                                        {isChecklistCompleted ? 'Checklist realizado com sucesso. Clique em salvar para finalizar.' : (securityMode || editingOrder?.validationRole) ? 'Informe os horários de saída e retorno' : 'Preencha os dados do deslocamento'}
-                                    </p>
-                                </div>
-                                <button onClick={() => { setIsModalOpen(false); setIsChecklistCompleted(false); }} className="p-1.5 bg-gray-100 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-500 transition-all">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
-                            </div>
-
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                { (securityMode || editingOrder?.validationRole) ? (
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1">
-                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Data de Saída</label>
-                                            <input 
-                                                type="date" 
-                                                value={formData.exitDate || ''} 
-                                                onChange={e => setFormData({ ...formData, exitDate: e.target.value })}
-                                                className="w-full h-10 px-3 border-2 border-indigo-100 rounded-xl bg-indigo-50 font-black text-indigo-900 focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs text-center"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Saída</label>
-                                            <input 
-                                                type="time" 
-                                                value={formData.exitTime || ''} 
-                                                onChange={e => setFormData({ ...formData, exitTime: e.target.value })}
-                                                className="w-full h-10 px-3 border-2 border-indigo-100 rounded-xl bg-indigo-50 font-black text-indigo-900 focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs text-center"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Data de Retorno</label>
-                                            <input 
-                                                type="date" 
-                                                value={formData.returnDate || ''} 
-                                                onChange={e => setFormData({ ...formData, returnDate: e.target.value })}
-                                                className="w-full h-10 px-3 border-2 border-emerald-100 rounded-xl bg-emerald-50 font-black text-emerald-900 focus:bg-white focus:border-emerald-500 transition-all outline-none text-xs text-center"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Retorno</label>
-                                            <input 
-                                                type="time" 
-                                                value={formData.returnTime || ''} 
-                                                onChange={e => setFormData({ ...formData, returnTime: e.target.value })}
-                                                className="w-full h-10 px-3 border-2 border-emerald-100 rounded-xl bg-emerald-50 font-black text-emerald-900 focus:bg-white focus:border-emerald-500 transition-all outline-none text-xs text-center"
-                                            />
-                                        </div>
-                                        <div className="col-span-2 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                            <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Resumo da Ordem</p>
-                                            <p className="text-xs font-bold text-gray-700">{formData.vehicle} - {formData.plate}</p>
-                                            <p className="text-[10px] font-medium text-gray-500">{formData.responsibleServer}</p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Data</label>
-                                        <input 
-                                            type="date" 
-                                            required
-                                            value={formData.date}
-                                            onChange={e => setFormData({ ...formData, date: e.target.value })}
-                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
-                                        />
-                                    </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Selecionar Veículo da Frota</label>
-                                        <div className="flex flex-col gap-1">
-                                            <select
-                                                value={vehicleAssets.find(v => (v.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === (formData.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, ''))?.id || ''}
-                                                onChange={e => {
-                                                    const selectedId = e.target.value;
-                                                    const found = vehicleAssets.find(v => v.id === selectedId);
-                                                    if (found) {
-                                                        setFormData({
-                                                            ...formData,
-                                                            vehicle: found.model,
-                                                            plate: found.plate,
-                                                            assetNumber: found.assetNumber || ''
-                                                        });
-                                                    }
-                                                }}
-                                                className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs text-indigo-950"
-                                            >
-                                                <option value="">-- Selecione o Veículo ({availableVehicles.length} disponíveis) --</option>
-                                                {availableVehicles.map(v => (
-                                                    <option key={v.id} value={v.id}>
-                                                        {v.model} | PLACA: {v.plate} {v.assetNumber ? `| PATR: ${v.assetNumber}` : ''}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <input 
-                                                type="text" 
-                                                required
-                                                placeholder="Modelo / Nome do Veículo"
-                                                value={formData.vehicle}
-                                                onChange={e => setFormData({ ...formData, vehicle: e.target.value.toUpperCase() })}
-                                                className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Placa</label>
-                                        <input 
-                                            type="text" 
-                                            required
-                                            placeholder="Ex: FSP4J81"
-                                            value={formData.plate}
-                                            onChange={e => setFormData({ ...formData, plate: e.target.value.toUpperCase() })}
-                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-mono"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Patrimônio</label>
-                                        <input 
-                                            type="text" 
-                                            required
-                                            placeholder="Ex: 1710"
-                                            value={formData.assetNumber}
-                                            onChange={e => setFormData({ ...formData, assetNumber: e.target.value.toUpperCase() })}
-                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
-                                        />
-                                    </div>
-                                    <div className="space-y-1 md:col-span-3">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Funcionário Responsável</label>
-                                        <div className="flex flex-col gap-1">
-                                            <select
-                                                value={driverAssets.find(d => (d.name || '').toUpperCase() === (formData.responsibleServer || '').toUpperCase())?.id || ''}
-                                                onChange={e => {
-                                                    const selectedId = e.target.value;
-                                                    const found = driverAssets.find(d => d.id === selectedId);
-                                                    if (found) {
-                                                        setFormData({
-                                                            ...formData,
-                                                            responsibleServer: found.name,
-                                                            serverRole: found.role
-                                                        });
-                                                    }
-                                                }}
-                                                className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs text-indigo-950"
-                                            >
-                                                <option value="">-- Selecione o Responsável Cadastrado --</option>
-                                                {driverAssets.map(d => (
-                                                    <option key={d.id} value={d.id}>
-                                                        {d.name} ({d.role})
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <input 
-                                                type="text" 
-                                                required
-                                                placeholder="Nome Completo do Responsável"
-                                                value={formData.responsibleServer}
-                                                onChange={e => setFormData({ ...formData, responsibleServer: e.target.value.toUpperCase() })}
-                                                className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Cargo</label>
-                                        <input 
-                                            type="text" 
-                                            required
-                                            placeholder="Ex: POLICIAL PENAL"
-                                            value={formData.serverRole}
-                                            onChange={e => setFormData({ ...formData, serverRole: e.target.value.toUpperCase() })}
-                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Destino</label>
-                                        <input 
-                                            type="text" 
-                                            required
-                                            placeholder="Ex: ARARAQUARA - SP"
-                                            value={formData.destination}
-                                            onChange={e => setFormData({ ...formData, destination: e.target.value.toUpperCase() })}
-                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 space-y-3">
-                                    <div className="flex justify-between items-center">
-                                        <label className="text-[9px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                                            Acompanhantes
-                                        </label>
-                                        <button 
-                                            type="button"
-                                            onClick={() => setFormData({ ...formData, companions: [...formData.companions, { name: '', rg: '' }] })}
-                                            className="text-[8px] font-black text-indigo-600 uppercase hover:underline"
-                                        >
-                                            + Adicionar
-                                        </button>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                        {formData.companions.map((c, i) => (
-                                            <div key={i} className="bg-white p-2 rounded-lg border border-gray-200 shadow-sm space-y-1.5 relative group">
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const newCompanions = formData.companions.filter((_, idx) => idx !== i);
-                                                        setFormData({ ...formData, companions: newCompanions });
-                                                    }}
-                                                    className="absolute -top-1 -right-1 bg-red-100 text-red-600 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-                                                </button>
-                                                <div className="space-y-0.5">
-                                                    <label className="text-[7px] font-black text-gray-400 uppercase">Nome ({i + 1})</label>
-                                                    <input 
-                                                        type="text" 
-                                                        value={c.name}
-                                                        onChange={e => {
-                                                            const newCompanions = [...formData.companions];
-                                                            newCompanions[i].name = e.target.value.toUpperCase();
-                                                            setFormData({ ...formData, companions: newCompanions });
-                                                        }}
-                                                        className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-gray-50 font-bold outline-none focus:border-indigo-500 transition-all text-[10px]"
-                                                    />
-                                                </div>
-                                                <div className="space-y-0.5">
-                                                    <label className="text-[7px] font-black text-gray-400 uppercase">RG</label>
-                                                    <input 
-                                                        type="text" 
-                                                        value={c.rg}
-                                                        onChange={e => {
-                                                            const newCompanions = [...formData.companions];
-                                                            newCompanions[i].rg = e.target.value.toUpperCase();
-                                                            setFormData({ ...formData, companions: newCompanions });
-                                                        }}
-                                                        className="w-full h-8 px-2 border border-gray-100 rounded-lg bg-gray-50 font-bold outline-none focus:border-indigo-500 transition-all text-[10px]"
-                                                    />
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Número da FCT (Anexar)</label>
-                                        <input 
-                                            type="text" 
-                                            required
-                                            placeholder="Ex: 1630/2025"
-                                            value={formData.fctNumber}
-                                            onChange={e => setFormData({ ...formData, fctNumber: e.target.value.toUpperCase() })}
-                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-mono"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Observações</label>
-                                        <input 
-                                            type="text" 
-                                            placeholder="Opcional"
-                                            value={formData.observations}
-                                            onChange={e => setFormData({ ...formData, observations: e.target.value.toUpperCase() })}
-                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
-                                        />
-                                    </div>
-                                </div>
-                                
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Saída</label>
-                                        <input 
-                                            type="time" 
-                                            value={formData.exitTime || ''} 
-                                            onChange={e => setFormData({ ...formData, exitTime: e.target.value })}
-                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Horário de Retorno</label>
-                                        <input 
-                                            type="time" 
-                                            value={formData.returnTime || ''} 
-                                            onChange={e => setFormData({ ...formData, returnTime: e.target.value })}
-                                            className="w-full h-9 px-3 border-2 border-gray-100 rounded-xl bg-gray-50 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs"
-                                        />
-                                    </div>
-                                </div>
-                            </>
-                        )}
-
-                        <div className="flex gap-3 pt-1">
-                            <button 
-                                type="button"
-                                onClick={() => { setIsModalOpen(false); setIsChecklistCompleted(false); }}
-                                className="flex-1 h-10 bg-gray-100 text-gray-500 font-black rounded-xl hover:bg-gray-200 transition-all uppercase text-[9px] tracking-widest"
-                            >
-                                Cancelar
-                            </button>
-                            <button 
-                                type="submit"
-                                className={`flex-[2] h-10 rounded-xl font-black transition-all shadow-xl active:scale-95 uppercase text-[9px] tracking-widest ${isChecklistCompleted ? 'bg-emerald-600 text-white shadow-emerald-100 hover:bg-emerald-700' : 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700'}`}
-                            >
-                                {isChecklistCompleted ? 'Finalizar e Salvar' : securityMode ? 'Salvar Horários' : editingOrder ? 'Salvar Alterações' : 'Continuar para Checklist'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    )}
+                <VehicleExitOrderModal
+                    key={editingOrder ? `edit-${editingOrder.id}` : 'new-order'}
+                    isOpen={isModalOpen}
+                    onClose={() => {
+                        setIsModalOpen(false);
+                    }}
+                    editingOrder={editingOrder}
+                    securityMode={securityMode}
+                    vehicleAssets={vehicleAssets}
+                    driverAssets={driverAssets}
+                    availableVehicles={availableVehicles}
+                    initialData={pendingOrderData || formData}
+                    onSubmitDirect={handleSubmitDirect}
+                    onProceedToChecklist={handleProceedToChecklist}
+                    isSubmitting={isSubmitting}
+                />
+            )}
 
             {/* Vehicle Asset Modal */}
             {isVehicleModalOpen && (
@@ -2753,7 +2945,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                         if (hour >= 5 && hour < 12) return 'Bom dia';
                                         if (hour >= 12 && hour < 18) return 'Boa tarde';
                                         return 'Boa noite';
-                                    })()}, <span className="text-indigo-600 underline decoration-indigo-200 underline-offset-4">{formData.responsibleServer}</span>!
+                                    })()}, <span className="text-indigo-600 underline decoration-indigo-200 underline-offset-4">{pendingOrderData?.responsibleServer || formData.responsibleServer || 'Servidor'}</span>!
                                 </p>
                                 <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest leading-relaxed">
                                     Vamos realizar a checagem dos itens do veículo antes de liberar a saída.
@@ -2772,18 +2964,21 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                         <span className="text-[11px] font-black text-gray-600 uppercase tracking-tight group-hover:text-indigo-900 transition-colors w-full sm:w-auto">{item.label}</span>
                                         <div className="flex gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
                                             <button 
+                                                disabled={isSubmitting}
                                                 onClick={() => setVehicleChecklist(prev => ({ ...prev, [item.id]: true }))}
                                                 className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${vehicleChecklist[item.id as keyof typeof vehicleChecklist] === true ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100 scale-105' : 'bg-white text-gray-400 border border-gray-200 hover:border-emerald-200 hover:text-emerald-600'}`}
                                             >
                                                 OK
                                             </button>
                                             <button 
+                                                disabled={isSubmitting}
                                                 onClick={() => setVehicleChecklist(prev => ({ ...prev, [item.id]: false }))}
                                                 className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${vehicleChecklist[item.id as keyof typeof vehicleChecklist] === false ? 'bg-red-600 text-white shadow-lg shadow-red-100 scale-105' : 'bg-white text-gray-400 border border-gray-200 hover:border-red-200 hover:text-red-600'}`}
                                             >
                                                 NÃO OK
                                             </button>
                                             <button 
+                                                disabled={isSubmitting}
                                                 onClick={() => setVehicleChecklist(prev => ({ ...prev, [item.id]: 'NA' }))}
                                                 className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${vehicleChecklist[item.id as keyof typeof vehicleChecklist] === 'NA' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 scale-105' : 'bg-white text-gray-400 border border-gray-200 hover:border-indigo-200 hover:text-indigo-600'}`}
                                             >
@@ -2796,16 +2991,19 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                             
                             <div className="flex gap-3 pt-4">
                                 <button 
+                                    disabled={isSubmitting}
                                     onClick={() => {
                                         setIsChecklistModalOpen(false);
                                         setIsModalOpen(true); // Retorna para a ordem de saída
                                     }}
-                                    className="flex-1 px-6 py-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all active:scale-95"
+                                    className="flex-1 px-6 py-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50"
                                 >
                                     Voltar
                                 </button>
                                 <button 
+                                    disabled={isSubmitting}
                                     onClick={() => {
+                                        if (isSubmitting) return;
                                         // Se algum item não foi marcado (null), pede confirmação para assumir riscos
                                         if (vehicleChecklist.water === null || vehicleChecklist.oil === null || vehicleChecklist.tires === null || vehicleChecklist.lights === null || vehicleChecklist.wipers === null) {
                                             setConfirmConfig({
@@ -2814,11 +3012,12 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                 message: 'Você está prestes a liberar o veículo sem a verificação de todos os itens de segurança. O cadastro será salvo apontando que o cadastrante não realizou o checklist completo, assumindo o veículo sem a checagem total dos itens. Tem certeza que deseja assumir estes riscos?',
                                                 variant: 'warning',
                                                 onConfirm: () => {
-                                                    setVehicleChecklist(prev => ({...prev, bypassed: true}));
-                                                    setIsChecklistCompleted(true);
-                                                    setIsChecklistModalOpen(false);
-                                                    setIsModalOpen(true);
                                                     setConfirmConfig(prev => ({...prev, isOpen: false}));
+                                                    const updatedChecklist = { ...vehicleChecklist, bypassed: true };
+                                                    setVehicleChecklist(updatedChecklist);
+                                                    if (pendingOrderData) {
+                                                        handleFinalizeOrder(pendingOrderData, updatedChecklist);
+                                                    }
                                                 }
                                             });
                                         } else {
@@ -2826,9 +3025,9 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                             handleConfirmChecklist();
                                         }
                                     }}
-                                    className="flex-1 px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl active:scale-95 bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700"
+                                    className="flex-1 px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl active:scale-95 bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-50"
                                 >
-                                    Confirmar Checklist
+                                    {isSubmitting ? 'Finalizando...' : 'Confirmar Checklist'}
                                 </button>
                             </div>
                         </div>

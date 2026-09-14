@@ -281,6 +281,7 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialReco
               <select value={location} onChange={e => setLocation(e.target.value)} className="w-full p-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-cyan-500">
                 <option value="Câmara fria de Resfriada">Câmara fria de Resfriada</option>
                 <option value="Câmara Fria de Congelados">Câmara Fria de Congelados</option>
+                <option value="Câmara Fria Cozinha Interna - Carceragem">Câmara Fria Cozinha Interna - Carceragem</option>
               </select>
             </div>
             <div className="space-y-1">
