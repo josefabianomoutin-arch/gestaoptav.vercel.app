@@ -110,13 +110,13 @@ export function safeLocalStorageSetItem(key: string, value: string): boolean {
         const parsed = JSON.parse(value);
         if (Array.isArray(parsed)) {
           // Prune heavy base64 data URLs from localStorage cache to prevent quota overflow and freezing
-          const trimmed = parsed.map((order: any) => {
+          const trimmed = parsed.slice(0, 150).map((order: any) => {
             if (order && order.pdfUrl && typeof order.pdfUrl === 'string' && (order.pdfUrl.startsWith('data:') || order.pdfUrl.length > 200)) {
               return { ...order, pdfUrl: '' };
             }
             return order;
           });
-          processedValue = JSON.stringify(trimmed.slice(0, 300));
+          processedValue = JSON.stringify(trimmed);
         }
       } catch (err) {
         console.warn("Failed to prune cached_vehicleExitOrders:", err);
@@ -417,5 +417,47 @@ export const superNormalize = (text: string | null | undefined): string => {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]/g, '')
     .trim();
+};
+
+const asyncCacheTimeouts: Record<string, any> = {};
+
+export const safeLocalStorageSetItemAsync = (
+  key: string,
+  data: any,
+  delay = 250
+): void => {
+  if (asyncCacheTimeouts[key]) {
+    clearTimeout(asyncCacheTimeouts[key]);
+  }
+  asyncCacheTimeouts[key] = setTimeout(() => {
+    delete asyncCacheTimeouts[key];
+    try {
+      if (typeof data === 'string') {
+        safeLocalStorageSetItem(key, data);
+      } else if (Array.isArray(data)) {
+        if (key === 'cached_vehicleExitOrders') {
+          // Pre-prune without deep stringify/parse
+          const trimmed = data.slice(0, 150).map((order: any) => {
+            if (
+              order &&
+              order.pdfUrl &&
+              typeof order.pdfUrl === 'string' &&
+              (order.pdfUrl.startsWith('data:') || order.pdfUrl.length > 200)
+            ) {
+              return { ...order, pdfUrl: '' };
+            }
+            return order;
+          });
+          localStorage.setItem(key, JSON.stringify(trimmed));
+          return;
+        }
+        safeLocalStorageSetItem(key, JSON.stringify(data));
+      } else {
+        safeLocalStorageSetItem(key, JSON.stringify(data));
+      }
+    } catch (e) {
+      console.warn(`safeLocalStorageSetItemAsync failed for "${key}":`, e);
+    }
+  }, delay);
 };
 

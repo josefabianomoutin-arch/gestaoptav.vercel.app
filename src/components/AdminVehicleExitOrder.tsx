@@ -818,13 +818,19 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         }
                     };
                     
+                    const getQrBox = (viewfinderWidth: number, _viewfinderHeight: number) => {
+                        const width = Math.min(Math.floor(viewfinderWidth * 0.88), 340);
+                        const height = Math.min(Math.floor(width * 0.42), 140);
+                        return { width, height };
+                    };
+
                     const startScanner = async () => {
                         try {
                             await html5QrCode?.start(
                                 { facingMode: "environment" },
                                 {
-                                    fps: 10,
-                                    qrbox: { width: 220, height: 220 }
+                                    fps: 15,
+                                    qrbox: getQrBox
                                 },
                                 onCodeScanned,
                                 () => {}
@@ -836,8 +842,8 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                 await html5QrCode?.start(
                                     { facingMode: "user" },
                                     {
-                                        fps: 10,
-                                        qrbox: { width: 220, height: 220 }
+                                        fps: 15,
+                                        qrbox: getQrBox
                                     },
                                     onCodeScanned,
                                     () => {}
@@ -850,7 +856,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                         const cameraId = devices[devices.length - 1].id;
                                         await html5QrCode?.start(
                                             cameraId,
-                                            { fps: 10, qrbox: { width: 220, height: 220 } },
+                                            { fps: 15, qrbox: getQrBox },
                                             onCodeScanned,
                                             () => {}
                                         );
@@ -905,6 +911,9 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     const isSubmittingRef = useRef(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState<any>(defaultOrderFormData);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [ordersPage, setOrdersPage] = useState(1);
+    const [ordersPerPage, setOrdersPerPage] = useState<number | 'all'>(35);
 
     // Gate Control State
     const [isCameraActive, setIsCameraActive] = useState(false);
@@ -1240,7 +1249,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         isFitToDrive: true
     });
 
-    const handlePrint = (order: VehicleExitOrder) => {
+    const handlePrint = useCallback((order: VehicleExitOrder) => {
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
             alert("Não foi possível abrir a janela de impressão. Verifique se o bloqueador de pop-ups está ativado no navegador.");
@@ -1460,12 +1469,12 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
         printWindow.document.write(htmlContent);
         printWindow.document.close();
-    };
+    }, []);
 
-    const handleGenerateReportPDF = (filterOverride?: 'all' | 'concluida' | 'aberta') => {
+    const handleGenerateReportPDF = useCallback((filterOverride?: 'all' | 'concluida' | 'aberta') => {
         const activeFilter = filterOverride || 'all';
         let filteredOrders = printMonth 
-            ? orders.filter(o => o.date.startsWith(printMonth))
+            ? orders.filter(o => typeof o.date === 'string' && o.date.startsWith(printMonth))
             : orders;
 
         if (activeFilter !== 'all') {
@@ -1512,7 +1521,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                     : skipMessage;
 
             return [
-                order.date.split('-').reverse().join('/'),
+                (order.date || '').split('-').reverse().join('/'),
                 `${order.vehicle}\n(${order.plate})`,
                 order.responsibleServer,
                 order.destination,
@@ -1542,9 +1551,9 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         });
 
         doc.save(`relatorio_frota_${new Date().toISOString().split('T')[0]}.pdf`);
-    };
+    }, [orders, printMonth]);
 
-    const handleAttachPdf = async (order: VehicleExitOrder) => {
+    const handleAttachPdf = useCallback(async (order: VehicleExitOrder) => {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'application/pdf';
@@ -1573,9 +1582,10 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             reader.readAsDataURL(file);
         };
         input.click();
-    };
+    }, [onUpdateVehicleExitOrder, onUpdate]);
 
-    const handleOpenPdf = (url: string) => {
+    const handleOpenPdf = useCallback((url: string) => {
+        if (!url) return;
         if (url.startsWith('data:application/pdf;base64,')) {
             try {
                 const base64Content = url.split(',')[1];
@@ -1595,7 +1605,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         } else {
             window.open(url, '_blank');
         }
-    };
+    }, []);
 
     const hasAnyExitOrReturnTime = useMemo(() => {
         return Boolean(securityMode || orders.some(o => o.exitTime || o.returnTime));
@@ -1606,20 +1616,66 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     }, [orders]);
 
     const groupedOrders = useMemo(() => {
-        const filteredOrders = printMonth 
-            ? orders.filter(o => o.date.startsWith(printMonth))
+        let filteredOrders = printMonth 
+            ? orders.filter(o => typeof o.date === 'string' && o.date.startsWith(printMonth))
             : orders;
 
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase().trim();
+            filteredOrders = filteredOrders.filter(o => 
+                (o.vehicle && o.vehicle.toLowerCase().includes(term)) ||
+                (o.plate && o.plate.toLowerCase().includes(term)) ||
+                (o.responsibleServer && o.responsibleServer.toLowerCase().includes(term)) ||
+                (o.destination && o.destination.toLowerCase().includes(term)) ||
+                (o.fctNumber && o.fctNumber.toLowerCase().includes(term)) ||
+                (o.date && o.date.includes(term))
+            );
+        }
+
         const withPdf = filteredOrders
-            .filter(o => o.pdfUrl)
+            .filter(o => Boolean(o.pdfUrl))
             .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
         const withoutPdf = filteredOrders
             .filter(o => !o.pdfUrl)
             .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
-        return { withPdf, withoutPdf };
-    }, [orders, printMonth]);
+        return { withPdf, withoutPdf, total: filteredOrders.length };
+    }, [orders, printMonth, searchTerm]);
+
+    const totalOrdersCount = groupedOrders.total;
+    const totalPages = ordersPerPage === 'all' ? 1 : Math.max(1, Math.ceil(totalOrdersCount / (ordersPerPage as number)));
+
+    const displayedOrders = useMemo(() => {
+        if (ordersPerPage === 'all') {
+            return {
+                withPdf: groupedOrders.withPdf,
+                withoutPdf: groupedOrders.withoutPdf
+            };
+        }
+        const startIndex = (ordersPage - 1) * ordersPerPage;
+        const endIndex = startIndex + ordersPerPage;
+        const withPdfCount = groupedOrders.withPdf.length;
+
+        let slicedWithPdf: VehicleExitOrder[] = [];
+        let slicedWithoutPdf: VehicleExitOrder[] = [];
+
+        if (startIndex < withPdfCount) {
+            slicedWithPdf = groupedOrders.withPdf.slice(startIndex, Math.min(endIndex, withPdfCount));
+        }
+
+        const withoutPdfStart = Math.max(0, startIndex - withPdfCount);
+        const withoutPdfEnd = Math.max(0, endIndex - withPdfCount);
+
+        if (endIndex > withPdfCount && withoutPdfStart < groupedOrders.withoutPdf.length) {
+            slicedWithoutPdf = groupedOrders.withoutPdf.slice(withoutPdfStart, withoutPdfEnd);
+        }
+
+        return {
+            withPdf: slicedWithPdf,
+            withoutPdf: slicedWithoutPdf
+        };
+    }, [groupedOrders, ordersPage, ordersPerPage]);
 
     const handleProceedToChecklist = useCallback((data: any) => {
         setPendingOrderData(data);
@@ -1640,6 +1696,20 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         if (isSubmittingRef.current) return;
         isSubmittingRef.current = true;
         setIsSubmitting(true);
+
+        // Instantly close modals and reset state so the interface responds with zero lag
+        setIsChecklistModalOpen(false);
+        setIsModalOpen(false);
+        setPendingOrderData(null);
+        setEditingOrder(null);
+        setVehicleChecklist({
+            water: null,
+            oil: null,
+            tires: null,
+            lights: null,
+            wipers: null,
+            bypassed: false
+        });
 
         try {
             const finalData = { ...(orderData || {}) };
@@ -1668,22 +1738,10 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             };
 
             await onRegister(orderWithChecklist);
-            
-            setIsChecklistModalOpen(false);
-            setIsModalOpen(false);
-            setPendingOrderData(null);
-            setEditingOrder(null);
-            setVehicleChecklist({
-                water: null,
-                oil: null,
-                tires: null,
-                lights: null,
-                wipers: null,
-                bypassed: false
-            });
         } catch (err: any) {
             console.error("Erro ao registrar ordem:", err);
             alert(`Erro ao registrar ordem: ${err?.message || err}`);
+            setIsChecklistModalOpen(true);
         } finally {
             isSubmittingRef.current = false;
             setIsSubmitting(false);
@@ -1694,6 +1752,12 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         if (isSubmittingRef.current) return;
         isSubmittingRef.current = true;
         setIsSubmitting(true);
+
+        // Instantly close modal
+        setIsModalOpen(false);
+        const orderToUpdate = editingOrder;
+        setEditingOrder(null);
+        setPendingOrderData(null);
 
         try {
             const finalData = { ...formDataToSave };
@@ -1709,22 +1773,20 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                 finalData.returnDate = '';
             }
 
-            if (editingOrder) {
+            if (orderToUpdate) {
                 const orderStatus = finalData.returnTime ? 'concluida' as const : 'aberta' as const;
                 await onUpdate({
-                    ...editingOrder,
+                    ...orderToUpdate,
                     ...finalData,
                     status: orderStatus,
-                    id: editingOrder.id,
-                    checklist: editingOrder.checklist || undefined
+                    id: orderToUpdate.id,
+                    checklist: orderToUpdate.checklist || undefined
                 });
-                setIsModalOpen(false);
-                setEditingOrder(null);
-                setPendingOrderData(null);
             }
         } catch (err: any) {
             console.error("Erro ao salvar alterações:", err);
             alert(`Erro ao salvar alterações: ${err?.message || err}`);
+            setIsModalOpen(true);
         } finally {
             isSubmittingRef.current = false;
             setIsSubmitting(false);
@@ -1750,12 +1812,12 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         });
     }, [onDelete]);
 
-    const handleConfirmChecklist = async () => {
+    const handleConfirmChecklist = useCallback(async () => {
         if (!pendingOrderData) return;
         await handleFinalizeOrder(pendingOrderData, vehicleChecklist);
-    };
+    }, [handleFinalizeOrder, pendingOrderData, vehicleChecklist]);
 
-    const handleEdit = (order: VehicleExitOrder) => {
+    const handleEdit = useCallback((order: VehicleExitOrder) => {
         setEditingOrder(order);
         const editData = {
             date: order.date,
@@ -1778,15 +1840,15 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         setPendingOrderData(editData);
         setFormData(editData);
         setIsModalOpen(true);
-    };
+    }, []);
 
-    const handleOpenValidation = (order: VehicleExitOrder) => {
+    const handleOpenValidation = useCallback((order: VehicleExitOrder) => {
         setValidatingOrder(order);
-        setFormData({
-            ...formData,
+        setFormData((prev: any) => ({
+            ...prev,
             validationRole: order.validationRole || '',
             validatedBy: order.validatedBy || ''
-        });
+        }));
         
         // Find the correct role ID based on both role name and responsible name
         const role = validationRoles.find(r => 
@@ -1796,7 +1858,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
         setSelectedValidationRoleId(role ? role.id : '');
         
         setIsValidationModalOpen(true);
-    };
+    }, [validationRoles]);
 
     const handleConfirmValidation = async () => {
         if (!validatingOrder || !selectedValidationRoleId) return;
@@ -2002,6 +2064,53 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                         )}
                     </div>
 
+                    {/* Search and Pagination Controls Bar */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white/70 backdrop-blur-md rounded-2xl border border-gray-100 shadow-sm">
+                        <div className="relative w-full sm:w-80">
+                            <input 
+                                type="text"
+                                placeholder="Buscar veículo, placa, responsável..."
+                                value={searchTerm}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value);
+                                    setOrdersPage(1);
+                                }}
+                                className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-200 bg-white text-xs font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-gray-400"
+                            />
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 absolute left-3.5 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            {searchTerm && (
+                                <button 
+                                    onClick={() => { setSearchTerm(''); setOrdersPage(1); }}
+                                    className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-sm font-bold"
+                                    title="Limpar busca"
+                                >
+                                    ✕
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                            <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Por página:</span>
+                            <select 
+                                value={ordersPerPage} 
+                                onChange={(e) => {
+                                    const val = e.target.value === 'all' ? 'all' : parseInt(e.target.value);
+                                    setOrdersPerPage(val);
+                                    setOrdersPage(1);
+                                }}
+                                className="text-xs font-black border border-gray-200 rounded-xl px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                                <option value={20}>20</option>
+                                <option value={35}>35</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                                <option value="all">Todas ({totalOrdersCount})</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] shadow-xl border border-white/20 overflow-hidden">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm border-collapse">
@@ -2022,17 +2131,17 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {(groupedOrders.withPdf.length > 0 || groupedOrders.withoutPdf.length > 0) ? (
+                                    {(displayedOrders.withPdf.length > 0 || displayedOrders.withoutPdf.length > 0) ? (
                                         <>
                                             {/* Ordens com Anexo */}
-                                            {groupedOrders.withPdf.length > 0 && (
+                                            {displayedOrders.withPdf.length > 0 && (
                                                 <>
                                                     <tr className="bg-indigo-50/30">
                                                         <td colSpan={8} className="p-3 text-[10px] font-black text-indigo-600 uppercase tracking-widest text-center border-y border-indigo-100/50 backdrop-blur-sm">
                                                             Ordens com Anexo (PDF)
                                                         </td>
                                                     </tr>
-                                                    {groupedOrders.withPdf.map(order => (
+                                                    {displayedOrders.withPdf.map(order => (
                                                         <OrderTableRow
                                                             key={order.id}
                                                             order={order}
@@ -2054,14 +2163,14 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                 </>
                                             )}
                                             {/* Ordens sem Anexo */}
-                                            {groupedOrders.withoutPdf.length > 0 && (
+                                            {displayedOrders.withoutPdf.length > 0 && (
                                                 <>
                                                     <tr className="bg-amber-50/30">
                                                         <td colSpan={8} className="p-3 text-[10px] font-black text-amber-600 uppercase tracking-widest text-center border-y border-amber-100/50 backdrop-blur-sm">
                                                             Ordens sem Anexo
                                                         </td>
                                                     </tr>
-                                                    {groupedOrders.withoutPdf.map(order => (
+                                                    {displayedOrders.withoutPdf.map(order => (
                                                         <OrderTableRow
                                                             key={order.id}
                                                             order={order}
@@ -2091,13 +2200,43 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                     </svg>
                                                 </div>
-                                                <p className="text-gray-400 font-black uppercase tracking-widest italic">Nenhuma ordem registrada</p>
+                                                <p className="text-gray-400 font-black uppercase tracking-widest italic">
+                                                    {searchTerm ? 'Nenhuma ordem encontrada para esta busca' : 'Nenhuma ordem registrada'}
+                                                </p>
                                             </td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Pagination Bar */}
+                        {ordersPerPage !== 'all' && totalPages > 1 && (
+                            <div className="p-4 bg-gray-50/80 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                                <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                                    Página {ordersPage} de {totalPages} ({totalOrdersCount} ordens no total)
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        disabled={ordersPage <= 1}
+                                        onClick={() => setOrdersPage(p => Math.max(1, p - 1))}
+                                        className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-black text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white transition-all uppercase tracking-wider shadow-xs active:scale-95"
+                                    >
+                                        Anterior
+                                    </button>
+                                    <span className="text-xs font-black text-indigo-600 px-3 py-1 bg-white rounded-lg border border-gray-200">
+                                        {ordersPage} / {totalPages}
+                                    </span>
+                                    <button 
+                                        disabled={ordersPage >= totalPages}
+                                        onClick={() => setOrdersPage(p => Math.min(totalPages, p + 1))}
+                                        className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-black text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white transition-all uppercase tracking-wider shadow-xs active:scale-95"
+                                    >
+                                        Próxima
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -2177,11 +2316,50 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
 
                         {/* Camera Scanner Container for Vehicle Orders */}
                         {isVehicleScannerActive && (
-                            <div className="border border-indigo-800 rounded-3xl overflow-hidden bg-black relative mt-4 max-w-md mx-auto">
-                                <div id="vehicle-qr-reader" className="w-full aspect-square max-h-[250px]"></div>
-                                <div className="absolute bottom-2 left-2 right-2 bg-black/80 text-white text-[8px] font-bold text-center py-1.5 rounded-lg uppercase tracking-wider">
-                                    Aponte a câmera para o Código de Barras da Ordem de Saída
+                            <div className="border-2 border-indigo-500/50 rounded-3xl overflow-hidden bg-black relative mt-4 max-w-lg mx-auto shadow-2xl">
+                                <div id="vehicle-qr-reader" className="w-full aspect-[4/3] min-h-[260px] max-h-[340px]"></div>
+
+                                {/* Demarcated Target Area Overlay */}
+                                <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-3 z-10">
+                                    {/* Demarcated Area Box */}
+                                    <div className="relative w-[88%] max-w-[340px] h-[120px] rounded-2xl border-2 border-emerald-400 bg-emerald-500/10 shadow-[0_0_30px_rgba(52,211,153,0.35)] flex items-center justify-center">
+                                        {/* Corners Accent */}
+                                        <div className="absolute -top-1.5 -left-1.5 w-6 h-6 border-t-4 border-l-4 border-emerald-400 rounded-tl-xl"></div>
+                                        <div className="absolute -top-1.5 -right-1.5 w-6 h-6 border-t-4 border-r-4 border-emerald-400 rounded-tr-xl"></div>
+                                        <div className="absolute -bottom-1.5 -left-1.5 w-6 h-6 border-b-4 border-l-4 border-emerald-400 rounded-bl-xl"></div>
+                                        <div className="absolute -bottom-1.5 -right-1.5 w-6 h-6 border-b-4 border-r-4 border-emerald-400 rounded-br-xl"></div>
+                                        
+                                        {/* Animated Laser Scan Line */}
+                                        <div className="absolute w-[94%] h-[2px] bg-emerald-400 shadow-[0_0_10px_#34d399] animate-pulse"></div>
+                                        
+                                        {/* Central guide tag */}
+                                        <span className="text-[9px] font-black uppercase text-emerald-300 bg-black/75 px-3 py-1 rounded-full tracking-wider border border-emerald-500/40 shadow-sm backdrop-blur-xs">
+                                            Alinhar código de barras aqui
+                                        </span>
+                                    </div>
+
+                                    {/* Prominent Banner explicitly requested by user */}
+                                    <div className="mt-3 bg-black/90 backdrop-blur-md px-4 py-2 rounded-xl border border-emerald-500/50 text-center shadow-lg">
+                                        <p className="text-[10px] sm:text-xs font-black uppercase text-emerald-400 tracking-wider flex items-center justify-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block"></span>
+                                            O CÓDIGO DE BARRAS DEVE ESTAR NESTA ÁREA DEMARCADA
+                                        </p>
+                                    </div>
                                 </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsVehicleScannerActive(false);
+                                        setVehicleScanFeedback(null);
+                                    }}
+                                    className="absolute top-3 right-3 p-2.5 bg-black/70 hover:bg-black/90 text-white rounded-full z-20 transition-all border border-white/20 active:scale-95 shadow-md"
+                                    title="Fechar câmera"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
                             </div>
                         )}
 

@@ -18,7 +18,7 @@ import InfobarTicker from './components/InfobarTicker';
 import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
 import { app } from './firebaseConfig';
 import { getCombinedSuppliers, calculateAllowedWeeksFromSchedule, getWeekNumber } from './lib/supplierUtils';
-import { ensureArray, safeLocalStorageSetItem, sanitizeForFirebase } from './lib/utils';
+import { ensureArray, safeLocalStorageSetItem, safeLocalStorageSetItemAsync, sanitizeForFirebase } from './lib/utils';
 
 let database: any;
 let rootRef: any;
@@ -686,7 +686,7 @@ const App: React.FC = () => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
       setVehicleExitOrders(list as VehicleExitOrder[]);
-      safeLocalStorageSetItem('cached_vehicleExitOrders', JSON.stringify(list));
+      safeLocalStorageSetItemAsync('cached_vehicleExitOrders', list, 300);
     });
     unsubscribes.push(unsubVehicleOrders);
 
