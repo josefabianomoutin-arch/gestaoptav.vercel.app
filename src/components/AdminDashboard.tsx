@@ -22,11 +22,16 @@ import WeekSelector from './WeekSelector';
 import WarehouseMovementForm from './WarehouseMovementForm';
 import AdminDirectorPerCapita from './AdminDirectorPerCapita';
 import AdminEPIControl from './AdminEPIControl';
+import AdminTaiuvaEnergyAccounting from './AdminTaiuvaEnergyAccounting';
+import { EnergyAccountingRecord } from '../types';
 
-type AdminTab = 'info' | 'register' | 'contracts' | 'finance' | 'analytics' | 'graphs' | 'schedule' | 'invoices' | 'perCapita' | 'cleaning' | 'vehicleExitOrder' | 'thirdPartyEntry' | 'directorPerCapita' | 'menu' | 'almoxarifado' | 'serviceOrder' | 'publicInfo' | 'epiControl';
+type AdminTab = 'info' | 'register' | 'contracts' | 'finance' | 'analytics' | 'graphs' | 'schedule' | 'invoices' | 'perCapita' | 'cleaning' | 'vehicleExitOrder' | 'thirdPartyEntry' | 'directorPerCapita' | 'menu' | 'almoxarifado' | 'serviceOrder' | 'publicInfo' | 'epiControl' | 'energyAccounting';
 
 interface AdminDashboardProps {
   user: { name: string; cpf: string; role: UserRole };
+  energyAccountingRecords?: Record<string, EnergyAccountingRecord>;
+  onSaveEnergyAccountingRecord?: (record: EnergyAccountingRecord) => Promise<{ success: boolean; message: string }>;
+  onDeleteEnergyAccountingRecord?: (id: string) => Promise<{ success: boolean; message: string }>;
   onRegister: (name: string, cpf: string, allowedWeeks: number[]) => Promise<void>;
   onPersistSuppliers: (suppliersToPersist: Supplier[]) => void;
   onUpdateSupplier: (oldCpf: string, newName: string, newCpf: string, newAllowedWeeks: number[]) => Promise<string | null>;
@@ -225,6 +230,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       { id: 'invoices', name: 'Notas Fiscais', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z" /><path d="M3 8a2 2 0 012-2v10h8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" /></svg> },
       { id: 'cleaning', name: 'Limpeza', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" /></svg> },
       { id: 'serviceOrder', name: 'Infraestrutura', icon: <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> },
+      { id: 'energyAccounting', name: 'Energia Taiúva', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" /></svg> },
       { id: 'vehicleExitOrder', name: 'Ordem Saída', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" /><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v4.5h2V8a1 1 0 00-1-1z" /><path d="M16 13l3.35 2.235a.75.75 0 01.15 1.065l-.5.75a.75.75 0 01-1.065.15L16 15.5V13z" /></svg> },
       { id: 'thirdPartyEntry', name: 'Terceiros', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg> },
       { id: 'menu', name: 'Cardápio', icon: <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" /><path d="M11 3.5v3a1 1 0 001 1h3m-6 4H7v2h3v-2zm0 3H7v2h3v-2z" /></svg> },
@@ -436,6 +442,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           onUpdateMaintenanceSchedule={onUpdateMaintenanceSchedule}
           onDeleteMaintenanceSchedule={onDeleteMaintenanceSchedule}
           systemPasswords={systemPasswords}
+      />;
+      case 'energyAccounting': return <AdminTaiuvaEnergyAccounting
+          records={props.energyAccountingRecords}
+          onSaveRecord={props.onSaveEnergyAccountingRecord}
+          onDeleteRecord={props.onDeleteEnergyAccountingRecord}
+          userRole={props.user.role}
       />;
       case 'analytics': return <AdminAnalytics suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} />;
       case 'graphs': return <AdminGraphs 

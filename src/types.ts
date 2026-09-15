@@ -482,3 +482,71 @@ export interface MarmitaWeightLog {
     createdAt?: string;
 }
 
+export interface EnergyBillItem {
+    id: string;
+    code: string; // e.g. "605", "601", "602", "807", "903"
+    description: string;
+    registeredQuantity?: number;
+    billedQuantity: number;
+    unit: string; // "KWh", "KW", "UN"
+    tariffWithTaxes: number;
+    totalOperationValue: number;
+    isForaPontaEnergy?: boolean; // soma para Fora Ponta
+    baseIcms?: number;
+    aliqIcms?: number;
+    icms?: number;
+    basePisCofins?: number;
+    pis?: number;
+    cofins?: number;
+    isCreditOrDeduction?: boolean;
+}
+
+export interface EnergySubmeterCompany {
+    id: string;
+    cnpj: string;
+    companyName: string;
+    address: string;
+    meterId?: string;
+    referenceMonth: string;
+    previousReading: number;
+    currentReading: number;
+    unit: string;
+    monthlyConsumption: number;
+    baseTotalKWh: number;
+    amountToPay: number;
+    status: 'PAGO' | 'PENDENTE';
+    readingDate: string;
+    nextReadingDate: string;
+    notes?: string;
+    paidAt?: string;
+}
+
+export interface EnergyAccountingRecord {
+    id: string; // e.g. "ago-26"
+    referenceMonth: string; // e.g. "ago/26"
+    year: number;
+    month: number;
+    items: EnergyBillItem[];
+    subtotal: number;
+    totalDistribuidora: number;
+    cipMunicipal: number;
+    totalDevolucoesAjustes: number;
+    irrfConsumo: number;
+    irrfDemanda: number;
+    totalRetencoes: number;
+    totalAPagar: number;
+    valorConsolidado: number;
+    somaKWhForaPonta: number;
+    custoMedioPorKWh: number;
+    pisPercentage: number;
+    cofinsPercentage: number;
+    basePisCofins: number;
+    pisTotal: number;
+    cofinsTotal: number;
+    companies: EnergySubmeterCompany[];
+    generalNotes?: string;
+    updatedAt?: string;
+    createdAt?: string;
+}
+
+
