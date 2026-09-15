@@ -28,8 +28,10 @@ interface AdminTaiuvaEnergyAccountingProps {
   userRole?: string;
 }
 
+const DEFAULT_RECORDS: Record<string, EnergyAccountingRecord> = {};
+
 export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingProps> = ({
-  records = {},
+  records = DEFAULT_RECORDS,
   onSaveRecord,
   userRole = 'infraestrutura'
 }) => {
@@ -79,6 +81,7 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
   // Sync working record when month changes
   React.useEffect(() => {
     if (allRecords[selectedMonthId]) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWorkingRecord(allRecords[selectedMonthId]);
       setHasUnsavedChanges(false);
     }
