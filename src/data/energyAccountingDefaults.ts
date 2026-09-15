@@ -1,167 +1,17 @@
 import { EnergyAccountingRecord, EnergyBillItem, EnergySubmeterCompany } from '../types';
 
 export const DEFAULT_ENERGY_ITEMS_AGO_26: EnergyBillItem[] = [
-  {
-    id: 'item-1',
-    code: '605',
-    description: 'Consumo Ponta [KWh] - TUSD',
-    registeredQuantity: 6927.6,
-    billedQuantity: 6927.6,
-    unit: 'KWh',
-    tariffWithTaxes: 0.17437786,
-    totalOperationValue: 1208.02,
-    baseIcms: 1208.02,
-    basePisCofins: 1208.02,
-    pis: 12.44,
-    cofins: 58.35,
-    isForaPontaEnergy: false,
-  },
-  {
-    id: 'item-2',
-    code: '605',
-    description: 'Consumo Fora Ponta [KWh]-TUSD',
-    registeredQuantity: 65514,
-    billedQuantity: 65514,
-    unit: 'KWh',
-    tariffWithTaxes: 0.17437861,
-    totalOperationValue: 11424.24,
-    baseIcms: 11424.24,
-    basePisCofins: 11424.24,
-    pis: 117.67,
-    cofins: 551.79,
-    isForaPontaEnergy: true,
-  },
-  {
-    id: 'item-3',
-    code: '601',
-    description: 'Cons Ponta - TE',
-    registeredQuantity: 6927.6,
-    billedQuantity: 6927.6,
-    unit: 'KWh',
-    tariffWithTaxes: 0.45876206,
-    totalOperationValue: 3178.12,
-    baseIcms: 3178.12,
-    basePisCofins: 3178.12,
-    pis: 32.73,
-    cofins: 153.50,
-    isForaPontaEnergy: false,
-  },
-  {
-    id: 'item-4',
-    code: '601',
-    description: 'Cons FPonta TE',
-    registeredQuantity: 65514,
-    billedQuantity: 65514,
-    unit: 'KWh',
-    tariffWithTaxes: 0.28980249,
-    totalOperationValue: 18986.12,
-    baseIcms: 18986.12,
-    basePisCofins: 18986.12,
-    pis: 195.56,
-    cofins: 917.03,
-    isForaPontaEnergy: false,
-  },
-  {
-    id: 'item-5',
-    code: '',
-    description: 'Adicional Band. Amarela Ponta',
-    billedQuantity: 1,
-    unit: 'UN',
-    tariffWithTaxes: 138.72,
-    totalOperationValue: 138.72,
-    baseIcms: 138.72,
-    basePisCofins: 138.72,
-    pis: 1.43,
-    cofins: 6.70,
-    isForaPontaEnergy: false,
-  },
-  {
-    id: 'item-6',
-    code: '',
-    description: 'Adicional Band. Amarela F/Ponta',
-    billedQuantity: 1,
-    unit: 'UN',
-    tariffWithTaxes: 1311.81,
-    totalOperationValue: 1311.81,
-    baseIcms: 1311.81,
-    basePisCofins: 1311.81,
-    pis: 13.51,
-    cofins: 63.36,
-    isForaPontaEnergy: false,
-  },
-  {
-    id: 'item-7',
-    code: '601',
-    description: 'Consumo Reativo Exc Fora Ponta',
-    registeredQuantity: 13.0137,
-    billedQuantity: 13.0137,
-    unit: 'KWh',
-    tariffWithTaxes: 0.30813681,
-    totalOperationValue: 4.01,
-    baseIcms: 4.01,
-    basePisCofins: 4.01,
-    pis: 0.04,
-    cofins: 0.19,
-    isForaPontaEnergy: true,
-  },
-  {
-    id: 'item-8',
-    code: '602',
-    description: 'Demanda Ponta [kW] - TUSD',
-    registeredQuantity: 133.68,
-    billedQuantity: 133.68,
-    unit: 'KW',
-    tariffWithTaxes: 51.94389588,
-    totalOperationValue: 6943.86,
-    baseIcms: 6943.86,
-    basePisCofins: 6943.86,
-    pis: 71.52,
-    cofins: 335.39,
-    isForaPontaEnergy: false,
-  },
-  {
-    id: 'item-9',
-    code: '602',
-    description: 'Demanda Ponta [kW] - TUSD',
-    billedQuantity: 3.36,
-    unit: 'KW',
-    tariffWithTaxes: 17.55952381,
-    totalOperationValue: 59.00,
-    baseIcms: 59.00,
-    basePisCofins: 59.00,
-    pis: 0.61,
-    cofins: 2.85,
-    isForaPontaEnergy: false,
-  },
-  {
-    id: 'item-10',
-    code: '602',
-    description: 'Demanda F Ponta [kW] - TUSD',
-    registeredQuantity: 158.64,
-    billedQuantity: 158.64,
-    unit: 'KW',
-    tariffWithTaxes: 17.55893846,
-    totalOperationValue: 2785.55,
-    baseIcms: 2785.55,
-    basePisCofins: 2785.55,
-    pis: 28.69,
-    cofins: 134.54,
-    isForaPontaEnergy: true,
-  },
-  {
-    id: 'item-11',
-    code: '602',
-    description: 'Demanda Ultrap FPonta -TUSD',
-    billedQuantity: 13.68,
-    unit: 'KW',
-    tariffWithTaxes: 103.8874269,
-    totalOperationValue: 1421.18,
-    baseIcms: 1421.18,
-    basePisCofins: 1421.18,
-    pis: 14.64,
-    cofins: 68.64,
-    isForaPontaEnergy: true,
-  },
+  { id: 'item-1', code: '', description: 'Consumo Ponta [KWh] - TUSD AGO/26', billedQuantity: 5286.5280, unit: 'kWh', tariffWithTaxes: 0.17438100, totalOperationValue: 921.87, baseIcms: 921.87, basePisCofins: 921.87, pis: 9.50, cofins: 44.53, isForaPontaEnergy: false },
+  { id: 'item-2', code: '', description: 'Consumo Fora Ponta [KWh]-TUSD AGO/26', billedQuantity: 61667.5680, unit: 'kWh', tariffWithTaxes: 0.17437854, totalOperationValue: 10753.50, baseIcms: 10753.50, basePisCofins: 10753.50, pis: 110.76, cofins: 519.39, isForaPontaEnergy: true },
+  { id: 'item-3', code: '', description: 'Cons Ponta - TE AGO/26', billedQuantity: 5286.5280, unit: 'kWh', tariffWithTaxes: 0.45876424, totalOperationValue: 2425.27, baseIcms: 2425.27, basePisCofins: 2425.27, pis: 24.98, cofins: 117.14, isForaPontaEnergy: false },
+  { id: 'item-4', code: '', description: 'Cons FPonta TE AGO/26', billedQuantity: 61667.5680, unit: 'kWh', tariffWithTaxes: 0.28980258, totalOperationValue: 17871.42, baseIcms: 17871.42, basePisCofins: 17871.42, pis: 184.08, cofins: 863.19, isForaPontaEnergy: false },
+  { id: 'item-5', code: '', description: 'Adicional Band Amarela Ponta AGO/26', billedQuantity: 1, unit: 'kWh', tariffWithTaxes: 105.85, totalOperationValue: 105.85, baseIcms: 105.85, basePisCofins: 105.85, pis: 1.09, cofins: 5.11, isForaPontaEnergy: false },
+  { id: 'item-6', code: '', description: 'Adicional Band Amarela FPonta AGO/26', billedQuantity: 1, unit: 'kWh', tariffWithTaxes: 1234.79, totalOperationValue: 1234.79, baseIcms: 1234.79, basePisCofins: 1234.79, pis: 12.72, cofins: 59.64, isForaPontaEnergy: false },
+  { id: 'item-7', code: '', description: 'Consumo Reativo Exc Ponta AGO/26', billedQuantity: 153.5869, unit: 'kWh', tariffWithTaxes: 0.30829453, totalOperationValue: 47.35, baseIcms: 47.35, basePisCofins: 47.35, pis: 0.49, cofins: 2.29, isForaPontaEnergy: false },
+  { id: 'item-8', code: '', description: 'Consumo Reativo Exc Fora Ponta AGO/26', billedQuantity: 892.4948, unit: 'kWh', tariffWithTaxes: 0.30825950, totalOperationValue: 275.12, baseIcms: 275.12, basePisCofins: 275.12, pis: 2.83, cofins: 13.29, isForaPontaEnergy: true },
+  { id: 'item-9', code: '', description: 'Demanda Ponta [kW] - TUSD AGO/26', billedQuantity: 12.6000, unit: 'kW', tariffWithTaxes: 51.94365080, totalOperationValue: 654.49, baseIcms: 654.49, basePisCofins: 654.49, pis: 6.74, cofins: 31.61, isForaPontaEnergy: false },
+  { id: 'item-10', code: '', description: 'Demanda Ponta [kW] - TUSD AGO/26', billedQuantity: 104.4000, unit: 'kW', tariffWithTaxes: 51.9436552, totalOperationValue: 5422.95, baseIcms: 5422.95, basePisCofins: 5422.95, pis: 55.86, cofins: 261.93, isForaPontaEnergy: false },
+  { id: 'item-11', code: '', description: 'Demanda F Ponta [kW] -TUSD AGO/26', billedQuantity: 186.4800, unit: 'kW', tariffWithTaxes: 17.55893394, totalOperationValue: 3274.39, baseIcms: 3274.39, basePisCofins: 3274.39, pis: 33.73, cofins: 158.15, isForaPontaEnergy: true }
 ];
 
 export const DEFAULT_ENERGY_COMPANIES_AGO_26: EnergySubmeterCompany[] = [
@@ -176,8 +26,8 @@ export const DEFAULT_ENERGY_COMPANIES_AGO_26: EnergySubmeterCompany[] = [
     currentReading: 38.3,
     unit: 'kWh',
     monthlyConsumption: 18.3,
-    baseTotalKWh: 65699.3337,
-    amountToPay: 13.22,
+    baseTotalKWh: 62746.5428,
+    amountToPay: 0,
     status: 'PAGO',
     readingDate: '2026-09-01',
     nextReadingDate: '2026-10-01',
@@ -194,8 +44,8 @@ export const DEFAULT_ENERGY_COMPANIES_AGO_26: EnergySubmeterCompany[] = [
     currentReading: 87.9,
     unit: 'kWh',
     monthlyConsumption: 87.9,
-    baseTotalKWh: 65699.3337,
-    amountToPay: 63.50,
+    baseTotalKWh: 62746.5428,
+    amountToPay: 0,
     status: 'PENDENTE',
     readingDate: '2026-09-01',
     nextReadingDate: '2026-10-01',
@@ -212,8 +62,8 @@ export const DEFAULT_ENERGY_COMPANIES_AGO_26: EnergySubmeterCompany[] = [
     currentReading: 158,
     unit: 'kWh',
     monthlyConsumption: 158,
-    baseTotalKWh: 65699.3337,
-    amountToPay: 114.14,
+    baseTotalKWh: 62746.5428,
+    amountToPay: 0,
     status: 'PENDENTE',
     readingDate: '2026-09-01',
     nextReadingDate: '2026-10-01',
@@ -227,24 +77,24 @@ export const DEFAULT_ENERGY_RECORD_AGO_26: EnergyAccountingRecord = {
   year: 2026,
   month: 8,
   items: DEFAULT_ENERGY_ITEMS_AGO_26,
-  subtotal: 47460.63,
-  totalDistribuidora: 47460.63,
-  cipMunicipal: 31.29,
-  totalDevolucoesAjustes: 31.29,
-  irrfConsumo: -435.02,
-  irrfDemanda: -538.06,
-  totalRetencoes: -973.08,
-  totalAPagar: 46518.84,
-  valorConsolidado: 46518.84,
-  somaKWhForaPonta: 65699.3337,
-  custoMedioPorKWh: 0.722391341,
+  subtotal: 42987.00,
+  totalDistribuidora: 42987.00,
+  cipMunicipal: 0,
+  totalDevolucoesAjustes: 0,
+  irrfConsumo: -403.62,
+  irrfDemanda: -448.89,
+  totalRetencoes: -852.51,
+  totalAPagar: 42134.49,
+  valorConsolidado: 42134.49,
+  somaKWhForaPonta: 62746.5428,
+  custoMedioPorKWh: 0.68508953,
   pisPercentage: 1.03,
   cofinsPercentage: 4.83,
-  basePisCofins: 46010.10,
-  pisTotal: 473.90,
-  cofinsTotal: 2222.29,
+  basePisCofins: 42987.00,
+  pisTotal: 442.78,
+  cofinsTotal: 2076.27,
   companies: DEFAULT_ENERGY_COMPANIES_AGO_26,
-  generalNotes: 'Referente a cobrança da utilização de energia eletrica no pavilhao de trabalho do Centro de Progressão Penitenciária de Guariba. Leitura Anterior 2,1 kwh, Leitura Atual 3,6 Kwh, Consumo do Mês 1,5 kwh.',
+  generalNotes: 'Referente a cobrança da utilização de energia eletrica no pavilhao de trabalho do Centro de Progressão Penitenciária de Guariba.',
   updatedAt: new Date().toISOString(),
   createdAt: new Date().toISOString()
 };
@@ -253,9 +103,10 @@ export function recalculateEnergyRecord(record: EnergyAccountingRecord): EnergyA
   // Recalculate bill items
   const updatedItems = record.items.map(item => {
     let total = item.totalOperationValue;
-    if (item.billedQuantity > 0 && item.tariffWithTaxes > 0 && item.description !== 'Adicional Band. Amarela Ponta' && item.description !== 'Adicional Band. Amarela F/Ponta') {
+    if (item.billedQuantity > 0 && item.tariffWithTaxes > 0 && !item.description.includes('Adicional Band') && !item.description.includes('Adicional Band. Amarela')) {
       total = Number((item.billedQuantity * item.tariffWithTaxes).toFixed(2));
     }
+
     const basePis = item.basePisCofins !== undefined ? item.basePisCofins : total;
     const pis = Number((basePis * (record.pisPercentage / 100)).toFixed(2));
     const cofins = Number((basePis * (record.cofinsPercentage / 100)).toFixed(2));
@@ -265,17 +116,17 @@ export function recalculateEnergyRecord(record: EnergyAccountingRecord): EnergyA
       totalOperationValue: total,
       baseIcms: item.baseIcms !== undefined ? item.baseIcms : total,
       basePisCofins: basePis,
-      pis,
-      cofins
+      pis: item.pis !== undefined ? item.pis : pis,
+      cofins: item.cofins !== undefined ? item.cofins : cofins
     };
   });
 
   // Calculate Subtotal (sum of operations)
   const subtotal = Number(updatedItems.reduce((acc, it) => acc + (it.totalOperationValue || 0), 0).toFixed(2));
   const totalDistribuidora = subtotal;
-
   const totalDevolucoesAjustes = Number((record.cipMunicipal || 0).toFixed(2));
   const totalRetencoes = Number(((record.irrfConsumo || 0) + (record.irrfDemanda || 0)).toFixed(2));
+  
   const totalAPagar = Number((subtotal + totalDevolucoesAjustes + totalRetencoes).toFixed(2));
   const valorConsolidado = totalAPagar;
 
@@ -298,6 +149,7 @@ export function recalculateEnergyRecord(record: EnergyAccountingRecord): EnergyA
   const updatedCompanies = (record.companies || []).map(comp => {
     const monthlyConsumption = Number((Math.max(0, comp.currentReading - comp.previousReading)).toFixed(2));
     const amountToPay = Number((monthlyConsumption * custoMedioPorKWh).toFixed(2));
+    
     return {
       ...comp,
       monthlyConsumption,
