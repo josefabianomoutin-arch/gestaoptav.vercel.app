@@ -1,4 +1,6 @@
-import { EnergyAccountingRecord, EnergyBillItem, EnergySubmeterCompany } from '../types';
+const fs = require('fs');
+
+const data = `import { EnergyAccountingRecord, EnergyBillItem, EnergySubmeterCompany } from '../types';
 
 export const DEFAULT_ENERGY_ITEMS_AGO_26: EnergyBillItem[] = [
   { id: 'item-1', code: '', description: 'Consumo Ponta [KWh] - TUSD AGO/26', billedQuantity: 5286.5280, unit: 'kWh', tariffAneel: 0.16416000, tariffWithTaxes: 0.17438100, totalOperationValue: 921.87, basePisCofins: 921.87, pis: 9.50, cofins: 44.53, isForaPontaEnergy: false },
@@ -176,3 +178,6 @@ export function recalculateEnergyRecord(record: EnergyAccountingRecord): EnergyA
     updatedAt: new Date().toISOString()
   };
 }
+`;
+
+fs.writeFileSync('src/data/energyAccountingDefaults.ts', data);

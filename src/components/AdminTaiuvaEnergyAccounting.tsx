@@ -37,9 +37,17 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
   const [localRecords, setLocalRecords] = useState<Record<string, EnergyAccountingRecord>>(() => {
     try {
       const saved = localStorage.getItem('energy_accounting_taiuva_records');
+      const migrated = localStorage.getItem('energy_accounting_taiuva_records_migrated_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && Object.keys(parsed).length > 0) return parsed;
+        if (parsed && Object.keys(parsed).length > 0) {
+          if (!migrated && parsed['ago-26']) {
+            parsed['ago-26'] = DEFAULT_ENERGY_RECORD_AGO_26;
+            localStorage.setItem('energy_accounting_taiuva_records', JSON.stringify(parsed));
+            localStorage.setItem('energy_accounting_taiuva_records_migrated_v2', 'true');
+          }
+          return parsed;
+        }
       }
     } catch (e) {
       console.error('Error loading local energy records:', e);
@@ -678,19 +686,18 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-gray-100/90 text-gray-700 border-b border-gray-200 font-black text-[10px] uppercase tracking-wider">
-                  <th className="py-2.5 px-3 border-r border-gray-200">COD.115</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 min-w-[220px]">Descrição da Operação</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-center">Mês Ref.</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right">Quant. Registrada</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right bg-emerald-50 text-emerald-900">Quant. Faturada</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-center">Unid Med</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right bg-emerald-50 text-emerald-900">Tarifa Com tributos R$</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right font-black">Valor Total Operação R$</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right text-gray-500">Base ICMS R$</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right text-gray-500">Base PIS/COFINS</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right text-gray-500">PIS</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right text-gray-500">Cofins</th>
+                <tr className="bg-blue-50/50 text-gray-700 border-b border-gray-200 font-bold text-[10px] uppercase tracking-wider">
+                  <th className="py-2.5 px-3 border-r border-gray-200 min-w-[220px]">Descrição da operação</th>
+                  <th className="py-2.5 px-3 border-r border-gray-200 text-center">Unid. Med.</th>
+                  <th className="py-2.5 px-3 border-r border-gray-200 text-right">Quant. Faturada</th>
+                  <th className="py-2.5 px-3 border-r border-gray-200 text-right">Tarifa ANEEL</th>
+                  <th className="py-2.5 px-3 border-r border-gray-200 text-right">Tarifa com tributos R$</th>
+                  <th className="py-2.5 px-3 border-r border-gray-200 text-right font-black">Valor total da operação R$</th>
+                  <th className="py-2.5 px-3 border-r border-gray-200 text-right text-gray-500">Base Cálc. ICMS</th>
+                  <th className="py-2.5 px-3 border-r border-gray-200 text-right text-gray-500">Alíq. ICMS %</th>
+                  <th className="py-2.5 px-3 border-r border-gray-200 text-right text-gray-500">ICMS</th>
+                  <th className="py-2.5 px-3 border-r border-gray-200 text-right text-gray-500 font-black">PIS 1,03 %</th>
+                  <th className="py-2.5 px-3 border-r border-gray-200 text-right text-gray-500 font-black">COFINS 4,83 %</th>
                   <th className="py-2.5 px-3 text-center no-print">Ações</th>
                 </tr>
               </thead>
@@ -702,9 +709,6 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
                       key={item.id || idx} 
                       className={`hover:bg-blue-50/40 transition-colors ${isForaPonta ? 'bg-amber-50/20' : ''}`}
                     >
-                      <td className="py-2 px-3 border-r border-gray-200 text-gray-500 font-bold">
-                        {item.code || '---'}
-                      </td>
                       <td className="py-2 px-3 border-r border-gray-200 font-sans font-bold text-gray-900 flex items-center justify-between gap-2">
                         <span>{item.description}</span>
                         {isForaPonta && (
@@ -713,34 +717,34 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
                           </span>
                         )}
                       </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-600">
-                        {workingRecord.referenceMonth}
-                      </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-600">
-                        {item.registeredQuantity ? formatNumber(item.registeredQuantity, 4) : ''}
-                      </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-right font-black bg-emerald-50/40 text-emerald-950">
-                        {formatNumber(item.billedQuantity, 4)}
-                      </td>
                       <td className="py-2 px-3 border-r border-gray-200 text-center font-bold text-gray-700">
                         {item.unit}
                       </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-right font-black bg-emerald-50/40 text-emerald-950">
+                      <td className="py-2 px-3 border-r border-gray-200 text-right font-black text-gray-900">
+                        {item.billedQuantity ? formatNumber(item.billedQuantity, 4) : ''}
+                      </td>
+                      <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-700">
+                        {item.tariffAneel ? formatNumber(item.tariffAneel, 8) : ''}
+                      </td>
+                      <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-700">
                         {item.tariffWithTaxes ? formatNumber(item.tariffWithTaxes, 8) : ''}
                       </td>
                       <td className="py-2 px-3 border-r border-gray-200 text-right font-black text-gray-900 bg-gray-50/50">
-                        {formatNumber(item.totalOperationValue, 2)}
+                        {item.totalOperationValue ? formatNumber(item.totalOperationValue, 2) : ''}
                       </td>
                       <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-500">
                         {item.baseIcms ? formatNumber(item.baseIcms, 2) : ''}
                       </td>
                       <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-500">
-                        {item.basePisCofins ? formatNumber(item.basePisCofins, 2) : ''}
+                        {item.aliqIcms ? formatNumber(item.aliqIcms, 2) : ''}
                       </td>
                       <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-500">
+                        {item.icms ? formatNumber(item.icms, 2) : ''}
+                      </td>
+                      <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-900 font-bold">
                         {item.pis ? formatNumber(item.pis, 2) : ''}
                       </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-500">
+                      <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-900 font-bold">
                         {item.cofins ? formatNumber(item.cofins, 2) : ''}
                       </td>
                       <td className="py-2 px-3 text-center no-print">
@@ -1435,61 +1439,36 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
             </div>
 
             <form onSubmit={handleSaveItemForm} className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                <div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
                   <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
-                    COD.115
+                    Descrição da Operação *
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: 605"
-                    value={itemForm.code || ''}
-                    onChange={(e) => setItemForm(prev => ({ ...prev, code: e.target.value }))}
-                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-mono font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    required
+                    placeholder="Ex: Consumo Fora Ponta [KWh]-TUSD"
+                    value={itemForm.description || ''}
+                    onChange={(e) => setItemForm(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full p-3 rounded-xl border border-gray-200 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
-                <div className="col-span-2">
-                  <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
-                    Unidade de Medida
-                  </label>
-                  <select
-                    value={itemForm.unit || 'KWh'}
-                    onChange={(e) => setItemForm(prev => ({ ...prev, unit: e.target.value }))}
-                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  >
-                    <option value="KWh">KWh</option>
-                    <option value="KW">KW</option>
-                    <option value="UN">UN</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
-                  Descrição da Operação *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Consumo Fora Ponta [KWh]-TUSD"
-                  value={itemForm.description || ''}
-                  onChange={(e) => setItemForm(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full p-3 rounded-xl border border-gray-200 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
-                    Quant. Registrada
+                    Unidade de Medida
                   </label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    value={itemForm.registeredQuantity ?? 0}
-                    onChange={(e) => setItemForm(prev => ({ ...prev, registeredQuantity: parseFloat(e.target.value) || 0 }))}
-                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-mono text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
+                  <select
+                    value={itemForm.unit || 'kWh'}
+                    onChange={(e) => setItemForm(prev => ({ ...prev, unit: e.target.value }))}
+                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    <option value="kWh">kWh</option>
+                    <option value="kW">kW</option>
+                    <option value="UN">UN</option>
+                  </select>
                 </div>
                 <div>
                   <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
@@ -1509,6 +1488,18 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
+                    Tarifa ANEEL
+                  </label>
+                  <input
+                    type="number"
+                    step="0.00000001"
+                    value={itemForm.tariffAneel ?? ''}
+                    onChange={(e) => setItemForm(prev => ({ ...prev, tariffAneel: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-mono text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
                     Tarifa Com Tributos (R$)
                   </label>
                   <input
@@ -1519,6 +1510,9 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
                     className="w-full p-2.5 rounded-xl border border-emerald-300 bg-emerald-50/40 text-xs font-mono font-black text-gray-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
                     Valor Total da Operação (R$)
@@ -1529,6 +1523,72 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
                     value={itemForm.totalOperationValue ?? 0}
                     onChange={(e) => setItemForm(prev => ({ ...prev, totalOperationValue: parseFloat(e.target.value) || 0 }))}
                     className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-mono font-black text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
+                    Base Cálc. ICMS (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={itemForm.baseIcms ?? ''}
+                    onChange={(e) => setItemForm(prev => ({ ...prev, baseIcms: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-mono text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
+                    Alíq. ICMS %
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={itemForm.aliqIcms ?? ''}
+                    onChange={(e) => setItemForm(prev => ({ ...prev, aliqIcms: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-mono text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
+                    ICMS
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={itemForm.icms ?? ''}
+                    onChange={(e) => setItemForm(prev => ({ ...prev, icms: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-mono text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
+                    PIS (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={itemForm.pis ?? ''}
+                    onChange={(e) => setItemForm(prev => ({ ...prev, pis: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-mono text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
+                    COFINS (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={itemForm.cofins ?? ''}
+                    onChange={(e) => setItemForm(prev => ({ ...prev, cofins: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-mono text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
               </div>

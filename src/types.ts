@@ -489,6 +489,7 @@ export interface EnergyBillItem {
     registeredQuantity?: number;
     billedQuantity: number;
     unit: string; // "KWh", "KW", "UN"
+    tariffAneel?: number;
     tariffWithTaxes: number;
     totalOperationValue: number;
     isForaPontaEnergy?: boolean; // soma para Fora Ponta
