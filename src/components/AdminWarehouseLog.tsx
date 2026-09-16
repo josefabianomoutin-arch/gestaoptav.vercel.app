@@ -32,9 +32,13 @@ const formatCurrency = (value: number) => {
 interface AdminWarehouseLogProps {
     warehouseLog: WarehouseMovement[];
     suppliers: Supplier[];
-    onDeleteEntry: (logEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
-    onUpdateWarehouseEntry: (updatedEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
+    onDeleteEntry?: (logEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
+    onUpdateWarehouseEntry?: (updatedEntry: WarehouseMovement) => Promise<{ success: boolean; message: string }>;
     perCapitaConfig?: any;
+    activeSubTab?: 'history' | 'invoice_deduction' | 'invoice_lookup';
+    onSubTabChange?: (tab: 'history' | 'invoice_deduction' | 'invoice_lookup') => void;
+    initialSubTab?: 'history' | 'invoice_deduction' | 'invoice_lookup';
+    readOnly?: boolean;
 }
 
 const superNormalize = (text: string) => {
@@ -65,8 +69,28 @@ const getSundayOfWeek = (year: number, weekNum: number): Date => {
     return targetSunday;
 };
 
-const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, suppliers, onDeleteEntry, perCapitaConfig }) => {
-    const [activeLogSubTab, setActiveLogSubTab] = useState<'history' | 'invoice_deduction' | 'invoice_lookup'>('history');
+const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ 
+    warehouseLog, 
+    suppliers, 
+    onDeleteEntry, 
+    onUpdateWarehouseEntry: _onUpdateWarehouseEntry,
+    perCapitaConfig,
+    activeSubTab: externalSubTab,
+    onSubTabChange,
+    initialSubTab = 'history',
+    readOnly = false
+}) => {
+    const [internalSubTab, setInternalSubTab] = useState<'history' | 'invoice_deduction' | 'invoice_lookup'>(initialSubTab);
+    const [prevInitial, setPrevInitial] = useState(initialSubTab);
+    if (initialSubTab !== prevInitial) {
+        setPrevInitial(initialSubTab);
+        setInternalSubTab(initialSubTab);
+    }
+    const activeLogSubTab = externalSubTab ?? internalSubTab;
+    const handleSubTabChange = (tab: 'history' | 'invoice_deduction' | 'invoice_lookup') => {
+        setInternalSubTab(tab);
+        onSubTabChange?.(tab);
+    };
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<'all' | 'entrada' | 'saída'>('all');
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -861,11 +885,13 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             variant: 'danger',
             onConfirm: async () => {
                 setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-                setIsDeleting(log.id);
-                const result = await onDeleteEntry(log);
-                setIsDeleting(null);
-                if (!result.success) {
-                    alert(`Erro ao excluir: ${result.message}`);
+                if (onDeleteEntry) {
+                    setIsDeleting(log.id);
+                    const result = await onDeleteEntry(log);
+                    setIsDeleting(null);
+                    if (!result.success) {
+                        alert(`Erro ao excluir: ${result.message}`);
+                    }
                 }
             }
         });
@@ -876,7 +902,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
             {/* SUB-ABA NAVEGAÇÃO SUPERIOR */}
             <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/80 w-fit shadow-xs">
                 <button
-                    onClick={() => setActiveLogSubTab('history')}
+                    onClick={() => handleSubTabChange('history')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                         activeLogSubTab === 'history'
                             ? 'bg-white text-zinc-900 shadow-sm border border-slate-200/60'
@@ -887,7 +913,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     Log Geral de Movimentações
                 </button>
                 <button
-                    onClick={() => setActiveLogSubTab('invoice_deduction')}
+                    onClick={() => handleSubTabChange('invoice_deduction')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                         activeLogSubTab === 'invoice_deduction'
                             ? 'bg-white text-zinc-900 shadow-sm border border-slate-200/60'
@@ -898,7 +924,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                     Mapa de NFs & Dedução Contratual
                 </button>
                 <button
-                    onClick={() => setActiveLogSubTab('invoice_lookup')}
+                    onClick={() => handleSubTabChange('invoice_lookup')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                         activeLogSubTab === 'invoice_lookup'
                             ? 'bg-white text-zinc-900 shadow-sm border border-slate-200/60'
@@ -1382,14 +1408,16 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({ warehouseLog, sup
                                                 >
                                                     <Printer className="h-3.5 w-3.5" />
                                                 </button>
-                                                <button 
-                                                    onClick={() => handleDelete(log)} 
-                                                    disabled={isDeleting === log.id}
-                                                    className="text-gray-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-all disabled:opacity-50"
-                                                    title="Excluir Registro"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </button>
+                                                {!readOnly && onDeleteEntry && (
+                                                    <button 
+                                                        onClick={() => handleDelete(log)} 
+                                                        disabled={isDeleting === log.id}
+                                                        className="text-gray-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-all disabled:opacity-50"
+                                                        title="Excluir Registro"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

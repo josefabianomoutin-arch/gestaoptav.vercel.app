@@ -3982,6 +3982,9 @@ const App: React.FC = () => {
           serviceOrders={serviceOrders}
           maintenanceSchedules={maintenanceSchedules}
           vehicleInspections={vehicleInspections}
+          warehouseLog={warehouseLog || []}
+          suppliers={combinedSuppliers || []}
+          perCapitaConfig={perCapitaConfig || {}}
           onUpdateServiceOrder={handleUpdateServiceOrder}
           onDeleteServiceOrder={handleDeleteServiceOrder}
           onRegisterMaintenanceSchedule={handleRegisterMaintenanceSchedule}

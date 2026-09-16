@@ -14,7 +14,8 @@ import {
   FileText, 
   HelpCircle,
   RotateCcw,
-  Sliders
+  Sliders,
+  Layers
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EnergyAccountingRecord, EnergyBillItem, EnergySubmeterCompany } from '../types';
@@ -25,6 +26,8 @@ interface AdminTaiuvaEnergyAccountingProps {
   onSaveRecord?: (record: EnergyAccountingRecord) => Promise<{ success: boolean; message: string }>;
   onDeleteRecord?: (id: string) => Promise<{ success: boolean; message: string }>;
   userRole?: string;
+  onNavigateToDeductionMap?: () => void;
+  onNavigateToEstoque?: () => void;
 }
 
 const DEFAULT_RECORDS: Record<string, EnergyAccountingRecord> = {};
@@ -33,7 +36,9 @@ const MIGRATION_KEY = 'energy_accounting_taiuva_records_migrated_v4_invoice_exac
 export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingProps> = ({
   records = DEFAULT_RECORDS,
   onSaveRecord,
-  userRole: _userRole = 'infraestrutura'
+  userRole: _userRole = 'infraestrutura',
+  onNavigateToDeductionMap,
+  onNavigateToEstoque: _onNavigateToEstoque
 }) => {
   // Local persistence fallback with auto-migration to exact invoice image values
   const [localRecords, setLocalRecords] = useState<Record<string, EnergyAccountingRecord>>(() => {
@@ -683,6 +688,17 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
               <Download className="h-4 w-4 text-indigo-300" />
               CSV
             </button>
+
+            {onNavigateToDeductionMap && (
+              <button
+                onClick={onNavigateToDeductionMap}
+                className="px-3 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black uppercase rounded-2xl border border-amber-300 transition-all flex items-center gap-1.5 active:scale-95 shadow-sm"
+                title="Acessar Módulo de Estoque e Mapa de NFs & Dedução Contratual"
+              >
+                <Layers className="h-4 w-4 fill-current text-slate-950" />
+                Mapa de NFs & Dedução
+              </button>
+            )}
 
             <button
               onClick={handlePrint}

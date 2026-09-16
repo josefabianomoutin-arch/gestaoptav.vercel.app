@@ -448,6 +448,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           onSaveRecord={props.onSaveEnergyAccountingRecord}
           onDeleteRecord={props.onDeleteEnergyAccountingRecord}
           userRole={props.user.role}
+          onNavigateToDeductionMap={() => setActiveTab('invoices')}
+          onNavigateToEstoque={() => setActiveTab('invoices')}
       />;
       case 'analytics': return <AdminAnalytics suppliers={suppliers} warehouseLog={warehouseLog} perCapitaConfig={perCapitaConfig} />;
       case 'graphs': return <AdminGraphs 
