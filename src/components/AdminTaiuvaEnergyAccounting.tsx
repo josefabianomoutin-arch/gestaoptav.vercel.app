@@ -1483,7 +1483,7 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
             rows={3}
             value={workingRecord.generalNotes || ''}
             onChange={(e) => updateRecord(prev => ({ ...prev, generalNotes: e.target.value }))}
-            placeholder="Ex: Referente a cobrança da utilização de energia eletrica no pavilhao de trabalho do Centro de Progressão Penitenciária de Guariba / Unidade de Taiuva..."
+            placeholder="Referente a cobrança da utilização de energia eletrica nos pavilhões de trabalho da Penitenciária de Taiúva."
             className="w-full p-3.5 text-xs text-gray-800 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all leading-relaxed"
           />
         </div>
