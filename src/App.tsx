@@ -19,6 +19,12 @@ import { getDatabase, ref, onValue, set, runTransaction, push, child, update, re
 import { app } from './firebaseConfig';
 import { getCombinedSuppliers, calculateAllowedWeeksFromSchedule, getWeekNumber } from './lib/supplierUtils';
 import { ensureArray, safeLocalStorageSetItem, safeLocalStorageSetItemAsync, sanitizeForFirebase } from './lib/utils';
+import { DEFAULT_ENERGY_RECORD_AGO_26, DEFAULT_ENERGY_RECORD_JUL_26 } from './data/energyAccountingDefaults';
+
+const INITIAL_ENERGY_ACCOUNTING_RECORDS: Record<string, EnergyAccountingRecord> = {
+  'jul-26': DEFAULT_ENERGY_RECORD_JUL_26,
+  'ago-26': DEFAULT_ENERGY_RECORD_AGO_26
+};
 
 let database: any;
 let rootRef: any;
@@ -195,7 +201,25 @@ const App: React.FC = () => {
   const [_staff, setStaff] = useState<any[]>([]);
   const [publicInfo, setPublicInfo] = useState<PublicInfo[]>(() => getCachedState('publicInfo', []));
   const [directorPerCapita, setDirectorPerCapita] = useState<any>(() => getCachedState('directorPerCapita', null));
-  const [energyAccountingRecords, setEnergyAccountingRecords] = useState<Record<string, EnergyAccountingRecord>>(() => getCachedState('energyAccountingRecords', {}));
+  const [energyAccountingRecords, setEnergyAccountingRecords] = useState<Record<string, EnergyAccountingRecord>>(() => {
+    const cached = getCachedState<Record<string, EnergyAccountingRecord>>('energyAccountingRecords', INITIAL_ENERGY_ACCOUNTING_RECORDS);
+    if (cached && typeof cached === 'object' && Object.keys(cached).length > 0) {
+      let changed = false;
+      if (!cached['jul-26']) {
+        cached['jul-26'] = DEFAULT_ENERGY_RECORD_JUL_26;
+        changed = true;
+      }
+      if (!cached['ago-26']) {
+        cached['ago-26'] = DEFAULT_ENERGY_RECORD_AGO_26;
+        changed = true;
+      }
+      if (changed) {
+        safeLocalStorageSetItem('cached_energyAccountingRecords', JSON.stringify(cached));
+      }
+      return cached;
+    }
+    return INITIAL_ENERGY_ACCOUNTING_RECORDS;
+  });
   const [isPasswordsLoaded, setIsPasswordsLoaded] = useState(() => !!localStorage.getItem('cached_systemPasswords'));
   const [isSuppliersLoaded, setIsSuppliersLoaded] = useState(() => !!localStorage.getItem('cached_suppliers'));
   const [isPerCapitaConfigLoaded, setIsPerCapitaConfigLoaded] = useState(() => !!localStorage.getItem('cached_perCapitaConfig'));
@@ -849,8 +873,25 @@ const App: React.FC = () => {
     const unsubEnergyAccounting = onValue(energyAccountingRecordsRef, (snapshot) => {
       const data = snapshot.val();
       if (data && typeof data === 'object') {
-        setEnergyAccountingRecords(data);
-        safeLocalStorageSetItem('cached_energyAccountingRecords', JSON.stringify(data));
+        const merged = { ...data };
+        let needsSeed = false;
+        if (!merged['jul-26']) {
+          merged['jul-26'] = DEFAULT_ENERGY_RECORD_JUL_26;
+          needsSeed = true;
+        }
+        if (!merged['ago-26']) {
+          merged['ago-26'] = DEFAULT_ENERGY_RECORD_AGO_26;
+          needsSeed = true;
+        }
+        if (needsSeed) {
+          set(energyAccountingRecordsRef, merged).catch(console.error);
+        }
+        setEnergyAccountingRecords(merged);
+        safeLocalStorageSetItem('cached_energyAccountingRecords', JSON.stringify(merged));
+      } else {
+        set(energyAccountingRecordsRef, INITIAL_ENERGY_ACCOUNTING_RECORDS).catch(console.error);
+        setEnergyAccountingRecords(INITIAL_ENERGY_ACCOUNTING_RECORDS);
+        safeLocalStorageSetItem('cached_energyAccountingRecords', JSON.stringify(INITIAL_ENERGY_ACCOUNTING_RECORDS));
       }
     });
     unsubscribes.push(unsubEnergyAccounting);

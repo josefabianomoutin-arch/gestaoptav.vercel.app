@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EnergyAccountingRecord, EnergyBillItem, EnergySubmeterCompany } from '../types';
-import { DEFAULT_ENERGY_RECORD_AGO_26, recalculateEnergyRecord } from '../data/energyAccountingDefaults';
+import { DEFAULT_ENERGY_RECORD_AGO_26, DEFAULT_ENERGY_RECORD_JUL_26, recalculateEnergyRecord } from '../data/energyAccountingDefaults';
 
 interface AdminTaiuvaEnergyAccountingProps {
   records?: Record<string, EnergyAccountingRecord>;
@@ -53,7 +53,33 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
     } catch (e) {
       console.error('Error loading local energy records:', e);
     }
-    const initial = { 'ago-26': DEFAULT_ENERGY_RECORD_AGO_26 };
+    const initial: Record<string, EnergyAccountingRecord> = { 
+      'jul-26': DEFAULT_ENERGY_RECORD_JUL_26,
+      'ago-26': DEFAULT_ENERGY_RECORD_AGO_26 
+    };
+    try {
+      const saved = localStorage.getItem('energy_accounting_taiuva_records');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          let modified = false;
+          if (!parsed['jul-26']) {
+            parsed['jul-26'] = DEFAULT_ENERGY_RECORD_JUL_26;
+            modified = true;
+          }
+          if (!parsed['ago-26']) {
+            parsed['ago-26'] = DEFAULT_ENERGY_RECORD_AGO_26;
+            modified = true;
+          }
+          if (modified) {
+            localStorage.setItem('energy_accounting_taiuva_records', JSON.stringify(parsed));
+          }
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Error loading local energy records:', e);
+    }
     try {
       localStorage.setItem('energy_accounting_taiuva_records', JSON.stringify(initial));
     } catch (e) {
@@ -82,18 +108,31 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
       });
     }
 
-    if (Object.keys(merged).length === 0) {
+    if (!merged['jul-26']) {
+      merged['jul-26'] = DEFAULT_ENERGY_RECORD_JUL_26;
+    }
+    if (!merged['ago-26']) {
       merged['ago-26'] = DEFAULT_ENERGY_RECORD_AGO_26;
     }
     return merged;
   }, [localRecords, records]);
 
-  // Active month selection
-  const [selectedMonthId, setSelectedMonthId] = useState<string>('ago-26');
+  // Chronologically sorted records for selector (jul/26 before ago/26, etc.)
+  const sortedRecords = useMemo(() => {
+    return Object.values(allRecords).sort((a, b) => {
+      if ((a.year || 2026) !== (b.year || 2026)) {
+        return (a.year || 2026) - (b.year || 2026);
+      }
+      return (a.month || 0) - (b.month || 0);
+    });
+  }, [allRecords]);
+
+  // Active month selection (defaults to jul-26 as recently added or ago-26)
+  const [selectedMonthId, setSelectedMonthId] = useState<string>('jul-26');
 
   // Active record
   const currentRecord = useMemo(() => {
-    return allRecords[selectedMonthId] || Object.values(allRecords)[0] || DEFAULT_ENERGY_RECORD_AGO_26;
+    return allRecords[selectedMonthId] || allRecords['jul-26'] || allRecords['ago-26'] || Object.values(allRecords)[0] || DEFAULT_ENERGY_RECORD_JUL_26;
   }, [allRecords, selectedMonthId]);
 
   // Working copy for live editing
@@ -473,16 +512,18 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
   };
 
   const handleResetToImageDefault = () => {
-    const defaultRecord = JSON.parse(JSON.stringify(DEFAULT_ENERGY_RECORD_AGO_26));
+    const isJul = selectedMonthId === 'jul-26' || workingRecord.referenceMonth.toLowerCase().includes('jul');
+    const defaultTemplate = isJul ? DEFAULT_ENERGY_RECORD_JUL_26 : DEFAULT_ENERGY_RECORD_AGO_26;
+    const defaultRecord = JSON.parse(JSON.stringify(defaultTemplate));
     const targetId = selectedMonthId;
-    const refMonth = workingRecord.referenceMonth || 'ago/26';
+    const refMonth = workingRecord.referenceMonth || defaultRecord.referenceMonth;
     const updated = {
       ...defaultRecord,
       id: targetId,
       referenceMonth: refMonth
     };
     persistRecordImmediately(updated);
-    toast.success('Fatura restaurada com as informações exatas da imagem!');
+    toast.success(`Fatura restaurada com as informações exatas da imagem de ${isJul ? 'Julho' : 'Agosto'}!`);
   };
 
   const handleDeleteItem = async (id: string) => {
@@ -710,7 +751,7 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
                 onChange={(e) => setSelectedMonthId(e.target.value)}
                 className="bg-transparent text-white font-black text-sm uppercase tracking-wider focus:outline-none cursor-pointer pr-2"
               >
-                {Object.values(allRecords).map(r => (
+                {sortedRecords.map(r => (
                   <option key={r.id} value={r.id} className="bg-slate-900 text-white font-bold">
                     Mês: {r.referenceMonth}
                   </option>
