@@ -197,8 +197,8 @@ export const DEFAULT_ENERGY_RECORD_AGO_26: EnergyAccountingRecord = {
   cofinsTotal: 2076.27,
   companies: DEFAULT_ENERGY_COMPANIES_AGO_26,
   generalNotes: 'Referente a cobrança da utilização de energia eletrica nos pavilhões de trabalho da Penitenciária de Taiúva.',
-  updatedAt: new Date().toISOString(),
-  createdAt: new Date().toISOString()
+  updatedAt: '2026-08-31T23:59:59.000Z',
+  createdAt: '2026-08-31T23:59:59.000Z'
 };
 
 export function recalculateEnergyRecord(record: EnergyAccountingRecord): EnergyAccountingRecord {
