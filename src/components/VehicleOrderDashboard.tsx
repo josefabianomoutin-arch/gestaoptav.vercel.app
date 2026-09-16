@@ -1,6 +1,5 @@
 
 import React, { useState, useMemo } from 'react';
-import InfobarTicker from './InfobarTicker';
 import type { 
   VehicleExitOrder, 
   VehicleAsset, 
@@ -26,7 +25,6 @@ interface VehicleOrderDashboardProps {
   driverAssets: DriverAsset[];
   validationRoles: ValidationRole[];
   vehicleInspections?: VehicleInspection[];
-  publicInfoList: PublicInfo[];
   serviceOrders?: ServiceOrder[];
   maintenanceSchedules?: MaintenanceSchedule[];
   energyAccountingRecords?: Record<string, EnergyAccountingRecord>;
@@ -66,7 +64,6 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
   driverAssets = [],
   validationRoles = [],
   vehicleInspections = [],
-  publicInfoList = [],
   serviceOrders = [],
   maintenanceSchedules = [],
   energyAccountingRecords = EMPTY_ENERGY_RECORDS,
@@ -137,13 +134,6 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
 
   return (
     <div className="min-h-screen bg-gray-50">
-       {/* Infobar */}
-       <InfobarTicker 
-          items={publicInfoList.filter(info => role === 'ordem_saida' ? true : !info.isConfidential)} 
-          variant="light" 
-          label="Comunicados:" 
-       />
-
       <header className="bg-white text-indigo-950 p-4 shadow-sm flex flex-col md:flex-row justify-between items-center sticky top-0 z-50 border-b border-gray-200 gap-4">
         <div className="flex flex-wrap items-center justify-between w-full md:w-auto gap-4">
           <div className="flex items-center gap-3">

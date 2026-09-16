@@ -1,14 +1,12 @@
 
 import React, { useState, useMemo } from 'react';
 import { ClipboardList, Plus, Clock, CheckCircle2, AlertCircle, XCircle, Calendar, User, Users, FileText, ExternalLink } from 'lucide-react';
-import InfobarTicker from './InfobarTicker';
 import { toast } from 'sonner';
 import { ServiceOrder, MaintenanceSchedule, PublicInfo } from '../types';
 
 interface ServiceOrderDashboardProps {
   serviceOrders: ServiceOrder[];
   maintenanceSchedules?: MaintenanceSchedule[];
-  publicInfoList: PublicInfo[];
   onRegisterServiceOrder: (order: Omit<ServiceOrder, 'id'>) => Promise<{ success: boolean; message: string }>;
   onLogout: () => void;
 }
@@ -31,7 +29,6 @@ const formatDateSafe = (dateVal: any, fallback = '---'): string => {
 const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
   serviceOrders = [],
   maintenanceSchedules = [],
-  publicInfoList = [],
   onRegisterServiceOrder,
   onLogout,
 }) => {
@@ -135,13 +132,6 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full animate-pulse" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
-
-       {/* Infobar */}
-       <InfobarTicker 
-          items={publicInfoList} 
-          variant="light" 
-          label="Portal Interno:" 
-       />
 
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-2xl border-b border-gray-200 p-4 md:p-6 shadow-sm">
