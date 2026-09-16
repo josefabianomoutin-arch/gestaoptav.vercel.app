@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Zap, 
   Calendar, 
-  DollarSign, 
   Building2, 
   Printer, 
   Plus, 
@@ -14,8 +13,8 @@ import {
   Clock, 
   FileText, 
   HelpCircle,
-  Copy,
-  ChevronDown
+  RotateCcw,
+  Sliders
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EnergyAccountingRecord, EnergyBillItem, EnergySubmeterCompany } from '../types';
@@ -29,28 +28,36 @@ interface AdminTaiuvaEnergyAccountingProps {
 }
 
 const DEFAULT_RECORDS: Record<string, EnergyAccountingRecord> = {};
+const MIGRATION_KEY = 'energy_accounting_taiuva_records_migrated_v4_invoice_exact';
 
 export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingProps> = ({
   records = DEFAULT_RECORDS,
   onSaveRecord,
-  userRole = 'infraestrutura'
+  userRole: _userRole = 'infraestrutura'
 }) => {
-  // Local persistence fallback
+  // Local persistence fallback with auto-migration to exact invoice image values
   const [localRecords, setLocalRecords] = useState<Record<string, EnergyAccountingRecord>>(() => {
     try {
       const saved = localStorage.getItem('energy_accounting_taiuva_records');
-      const migrated = localStorage.getItem('energy_accounting_taiuva_records_migrated_v2');
+      const migrated = localStorage.getItem(MIGRATION_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && Object.keys(parsed).length > 0) {
-          if (!migrated && parsed['ago-26']) {
+        if (parsed && typeof parsed === 'object') {
+          const ago = parsed['ago-26'];
+          const isAgoValid = ago && 
+            ago.items?.length === 11 && 
+            ago.items[0]?.description === 'Consumo Ponta [KWh] - TUSD AGO/26' &&
+            ago.totalAPagar === 42134.49;
+
+          if (!migrated || !isAgoValid) {
             parsed['ago-26'] = DEFAULT_ENERGY_RECORD_AGO_26;
             localStorage.setItem('energy_accounting_taiuva_records', JSON.stringify(parsed));
-            localStorage.setItem('energy_accounting_taiuva_records_migrated_v2', 'true');
+            localStorage.setItem(MIGRATION_KEY, 'true');
           }
           return parsed;
         }
       }
+      localStorage.setItem(MIGRATION_KEY, 'true');
     } catch (e) {
       console.error('Error loading local energy records:', e);
     }
@@ -117,12 +124,23 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
   const [itemForm, setItemForm] = useState<Partial<EnergyBillItem>>({
     code: '',
     description: '',
-    registeredQuantity: 0,
-    billedQuantity: 0,
-    unit: 'KWh',
-    tariffWithTaxes: 0,
+    registeredQuantity: undefined,
+    billedQuantity: undefined,
+    unit: 'kWh',
+    tariffAneel: undefined,
+    tariffWithTaxes: undefined,
     totalOperationValue: 0,
     isForaPontaEnergy: false
+  });
+
+  // Retention and bill header parameters modal
+  const [isRetentionModalOpen, setIsRetentionModalOpen] = useState(false);
+  const [retentionForm, setRetentionForm] = useState({
+    contractNumber: '916202097384',
+    irrfConsumo: 403.62,
+    irrfDemanda: 448.89,
+    pisPercentage: 1.03,
+    cofinsPercentage: 4.83
   });
 
   // Helpers for formatting
@@ -132,6 +150,11 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
 
   const formatNumber = (val: number | undefined | null, decimals = 2) => {
     return (val || 0).toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  };
+
+  const formatNumberOrEmpty = (val: number | undefined | null, decimals = 2) => {
+    if (val === undefined || val === null || isNaN(Number(val))) return '';
+    return Number(val).toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   };
 
   // Update working record with automatic recalculation
@@ -293,11 +316,18 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
     setItemForm({
       code: '',
       description: '',
-      registeredQuantity: 0,
-      billedQuantity: 0,
-      unit: 'KWh',
-      tariffWithTaxes: 0,
+      registeredQuantity: undefined,
+      billedQuantity: undefined,
+      unit: 'kWh',
+      tariffAneel: undefined,
+      tariffWithTaxes: undefined,
       totalOperationValue: 0,
+      baseIcms: undefined,
+      aliqIcms: undefined,
+      icms: undefined,
+      basePisCofins: undefined,
+      pis: undefined,
+      cofins: undefined,
       isForaPontaEnergy: false
     });
     setIsItemModalOpen(true);
@@ -305,7 +335,9 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
 
   const handleEditItem = (item: EnergyBillItem) => {
     setEditingItem(item);
-    setItemForm(item);
+    setItemForm({
+      ...item
+    });
     setIsItemModalOpen(true);
   };
 
@@ -316,45 +348,107 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
       return;
     }
 
-    const billedQty = Number(itemForm.billedQuantity) || 0;
-    const tariff = Number(itemForm.tariffWithTaxes) || 0;
-    const totalVal = itemForm.totalOperationValue ? Number(itemForm.totalOperationValue) : (billedQty * tariff);
+    const billedQty = itemForm.billedQuantity !== undefined && itemForm.billedQuantity !== null && !isNaN(Number(itemForm.billedQuantity)) 
+      ? Number(itemForm.billedQuantity) 
+      : undefined;
+    const tariffAneel = itemForm.tariffAneel !== undefined && itemForm.tariffAneel !== null && !isNaN(Number(itemForm.tariffAneel)) 
+      ? Number(itemForm.tariffAneel) 
+      : undefined;
+    const tariffWithTaxes = itemForm.tariffWithTaxes !== undefined && itemForm.tariffWithTaxes !== null && !isNaN(Number(itemForm.tariffWithTaxes)) 
+      ? Number(itemForm.tariffWithTaxes) 
+      : undefined;
+
+    let totalVal = Number(itemForm.totalOperationValue) || 0;
+    if (!totalVal && billedQty !== undefined && tariffWithTaxes !== undefined) {
+      totalVal = Number((billedQty * tariffWithTaxes).toFixed(2));
+    }
+
+    const basePis = itemForm.basePisCofins !== undefined ? Number(itemForm.basePisCofins) : totalVal;
+    const calculatedPis = itemForm.pis !== undefined ? Number(itemForm.pis) : Number((basePis * (workingRecord.pisPercentage / 100)).toFixed(2));
+    const calculatedCofins = itemForm.cofins !== undefined ? Number(itemForm.cofins) : Number((basePis * (workingRecord.cofinsPercentage / 100)).toFixed(2));
+
+    const itemData: EnergyBillItem = {
+      id: editingItem ? editingItem.id : `item-${Date.now()}`,
+      code: itemForm.code || '',
+      description: itemForm.description,
+      registeredQuantity: itemForm.registeredQuantity ? Number(itemForm.registeredQuantity) : undefined,
+      billedQuantity: billedQty,
+      unit: itemForm.unit || 'kWh',
+      tariffAneel,
+      tariffWithTaxes,
+      totalOperationValue: totalVal,
+      baseIcms: itemForm.baseIcms ? Number(itemForm.baseIcms) : undefined,
+      aliqIcms: itemForm.aliqIcms ? Number(itemForm.aliqIcms) : undefined,
+      icms: itemForm.icms ? Number(itemForm.icms) : undefined,
+      basePisCofins: basePis,
+      pis: calculatedPis,
+      cofins: calculatedCofins,
+      isForaPontaEnergy: !!itemForm.isForaPontaEnergy
+    };
 
     if (editingItem) {
       updateRecord(prev => ({
         ...prev,
-        items: prev.items.map(it => it.id === editingItem.id ? {
-          ...it,
-          ...itemForm,
-          billedQuantity: billedQty,
-          tariffWithTaxes: tariff,
-          totalOperationValue: Number(totalVal.toFixed(2)),
-          basePisCofins: Number(totalVal.toFixed(2)),
-          isForaPontaEnergy: !!itemForm.isForaPontaEnergy
-        } as EnergyBillItem : it)
+        items: prev.items.map(it => it.id === editingItem.id ? itemData : it)
       }));
       toast.success('Item da fatura atualizado!');
     } else {
-      const newItem: EnergyBillItem = {
-        id: `item-${Date.now()}`,
-        code: itemForm.code || '',
-        description: itemForm.description,
-        registeredQuantity: Number(itemForm.registeredQuantity) || 0,
-        billedQuantity: billedQty,
-        unit: itemForm.unit || 'KWh',
-        tariffWithTaxes: tariff,
-        totalOperationValue: Number(totalVal.toFixed(2)),
-        baseIcms: Number(totalVal.toFixed(2)),
-        basePisCofins: Number(totalVal.toFixed(2)),
-        isForaPontaEnergy: !!itemForm.isForaPontaEnergy
-      };
       updateRecord(prev => ({
         ...prev,
-        items: [...prev.items, newItem]
+        items: [...prev.items, itemData]
       }));
       toast.success('Item adicionado à fatura!');
     }
     setIsItemModalOpen(false);
+  };
+
+  const handleOpenRetentionModal = () => {
+    setRetentionForm({
+      contractNumber: workingRecord.contractNumber || '916202097384',
+      irrfConsumo: workingRecord.irrfConsumo || 403.62,
+      irrfDemanda: workingRecord.irrfDemanda || 448.89,
+      pisPercentage: workingRecord.pisPercentage || 1.03,
+      cofinsPercentage: workingRecord.cofinsPercentage || 4.83
+    });
+    setIsRetentionModalOpen(true);
+  };
+
+  const handleSaveRetentionForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateRecord(prev => ({
+      ...prev,
+      contractNumber: retentionForm.contractNumber,
+      irrfConsumo: Math.abs(Number(retentionForm.irrfConsumo) || 0),
+      irrfDemanda: Math.abs(Number(retentionForm.irrfDemanda) || 0),
+      pisPercentage: Number(retentionForm.pisPercentage) || 1.03,
+      cofinsPercentage: Number(retentionForm.cofinsPercentage) || 4.83
+    }));
+    setIsRetentionModalOpen(false);
+    toast.success('Retenções e parâmetros da fatura atualizados!');
+  };
+
+  const handleResetToImageDefault = () => {
+    const defaultRecord = JSON.parse(JSON.stringify(DEFAULT_ENERGY_RECORD_AGO_26));
+    const targetId = selectedMonthId;
+    const refMonth = workingRecord.referenceMonth || 'ago/26';
+    const updated = {
+      ...defaultRecord,
+      id: targetId,
+      referenceMonth: refMonth
+    };
+    setWorkingRecord(updated);
+    setLocalRecords(prev => {
+      const next = { ...prev, [targetId]: updated };
+      try {
+        localStorage.setItem('energy_accounting_taiuva_records', JSON.stringify(next));
+        localStorage.setItem(MIGRATION_KEY, 'true');
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+    setHasUnsavedChanges(false);
+    toast.success('Fatura restaurada com as informações exatas da imagem!');
   };
 
   const handleDeleteItem = (id: string) => {
@@ -537,7 +631,7 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
           </div>
 
           {/* Action Bar */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             {/* Month selector */}
             <div className="flex items-center bg-white/10 backdrop-blur-md rounded-2xl border border-white/15 px-3 py-1.5">
               <Calendar className="h-4 w-4 text-amber-300 mr-2" />
@@ -556,7 +650,7 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
 
             <button
               onClick={() => setIsNewMonthModalOpen(true)}
-              className="px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase rounded-2xl border border-white/20 transition-all flex items-center gap-1.5 active:scale-95"
+              className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase rounded-2xl border border-white/20 transition-all flex items-center gap-1.5 active:scale-95"
               title="Abrir novo mês de contabilização"
             >
               <Plus className="h-4 w-4 text-amber-300" />
@@ -564,8 +658,26 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
             </button>
 
             <button
+              onClick={handleResetToImageDefault}
+              className="px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 hover:text-white text-xs font-black uppercase rounded-2xl border border-amber-400/30 transition-all flex items-center gap-1.5 active:scale-95"
+              title="Restaurar dados exatamente como estão na imagem da fatura"
+            >
+              <RotateCcw className="h-4 w-4 text-amber-400" />
+              Restaurar Imagem
+            </button>
+
+            <button
+              onClick={handleOpenRetentionModal}
+              className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase rounded-2xl border border-white/20 transition-all flex items-center gap-1.5 active:scale-95"
+              title="Ajustar parâmetros de tributos e retenções da fatura"
+            >
+              <Edit3 className="h-4 w-4 text-indigo-300" />
+              Parâmetros
+            </button>
+
+            <button
               onClick={handleExportCSV}
-              className="px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase rounded-2xl border border-white/20 transition-all flex items-center gap-1.5 active:scale-95"
+              className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase rounded-2xl border border-white/20 transition-all flex items-center gap-1.5 active:scale-95"
               title="Exportar dados para planilha Excel / CSV"
             >
               <Download className="h-4 w-4 text-indigo-300" />
@@ -574,7 +686,7 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
 
             <button
               onClick={handlePrint}
-              className="px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase rounded-2xl border border-white/20 transition-all flex items-center gap-1.5 active:scale-95"
+              className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase rounded-2xl border border-white/20 transition-all flex items-center gap-1.5 active:scale-95"
               title="Imprimir relatório completo timbrado"
             >
               <Printer className="h-4 w-4 text-indigo-300" />
@@ -583,7 +695,7 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
 
             <button
               onClick={handleSave}
-              className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black uppercase rounded-2xl shadow-lg shadow-emerald-900/40 transition-all flex items-center gap-2 active:scale-95"
+              className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black uppercase rounded-2xl shadow-lg shadow-emerald-900/40 transition-all flex items-center gap-2 active:scale-95"
             >
               <Save className="h-4 w-4" />
               Salvar Dados
@@ -658,28 +770,34 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
           </div>
         </div>
 
-        {/* SECTION 1: Top Table - Discriminação da Operação (Exact Excel layout) */}
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
+        {/* SECTION 1: Top Table - Discriminação da Operação (Exact Excel / Invoice layout from image) */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-300 overflow-hidden">
           {/* Blue title bar matching Excel */}
-          <div className="bg-blue-600 text-white px-6 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="bg-[#1e40af] text-white px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <span className="p-1.5 bg-white/20 rounded-lg">
                 <FileText className="h-4 w-4" />
               </span>
-              <h2 className="text-sm font-black uppercase tracking-wider">
-                Discriminação da operação (Fatura da Distribuidora)
-              </h2>
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-wider">
+                  Discriminação da operação (Fatura da Distribuidora)
+                </h2>
+                <p className="text-[11px] text-blue-100 font-medium">
+                  Instalação: Nº <span className="font-mono font-bold text-amber-300">{workingRecord.contractNumber || '916202097384'}</span>
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-4 text-xs font-black">
-              <div className="bg-blue-700/80 px-3 py-1 rounded-lg border border-blue-400/30">
-                PIS: <span className="text-amber-300">{workingRecord.pisPercentage}%</span>
-              </div>
-              <div className="bg-blue-700/80 px-3 py-1 rounded-lg border border-blue-400/30">
-                COFINS: <span className="text-amber-300">{workingRecord.cofinsPercentage}%</span>
-              </div>
+            <div className="flex items-center gap-2.5 text-xs font-black">
+              <button
+                onClick={handleOpenRetentionModal}
+                className="no-print bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"
+                title="Editar parâmetros de tributos e retenções da fatura"
+              >
+                <Edit3 className="h-3.5 w-3.5" /> Parâmetros & Retenções
+              </button>
               <button
                 onClick={handleOpenNewItemModal}
-                className="no-print bg-white text-blue-900 hover:bg-blue-50 px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs"
+                className="no-print bg-white text-blue-900 hover:bg-blue-50 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs"
               >
                 <Plus className="h-3.5 w-3.5" /> Adicionar Linha
               </button>
@@ -689,82 +807,116 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-blue-50/50 text-gray-700 border-b border-gray-200 font-bold text-[10px] uppercase tracking-wider">
-                  <th className="py-2.5 px-3 border-r border-gray-200 min-w-[220px]">Descrição da operação</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-center">Unid. Med.</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right">Quant. Faturada</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right">Tarifa ANEEL</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right">Tarifa com tributos R$</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right font-black">Valor total da operação R$</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right text-gray-500">Base Cálc. ICMS</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right text-gray-500">Alíq. ICMS %</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right text-gray-500">ICMS</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right text-gray-500 font-black">PIS 1,03 %</th>
-                  <th className="py-2.5 px-3 border-r border-gray-200 text-right text-gray-500 font-black">COFINS 4,83 %</th>
-                  <th className="py-2.5 px-3 text-center no-print">Ações</th>
+                <tr className="bg-[#e2e8f0] text-slate-800 border-b border-slate-300 font-bold text-[10.5px]">
+                  <th className="py-2.5 px-3 border-r border-slate-300 min-w-[260px]">
+                    <div className="font-bold text-slate-900">Descrição da operação</div>
+                    <div className="font-bold text-slate-900 text-[11px]">Nº {workingRecord.contractNumber || '916202097384'}</div>
+                  </th>
+                  <th className="py-2.5 px-2 border-r border-slate-300 text-center w-14">
+                    <div>Unid.</div>
+                    <div>Med.</div>
+                  </th>
+                  <th className="py-2.5 px-2.5 border-r border-slate-300 text-right w-24">
+                    <div>Quant.</div>
+                    <div>Faturada</div>
+                  </th>
+                  <th className="py-2.5 px-2.5 border-r border-slate-300 text-right w-24">
+                    <div>Tarifa</div>
+                    <div>ANEEL</div>
+                  </th>
+                  <th className="py-2.5 px-2.5 border-r border-slate-300 text-right w-28">
+                    <div>Tarifa com</div>
+                    <div>tributos R$</div>
+                  </th>
+                  <th className="py-2.5 px-3 border-r border-slate-300 text-right w-32 font-black text-slate-950">
+                    <div>Valor total da</div>
+                    <div>operação R$</div>
+                  </th>
+                  <th className="py-2.5 px-2.5 border-r border-slate-300 text-right w-24">
+                    <div>Base Cálc.</div>
+                    <div>ICMS</div>
+                  </th>
+                  <th className="py-2.5 px-2 border-r border-slate-300 text-right w-16">
+                    <div>Alíq.</div>
+                    <div>ICMS %</div>
+                  </th>
+                  <th className="py-2.5 px-2.5 border-r border-slate-300 text-right w-20">
+                    <div>ICMS</div>
+                  </th>
+                  <th className="py-2.5 px-2.5 border-r border-slate-300 text-right w-20">
+                    <div>PIS</div>
+                    <div>{formatNumber(workingRecord.pisPercentage, 2)} %</div>
+                  </th>
+                  <th className="py-2.5 px-2.5 border-r border-slate-300 text-right w-24">
+                    <div>COFINS</div>
+                    <div>{formatNumber(workingRecord.cofinsPercentage, 2)} %</div>
+                  </th>
+                  <th className="py-2.5 px-2 text-center no-print w-16">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 font-mono text-[11px]">
+              <tbody className="font-mono text-[11px] text-slate-800">
                 {workingRecord.items.map((item, idx) => {
                   const isForaPonta = item.isForaPontaEnergy;
                   return (
                     <tr 
                       key={item.id || idx} 
-                      className={`hover:bg-blue-50/40 transition-colors ${isForaPonta ? 'bg-amber-50/20' : ''}`}
+                      className={`border-b border-slate-200 hover:bg-blue-50/30 transition-colors ${isForaPonta ? 'bg-amber-50/15' : ''}`}
                     >
-                      <td className="py-2 px-3 border-r border-gray-200 font-sans font-bold text-gray-900 flex items-center justify-between gap-2">
-                        <span>{item.description}</span>
-                        {isForaPonta && (
-                          <span className="no-print text-[9px] bg-amber-100 text-amber-800 font-black px-1.5 py-0.5 rounded uppercase" title="Item considerado na soma Fora Ponta para rateio">
-                            Rateio
-                          </span>
-                        )}
+                      <td className="py-1.5 px-3 border-r border-slate-200 font-sans text-slate-900 font-normal">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span>{item.description}</span>
+                          {isForaPonta && (
+                            <span className="no-print text-[8px] bg-amber-100 text-amber-900 font-bold px-1 rounded uppercase">
+                              Rateio
+                            </span>
+                          )}
+                        </div>
                       </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-center font-bold text-gray-700">
-                        {item.unit}
+                      <td className="py-1.5 px-2 border-r border-slate-200 text-center">
+                        {item.unit || ''}
                       </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-right font-black text-gray-900">
-                        {item.billedQuantity ? formatNumber(item.billedQuantity, 4) : ''}
+                      <td className="py-1.5 px-2.5 border-r border-slate-200 text-right font-medium">
+                        {formatNumberOrEmpty(item.billedQuantity, 4)}
                       </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-700">
-                        {item.tariffAneel ? formatNumber(item.tariffAneel, 8) : ''}
+                      <td className="py-1.5 px-2.5 border-r border-slate-200 text-right">
+                        {formatNumberOrEmpty(item.tariffAneel, 8)}
                       </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-700">
-                        {item.tariffWithTaxes ? formatNumber(item.tariffWithTaxes, 8) : ''}
+                      <td className="py-1.5 px-2.5 border-r border-slate-200 text-right">
+                        {formatNumberOrEmpty(item.tariffWithTaxes, 8)}
                       </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-right font-black text-gray-900 bg-gray-50/50">
-                        {item.totalOperationValue ? formatNumber(item.totalOperationValue, 2) : ''}
+                      <td className="py-1.5 px-3 border-r border-slate-200 text-right font-medium text-slate-950">
+                        {formatNumberOrEmpty(item.totalOperationValue, 2)}
                       </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-500">
-                        {item.baseIcms ? formatNumber(item.baseIcms, 2) : ''}
+                      <td className="py-1.5 px-2.5 border-r border-slate-200 text-right">
+                        {formatNumberOrEmpty(item.baseIcms, 2)}
                       </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-500">
-                        {item.aliqIcms ? formatNumber(item.aliqIcms, 2) : ''}
+                      <td className="py-1.5 px-2 border-r border-slate-200 text-right">
+                        {formatNumberOrEmpty(item.aliqIcms, 2)}
                       </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-500">
-                        {item.icms ? formatNumber(item.icms, 2) : ''}
+                      <td className="py-1.5 px-2.5 border-r border-slate-200 text-right">
+                        {formatNumberOrEmpty(item.icms, 2)}
                       </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-900 font-bold">
-                        {item.pis ? formatNumber(item.pis, 2) : ''}
+                      <td className="py-1.5 px-2.5 border-r border-slate-200 text-right">
+                        {formatNumberOrEmpty(item.pis, 2)}
                       </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-right text-gray-900 font-bold">
-                        {item.cofins ? formatNumber(item.cofins, 2) : ''}
+                      <td className="py-1.5 px-2.5 border-r border-slate-200 text-right">
+                        {formatNumberOrEmpty(item.cofins, 2)}
                       </td>
-                      <td className="py-2 px-3 text-center no-print">
-                        <div className="flex items-center justify-center gap-1.5">
+                      <td className="py-1.5 px-2 text-center no-print">
+                        <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => handleEditItem(item)}
                             className="p-1 text-indigo-600 hover:text-indigo-900 rounded hover:bg-indigo-50"
                             title="Editar item"
                           >
-                            <Edit3 className="h-3.5 w-3.5" />
+                            <Edit3 className="h-3 w-3" />
                           </button>
                           <button
                             onClick={() => handleDeleteItem(item.id)}
                             className="p-1 text-red-500 hover:text-red-700 rounded hover:bg-red-50"
                             title="Excluir item"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3 w-3" />
                           </button>
                         </div>
                       </td>
@@ -772,115 +924,174 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
                   );
                 })}
 
-                {/* Subtotals & Taxes Block */}
-                <tr className="bg-gray-100 font-bold border-t-2 border-gray-300">
-                  <td colSpan={7} className="py-2 px-3 text-right uppercase tracking-wider text-[10px] text-gray-600">
-                    Subtotal Operações
+                {/* 1. Subtotal */}
+                <tr className="border-b border-slate-200 bg-white">
+                  <td className="py-1.5 px-3 border-r border-slate-200 font-sans font-bold text-slate-900">
+                    Subtotal
                   </td>
-                  <td className="py-2 px-3 text-right font-black text-gray-900 border-r border-gray-200">
-                    R$ {formatNumber(workingRecord.subtotal, 2)}
+                  <td className="py-1.5 px-2 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-3 border-r border-slate-200 text-right font-bold text-slate-950">
+                    {formatNumber(workingRecord.subtotal, 2)}
                   </td>
-                  <td colSpan={4} className="bg-gray-100"></td>
-                  <td className="no-print"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2 text-center no-print"></td>
                 </tr>
 
-                <tr className="bg-gray-50 font-bold">
-                  <td colSpan={7} className="py-1.5 px-3 text-right uppercase tracking-wider text-[10px] text-gray-600">
+                {/* 2. Total Distribuidora */}
+                <tr className="border-b border-slate-200 bg-white">
+                  <td className="py-1.5 px-3 border-r border-slate-200 font-sans font-bold text-slate-900">
                     Total Distribuidora
                   </td>
-                  <td className="py-1.5 px-3 text-right font-black text-gray-900 border-r border-gray-200">
-                    R$ {formatNumber(workingRecord.totalDistribuidora, 2)}
+                  <td className="py-1.5 px-2 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-3 border-r border-slate-200 text-right font-bold text-slate-950">
+                    {formatNumber(workingRecord.totalDistribuidora, 2)}
                   </td>
-                  <td colSpan={4}></td>
-                  <td className="no-print"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2 text-center no-print"></td>
                 </tr>
 
-                <tr className="hover:bg-emerald-50/30">
-                  <td className="py-1.5 px-3 text-gray-500 font-bold border-r border-gray-200">807</td>
-                  <td colSpan={6} className="py-1.5 px-3 font-sans font-bold text-gray-800 border-r border-gray-200">
-                    Contri. Custeio IP-CIP Municipal
+                {/* 3. Retencao Consumo IRRF-1,2% */}
+                <tr className="border-b border-slate-200 bg-white hover:bg-rose-50/20">
+                  <td className="py-1.5 px-3 border-r border-slate-200 font-sans text-slate-800">
+                    Retencao Consumo IRRF-1,2%
                   </td>
-                  <td className="py-1.5 px-3 text-right font-black text-emerald-800 bg-emerald-50/50 border-r border-gray-200">
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={workingRecord.cipMunicipal || 0}
-                      onChange={(e) => updateRecord(prev => ({ ...prev, cipMunicipal: parseFloat(e.target.value) || 0 }))}
-                      className="w-24 text-right bg-transparent border-b border-emerald-400 font-mono font-black focus:outline-none"
-                    />
+                  <td className="py-1.5 px-2 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-3 border-r border-slate-200 text-right font-bold text-slate-900">
+                    {formatNumber(workingRecord.irrfConsumo, 2)}-
                   </td>
-                  <td colSpan={4}></td>
-                  <td className="no-print"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2 text-center no-print">
+                    <button
+                      onClick={handleOpenRetentionModal}
+                      className="p-1 text-indigo-600 hover:text-indigo-900 rounded hover:bg-indigo-50"
+                      title="Editar Retenção IRRF"
+                    >
+                      <Edit3 className="h-3 w-3" />
+                    </button>
+                  </td>
                 </tr>
 
-                <tr className="bg-gray-50 font-bold">
-                  <td colSpan={7} className="py-1.5 px-3 text-right uppercase tracking-wider text-[10px] text-gray-600">
-                    Total devoluções/ajustes
+                {/* 4. Retencao Demanda IRRF-4,8% */}
+                <tr className="border-b border-slate-200 bg-white hover:bg-rose-50/20">
+                  <td className="py-1.5 px-3 border-r border-slate-200 font-sans text-slate-800">
+                    Retencao Demanda IRRF-4,8%
                   </td>
-                  <td className="py-1.5 px-3 text-right font-black text-gray-900 border-r border-gray-200">
-                    R$ {formatNumber(workingRecord.totalDevolucoesAjustes, 2)}
+                  <td className="py-1.5 px-2 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-3 border-r border-slate-200 text-right font-bold text-slate-900">
+                    {formatNumber(workingRecord.irrfDemanda, 2)}-
                   </td>
-                  <td colSpan={4}></td>
-                  <td className="no-print"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2 text-center no-print">
+                    <button
+                      onClick={handleOpenRetentionModal}
+                      className="p-1 text-indigo-600 hover:text-indigo-900 rounded hover:bg-indigo-50"
+                      title="Editar Retenção IRRF"
+                    >
+                      <Edit3 className="h-3 w-3" />
+                    </button>
+                  </td>
                 </tr>
 
-                <tr className="hover:bg-rose-50/30">
-                  <td className="py-1.5 px-3 text-gray-500 font-bold border-r border-gray-200">903</td>
-                  <td colSpan={6} className="py-1.5 px-3 font-sans font-bold text-gray-800 border-r border-gray-200">
-                    Retenção Consumo IRRF
-                  </td>
-                  <td className="py-1.5 px-3 text-right font-black text-rose-700 bg-rose-50/50 border-r border-gray-200">
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={workingRecord.irrfConsumo || 0}
-                      onChange={(e) => updateRecord(prev => ({ ...prev, irrfConsumo: parseFloat(e.target.value) || 0 }))}
-                      className="w-24 text-right bg-transparent border-b border-rose-400 font-mono font-black focus:outline-none"
-                    />
-                  </td>
-                  <td colSpan={4}></td>
-                  <td className="no-print"></td>
-                </tr>
-
-                <tr className="hover:bg-rose-50/30">
-                  <td className="py-1.5 px-3 text-gray-500 font-bold border-r border-gray-200">903</td>
-                  <td colSpan={6} className="py-1.5 px-3 font-sans font-bold text-gray-800 border-r border-gray-200">
-                    Retenção Demanda IRRF
-                  </td>
-                  <td className="py-1.5 px-3 text-right font-black text-rose-700 bg-rose-50/50 border-r border-gray-200">
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={workingRecord.irrfDemanda || 0}
-                      onChange={(e) => updateRecord(prev => ({ ...prev, irrfDemanda: parseFloat(e.target.value) || 0 }))}
-                      className="w-24 text-right bg-transparent border-b border-rose-400 font-mono font-black focus:outline-none"
-                    />
-                  </td>
-                  <td colSpan={4}></td>
-                  <td className="no-print"></td>
-                </tr>
-
-                <tr className="bg-gray-50 font-bold">
-                  <td colSpan={7} className="py-1.5 px-3 text-right uppercase tracking-wider text-[10px] text-gray-600">
+                {/* 5. Total Retenções */}
+                <tr className="border-b border-slate-200 bg-white">
+                  <td className="py-1.5 px-3 border-r border-slate-200 font-sans font-bold text-slate-900">
                     Total Retenções
                   </td>
-                  <td className="py-1.5 px-3 text-right font-black text-rose-700 border-r border-gray-200">
-                    -R$ {formatNumber(Math.abs(workingRecord.totalRetencoes), 2)}
+                  <td className="py-1.5 px-2 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-3 border-r border-slate-200 text-right font-bold text-slate-950">
+                    {formatNumber(workingRecord.totalRetencoes, 2)}
                   </td>
-                  <td colSpan={4}></td>
-                  <td className="no-print"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2 text-center no-print"></td>
                 </tr>
 
-                {/* Final Total a Pagar Row */}
-                <tr className="bg-indigo-50 font-black border-t-2 border-b-2 border-indigo-200">
-                  <td colSpan={7} className="py-3 px-3 text-right uppercase tracking-widest text-xs text-indigo-950 font-black">
-                    TOTAL A PAGAR (CONCESSIONÁRIA)
+                {/* 6. Total a Pagar */}
+                <tr className="border-b border-slate-300 bg-white">
+                  <td className="py-1.5 px-3 border-r border-slate-200 font-sans font-bold text-slate-900">
+                    Total a Pagar
                   </td>
-                  <td className="py-3 px-3 text-right font-black text-sm text-indigo-900 border-r border-indigo-200">
-                    {formatBRL(workingRecord.totalAPagar)}
+                  <td className="py-1.5 px-2 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-3 border-r border-slate-200 text-right font-bold text-slate-950">
+                    {formatNumber(workingRecord.totalAPagar, 2)}
                   </td>
-                  <td colSpan={4} className="bg-indigo-50"></td>
-                  <td className="no-print"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2 text-center no-print"></td>
+                </tr>
+
+                {/* 7. Blank Row */}
+                <tr className="h-6 border-b border-slate-200 bg-white">
+                  <td className="py-1.5 px-3 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-3 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-1.5 px-2 text-center no-print"></td>
+                </tr>
+
+                {/* 8. Bottom summary repetition of Total a Pagar in operation column */}
+                <tr className="bg-slate-50">
+                  <td className="py-2 px-3 border-r border-slate-200"></td>
+                  <td className="py-2 px-2 border-r border-slate-200"></td>
+                  <td className="py-2 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-2 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-2 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-2 px-3 border-r border-slate-200 text-right font-black text-slate-950 text-xs">
+                    {formatNumber(workingRecord.totalAPagar, 2)}
+                  </td>
+                  <td className="py-2 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-2 px-2 border-r border-slate-200"></td>
+                  <td className="py-2 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-2 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-2 px-2.5 border-r border-slate-200"></td>
+                  <td className="py-2 px-2 text-center no-print"></td>
                 </tr>
               </tbody>
             </table>
@@ -1623,6 +1834,122 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
                   className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase rounded-xl shadow-md transition-all active:scale-95"
                 >
                   Salvar Item
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Parâmetros e Retenções da Fatura (IRRF, PIS, COFINS, Instalação) */}
+      {isRetentionModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between border-b pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-blue-100 text-blue-800 rounded-xl">
+                  <Sliders className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-gray-900 text-base uppercase">
+                    Parâmetros & Retenções
+                  </h3>
+                  <p className="text-xs text-gray-500">Ajuste tributos, retenções e instalação</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsRetentionModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 font-black"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveRetentionForm} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
+                  Nº da Instalação / Contrato
+                </label>
+                <input
+                  type="text"
+                  value={retentionForm.contractNumber || ''}
+                  onChange={(e) => setRetentionForm(prev => ({ ...prev, contractNumber: e.target.value }))}
+                  placeholder="Ex: 916202097384"
+                  className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-mono font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
+                    Retenção Consumo IRRF-1,2% (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={retentionForm.irrfConsumo ?? 0}
+                    onChange={(e) => setRetentionForm(prev => ({ ...prev, irrfConsumo: parseFloat(e.target.value) || 0 }))}
+                    className="w-full p-2.5 rounded-xl border border-rose-300 bg-rose-50/40 text-xs font-mono font-black text-rose-900 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                  />
+                  <span className="text-[10px] text-gray-400">Padrão fatura: 49,42</span>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
+                    Retenção Demanda IRRF-4,8% (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={retentionForm.irrfDemanda ?? 0}
+                    onChange={(e) => setRetentionForm(prev => ({ ...prev, irrfDemanda: parseFloat(e.target.value) || 0 }))}
+                    className="w-full p-2.5 rounded-xl border border-rose-300 bg-rose-50/40 text-xs font-mono font-black text-rose-900 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                  />
+                  <span className="text-[10px] text-gray-400">Padrão fatura: 167,07</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
+                    Alíquota PIS (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={retentionForm.pisPercentage ?? 1.03}
+                    onChange={(e) => setRetentionForm(prev => ({ ...prev, pisPercentage: parseFloat(e.target.value) || 0 }))}
+                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-mono font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
+                    Alíquota COFINS (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={retentionForm.cofinsPercentage ?? 4.83}
+                    onChange={(e) => setRetentionForm(prev => ({ ...prev, cofinsPercentage: parseFloat(e.target.value) || 0 }))}
+                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-mono font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setIsRetentionModalOpen(false)}
+                  className="px-4 py-2 text-gray-600 font-black text-xs uppercase hover:bg-gray-100 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase rounded-xl shadow-md transition-all active:scale-95"
+                >
+                  Salvar Parâmetros
                 </button>
               </div>
             </form>

@@ -484,13 +484,13 @@ export interface MarmitaWeightLog {
 
 export interface EnergyBillItem {
     id: string;
-    code: string; // e.g. "605", "601", "602", "807", "903"
+    code?: string;
     description: string;
     registeredQuantity?: number;
-    billedQuantity: number;
-    unit: string; // "KWh", "KW", "UN"
+    billedQuantity?: number;
+    unit?: string; // "kWh", "kW", "UN"
     tariffAneel?: number;
-    tariffWithTaxes: number;
+    tariffWithTaxes?: number;
     totalOperationValue: number;
     isForaPontaEnergy?: boolean; // soma para Fora Ponta
     baseIcms?: number;
@@ -527,13 +527,16 @@ export interface EnergyAccountingRecord {
     referenceMonth: string; // e.g. "ago/26"
     year: number;
     month: number;
+    contractNumber?: string; // e.g. "916202097384"
     items: EnergyBillItem[];
     subtotal: number;
     totalDistribuidora: number;
-    cipMunicipal: number;
-    totalDevolucoesAjustes: number;
+    cipMunicipal?: number;
+    totalDevolucoesAjustes?: number;
     irrfConsumo: number;
     irrfDemanda: number;
+    irrfConsumoPercentage?: number;
+    irrfDemandaPercentage?: number;
     totalRetencoes: number;
     totalAPagar: number;
     valorConsolidado: number;
