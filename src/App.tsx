@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Toaster, toast } from 'sonner';
-import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, VehicleInspection, ServiceOrder, MaintenanceSchedule, PublicInfo, ValidationRole, EpiLog, SegregationLog, MarmitaWeightLog } from './types';
+import { Supplier, Delivery, WarehouseMovement, PerCapitaConfig, CleaningLog, DirectorPerCapitaLog, StandardMenu, DailyMenus, FinancialRecord, UserRole, ThirdPartyEntryLog, AcquisitionItem, VehicleExitOrder, VehicleAsset, DriverAsset, VehicleInspection, ServiceOrder, MaintenanceSchedule, PublicInfo, ValidationRole, EpiLog, SegregationLog, MarmitaWeightLog, EnergyAccountingRecord } from './types';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
@@ -48,6 +48,7 @@ let systemPasswordsRef: any;
 let maintenanceSchedulesRef: any;
 let publicInfoRef: any;
 let directorPerCapitaRef: any;
+let energyAccountingRecordsRef: any;
 
 try {
   database = getDatabase(app);
@@ -62,6 +63,7 @@ try {
   marmitaWeightLogsRef = ref(database, 'marmitaWeightLogs');
   directorWithdrawalsRef = ref(database, 'directorWithdrawals');
   directorPerCapitaRef = ref(database, 'directorPerCapita');
+  energyAccountingRecordsRef = ref(database, 'energyAccountingRecords');
   standardMenuRef = ref(database, 'standardMenu');
   dailyMenusRef = ref(database, 'dailyMenus');
   financialRecordsRef = ref(database, 'financialRecords');
@@ -193,6 +195,7 @@ const App: React.FC = () => {
   const [_staff, setStaff] = useState<any[]>([]);
   const [publicInfo, setPublicInfo] = useState<PublicInfo[]>(() => getCachedState('publicInfo', []));
   const [directorPerCapita, setDirectorPerCapita] = useState<any>(() => getCachedState('directorPerCapita', null));
+  const [energyAccountingRecords, setEnergyAccountingRecords] = useState<Record<string, EnergyAccountingRecord>>(() => getCachedState('energyAccountingRecords', {}));
   const [isPasswordsLoaded, setIsPasswordsLoaded] = useState(() => !!localStorage.getItem('cached_systemPasswords'));
   const [isSuppliersLoaded, setIsSuppliersLoaded] = useState(() => !!localStorage.getItem('cached_suppliers'));
   const [isPerCapitaConfigLoaded, setIsPerCapitaConfigLoaded] = useState(() => !!localStorage.getItem('cached_perCapitaConfig'));
@@ -258,7 +261,8 @@ const App: React.FC = () => {
       { key: 'temperatureLogs', setter: setTemperatureLogs },
       { key: 'marmitaWeightLogs', setter: setMarmitaWeightLogs },
       { key: 'epiLogs', setter: setEpiLogs },
-      { key: 'directorWithdrawals', setter: setDirectorWithdrawals }
+      { key: 'directorWithdrawals', setter: setDirectorWithdrawals },
+      { key: 'energyAccountingRecords', setter: setEnergyAccountingRecords }
     ];
 
     collectionsToPersist.forEach(({ key, setter }) => {
@@ -841,6 +845,16 @@ const App: React.FC = () => {
     });
     unsubscribes.push(unsubDirectorPerCapita);
 
+    // Contabilização de Energia Elétrica (Taiúva)
+    const unsubEnergyAccounting = onValue(energyAccountingRecordsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data && typeof data === 'object') {
+        setEnergyAccountingRecords(data);
+        safeLocalStorageSetItem('cached_energyAccountingRecords', JSON.stringify(data));
+      }
+    });
+    unsubscribes.push(unsubEnergyAccounting);
+
     return () => {
       console.log("Desinscrevendo de todos os listeners pesados do Firebase Realtime Database.");
       unsubscribes.forEach((unsub) => unsub());
@@ -854,6 +868,39 @@ const App: React.FC = () => {
     } catch (e) {
       console.error('Erro ao atualizar per capita dos diretores:', e);
       return { success: false, message: 'Erro ao salvar os dados no banco de dados.' };
+    }
+  };
+
+  const handleSaveEnergyAccountingRecord = async (record: EnergyAccountingRecord) => {
+    try {
+      const recRef = child(energyAccountingRecordsRef, record.id);
+      await set(recRef, record);
+      setEnergyAccountingRecords(prev => {
+        const next = { ...prev, [record.id]: record };
+        safeLocalStorageSetItem('cached_energyAccountingRecords', JSON.stringify(next));
+        return next;
+      });
+      return { success: true, message: 'Demonstrativo de consumo salvo com sucesso!' };
+    } catch (err: any) {
+      console.error('Erro ao salvar demonstrativo de energia:', err);
+      return { success: false, message: err?.message || 'Erro ao salvar demonstrativo' };
+    }
+  };
+
+  const handleDeleteEnergyAccountingRecord = async (id: string) => {
+    try {
+      const recRef = child(energyAccountingRecordsRef, id);
+      await remove(recRef);
+      setEnergyAccountingRecords(prev => {
+        const next = { ...prev };
+        delete next[id];
+        safeLocalStorageSetItem('cached_energyAccountingRecords', JSON.stringify(next));
+        return next;
+      });
+      return { success: true, message: 'Demonstrativo excluído com sucesso!' };
+    } catch (err: any) {
+      console.error('Erro ao excluir demonstrativo de energia:', err);
+      return { success: false, message: err?.message || 'Erro ao excluir demonstrativo' };
     }
   };
 
@@ -3625,6 +3672,9 @@ const App: React.FC = () => {
           publicInfo={publicInfo}
           onSavePublicInfo={handleSavePublicInfo}
           onDeletePublicInfo={handleDeletePublicInfo}
+          energyAccountingRecords={energyAccountingRecords}
+          onSaveEnergyAccountingRecord={handleSaveEnergyAccountingRecord}
+          onDeleteEnergyAccountingRecord={handleDeleteEnergyAccountingRecord}
         />
       );
     }
@@ -3985,6 +4035,9 @@ const App: React.FC = () => {
           warehouseLog={warehouseLog || []}
           suppliers={combinedSuppliers || []}
           perCapitaConfig={perCapitaConfig || {}}
+          energyAccountingRecords={energyAccountingRecords}
+          onSaveEnergyAccountingRecord={handleSaveEnergyAccountingRecord}
+          onDeleteEnergyAccountingRecord={handleDeleteEnergyAccountingRecord}
           onUpdateServiceOrder={handleUpdateServiceOrder}
           onDeleteServiceOrder={handleDeleteServiceOrder}
           onRegisterMaintenanceSchedule={handleRegisterMaintenanceSchedule}

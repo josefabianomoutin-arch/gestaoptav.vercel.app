@@ -31,47 +31,57 @@ interface AdminTaiuvaEnergyAccountingProps {
 }
 
 const DEFAULT_RECORDS: Record<string, EnergyAccountingRecord> = {};
-const MIGRATION_KEY = 'energy_accounting_taiuva_records_migrated_v4_invoice_exact';
 
 export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingProps> = ({
   records = DEFAULT_RECORDS,
   onSaveRecord,
+  onDeleteRecord,
   userRole: _userRole = 'infraestrutura',
   onNavigateToDeductionMap,
   onNavigateToEstoque: _onNavigateToEstoque
 }) => {
-  // Local persistence fallback with auto-migration to exact invoice image values
+  // Local persistence fallback
   const [localRecords, setLocalRecords] = useState<Record<string, EnergyAccountingRecord>>(() => {
     try {
       const saved = localStorage.getItem('energy_accounting_taiuva_records');
-      const migrated = localStorage.getItem(MIGRATION_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object') {
-          const ago = parsed['ago-26'];
-          const isAgoValid = ago && 
-            ago.items?.length === 11 && 
-            ago.items[0]?.description === 'Consumo Ponta [KWh] - TUSD AGO/26' &&
-            ago.totalAPagar === 42134.49;
-
-          if (!migrated || !isAgoValid) {
-            parsed['ago-26'] = DEFAULT_ENERGY_RECORD_AGO_26;
-            localStorage.setItem('energy_accounting_taiuva_records', JSON.stringify(parsed));
-            localStorage.setItem(MIGRATION_KEY, 'true');
-          }
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
           return parsed;
         }
       }
-      localStorage.setItem(MIGRATION_KEY, 'true');
     } catch (e) {
       console.error('Error loading local energy records:', e);
     }
-    return { 'ago-26': DEFAULT_ENERGY_RECORD_AGO_26 };
+    const initial = { 'ago-26': DEFAULT_ENERGY_RECORD_AGO_26 };
+    try {
+      localStorage.setItem('energy_accounting_taiuva_records', JSON.stringify(initial));
+    } catch (e) {
+      console.error(e);
+    }
+    return initial;
   });
 
-  // Merge server records if present
+  // Merge server records if present with timestamp comparison
   const allRecords = useMemo(() => {
-    const merged = { ...localRecords, ...records };
+    const merged: Record<string, EnergyAccountingRecord> = { ...localRecords };
+
+    if (records && typeof records === 'object') {
+      Object.entries(records).forEach(([id, rec]) => {
+        if (!rec) return;
+        const local = merged[id];
+        if (!local) {
+          merged[id] = rec;
+        } else {
+          const serverTime = new Date(rec.updatedAt || 0).getTime();
+          const localTime = new Date(local.updatedAt || 0).getTime();
+          if (serverTime > localTime) {
+            merged[id] = rec;
+          }
+        }
+      });
+    }
+
     if (Object.keys(merged).length === 0) {
       merged['ago-26'] = DEFAULT_ENERGY_RECORD_AGO_26;
     }
@@ -90,14 +100,22 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
   const [workingRecord, setWorkingRecord] = useState<EnergyAccountingRecord>(currentRecord);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Sync working record when month changes
-  React.useEffect(() => {
-    if (allRecords[selectedMonthId]) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setWorkingRecord(allRecords[selectedMonthId]);
+  // Sync working record when month changes or when genuinely newer server record arrives
+  const [prevSelectedMonth, setPrevSelectedMonth] = useState<string>(selectedMonthId);
+  const [prevRecordTimestamp, setPrevRecordTimestamp] = useState<string | undefined>(currentRecord?.updatedAt);
+
+  if (prevSelectedMonth !== selectedMonthId) {
+    setPrevSelectedMonth(selectedMonthId);
+    const targetRecord = allRecords[selectedMonthId];
+    if (targetRecord) {
+      setWorkingRecord(targetRecord);
+      setPrevRecordTimestamp(targetRecord.updatedAt);
       setHasUnsavedChanges(false);
     }
-  }, [selectedMonthId, allRecords]);
+  } else if (!hasUnsavedChanges && currentRecord?.updatedAt && currentRecord.updatedAt !== prevRecordTimestamp) {
+    setPrevRecordTimestamp(currentRecord.updatedAt);
+    setWorkingRecord(currentRecord);
+  }
 
   // Modals state
   const [isNewMonthModalOpen, setIsNewMonthModalOpen] = useState(false);
@@ -172,34 +190,44 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
     });
   }, []);
 
+  // Save and persist record immediately to both local state, localStorage, and Firebase
+  const persistRecordImmediately = useCallback(async (recordToPersist: EnergyAccountingRecord) => {
+    const recalculated = recalculateEnergyRecord({
+      ...recordToPersist,
+      updatedAt: new Date().toISOString()
+    });
+
+    setWorkingRecord(recalculated);
+    setHasUnsavedChanges(false);
+
+    setLocalRecords(prev => {
+      const next = { ...prev, [recalculated.id]: recalculated };
+      try {
+        localStorage.setItem('energy_accounting_taiuva_records', JSON.stringify(next));
+      } catch (e) {
+        console.error('Erro ao gravar no localStorage:', e);
+      }
+      return next;
+    });
+
+    if (onSaveRecord) {
+      try {
+        const res = await onSaveRecord(recalculated);
+        if (!res.success) {
+          console.warn('Aviso ao sincronizar com servidor:', res.message);
+        }
+      } catch (err) {
+        console.error('Erro ao sincronizar com servidor:', err);
+      }
+    }
+    return recalculated;
+  }, [onSaveRecord]);
+
   // Save changes to Firebase and localStorage
   const handleSave = async () => {
     try {
-      const calculated = recalculateEnergyRecord(workingRecord);
-      
-      // Update local state
-      setLocalRecords(prev => {
-        const next = { ...prev, [calculated.id]: calculated };
-        try {
-          localStorage.setItem('energy_accounting_taiuva_records', JSON.stringify(next));
-        } catch (e) {
-          console.error(e);
-        }
-        return next;
-      });
-
-      if (onSaveRecord) {
-        const res = await onSaveRecord(calculated);
-        if (res.success) {
-          toast.success('Demonstrativo de consumo salvo com sucesso!');
-        } else {
-          toast.error(res.message || 'Falha ao sincronizar com o banco de dados.');
-        }
-      } else {
-        toast.success('Demonstrativo de consumo salvo localmente!');
-      }
-
-      setHasUnsavedChanges(false);
+      await persistRecordImmediately(workingRecord);
+      toast.success('Demonstrativo de consumo salvo com sucesso!');
     } catch (err: any) {
       toast.error('Erro ao salvar: ' + (err?.message || err));
     }
@@ -230,7 +258,7 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
     setIsCompanyModalOpen(true);
   };
 
-  const handleSaveCompanyForm = (e: React.FormEvent) => {
+  const handleSaveCompanyForm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!companyForm.companyName?.trim()) {
       toast.error('Informe a Razão Social da empresa.');
@@ -241,21 +269,20 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
     const currReading = Number(companyForm.currentReading) || 0;
     const monthlyConsumption = Math.max(0, currReading - prevReading);
 
+    let updatedCompanies: EnergySubmeterCompany[];
+
     if (editingCompany) {
       // Edit existing
-      updateRecord(prev => ({
-        ...prev,
-        companies: prev.companies.map(c => c.id === editingCompany.id ? {
-          ...c,
-          ...companyForm,
-          previousReading: prevReading,
-          currentReading: currReading,
-          monthlyConsumption,
-          companyName: companyForm.companyName || c.companyName,
-          cnpj: companyForm.cnpj || c.cnpj,
-          address: companyForm.address || c.address
-        } as EnergySubmeterCompany : c)
-      }));
+      updatedCompanies = (workingRecord.companies || []).map(c => c.id === editingCompany.id ? {
+        ...c,
+        ...companyForm,
+        previousReading: prevReading,
+        currentReading: currReading,
+        monthlyConsumption,
+        companyName: (companyForm.companyName || c.companyName).toUpperCase(),
+        cnpj: companyForm.cnpj || c.cnpj,
+        address: companyForm.address || c.address
+      } as EnergySubmeterCompany : c);
       toast.success('Empresa atualizada com sucesso!');
     } else {
       // Add new
@@ -278,41 +305,53 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
         notes: companyForm.notes || workingRecord.generalNotes
       };
 
-      updateRecord(prev => ({
-        ...prev,
-        companies: [...(prev.companies || []), newCompany]
-      }));
+      updatedCompanies = [...(workingRecord.companies || []), newCompany];
       toast.success('Empresa cadastrada no rateio!');
     }
+
+    await persistRecordImmediately({
+      ...workingRecord,
+      companies: updatedCompanies
+    });
 
     setIsCompanyModalOpen(false);
   };
 
-  const handleDeleteCompany = (id: string, name: string) => {
-    if (confirm(`Deseja remover a empresa "${name}" deste mês?`)) {
-      updateRecord(prev => ({
-        ...prev,
-        companies: prev.companies.filter(c => c.id !== id)
-      }));
-      toast.info('Empresa removida.');
+  const handleDeleteCompany = async (id: string, name: string) => {
+    if (!window.confirm(`Deseja realmente remover a empresa "${name}" deste mês de rateio?`)) {
+      return;
+    }
+
+    try {
+      const remainingCompanies = (workingRecord.companies || []).filter(c => c.id !== id);
+      await persistRecordImmediately({
+        ...workingRecord,
+        companies: remainingCompanies
+      });
+      toast.success(`Empresa "${name}" removida com sucesso!`);
+    } catch (err: any) {
+      console.error('Erro ao excluir empresa:', err);
+      toast.error('Erro ao remover empresa: ' + (err?.message || err));
     }
   };
 
-  const handleTogglePaymentStatus = (companyId: string) => {
-    updateRecord(prev => ({
-      ...prev,
-      companies: prev.companies.map(c => {
-        if (c.id === companyId) {
-          const nextStatus = c.status === 'PAGO' ? 'PENDENTE' : 'PAGO';
-          return {
-            ...c,
-            status: nextStatus,
-            paidAt: nextStatus === 'PAGO' ? new Date().toISOString() : undefined
-          };
-        }
-        return c;
-      })
-    }));
+  const handleTogglePaymentStatus = async (companyId: string) => {
+    const updatedCompanies = (workingRecord.companies || []).map(c => {
+      if (c.id === companyId) {
+        const nextStatus = c.status === 'PAGO' ? 'PENDENTE' : 'PAGO';
+        return {
+          ...c,
+          status: nextStatus,
+          paidAt: nextStatus === 'PAGO' ? new Date().toISOString() : undefined
+        };
+      }
+      return c;
+    });
+
+    await persistRecordImmediately({
+      ...workingRecord,
+      companies: updatedCompanies
+    });
   };
 
   // Bill items management
@@ -346,7 +385,7 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
     setIsItemModalOpen(true);
   };
 
-  const handleSaveItemForm = (e: React.FormEvent) => {
+  const handleSaveItemForm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!itemForm.description?.trim()) {
       toast.error('Informe a descrição da operação.');
@@ -391,17 +430,18 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
       isForaPontaEnergy: !!itemForm.isForaPontaEnergy
     };
 
+    const updatedItems = editingItem
+      ? workingRecord.items.map(it => it.id === editingItem.id ? itemData : it)
+      : [...workingRecord.items, itemData];
+
+    await persistRecordImmediately({
+      ...workingRecord,
+      items: updatedItems
+    });
+
     if (editingItem) {
-      updateRecord(prev => ({
-        ...prev,
-        items: prev.items.map(it => it.id === editingItem.id ? itemData : it)
-      }));
       toast.success('Item da fatura atualizado!');
     } else {
-      updateRecord(prev => ({
-        ...prev,
-        items: [...prev.items, itemData]
-      }));
       toast.success('Item adicionado à fatura!');
     }
     setIsItemModalOpen(false);
@@ -418,16 +458,16 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
     setIsRetentionModalOpen(true);
   };
 
-  const handleSaveRetentionForm = (e: React.FormEvent) => {
+  const handleSaveRetentionForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateRecord(prev => ({
-      ...prev,
+    await persistRecordImmediately({
+      ...workingRecord,
       contractNumber: retentionForm.contractNumber,
       irrfConsumo: Math.abs(Number(retentionForm.irrfConsumo) || 0),
       irrfDemanda: Math.abs(Number(retentionForm.irrfDemanda) || 0),
       pisPercentage: Number(retentionForm.pisPercentage) || 1.03,
       cofinsPercentage: Number(retentionForm.cofinsPercentage) || 4.83
-    }));
+    });
     setIsRetentionModalOpen(false);
     toast.success('Retenções e parâmetros da fatura atualizados!');
   };
@@ -441,27 +481,17 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
       id: targetId,
       referenceMonth: refMonth
     };
-    setWorkingRecord(updated);
-    setLocalRecords(prev => {
-      const next = { ...prev, [targetId]: updated };
-      try {
-        localStorage.setItem('energy_accounting_taiuva_records', JSON.stringify(next));
-        localStorage.setItem(MIGRATION_KEY, 'true');
-      } catch (e) {
-        console.error(e);
-      }
-      return next;
-    });
-    setHasUnsavedChanges(false);
+    persistRecordImmediately(updated);
     toast.success('Fatura restaurada com as informações exatas da imagem!');
   };
 
-  const handleDeleteItem = (id: string) => {
+  const handleDeleteItem = async (id: string) => {
     if (confirm('Deseja excluir esta linha de operação da fatura?')) {
-      updateRecord(prev => ({
-        ...prev,
-        items: prev.items.filter(it => it.id !== id)
-      }));
+      const remainingItems = workingRecord.items.filter(it => it.id !== id);
+      await persistRecordImmediately({
+        ...workingRecord,
+        items: remainingItems
+      });
       toast.info('Item excluído da fatura.');
     }
   };
@@ -525,6 +555,41 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
     setWorkingRecord(calculated);
     setIsNewMonthModalOpen(false);
     toast.success(`Mês "${newMonthName}" criado com sucesso! As leituras anteriores foram atualizadas com base no mês anterior.`);
+  };
+
+  const handleDeleteMonth = async (monthId: string) => {
+    if (Object.keys(allRecords).length <= 1) {
+      toast.error('Não é possível excluir o único mês cadastrado.');
+      return;
+    }
+    const rec = allRecords[monthId];
+    const monthName = rec?.referenceMonth || monthId;
+    if (!window.confirm(`Deseja realmente excluir todo o demonstrativo do mês "${monthName}"?`)) {
+      return;
+    }
+
+    try {
+      const nextLocal = { ...localRecords };
+      delete nextLocal[monthId];
+      setLocalRecords(nextLocal);
+      try {
+        localStorage.setItem('energy_accounting_taiuva_records', JSON.stringify(nextLocal));
+      } catch (e) {
+        console.error('Erro ao gravar localStorage:', e);
+      }
+
+      if (onDeleteRecord) {
+        await onDeleteRecord(monthId);
+      }
+
+      const remainingKeys = Object.keys(nextLocal);
+      const fallbackMonth = remainingKeys[0] || 'ago-26';
+      setSelectedMonthId(fallbackMonth);
+      toast.success(`Mês "${monthName}" excluído com sucesso!`);
+    } catch (err: any) {
+      console.error('Erro ao excluir mês:', err);
+      toast.error('Erro ao excluir mês: ' + (err?.message || err));
+    }
   };
 
   // KPIs
@@ -651,6 +716,15 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
                   </option>
                 ))}
               </select>
+              {Object.keys(allRecords).length > 1 && (
+                <button
+                  onClick={() => handleDeleteMonth(selectedMonthId)}
+                  className="ml-1 p-1 hover:bg-red-500/20 text-red-300 hover:text-red-200 rounded-lg transition-all"
+                  title="Excluir este mês"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
 
             <button

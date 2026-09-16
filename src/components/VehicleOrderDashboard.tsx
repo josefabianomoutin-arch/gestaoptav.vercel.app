@@ -58,6 +58,8 @@ interface VehicleOrderDashboardProps {
   [key: string]: any;
 }
 
+const EMPTY_ENERGY_RECORDS: Record<string, EnergyAccountingRecord> = {};
+
 const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
   orders = [],
   vehicleAssets = [],
@@ -67,7 +69,7 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
   publicInfoList = [],
   serviceOrders = [],
   maintenanceSchedules = [],
-  energyAccountingRecords = {},
+  energyAccountingRecords = EMPTY_ENERGY_RECORDS,
   warehouseLog = [],
   suppliers = [],
   perCapitaConfig,
