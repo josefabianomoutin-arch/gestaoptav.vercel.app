@@ -695,6 +695,7 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
       {/* Print-only CSS style */}
       <style>{`
         @media print {
+          @page { size: portrait; margin: 0.5cm; }
           body * {
             visibility: hidden;
           }
@@ -707,10 +708,17 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
             top: 0;
             width: 100%;
             background: white !important;
-            padding: 20px;
+            padding: 0;
+            zoom: 0.85;
           }
           .no-print {
             display: none !important;
+          }
+          .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl {
+            box-shadow: none !important;
+          }
+          .rounded-2xl, .rounded-3xl {
+            border-radius: 8px !important;
           }
         }
       `}</style>
@@ -889,15 +897,15 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
       </div>
 
       {/* Printable Area Wrapper */}
-      <div id="print-area" className="space-y-8">
+      <div id="print-area" className="space-y-8 print:space-y-4">
         
         {/* Header strictly for print */}
-        <div className="hidden print:block border-b-2 border-black pb-4 mb-6">
+        <div className="hidden print:block border-b-2 border-black pb-3 mb-4">
           <div className="text-center">
             <h1 className="text-lg font-black uppercase">GOVERNO DO ESTADO DE SÃO PAULO</h1>
             <h2 className="text-sm font-bold uppercase">SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA - SAP</h2>
-            <h3 className="text-xs font-bold uppercase">CENTRO DE PROGRESSÃO PENITENCIÁRIA DE GUARIBA / UNIDADE DE TAIÚVA</h3>
-            <p className="text-[11px] font-black mt-1">SEÇÃO DE INFRAESTRUTURA E MANUTENÇÃO - RATEIO DE ENERGIA ELÉTRICA</p>
+            <h3 className="text-xs font-bold uppercase">PENITENCIÁRIA DE TAIÚVA</h3>
+            <p className="text-[11px] font-black mt-0.5">SEÇÃO DE INFRAESTRUTURA E MANUTENÇÃO - RATEIO DE ENERGIA ELÉTRICA</p>
             <p className="text-[10px] font-semibold text-gray-700">MÊS DE REFERÊNCIA: {workingRecord.referenceMonth.toUpperCase()}</p>
           </div>
         </div>
@@ -1489,11 +1497,11 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
         </div>
 
         {/* Print Signatures Block (Only visible on print) */}
-        <div className="hidden print:grid grid-cols-2 gap-12 pt-16 mt-12 border-t border-gray-300">
+        <div className="hidden print:grid grid-cols-2 gap-12 pt-10 mt-6 border-t border-gray-300">
           <div className="text-center">
             <div className="border-t border-black w-64 mx-auto mb-1"></div>
             <p className="text-xs font-bold uppercase">RESPONSÁVEL PELA INFRAESTRUTURA</p>
-            <p className="text-[10px] text-gray-600">Centro de Progressão Penitenciária de Guariba / Taiúva</p>
+            <p className="text-[10px] text-gray-600 font-bold">Penitenciária de Taiúva</p>
           </div>
           <div className="text-center">
             <div className="border-t border-black w-64 mx-auto mb-1"></div>
@@ -2195,11 +2203,11 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
               </div>
 
               {/* Signatures */}
-              <div className="grid grid-cols-2 gap-8 pt-12 mt-6 border-t border-black">
+              <div className="grid grid-cols-2 gap-8 pt-8 mt-4 border-t border-black">
                 <div className="text-center">
                   <div className="border-t border-black w-48 mx-auto mb-1"></div>
                   <p className="text-[10px] font-black uppercase">DIRETORIA DE INFRAESTRUTURA</p>
-                  <p className="text-[9px] text-gray-600">Unidade de Taiúva / CPP Guariba</p>
+                  <p className="text-[9px] text-gray-600 font-bold">Penitenciária de Taiúva</p>
                 </div>
                 <div className="text-center">
                   <div className="border-t border-black w-48 mx-auto mb-1"></div>
