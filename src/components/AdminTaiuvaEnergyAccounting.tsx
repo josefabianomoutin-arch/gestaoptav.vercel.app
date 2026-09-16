@@ -152,6 +152,7 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
       setHasUnsavedChanges(false);
     }
   } else if (!hasUnsavedChanges && currentRecord?.updatedAt && currentRecord.updatedAt !== prevRecordTimestamp) {
+    // Only update workingRecord from server if there are NO unsaved changes locally
     setPrevRecordTimestamp(currentRecord.updatedAt);
     setWorkingRecord(currentRecord);
   }
