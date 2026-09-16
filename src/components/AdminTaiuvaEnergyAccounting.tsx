@@ -2119,7 +2119,7 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
               <div className="text-center border-b-2 border-black pb-4">
                 <h2 className="text-sm font-black uppercase tracking-wide">GOVERNO DO ESTADO DE SÃO PAULO</h2>
                 <h3 className="text-xs font-bold uppercase">SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA</h3>
-                <h4 className="text-xs font-bold uppercase">CENTRO DE PROGRESSÃO PENITENCIÁRIA DE GUARIBA / UNIDADE DE TAIÚVA</h4>
+                <h4 className="text-xs font-bold uppercase">PENITENCIÁRIA DE TAIÚVA</h4>
                 <p className="text-[11px] font-black uppercase text-indigo-950 mt-1">
                   NOTIFICAÇÃO DE COBRANÇA E RESSARCIMENTO DE ENERGIA ELÉTRICA
                 </p>
