@@ -709,7 +709,18 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
             width: 100%;
             background: white !important;
             padding: 0;
-            zoom: 0.85;
+            zoom: 0.8;
+          }
+          #print-area table td, #print-area table th {
+            padding-top: 2px !important;
+            padding-bottom: 2px !important;
+            font-size: 9px !important;
+          }
+          #print-area .p-6, #print-area .p-4 {
+            padding: 0.5rem !important;
+          }
+          #print-area h2, #print-area h3, #print-area h1 {
+            margin-bottom: 0.25rem !important;
           }
           .no-print {
             display: none !important;
@@ -897,7 +908,7 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
       </div>
 
       {/* Printable Area Wrapper */}
-      <div id="print-area" className="space-y-8 print:space-y-4">
+      <div id="print-area" className="space-y-8 print:space-y-2">
         
         {/* Header strictly for print */}
         <div className="hidden print:block border-b-2 border-black pb-3 mb-4">
@@ -1497,7 +1508,7 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
         </div>
 
         {/* Print Signatures Block (Only visible on print) */}
-        <div className="hidden print:grid grid-cols-2 gap-12 pt-10 mt-6 border-t border-gray-300">
+        <div className="hidden print:grid grid-cols-2 gap-12 pt-6 mt-4 border-t border-gray-300">
           <div className="text-center">
             <div className="border-t border-black w-64 mx-auto mb-1"></div>
             <p className="text-xs font-bold uppercase">RESPONSÁVEL PELA INFRAESTRUTURA</p>
@@ -1505,7 +1516,9 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
           </div>
           <div className="text-center">
             <div className="border-t border-black w-64 mx-auto mb-1"></div>
-            <p className="text-xs font-bold uppercase">DIRETORIA DO CENTRO DE TRABALHO / FUNAP</p>
+            <p className="text-xs font-bold uppercase">
+              {workingRecord.companies.length === 1 ? workingRecord.companies[0].companyName : "REPRESENTANTE DA EMPRESA"}
+            </p>
             <p className="text-[10px] text-gray-600">Visto e Conferência</p>
           </div>
         </div>
