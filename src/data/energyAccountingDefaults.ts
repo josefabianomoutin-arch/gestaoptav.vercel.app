@@ -32,7 +32,7 @@ export const DEFAULT_ENERGY_COMPANIES_JUL_26: EnergySubmeterCompany[] = [
     status: 'PAGO',
     readingDate: '2026-08-01',
     nextReadingDate: '2026-09-01',
-    notes: 'Referente a cobrança da utilização de energia eletrica no pavilhao de trabalho do Centro de Progressão Penitenciária de Guariba / Unidade de Taiuva.',
+    notes: 'Referente a cobrança da utilização de energia eletrica nos pavilhões de trabalho da Penitenciária de Taiúva.',
   },
   {
     id: 'comp-jul-2',
@@ -50,7 +50,7 @@ export const DEFAULT_ENERGY_COMPANIES_JUL_26: EnergySubmeterCompany[] = [
     status: 'PAGO',
     readingDate: '2026-08-01',
     nextReadingDate: '2026-09-01',
-    notes: 'Referente a cobrança da utilização de energia eletrica no pavilhao de trabalho do Centro de Progressão Penitenciária de Guariba / Unidade de Taiuva.',
+    notes: 'Referente a cobrança da utilização de energia eletrica nos pavilhões de trabalho da Penitenciária de Taiúva.',
   },
   {
     id: 'comp-jul-3',
@@ -68,7 +68,7 @@ export const DEFAULT_ENERGY_COMPANIES_JUL_26: EnergySubmeterCompany[] = [
     status: 'PAGO',
     readingDate: '2026-08-01',
     nextReadingDate: '2026-09-01',
-    notes: 'Referente a cobrança da utilização de energia eletrica no pavilhao de trabalho do Centro de Progressão Penitenciária de Guariba / Unidade de Taiuva.',
+    notes: 'Referente a cobrança da utilização de energia eletrica nos pavilhões de trabalho da Penitenciária de Taiúva.',
   }
 ];
 
@@ -96,7 +96,7 @@ export const DEFAULT_ENERGY_RECORD_JUL_26: EnergyAccountingRecord = {
   pisTotal: 312.44,
   cofinsTotal: 1470.05,
   companies: DEFAULT_ENERGY_COMPANIES_JUL_26,
-  generalNotes: 'Referente a cobrança da utilização de energia eletrica no pavilhao de trabalho do Centro de Progressão Penitenciária de Guariba / Unidade de Taiuva.',
+  generalNotes: 'Referente a cobrança da utilização de energia eletrica nos pavilhões de trabalho da Penitenciária de Taiúva.',
   updatedAt: '2026-07-31T23:59:59.000Z',
   createdAt: '2026-07-31T23:59:59.000Z'
 };
@@ -132,7 +132,7 @@ export const DEFAULT_ENERGY_COMPANIES_AGO_26: EnergySubmeterCompany[] = [
     status: 'PAGO',
     readingDate: '2026-09-01',
     nextReadingDate: '2026-10-01',
-    notes: 'Referente a cobrança da utilização de energia eletrica no pavilhao de trabalho do Centro de Progressão Penitenciária de Guariba / Unidade de Taiuva.',
+    notes: 'Referente a cobrança da utilização de energia eletrica nos pavilhões de trabalho da Penitenciária de Taiúva.',
   },
   {
     id: 'comp-2',
@@ -150,7 +150,7 @@ export const DEFAULT_ENERGY_COMPANIES_AGO_26: EnergySubmeterCompany[] = [
     status: 'PENDENTE',
     readingDate: '2026-09-01',
     nextReadingDate: '2026-10-01',
-    notes: 'Referente a cobrança da utilização de energia eletrica no pavilhao de trabalho do Centro de Progressão Penitenciária de Guariba / Unidade de Taiuva.',
+    notes: 'Referente a cobrança da utilização de energia eletrica nos pavilhões de trabalho da Penitenciária de Taiúva.',
   },
   {
     id: 'comp-3',
@@ -168,7 +168,7 @@ export const DEFAULT_ENERGY_COMPANIES_AGO_26: EnergySubmeterCompany[] = [
     status: 'PENDENTE',
     readingDate: '2026-09-01',
     nextReadingDate: '2026-10-01',
-    notes: 'Referente a cobrança da utilização de energia eletrica no pavilhao de trabalho do Centro de Progressão Penitenciária de Guariba / Unidade de Taiuva.',
+    notes: 'Referente a cobrança da utilização de energia eletrica nos pavilhões de trabalho da Penitenciária de Taiúva.',
   }
 ];
 
@@ -196,7 +196,7 @@ export const DEFAULT_ENERGY_RECORD_AGO_26: EnergyAccountingRecord = {
   pisTotal: 442.78,
   cofinsTotal: 2076.27,
   companies: DEFAULT_ENERGY_COMPANIES_AGO_26,
-  generalNotes: 'Referente a cobrança da utilização de energia eletrica no pavilhao de trabalho do Centro de Progressão Penitenciária de Guariba / Unidade de Taiuva.',
+  generalNotes: 'Referente a cobrança da utilização de energia eletrica nos pavilhões de trabalho da Penitenciária de Taiúva.',
   updatedAt: new Date().toISOString(),
   createdAt: new Date().toISOString()
 };
