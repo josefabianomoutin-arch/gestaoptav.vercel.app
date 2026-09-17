@@ -17,6 +17,7 @@ import AdminVehicleExitOrder from './AdminVehicleExitOrder';
 import AdminServiceOrder from './AdminServiceOrder';
 import AdminTaiuvaEnergyAccounting from './AdminTaiuvaEnergyAccounting';
 import AdminWarehouseLog from './AdminWarehouseLog';
+import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import { Car, Wrench, Zap, Package, Layers } from 'lucide-react';
 
 interface VehicleOrderDashboardProps {
@@ -137,8 +138,8 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
       <header className="bg-white text-indigo-950 p-4 shadow-sm flex flex-col md:flex-row justify-between items-center sticky top-0 z-50 border-b border-gray-200 gap-4">
         <div className="flex flex-wrap items-center justify-between w-full md:w-auto gap-4">
           <div className="flex items-center gap-3">
-            <div className="bg-indigo-50 p-2.5 rounded-2xl border border-indigo-100 shadow-xs">
-              <Zap className="h-6 w-6 text-amber-500 fill-amber-400" />
+            <div className="bg-indigo-50/80 p-1 rounded-2xl border border-indigo-100 shadow-xs flex items-center justify-center">
+              <PoliciaPenalLogo className="h-9 w-auto object-contain max-w-[36px]" />
             </div>
             <div>
               <h1 className="text-lg font-black uppercase italic tracking-tighter leading-none text-indigo-950">
