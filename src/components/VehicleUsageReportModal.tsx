@@ -90,6 +90,7 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
   const selectedMonth = selectedMonthOverride !== null ? selectedMonthOverride : initialMonth;
   const setSelectedMonth = (val: string) => setSelectedMonthOverride(val);
 
+  const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Extract all unique available months from the orders
@@ -113,14 +114,26 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
     return Array.from(set).sort().reverse();
   }, [orders]);
 
-  // Filter orders by month
+  // Extract unique employees for filter dropdown
+  const availableEmployees = useMemo(() => {
+    const set = new Set<string>();
+    orders.forEach(o => {
+      if (o.responsibleServer) {
+        set.add(o.responsibleServer.trim().toUpperCase());
+      }
+    });
+    return Array.from(set).sort();
+  }, [orders]);
+
+  // Filter orders by month and employee
   const monthlyOrders = useMemo(() => {
     return orders.filter(o => {
       const orderDate = o.date || o.exitDate || '';
-      if (!selectedMonth) return true;
-      return orderDate.startsWith(selectedMonth);
+      const matchMonth = !selectedMonth || orderDate.startsWith(selectedMonth);
+      const matchEmployee = !selectedEmployee || (o.responsibleServer || '').trim().toUpperCase() === selectedEmployee;
+      return matchMonth && matchEmployee;
     });
-  }, [orders, selectedMonth]);
+  }, [orders, selectedMonth, selectedEmployee]);
 
   // Aggregate by Employee
   const employeeAggregations = useMemo(() => {
@@ -362,21 +375,22 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
     monthlyOrders.forEach(order => {
       const empName = (order.responsibleServer || 'NÃO INFORMADO').trim().toUpperCase();
       const vehicleStr = `${order.vehicle || 'N/A'} (${order.plate || 'SEM PLACA'})`.trim();
-      const locAndDate = `${order.destination || 'Não informada'} - ${(order.date || order.exitDate || '').split('-').reverse().join('/')}`;
+      const locality = (order.destination || 'Não informada').trim();
+      const dt = (order.date || order.exitDate || '').split('-').reverse().join('/');
       const durationMin = calculateOrderDurationMinutes(order);
 
       tableData.push([
         empName,
         vehicleStr,
-        locAndDate,
-        '1',
+        locality,
+        dt,
         formatMinutesToReadable(durationMin)
       ]);
     });
 
     autoTable(doc, {
       startY: 38,
-      head: [['FUNCIONÁRIO (RESPONSÁVEL)', 'VEÍCULO / PLACA', 'LOCALIDADE E DATA', 'VIAGENS', 'TEMPO TOTAL']],
+      head: [['FUNCIONÁRIO (RESPONSÁVEL)', 'VEÍCULO / PLACA', 'LOCALIDADE', 'DATA', 'TEMPO TOTAL']],
       body: tableData,
       theme: 'grid',
       headStyles: {
@@ -393,17 +407,17 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
       },
       columnStyles: {
         0: { cellWidth: 44, fontStyle: 'bold' },
-        1: { cellWidth: 48 },
-        2: { cellWidth: 46 },
-        3: { cellWidth: 16, halign: 'center' },
+        1: { cellWidth: 46 },
+        2: { cellWidth: 40 },
+        3: { cellWidth: 22, halign: 'center' },
         4: { cellWidth: 26, halign: 'center', fontStyle: 'bold' }
       },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       foot: [[
         'TOTAIS CONSOLIDADOS',
         `${stats.totalVehicles} Veículos`,
-        `${stats.totalOrders} Saídas no Período`,
-        stats.totalOrders.toString(),
+        `${stats.totalOrders} Saídas`,
+        '',
         formatMinutesToReadable(stats.totalMinutes)
       ]],
       footStyles: {
@@ -436,7 +450,7 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
 
   // Export CSV
   const handleExportCSV = () => {
-    let csv = 'FUNCIONARIO;VEICULO;PLACA;LOCALIDADE;DATA_SAIDA;VIAGENS;TEMPO_MINUTOS;TEMPO_FORMATADO\n';
+    let csv = 'FUNCIONARIO;VEICULO;PLACA;LOCALIDADE;DATA_SAIDA;TEMPO_MINUTOS;TEMPO_FORMATADO\n';
     monthlyOrders.forEach(order => {
       const emp = (order.responsibleServer || '').replace(/"/g, '""');
       const veh = (order.vehicle || '').replace(/"/g, '""');
@@ -444,7 +458,7 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
       const dest = (order.destination || '').replace(/"/g, '""');
       const dt = (order.date || order.exitDate || '');
       const duration = calculateOrderDurationMinutes(order);
-      csv += `"${emp}";"${veh}";"${plate}";"${dest}";"${dt}";1;${duration};"${formatMinutesToReadable(duration)}"\n`;
+      csv += `"${emp}";"${veh}";"${plate}";"${dest}";"${dt}";${duration};"${formatMinutesToReadable(duration)}"\n`;
     });
 
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -520,6 +534,24 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
                     </option>
                   );
                 })}
+              </select>
+            </div>
+
+            {/* Employee selector */}
+            <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs">
+              <User className="h-4 w-4 text-indigo-600" />
+              <span className="text-[11px] font-black uppercase text-slate-500 tracking-wider">Funcionário:</span>
+              <select
+                value={selectedEmployee}
+                onChange={(e) => setSelectedEmployee(e.target.value)}
+                className="bg-transparent text-xs font-black text-slate-800 focus:outline-none cursor-pointer uppercase max-w-[180px]"
+              >
+                <option value="">TODOS OS FUNCIONÁRIOS</option>
+                {availableEmployees.map(emp => (
+                  <option key={emp} value={emp}>
+                    {emp}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -637,8 +669,8 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
                   <tr>
                     <th className="p-3">Funcionário (Responsável)</th>
                     <th className="p-3">Veículo / Placa</th>
-                    <th className="p-3">Localidade e Data</th>
-                    <th className="p-3 text-center">Viagens</th>
+                    <th className="p-3">Localidade</th>
+                    <th className="p-3 text-center">Data</th>
                     <th className="p-3 text-center">Tempo Total</th>
                   </tr>
                 </thead>
@@ -671,12 +703,10 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
                             <div className="flex items-center gap-1.5">
                               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                               <span>{order.destination || 'Não informada'}</span>
-                              <span className="text-slate-400">•</span>
-                              <span className="text-indigo-600 font-mono">{dt}</span>
                             </div>
                           </td>
-                          <td className="p-3 text-center font-black text-slate-700">
-                            1
+                          <td className="p-3 text-center font-mono font-bold text-indigo-700">
+                            {dt || '--/--/----'}
                           </td>
                           <td className="p-3 text-center font-black text-indigo-700 whitespace-nowrap">
                             {order.returnTime ? (
