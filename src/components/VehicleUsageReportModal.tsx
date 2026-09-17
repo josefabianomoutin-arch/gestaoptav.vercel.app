@@ -73,6 +73,11 @@ function formatMinutesToReadable(minutes: number): string {
   return `${h}h ${m.toString().padStart(2, '0')}m`;
 }
 
+function formatMinutesToDecimalHours(minutes: number): string {
+  if (!minutes || minutes <= 0) return '0,0h';
+  return (minutes / 60).toFixed(1).replace('.', ',') + 'h';
+}
+
 const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
   isOpen,
   onClose,
