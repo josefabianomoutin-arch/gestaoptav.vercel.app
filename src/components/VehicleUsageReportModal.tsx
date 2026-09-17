@@ -10,7 +10,8 @@ import {
   Search, 
   Calendar, 
   X, 
-  Download
+  Download,
+  FileDown
 } from 'lucide-react';
 
 interface VehicleUsageReportModalProps {
