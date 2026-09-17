@@ -399,151 +399,61 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
     // Table rows
     const tableData: any[] = [];
 
-    if (viewMode === 'vehicle') {
-      vehicleAggregations.forEach(veh => {
-        const employees = Array.from(veh.employeesMap.values());
-        const empSummary = employees
-          .map(e => `${e.employeeName} [${e.count}x]`)
-          .join('\n');
+    monthlyOrders.forEach(order => {
+      const empName = (order.responsibleServer || 'NÃO INFORMADO').trim().toUpperCase();
+      const vehicleStr = `${order.vehicle || 'N/A'} (${order.plate || 'SEM PLACA'})`.trim();
+      const locAndDate = `${order.destination || 'Não informada'} - ${(order.date || order.exitDate || '').split('-').reverse().join('/')}`;
+      const durationMin = calculateOrderDurationMinutes(order);
 
-        const localitiesSummary = veh.localities.length > 0
-          ? veh.localities.join('\n')
-          : 'Não informada';
+      tableData.push([
+        empName,
+        vehicleStr,
+        locAndDate,
+        '1',
+        formatMinutesToReadable(durationMin)
+      ]);
+    });
 
-        const datesSummary = veh.ordersList
-          .map(o => {
-            const dt = (o.date || o.exitDate || '').split('-').reverse().join('/');
-            const empName = o.responsibleServer || 'Condutor';
-            const loc = o.destination || 'Local';
-            return `${dt} - ${empName} (${loc})`;
-          })
-          .join('\n');
-
-        tableData.push([
-          `${veh.vehicleName}\n(${veh.plate})`,
-          empSummary || 'Nenhum condutor',
-          localitiesSummary,
-          veh.totalOrders.toString(),
-          formatMinutesToReadable(veh.totalMinutes),
-          datesSummary || '-'
-        ]);
-      });
-
-      autoTable(doc, {
-        startY: 38,
-        head: [['VEÍCULO / PLACA', 'FUNCIONÁRIOS (MOTORISTAS)', 'LOCALIDADE', 'VIAGENS', 'TEMPO TOTAL', 'DATAS DAS SAÍDAS']],
-        body: tableData,
-        theme: 'grid',
-        headStyles: {
-          fillColor: [79, 70, 229],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          halign: 'center',
-          fontSize: 8
-        },
-        styles: {
-          fontSize: 6.5,
-          cellPadding: 2,
-          overflow: 'linebreak'
-        },
-        columnStyles: {
-          0: { cellWidth: 32, fontStyle: 'bold' },
-          1: { cellWidth: 38 },
-          2: { cellWidth: 34 },
-          3: { cellWidth: 14, halign: 'center' },
-          4: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
-          5: { cellWidth: 42 }
-        },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        foot: [[
-          'TOTAIS CONSOLIDADOS',
-          `${stats.totalVehicles} Veículos`,
-          `${stats.totalEmployees} Funcionários`,
-          stats.totalOrders.toString(),
-          formatMinutesToReadable(stats.totalMinutes),
-          `${stats.totalOrders} Saídas Registradas`
-        ]],
-        footStyles: {
-          fillColor: [241, 245, 249],
-          textColor: [15, 23, 42],
-          fontStyle: 'bold',
-          halign: 'center',
-          fontSize: 8
-        }
-      });
-    } else {
-      employeeAggregations.forEach(emp => {
-        const vehicles = Array.from(emp.vehiclesMap.values());
-        const vehiclesSummary = vehicles
-          .map(v => `${v.vehicleName} (${v.plate}) [${v.count}x]`)
-          .join('\n');
-
-        const localitiesSummary = emp.localities.length > 0
-          ? emp.localities.join('\n')
-          : 'Não informada';
-
-        const datesSummary = emp.ordersList
-          .map(o => {
-            const dt = (o.date || o.exitDate || '').split('-').reverse().join('/');
-            const veh = o.vehicle || 'Veículo';
-            const loc = o.destination || 'Local';
-            return `${dt} - ${veh} (${loc})`;
-          })
-          .join('\n');
-
-        tableData.push([
-          emp.employeeName,
-          vehiclesSummary || 'Nenhum veículo',
-          localitiesSummary,
-          emp.totalOrders.toString(),
-          formatMinutesToReadable(emp.totalMinutes),
-          datesSummary || '-'
-        ]);
-      });
-
-      autoTable(doc, {
-        startY: 38,
-        head: [['FUNCIONÁRIO (RESPONSÁVEL)', 'VEÍCULOS / PLACAS', 'LOCALIDADE', 'VIAGENS', 'TEMPO TOTAL', 'DATAS DAS SAÍDAS']],
-        body: tableData,
-        theme: 'grid',
-        headStyles: {
-          fillColor: [79, 70, 229],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          halign: 'center',
-          fontSize: 8
-        },
-        styles: {
-          fontSize: 6.5,
-          cellPadding: 2,
-          overflow: 'linebreak'
-        },
-        columnStyles: {
-          0: { cellWidth: 32, fontStyle: 'bold' },
-          1: { cellWidth: 38 },
-          2: { cellWidth: 34 },
-          3: { cellWidth: 14, halign: 'center' },
-          4: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
-          5: { cellWidth: 42 }
-        },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        foot: [[
-          'TOTAIS CONSOLIDADOS',
-          `${stats.totalEmployees} Funcionários`,
-          `${stats.totalVehicles} Veículos`,
-          stats.totalOrders.toString(),
-          formatMinutesToReadable(stats.totalMinutes),
-          `${stats.totalOrders} Saídas Registradas`
-        ]],
-        footStyles: {
-          fillColor: [241, 245, 249],
-          textColor: [15, 23, 42],
-          fontStyle: 'bold',
-          halign: 'center',
-          fontSize: 8
-        }
-      });
-    }
+    autoTable(doc, {
+      startY: 38,
+      head: [['FUNCIONÁRIO (RESPONSÁVEL)', 'VEÍCULO / PLACA', 'LOCALIDADE E DATA', 'VIAGENS', 'TEMPO TOTAL']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [79, 70, 229],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        halign: 'center',
+        fontSize: 8
+      },
+      styles: {
+        fontSize: 7,
+        cellPadding: 2.5,
+        overflow: 'linebreak'
+      },
+      columnStyles: {
+        0: { cellWidth: 44, fontStyle: 'bold' },
+        1: { cellWidth: 48 },
+        2: { cellWidth: 46 },
+        3: { cellWidth: 16, halign: 'center' },
+        4: { cellWidth: 26, halign: 'center', fontStyle: 'bold' }
+      },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      foot: [[
+        'TOTAIS CONSOLIDADOS',
+        `${stats.totalVehicles} Veículos`,
+        `${stats.totalOrders} Saídas no Período`,
+        stats.totalOrders.toString(),
+        formatMinutesToReadable(stats.totalMinutes)
+      ]],
+      footStyles: {
+        fillColor: [241, 245, 249],
+        textColor: [15, 23, 42],
+        fontStyle: 'bold',
+        halign: 'center',
+        fontSize: 8
+      }
+    });
 
     // Signatures area on final page
     const finalY = (doc as any).lastAutoTable?.finalY || 200;
@@ -566,16 +476,15 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
 
   // Export CSV
   const handleExportCSV = () => {
-    let csv = 'FUNCIONARIO;CARGO;VEICULO;PLACA;LOCALIDADE;DATA_SAIDA;TEMPO_MINUTOS;TEMPO_FORMATADO\n';
-    employeeAggregations.forEach(emp => {
-      emp.ordersList.forEach(o => {
-        const dt = (o.date || o.exitDate || '');
-        const veh = o.vehicle || '';
-        const plate = o.plate || '';
-        const dest = o.destination || '';
-        const duration = calculateOrderDurationMinutes(o);
-        csv += `"${emp.employeeName}";"${emp.role}";"${veh}";"${plate}";"${dest}";"${dt}";${duration};"${formatMinutesToReadable(duration)}"\n`;
-      });
+    let csv = 'FUNCIONARIO;VEICULO;PLACA;LOCALIDADE;DATA_SAIDA;VIAGENS;TEMPO_MINUTOS;TEMPO_FORMATADO\n';
+    monthlyOrders.forEach(order => {
+      const emp = (order.responsibleServer || '').replace(/"/g, '""');
+      const veh = (order.vehicle || '').replace(/"/g, '""');
+      const plate = (order.plate || '').replace(/"/g, '""');
+      const dest = (order.destination || '').replace(/"/g, '""');
+      const dt = (order.date || order.exitDate || '');
+      const duration = calculateOrderDurationMinutes(order);
+      csv += `"${emp}";"${veh}";"${plate}";"${dest}";"${dt}";1;${duration};"${formatMinutesToReadable(duration)}"\n`;
     });
 
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -778,350 +687,80 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
         </div>
 
         {/* Content Body */}
-        <div className="flex-grow overflow-y-auto p-4 sm:p-6 space-y-3 bg-slate-50/50">
-          {viewMode === 'employee' ? (
-            /* VIEW BY EMPLOYEE */
-            filteredEmployees.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-300">
-                <Clock className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-sm font-black text-slate-700 uppercase">Nenhum registro encontrado</p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Não foram encontradas saídas para o mês e critérios selecionados.
-                </p>
-              </div>
-            ) : (
-              filteredEmployees.map(emp => {
-                const isExpanded = !!expandedEmployees[emp.employeeName];
-                const vehiclesList = Array.from(emp.vehiclesMap.values());
-
-                return (
-                  <div 
-                    key={emp.employeeName}
-                    className="bg-white rounded-2xl border border-slate-200 shadow-xs hover:border-indigo-300 transition-all overflow-hidden"
-                  >
-                    {/* Employee Card Header */}
-                    <div 
-                      onClick={() => toggleExpand(emp.employeeName)}
-                      className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none hover:bg-slate-50/80 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 font-black flex items-center justify-center flex-shrink-0 text-sm shadow-xs">
-                          {emp.employeeName.substring(0, 2)}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-black uppercase text-slate-900 tracking-tight">
-                              {emp.employeeName}
-                            </h3>
-                            <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold uppercase">
-                              {emp.role}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-500 font-medium mt-0.5">
-                            {vehiclesList.length} veículo{vehiclesList.length > 1 ? 's' : ''} utilizado{vehiclesList.length > 1 ? 's' : ''} • {emp.totalOrders} saída{emp.totalOrders > 1 ? 's' : ''}
-                            {emp.totalKm > 0 && ` • ${emp.totalKm} km rodados`}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
-                        <div className="text-left sm:text-right">
-                          <span className="text-[10px] font-black uppercase text-slate-400 block tracking-wider">
-                            Tempo Total de Uso
-                          </span>
-                          <span className="text-base font-black text-indigo-700">
-                            {formatMinutesToReadable(emp.totalMinutes)}
-                          </span>
-                        </div>
-                        <div className="p-1 text-slate-400 hover:text-slate-600">
-                          {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Vehicles Breakdown Pills */}
-                    <div className="px-4 pb-2 flex flex-wrap gap-2">
-                      {vehiclesList.map(v => (
-                        <div 
-                          key={v.plate}
-                          className="flex items-center gap-2 bg-slate-100 border border-slate-200/80 px-3 py-1 rounded-xl text-xs"
-                        >
-                          <Car className="h-3.5 w-3.5 text-indigo-600" />
-                          <span className="font-black text-slate-800">{v.vehicleName}</span>
-                          <span className="text-[10px] bg-white text-indigo-700 px-1.5 py-0.5 rounded-md font-bold border border-indigo-100">
-                            {v.plate}
-                          </span>
-                          <span className="text-slate-400">•</span>
-                          <span className="font-bold text-slate-700">{formatMinutesToReadable(v.minutes)}</span>
-                          <span className="text-[10px] text-slate-500">({v.count}x)</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Localities (Destinos) Pills */}
-                    {emp.localities && emp.localities.length > 0 && (
-                      <div className="px-4 pb-3 flex items-center flex-wrap gap-1.5 text-xs">
-                        <span className="text-slate-400 font-black uppercase text-[9px] tracking-wider flex items-center gap-1 mr-1">
-                          <MapPin className="h-3 w-3 text-emerald-600" />
-                          Localidade:
-                        </span>
-                        {emp.localities.map(loc => (
-                          <span 
-                            key={loc}
-                            className="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-bold text-[11px]"
-                          >
-                            {loc}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Expanded Detailed Trips Table */}
-                    {isExpanded && (
-                      <div className="border-t border-slate-100 bg-slate-50/70 p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-black uppercase text-slate-600 tracking-wider flex items-center gap-1.5">
-                            <FileText className="h-3.5 w-3.5 text-indigo-600" />
-                            Histórico de Saídas e Horários
-                          </span>
-                          <span className="text-[11px] text-slate-400 font-bold">
-                            Total: {emp.ordersList.length} registros
-                          </span>
-                        </div>
-
-                        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs">
-                          <table className="w-full text-left text-xs">
-                            <thead className="bg-slate-100/80 text-slate-700 font-black uppercase text-[10px] border-b border-slate-200">
-                              <tr>
-                                <th className="p-2.5">Data</th>
-                                <th className="p-2.5">Veículo / Placa</th>
-                                <th className="p-2.5">
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="h-3 w-3 text-emerald-600" />
-                                    Localidade
-                                  </span>
-                                </th>
-                                <th className="p-2.5 text-center">Saída</th>
-                                <th className="p-2.5 text-center">Retorno</th>
-                                <th className="p-2.5 text-center">Tempo de Uso</th>
-                                <th className="p-2.5 text-center">KM</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 font-medium">
-                              {emp.ordersList.map(order => {
-                                const duration = calculateOrderDurationMinutes(order);
-                                const km = (order.kmIn && order.kmOut && order.kmIn >= order.kmOut)
-                                  ? (order.kmIn - order.kmOut)
-                                  : null;
-
-                                return (
-                                  <tr key={order.id} className="hover:bg-slate-50">
-                                    <td className="p-2.5 font-bold text-slate-800 whitespace-nowrap">
-                                      {(order.date || '').split('-').reverse().join('/')}
-                                    </td>
-                                    <td className="p-2.5 font-bold text-slate-900">
-                                      {order.vehicle}
-                                      <span className="text-[10px] text-indigo-600 font-mono ml-1.5">
-                                        ({order.plate})
-                                      </span>
-                                    </td>
-                                    <td className="p-2.5 font-bold text-slate-800">
-                                      <span className="inline-flex items-center gap-1">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                        {order.destination || '-'}
-                                      </span>
-                                    </td>
-                                    <td className="p-2.5 text-center font-bold text-indigo-600 whitespace-nowrap">
-                                      {order.exitTime || '--:--'}
-                                    </td>
-                                    <td className="p-2.5 text-center font-bold text-emerald-600 whitespace-nowrap">
-                                      {order.returnTime || '--:--'}
-                                    </td>
-                                    <td className="p-2.5 text-center font-black text-slate-800 whitespace-nowrap">
-                                      {order.returnTime ? (
-                                        <span className="px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
-                                          {formatMinutesToReadable(duration)}
-                                        </span>
-                                      ) : (
-                                        <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-100 text-[10px] uppercase font-black">
-                                          Em Trânsito
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td className="p-2.5 text-center font-bold text-slate-600 whitespace-nowrap">
-                                      {km !== null ? `${km} km` : '-'}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )
+        <div className="flex-grow overflow-y-auto p-4 sm:p-6 bg-slate-50/50">
+          {monthlyOrders.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-300">
+              <Clock className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+              <p className="text-sm font-black text-slate-700 uppercase">Nenhum registro encontrado</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Não foram encontradas saídas para o mês e critérios selecionados.
+              </p>
+            </div>
           ) : (
-            /* VIEW BY VEHICLE */
-            filteredVehicles.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-300">
-                <Car className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-sm font-black text-slate-700 uppercase">Nenhum veículo encontrado</p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Não foram encontradas saídas para o mês selecionado.
-                </p>
-              </div>
-            ) : (
-              filteredVehicles.map(veh => {
-                const employeesList = Array.from(veh.employeesMap.values());
-                const isExpanded = !!expandedEmployees[veh.plate];
-
-                return (
-                  <div 
-                    key={veh.plate}
-                    className="bg-white rounded-2xl border border-slate-200 shadow-xs hover:border-indigo-300 transition-all overflow-hidden"
-                  >
-                    <div 
-                      onClick={() => toggleExpand(veh.plate)}
-                      className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none hover:bg-slate-50/80 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 font-black flex items-center justify-center flex-shrink-0 text-sm shadow-xs">
-                          <Car className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-black uppercase text-slate-900 tracking-tight">
-                              {veh.vehicleName}
-                            </h3>
-                            <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-mono font-black">
-                              {veh.plate}
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-100 text-slate-700 font-black uppercase text-[10px] border-b border-slate-200">
+                  <tr>
+                    <th className="p-3">Funcionário (Responsável)</th>
+                    <th className="p-3">Veículo / Placa</th>
+                    <th className="p-3">Localidade e Data</th>
+                    <th className="p-3 text-center">Viagens</th>
+                    <th className="p-3 text-center">Tempo Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {monthlyOrders
+                    .filter(o => {
+                      if (!searchTerm.trim()) return true;
+                      const term = searchTerm.toLowerCase();
+                      const matchEmp = (o.responsibleServer || '').toLowerCase().includes(term);
+                      const matchVeh = (o.vehicle || '').toLowerCase().includes(term) || (o.plate || '').toLowerCase().includes(term);
+                      const matchLoc = (o.destination || '').toLowerCase().includes(term);
+                      const matchDate = (o.date || o.exitDate || '').includes(term);
+                      return matchEmp || matchVeh || matchLoc || matchDate;
+                    })
+                    .map(order => {
+                      const duration = calculateOrderDurationMinutes(order);
+                      const dt = (order.date || order.exitDate || '').split('-').reverse().join('/');
+                      return (
+                        <tr key={order.id} className="hover:bg-slate-50">
+                          <td className="p-3 font-bold text-slate-900 uppercase">
+                            {order.responsibleServer || 'NÃO INFORMADO'}
+                          </td>
+                          <td className="p-3 font-bold text-slate-800">
+                            {order.vehicle || 'N/A'}
+                            <span className="text-[10px] text-indigo-600 font-mono ml-1.5 bg-indigo-50 px-1.5 py-0.5 rounded">
+                              {order.plate || 'SEM PLACA'}
                             </span>
-                          </div>
-                          <p className="text-xs text-slate-500 font-medium mt-0.5">
-                            Utilizado por {employeesList.length} funcionário{employeesList.length > 1 ? 's' : ''} • {veh.totalOrders} saída{veh.totalOrders > 1 ? 's' : ''}
-                            {veh.totalKm > 0 && ` • ${veh.totalKm} km rodados`}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
-                        <div className="text-left sm:text-right">
-                          <span className="text-[10px] font-black uppercase text-slate-400 block tracking-wider">
-                            Tempo Total de Operação
-                          </span>
-                          <span className="text-base font-black text-purple-700">
-                            {formatMinutesToReadable(veh.totalMinutes)}
-                          </span>
-                        </div>
-                        <div className="p-1 text-slate-400 hover:text-slate-600">
-                          {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Employee Usage Pills */}
-                    <div className="px-4 pb-2 flex flex-wrap gap-2">
-                      {employeesList.map(e => (
-                        <div 
-                          key={e.employeeName}
-                          className="flex items-center gap-2 bg-slate-100 border border-slate-200/80 px-3 py-1 rounded-xl text-xs"
-                        >
-                          <User className="h-3.5 w-3.5 text-purple-600" />
-                          <span className="font-black text-slate-800">{e.employeeName}</span>
-                          <span className="text-slate-400">•</span>
-                          <span className="font-bold text-slate-700">{formatMinutesToReadable(e.minutes)}</span>
-                          <span className="text-[10px] text-slate-500">({e.count}x)</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Localities (Destinos) Pills */}
-                    {veh.localities && veh.localities.length > 0 && (
-                      <div className="px-4 pb-3 flex items-center flex-wrap gap-1.5 text-xs">
-                        <span className="text-slate-400 font-black uppercase text-[9px] tracking-wider flex items-center gap-1 mr-1">
-                          <MapPin className="h-3 w-3 text-emerald-600" />
-                          Localidade:
-                        </span>
-                        {veh.localities.map(loc => (
-                          <span 
-                            key={loc}
-                            className="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-bold text-[11px]"
-                          >
-                            {loc}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Expanded List */}
-                    {isExpanded && (
-                      <div className="border-t border-slate-100 bg-slate-50/70 p-4">
-                        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs">
-                          <table className="w-full text-left text-xs">
-                            <thead className="bg-slate-100/80 text-slate-700 font-black uppercase text-[10px] border-b border-slate-200">
-                              <tr>
-                                <th className="p-2.5">Data</th>
-                                <th className="p-2.5">Responsável (Motorista)</th>
-                                <th className="p-2.5">
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="h-3 w-3 text-emerald-600" />
-                                    Localidade
-                                  </span>
-                                </th>
-                                <th className="p-2.5 text-center">Saída</th>
-                                <th className="p-2.5 text-center">Retorno</th>
-                                <th className="p-2.5 text-center">Tempo de Uso</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 font-medium">
-                              {veh.ordersList.map(order => {
-                                const duration = calculateOrderDurationMinutes(order);
-                                return (
-                                  <tr key={order.id} className="hover:bg-slate-50">
-                                    <td className="p-2.5 font-bold text-slate-800 whitespace-nowrap">
-                                      {(order.date || '').split('-').reverse().join('/')}
-                                    </td>
-                                    <td className="p-2.5 font-bold text-slate-900">
-                                      {order.responsibleServer}
-                                    </td>
-                                    <td className="p-2.5 font-bold text-slate-800">
-                                      <span className="inline-flex items-center gap-1">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                        {order.destination || '-'}
-                                      </span>
-                                    </td>
-                                    <td className="p-2.5 text-center font-bold text-indigo-600 whitespace-nowrap">
-                                      {order.exitTime || '--:--'}
-                                    </td>
-                                    <td className="p-2.5 text-center font-bold text-emerald-600 whitespace-nowrap">
-                                      {order.returnTime || '--:--'}
-                                    </td>
-                                    <td className="p-2.5 text-center font-black text-slate-800 whitespace-nowrap">
-                                      {order.returnTime ? (
-                                        <span className="px-2 py-0.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-100">
-                                          {formatMinutesToReadable(duration)}
-                                        </span>
-                                      ) : (
-                                        <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-100 text-[10px] uppercase font-black">
-                                          Em Trânsito
-                                        </span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )
+                          </td>
+                          <td className="p-3 font-bold text-slate-700">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                              <span>{order.destination || 'Não informada'}</span>
+                              <span className="text-slate-400">•</span>
+                              <span className="text-indigo-600 font-mono">{dt}</span>
+                            </div>
+                          </td>
+                          <td className="p-3 text-center font-black text-slate-700">
+                            1
+                          </td>
+                          <td className="p-3 text-center font-black text-indigo-700 whitespace-nowrap">
+                            {order.returnTime ? (
+                              <span className="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                {formatMinutesToReadable(duration)}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-100 text-[10px] uppercase font-black">
+                                Em Trânsito
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
