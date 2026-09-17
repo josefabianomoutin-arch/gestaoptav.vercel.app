@@ -336,9 +336,7 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
     doc.setFontSize(10);
     doc.setTextColor(79, 70, 229);
     doc.text(
-      viewMode === 'vehicle'
-        ? 'RELATÓRIO MENSAL DE OPERAÇÃO POR VEÍCULO'
-        : 'RELATÓRIO MENSAL DE UTILIZAÇÃO DE VEÍCULOS POR FUNCIONÁRIO',
+      'RELATÓRIO MENSAL DE UTILIZAÇÃO DE VEÍCULOS E FUNCIONÁRIOS',
       105,
       22,
       { align: 'center' }
@@ -515,32 +513,6 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
                   );
                 })}
               </select>
-            </div>
-
-            {/* View Mode Toggle */}
-            <div className="flex bg-slate-200/70 p-1 rounded-xl gap-1">
-              <button
-                onClick={() => setViewMode('employee')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-                  viewMode === 'employee'
-                    ? 'bg-white text-indigo-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <User className="h-3.5 w-3.5" />
-                Por Funcionário
-              </button>
-              <button
-                onClick={() => setViewMode('vehicle')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-                  viewMode === 'vehicle'
-                    ? 'bg-white text-indigo-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Car className="h-3.5 w-3.5" />
-                Por Veículo
-              </button>
             </div>
 
             {/* Search filter */}
