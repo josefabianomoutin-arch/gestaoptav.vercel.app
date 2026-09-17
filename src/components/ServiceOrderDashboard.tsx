@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { ClipboardList, Plus, Clock, CheckCircle2, AlertCircle, XCircle, Calendar, User, Users, FileText, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { ServiceOrder, MaintenanceSchedule, PublicInfo } from '../types';
+import { ServiceOrder, MaintenanceSchedule } from '../types';
 
 interface ServiceOrderDashboardProps {
   serviceOrders: ServiceOrder[];

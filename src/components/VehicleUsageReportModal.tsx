@@ -6,18 +6,11 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
   Clock, 
-  User, 
   Car, 
-  FileDown, 
   Search, 
   Calendar, 
-  ChevronDown, 
-  ChevronUp, 
   X, 
-  FileText,
-  TrendingUp,
-  Download,
-  MapPin
+  Download
 } from 'lucide-react';
 
 interface VehicleUsageReportModalProps {
@@ -79,11 +72,6 @@ function formatMinutesToReadable(minutes: number): string {
   return `${h}h ${m.toString().padStart(2, '0')}m`;
 }
 
-function formatMinutesToDecimalHours(minutes: number): string {
-  if (!minutes || minutes <= 0) return '0,0h';
-  return (minutes / 60).toFixed(1).replace('.', ',') + 'h';
-}
-
 const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
   isOpen,
   onClose,
@@ -95,8 +83,6 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
   const setSelectedMonth = (val: string) => setSelectedMonthOverride(val);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [expandedEmployees, setExpandedEmployees] = useState<Record<string, boolean>>({});
-  const [viewMode, setViewMode] = useState<'employee' | 'vehicle'>('employee');
 
   // Extract all unique available months from the orders
   const availableMonths = useMemo(() => {
@@ -319,31 +305,6 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
     };
   }, [monthlyOrders, employeeAggregations, vehicleAggregations]);
 
-  // Filtered lists based on search term
-  const filteredEmployees = useMemo(() => {
-    if (!searchTerm.trim()) return employeeAggregations;
-    const term = searchTerm.toLowerCase();
-    return employeeAggregations.filter(emp => {
-      const matchName = emp.employeeName.toLowerCase().includes(term);
-      const matchVehicle = Array.from(emp.vehiclesMap.values()).some(v => 
-        v.vehicleName.toLowerCase().includes(term) || v.plate.toLowerCase().includes(term)
-      );
-      const matchLocality = emp.localities.some(loc => loc.toLowerCase().includes(term));
-      return matchName || matchVehicle || matchLocality;
-    });
-  }, [employeeAggregations, searchTerm]);
-
-  const filteredVehicles = useMemo(() => {
-    if (!searchTerm.trim()) return vehicleAggregations;
-    const term = searchTerm.toLowerCase();
-    return vehicleAggregations.filter(v => {
-      const matchVehicle = v.vehicleName.toLowerCase().includes(term) || v.plate.toLowerCase().includes(term);
-      const matchDriver = Array.from(v.employeesMap.values()).some(e => e.employeeName.toLowerCase().includes(term));
-      const matchLocality = v.localities.some(loc => loc.toLowerCase().includes(term));
-      return matchVehicle || matchDriver || matchLocality;
-    });
-  }, [vehicleAggregations, searchTerm]);
-
   // Helper label for month
   const monthLabel = useMemo(() => {
     if (!selectedMonth) return 'TODOS OS MESES';
@@ -351,13 +312,6 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
     const d = new Date(parseInt(year), parseInt(month) - 1, 15);
     return `${d.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase()} DE ${year}`;
   }, [selectedMonth]);
-
-  const toggleExpand = (key: string) => {
-    setExpandedEmployees(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
 
   // Generate PDF Report
   const handleExportPDF = () => {

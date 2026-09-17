@@ -6,7 +6,6 @@ import type {
   DriverAsset, 
   ValidationRole, 
   VehicleInspection, 
-  PublicInfo, 
   ServiceOrder, 
   MaintenanceSchedule, 
   EnergyAccountingRecord,
