@@ -15,7 +15,8 @@ import {
   X, 
   FileText,
   TrendingUp,
-  Download
+  Download,
+  MapPin
 } from 'lucide-react';
 
 interface VehicleUsageReportModalProps {
@@ -136,6 +137,7 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
       completedOrders: number;
       pendingOrders: number;
       totalKm: number;
+      localitiesSet: Set<string>;
       vehiclesMap: Map<string, {
         vehicleName: string;
         plate: string;
@@ -167,6 +169,7 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
           completedOrders: 0,
           pendingOrders: 0,
           totalKm: 0,
+          localitiesSet: new Set(),
           vehiclesMap: new Map(),
           ordersList: []
         });
@@ -182,6 +185,11 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
       }
       item.totalKm += km;
       item.ordersList.push(order);
+
+      const dest = (order.destination || '').trim();
+      if (dest) {
+        item.localitiesSet.add(dest);
+      }
 
       // Vehicle sub-breakdown
       if (!item.vehiclesMap.has(vehicleKey)) {
@@ -200,7 +208,12 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
     });
 
     // Convert map to array and sort by totalMinutes descending
-    return Array.from(map.values()).sort((a, b) => b.totalMinutes - a.totalMinutes);
+    return Array.from(map.values())
+      .map(item => ({
+        ...item,
+        localities: Array.from(item.localitiesSet).sort()
+      }))
+      .sort((a, b) => b.totalMinutes - a.totalMinutes);
   }, [monthlyOrders]);
 
   // Aggregate by Vehicle
@@ -211,6 +224,7 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
       totalMinutes: number;
       totalOrders: number;
       totalKm: number;
+      localitiesSet: Set<string>;
       employeesMap: Map<string, {
         employeeName: string;
         minutes: number;
@@ -238,6 +252,7 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
           totalMinutes: 0,
           totalOrders: 0,
           totalKm: 0,
+          localitiesSet: new Set(),
           employeesMap: new Map(),
           ordersList: []
         });
@@ -248,6 +263,11 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
       item.totalOrders += 1;
       item.totalKm += km;
       item.ordersList.push(order);
+
+      const dest = (order.destination || '').trim();
+      if (dest) {
+        item.localitiesSet.add(dest);
+      }
 
       if (!item.employeesMap.has(empName)) {
         item.employeesMap.set(empName, {
@@ -263,7 +283,12 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
       emp.km += km;
     });
 
-    return Array.from(map.values()).sort((a, b) => b.totalMinutes - a.totalMinutes);
+    return Array.from(map.values())
+      .map(item => ({
+        ...item,
+        localities: Array.from(item.localitiesSet).sort()
+      }))
+      .sort((a, b) => b.totalMinutes - a.totalMinutes);
   }, [monthlyOrders]);
 
   // Total monthly stats
@@ -302,7 +327,8 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
       const matchVehicle = Array.from(emp.vehiclesMap.values()).some(v => 
         v.vehicleName.toLowerCase().includes(term) || v.plate.toLowerCase().includes(term)
       );
-      return matchName || matchVehicle;
+      const matchLocality = emp.localities.some(loc => loc.toLowerCase().includes(term));
+      return matchName || matchVehicle || matchLocality;
     });
   }, [employeeAggregations, searchTerm]);
 
@@ -312,7 +338,8 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
     return vehicleAggregations.filter(v => {
       const matchVehicle = v.vehicleName.toLowerCase().includes(term) || v.plate.toLowerCase().includes(term);
       const matchDriver = Array.from(v.employeesMap.values()).some(e => e.employeeName.toLowerCase().includes(term));
-      return matchVehicle || matchDriver;
+      const matchLocality = v.localities.some(loc => loc.toLowerCase().includes(term));
+      return matchVehicle || matchDriver || matchLocality;
     });
   }, [vehicleAggregations, searchTerm]);
 
@@ -347,7 +374,14 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
 
     doc.setFontSize(10);
     doc.setTextColor(79, 70, 229);
-    doc.text('RELATÓRIO MENSAL DE UTILIZAÇÃO DE VEÍCULOS POR FUNCIONÁRIO', 105, 22, { align: 'center' });
+    doc.text(
+      viewMode === 'vehicle'
+        ? 'RELATÓRIO MENSAL DE OPERAÇÃO POR VEÍCULO'
+        : 'RELATÓRIO MENSAL DE UTILIZAÇÃO DE VEÍCULOS POR FUNCIONÁRIO',
+      105,
+      22,
+      { align: 'center' }
+    );
 
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
@@ -358,61 +392,133 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
     // Table rows
     const tableData: any[] = [];
 
-    employeeAggregations.forEach(emp => {
-      const vehicles = Array.from(emp.vehiclesMap.values());
-      const vehiclesSummary = vehicles
-        .map(v => `${v.vehicleName} (${v.plate}): ${formatMinutesToReadable(v.minutes)} [${v.count}x]`)
-        .join('\n');
+    if (viewMode === 'vehicle') {
+      vehicleAggregations.forEach(veh => {
+        const employees = Array.from(veh.employeesMap.values());
+        const empSummary = employees
+          .map(e => `${e.employeeName} [${e.count}x]`)
+          .join('\n');
 
-      tableData.push([
-        emp.employeeName,
-        vehiclesSummary || 'Nenhum veículo',
-        emp.totalOrders.toString(),
-        formatMinutesToReadable(emp.totalMinutes),
-        emp.totalKm > 0 ? `${emp.totalKm} km` : '-'
-      ]);
-    });
+        const localitiesSummary = veh.localities.length > 0
+          ? veh.localities.join('\n')
+          : 'Não informada';
 
-    autoTable(doc, {
-      startY: 38,
-      head: [['FUNCIONÁRIO (RESPONSÁVEL)', 'VEÍCULOS / PLACAS UTILIZADAS', 'VIAGENS', 'TEMPO TOTAL', 'KM TOTAL']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [79, 70, 229],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        halign: 'center',
-        fontSize: 8
-      },
-      styles: {
-        fontSize: 7.5,
-        cellPadding: 2.5,
-        overflow: 'linebreak'
-      },
-      columnStyles: {
-        0: { cellWidth: 50, fontStyle: 'bold' },
-        1: { cellWidth: 70 },
-        2: { cellWidth: 20, halign: 'center' },
-        3: { cellWidth: 28, halign: 'center', fontStyle: 'bold' },
-        4: { cellWidth: 22, halign: 'center' }
-      },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      foot: [[
-        'TOTAIS CONSOLIDADOS',
-        `${stats.totalEmployees} Funcionários  •  ${stats.totalVehicles} Veículos`,
-        stats.totalOrders.toString(),
-        formatMinutesToReadable(stats.totalMinutes),
-        stats.totalKm > 0 ? `${stats.totalKm} km` : '-'
-      ]],
-      footStyles: {
-        fillColor: [241, 245, 249],
-        textColor: [15, 23, 42],
-        fontStyle: 'bold',
-        halign: 'center',
-        fontSize: 8
-      }
-    });
+        tableData.push([
+          `${veh.vehicleName}\n(${veh.plate})`,
+          empSummary || 'Nenhum condutor',
+          localitiesSummary,
+          veh.totalOrders.toString(),
+          formatMinutesToReadable(veh.totalMinutes),
+          veh.totalKm > 0 ? `${veh.totalKm} km` : '-'
+        ]);
+      });
+
+      autoTable(doc, {
+        startY: 38,
+        head: [['VEÍCULO / PLACA', 'FUNCIONÁRIOS (MOTORISTAS)', 'LOCALIDADE', 'VIAGENS', 'TEMPO TOTAL', 'KM TOTAL']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [79, 70, 229],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center',
+          fontSize: 8
+        },
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+          overflow: 'linebreak'
+        },
+        columnStyles: {
+          0: { cellWidth: 38, fontStyle: 'bold' },
+          1: { cellWidth: 44 },
+          2: { cellWidth: 42 },
+          3: { cellWidth: 16, halign: 'center' },
+          4: { cellWidth: 26, halign: 'center', fontStyle: 'bold' },
+          5: { cellWidth: 24, halign: 'center' }
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        foot: [[
+          'TOTAIS CONSOLIDADOS',
+          `${stats.totalVehicles} Veículos`,
+          `${stats.totalEmployees} Funcionários`,
+          stats.totalOrders.toString(),
+          formatMinutesToReadable(stats.totalMinutes),
+          stats.totalKm > 0 ? `${stats.totalKm} km` : '-'
+        ]],
+        footStyles: {
+          fillColor: [241, 245, 249],
+          textColor: [15, 23, 42],
+          fontStyle: 'bold',
+          halign: 'center',
+          fontSize: 8
+        }
+      });
+    } else {
+      employeeAggregations.forEach(emp => {
+        const vehicles = Array.from(emp.vehiclesMap.values());
+        const vehiclesSummary = vehicles
+          .map(v => `${v.vehicleName} (${v.plate}) [${v.count}x]`)
+          .join('\n');
+
+        const localitiesSummary = emp.localities.length > 0
+          ? emp.localities.join('\n')
+          : 'Não informada';
+
+        tableData.push([
+          emp.employeeName,
+          vehiclesSummary || 'Nenhum veículo',
+          localitiesSummary,
+          emp.totalOrders.toString(),
+          formatMinutesToReadable(emp.totalMinutes),
+          emp.totalKm > 0 ? `${emp.totalKm} km` : '-'
+        ]);
+      });
+
+      autoTable(doc, {
+        startY: 38,
+        head: [['FUNCIONÁRIO (RESPONSÁVEL)', 'VEÍCULOS / PLACAS', 'LOCALIDADE', 'VIAGENS', 'TEMPO TOTAL', 'KM TOTAL']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [79, 70, 229],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center',
+          fontSize: 8
+        },
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+          overflow: 'linebreak'
+        },
+        columnStyles: {
+          0: { cellWidth: 38, fontStyle: 'bold' },
+          1: { cellWidth: 44 },
+          2: { cellWidth: 42 },
+          3: { cellWidth: 16, halign: 'center' },
+          4: { cellWidth: 26, halign: 'center', fontStyle: 'bold' },
+          5: { cellWidth: 24, halign: 'center' }
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        foot: [[
+          'TOTAIS CONSOLIDADOS',
+          `${stats.totalEmployees} Funcionários`,
+          `${stats.totalVehicles} Veículos`,
+          stats.totalOrders.toString(),
+          formatMinutesToReadable(stats.totalMinutes),
+          stats.totalKm > 0 ? `${stats.totalKm} km` : '-'
+        ]],
+        footStyles: {
+          fillColor: [241, 245, 249],
+          textColor: [15, 23, 42],
+          fontStyle: 'bold',
+          halign: 'center',
+          fontSize: 8
+        }
+      });
+    }
 
     // Signatures area on final page
     const finalY = (doc as any).lastAutoTable?.finalY || 200;
@@ -435,10 +541,11 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
 
   // Export CSV
   const handleExportCSV = () => {
-    let csv = 'FUNCIONARIO;CARGO;VEICULO;PLACA;SAIDAS;TEMPO_TOTAL_MINUTOS;TEMPO_FORMATADO;KM_TOTAL\n';
+    let csv = 'FUNCIONARIO;CARGO;VEICULO;PLACA;LOCALIDADE;SAIDAS;TEMPO_TOTAL_MINUTOS;TEMPO_FORMATADO;KM_TOTAL\n';
     employeeAggregations.forEach(emp => {
+      const locStr = emp.localities.join(' | ');
       Array.from(emp.vehiclesMap.values()).forEach(v => {
-        csv += `"${emp.employeeName}";"${emp.role}";"${v.vehicleName}";"${v.plate}";${v.count};${v.minutes};"${formatMinutesToReadable(v.minutes)}";${v.km}\n`;
+        csv += `"${emp.employeeName}";"${emp.role}";"${v.vehicleName}";"${v.plate}";"${locStr}";${v.count};${v.minutes};"${formatMinutesToReadable(v.minutes)}";${v.km}\n`;
       });
     });
 
@@ -704,7 +811,7 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
                     </div>
 
                     {/* Vehicles Breakdown Pills */}
-                    <div className="px-4 pb-3 flex flex-wrap gap-2">
+                    <div className="px-4 pb-2 flex flex-wrap gap-2">
                       {vehiclesList.map(v => (
                         <div 
                           key={v.plate}
@@ -721,6 +828,24 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
                         </div>
                       ))}
                     </div>
+
+                    {/* Localities (Destinos) Pills */}
+                    {emp.localities && emp.localities.length > 0 && (
+                      <div className="px-4 pb-3 flex items-center flex-wrap gap-1.5 text-xs">
+                        <span className="text-slate-400 font-black uppercase text-[9px] tracking-wider flex items-center gap-1 mr-1">
+                          <MapPin className="h-3 w-3 text-emerald-600" />
+                          Localidade:
+                        </span>
+                        {emp.localities.map(loc => (
+                          <span 
+                            key={loc}
+                            className="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-bold text-[11px]"
+                          >
+                            {loc}
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Expanded Detailed Trips Table */}
                     {isExpanded && (
@@ -741,7 +866,12 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
                               <tr>
                                 <th className="p-2.5">Data</th>
                                 <th className="p-2.5">Veículo / Placa</th>
-                                <th className="p-2.5">Destino</th>
+                                <th className="p-2.5">
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="h-3 w-3 text-emerald-600" />
+                                    Localidade
+                                  </span>
+                                </th>
                                 <th className="p-2.5 text-center">Saída</th>
                                 <th className="p-2.5 text-center">Retorno</th>
                                 <th className="p-2.5 text-center">Tempo de Uso</th>
@@ -766,8 +896,11 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
                                         ({order.plate})
                                       </span>
                                     </td>
-                                    <td className="p-2.5 text-slate-600">
-                                      {order.destination || '-'}
+                                    <td className="p-2.5 font-bold text-slate-800">
+                                      <span className="inline-flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                        {order.destination || '-'}
+                                      </span>
                                     </td>
                                     <td className="p-2.5 text-center font-bold text-indigo-600 whitespace-nowrap">
                                       {order.exitTime || '--:--'}
@@ -861,7 +994,7 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
                     </div>
 
                     {/* Employee Usage Pills */}
-                    <div className="px-4 pb-3 flex flex-wrap gap-2">
+                    <div className="px-4 pb-2 flex flex-wrap gap-2">
                       {employeesList.map(e => (
                         <div 
                           key={e.employeeName}
@@ -876,6 +1009,24 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
                       ))}
                     </div>
 
+                    {/* Localities (Destinos) Pills */}
+                    {veh.localities && veh.localities.length > 0 && (
+                      <div className="px-4 pb-3 flex items-center flex-wrap gap-1.5 text-xs">
+                        <span className="text-slate-400 font-black uppercase text-[9px] tracking-wider flex items-center gap-1 mr-1">
+                          <MapPin className="h-3 w-3 text-emerald-600" />
+                          Localidade:
+                        </span>
+                        {veh.localities.map(loc => (
+                          <span 
+                            key={loc}
+                            className="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-bold text-[11px]"
+                          >
+                            {loc}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Expanded List */}
                     {isExpanded && (
                       <div className="border-t border-slate-100 bg-slate-50/70 p-4">
@@ -885,7 +1036,12 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
                               <tr>
                                 <th className="p-2.5">Data</th>
                                 <th className="p-2.5">Responsável (Motorista)</th>
-                                <th className="p-2.5">Destino</th>
+                                <th className="p-2.5">
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="h-3 w-3 text-emerald-600" />
+                                    Localidade
+                                  </span>
+                                </th>
                                 <th className="p-2.5 text-center">Saída</th>
                                 <th className="p-2.5 text-center">Retorno</th>
                                 <th className="p-2.5 text-center">Tempo de Uso</th>
@@ -902,8 +1058,11 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
                                     <td className="p-2.5 font-bold text-slate-900">
                                       {order.responsibleServer}
                                     </td>
-                                    <td className="p-2.5 text-slate-600">
-                                      {order.destination || '-'}
+                                    <td className="p-2.5 font-bold text-slate-800">
+                                      <span className="inline-flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                        {order.destination || '-'}
+                                      </span>
                                     </td>
                                     <td className="p-2.5 text-center font-bold text-indigo-600 whitespace-nowrap">
                                       {order.exitTime || '--:--'}
