@@ -912,16 +912,17 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
       <div id="print-area" className="space-y-8 print:space-y-2">
         
         {/* Header strictly for print */}
-        <div className="hidden print:block border-b-2 border-black pb-3 mb-4">
-          <div className="flex items-center justify-between">
+        <div className="hidden print:block border-b-2 border-black pb-2 mb-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="w-14 flex-shrink-0" aria-hidden="true" />
             <div className="flex-1 text-center">
-              <h1 className="text-lg font-black uppercase">GOVERNO DO ESTADO DE SÃO PAULO</h1>
+              <h1 className="text-base font-black uppercase">GOVERNO DO ESTADO DE SÃO PAULO</h1>
               <h3 className="text-xs font-bold uppercase">PENITENCIÁRIA DE TAIÚVA</h3>
               <p className="text-[11px] font-black mt-0.5">SEÇÃO DE INFRAESTRUTURA E MANUTENÇÃO - RATEIO DE ENERGIA ELÉTRICA</p>
               <p className="text-[10px] font-semibold text-gray-700">MÊS DE REFERÊNCIA: {workingRecord.referenceMonth.toUpperCase()}</p>
             </div>
-            <div className="flex-shrink-0">
-              <PoliciaPenalLogo />
+            <div className="w-14 flex-shrink-0 flex justify-end">
+              <PoliciaPenalLogo className="h-14 w-auto object-contain max-w-[56px]" />
             </div>
           </div>
         </div>
@@ -2144,15 +2145,23 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
 
             {/* Timbrada Official Layout */}
             <div className="border-2 border-black p-6 space-y-6 text-gray-900 bg-white">
-              <div className="text-center border-b-2 border-black pb-4">
-                <h2 className="text-sm font-black uppercase tracking-wide">GOVERNO DO ESTADO DE SÃO PAULO</h2>
-                <h4 className="text-xs font-bold uppercase">PENITENCIÁRIA DE TAIÚVA</h4>
-                <p className="text-[11px] font-black uppercase text-indigo-950 mt-1">
-                  NOTIFICAÇÃO DE COBRANÇA E RESSARCIMENTO DE ENERGIA ELÉTRICA
-                </p>
-                <p className="text-[10px] font-semibold text-gray-600">
-                  MÊS DE REFERÊNCIA: {receiptCompany.referenceMonth.toUpperCase()}
-                </p>
+              <div className="border-b-2 border-black pb-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="w-12 flex-shrink-0" aria-hidden="true" />
+                  <div className="flex-1 text-center">
+                    <h2 className="text-sm font-black uppercase tracking-wide">GOVERNO DO ESTADO DE SÃO PAULO</h2>
+                    <h4 className="text-xs font-bold uppercase">PENITENCIÁRIA DE TAIÚVA</h4>
+                    <p className="text-[11px] font-black uppercase text-indigo-950 mt-1">
+                      NOTIFICAÇÃO DE COBRANÇA E RESSARCIMENTO DE ENERGIA ELÉTRICA
+                    </p>
+                    <p className="text-[10px] font-semibold text-gray-600">
+                      MÊS DE REFERÊNCIA: {receiptCompany.referenceMonth.toUpperCase()}
+                    </p>
+                  </div>
+                  <div className="w-12 flex-shrink-0 flex justify-end">
+                    <PoliciaPenalLogo className="h-12 w-auto object-contain max-w-[48px]" />
+                  </div>
+                </div>
               </div>
 
               {/* Company Info Box */}
