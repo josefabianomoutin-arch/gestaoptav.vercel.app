@@ -11,7 +11,9 @@ import {
   Calendar, 
   X, 
   Download,
-  FileDown
+  FileDown,
+  TrendingUp,
+  User
 } from 'lucide-react';
 
 interface VehicleUsageReportModalProps {
