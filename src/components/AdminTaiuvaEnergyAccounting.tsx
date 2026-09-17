@@ -754,12 +754,17 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
                 </span>
               )}
             </div>
-            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white flex items-center gap-3">
-              Contabilização do Consumo de Energia
-            </h1>
-            <p className="text-sm text-indigo-200/80 font-medium max-w-2xl mt-1">
-              Demonstrativo de faturamento da concessionária, apuração tarifária e rateio proporcional de consumo dos pavilhões de trabalho e empresas terceirizadas.
-            </p>
+            <div className="flex items-center gap-3.5">
+              <PoliciaPenalLogo className="h-12 w-auto object-contain flex-shrink-0 drop-shadow-md" />
+              <div>
+                <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">
+                  Contabilização do Consumo de Energia
+                </h1>
+                <p className="text-xs md:text-sm text-indigo-200/80 font-medium max-w-2xl mt-0.5">
+                  Demonstrativo de faturamento da concessionária, apuração tarifária e rateio proporcional de consumo dos pavilhões de trabalho e empresas terceirizadas.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Action Bar */}
