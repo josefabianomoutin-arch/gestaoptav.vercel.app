@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import PublicInfoPortal from './PublicInfoPortal';
 import InfobarTicker from './InfobarTicker';
+import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import { PublicInfo } from '../types';
 
 interface LoginScreenProps {
@@ -40,31 +41,25 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList, isLo
   const displayInfo = useMemo(() => publicInfoList.filter(info => !info.isConfidential), [publicInfoList]);
 
   return (
-    <div className={`min-h-screen flex flex-col bg-slate-950 relative overflow-hidden`}>
+    <div className="min-h-screen flex flex-col bg-white relative overflow-hidden">
       {/* Infobar Ticker - Top */}
       <InfobarTicker 
         items={displayInfo} 
-        variant="dark" 
+        variant="light" 
         label="Avisos Gerais:" 
       />
 
       <div className="flex-grow flex items-center justify-center p-4 relative">
-        {/* Background Decor */}
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-900/40 blur-[120px] rounded-full"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-900/40 blur-[120px] rounded-full"></div>
+        <div className="w-full max-w-md p-8 pt-10 space-y-8 bg-[#0b0f19] rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-900/20 relative overflow-hidden">
         
-        <div className="w-full max-w-md p-8 pt-10 space-y-8 bg-white/[0.03] backdrop-blur-xl rounded-[2.5rem] border border-white/10 shadow-2xl relative overflow-hidden">
-        
-        {/* Portal Button */}
+        {/* Portal Button with Policia Penal Logo */}
         <div className="relative">
             <button 
               onClick={() => setIsPortalOpen(true)}
-              className="w-full bg-white/5 border border-white/10 hover:border-indigo-400 p-4 rounded-2xl flex items-center gap-4 transition-all group"
+              className="w-full bg-white/5 border border-white/10 hover:border-indigo-400 p-3 rounded-2xl flex items-center gap-3.5 transition-all group"
             >
-              <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-inner">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+              <div className="bg-indigo-50/90 p-1.5 rounded-2xl border border-indigo-100 shadow-sm flex items-center justify-center flex-shrink-0">
+                <PoliciaPenalLogo className="h-9 w-auto object-contain max-w-[36px]" />
               </div>
               <div className="text-left flex-grow">
                 <p className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-0.5">Portal de Informações</p>

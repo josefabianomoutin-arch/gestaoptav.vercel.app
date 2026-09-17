@@ -5,6 +5,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { VehicleExitOrder, VehicleAsset, DriverAsset, ValidationRole, VehicleInspection } from '../types';
 import ConfirmModal from './ConfirmModal';
 import VehicleInspectionTab from './VehicleInspectionTab';
+import VehicleUsageReportModal from './VehicleUsageReportModal';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -959,6 +960,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
     });
 
     const [printMonth, setPrintMonth] = useState('');
+    const [isUsageReportModalOpen, setIsUsageReportModalOpen] = useState(false);
 
     const pendingValidationCount = useMemo(() => {
         return orders.filter(o => !o.validationRole && !o.exitTime).length;
@@ -2089,6 +2091,20 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                     ✕
                                 </button>
                             )}
+                        </div>
+
+                        {/* Botão de Relatório de Uso (Funcionários x Carros x Tempo por Mês) - Local demarcado pelo usuário */}
+                        <div className="flex items-center justify-center w-full sm:w-auto">
+                            <button
+                                onClick={() => setIsUsageReportModalOpen(true)}
+                                className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-violet-700 hover:from-indigo-700 hover:to-violet-800 text-white font-black py-2.5 px-5 rounded-xl transition-all shadow-md shadow-indigo-100 active:scale-95 text-xs uppercase tracking-wider flex items-center justify-center gap-2 group"
+                                title="Gerar relatório de funcionários, veículos e tempo de uso por mês"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-amber-300 group-hover:rotate-12 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Relatório: Uso por Funcionário</span>
+                            </button>
                         </div>
 
                         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
@@ -3368,6 +3384,14 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                     </div>
                 </div>
             )}
+
+            {/* Modal de Relatório de Utilização de Veículos por Funcionário (Mês) */}
+            <VehicleUsageReportModal
+                isOpen={isUsageReportModalOpen}
+                onClose={() => setIsUsageReportModalOpen(false)}
+                orders={orders}
+                initialMonth={printMonth}
+            />
         </div>
     );
 };
