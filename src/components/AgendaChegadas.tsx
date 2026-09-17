@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import SendInvoiceModal from './SendInvoiceModal';
 import { Html5Qrcode } from 'html5-qrcode';
 import { ensureArray } from '../lib/utils';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 
 interface AgendaChegadasProps {
     suppliers: Supplier[];
@@ -793,6 +794,9 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                 </style>
             </head>
             <body>
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 50px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                </div>
                 <div class="header-title">PENITENCIÁRIA DE TAÍUVA</div>
                 <div class="header-subtitle">Relatório de Controle de Portaria (Entradas e Saídas) - Data: ${formattedDateReport}</div>
                 
@@ -967,6 +971,9 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
                 </style>
             </head>
             <body>
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 50px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                </div>
                 <div class="header-title">PENITENCIÁRIA DE TAÍUVA</div>
                 <div class="header-subtitle">Relatório Mensal de Controle de Portaria (Entradas e Saídas) - Mês: ${formattedMonthReport}</div>
                 

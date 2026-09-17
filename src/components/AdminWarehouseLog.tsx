@@ -12,6 +12,7 @@ import {
     ClipboardList,
     Layers
 } from 'lucide-react';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 import type { WarehouseMovement, Supplier } from '../types';
 import { roundToTwoDecimalPlaces, ensureArray, generateStandardLabelStyles } from '../lib/utils';
 import { calculateAllowedWeeksFromSchedule } from '../lib/supplierUtils';
@@ -483,10 +484,13 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <div>
-                        <h1 class="title">${reportTitle}</h1>
-                        <p style="margin: 3px 0 0 0; font-size: 10px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026</p>
+                <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #e5e7eb; padding-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 48px; width: auto;" alt="Polícia Penal" />
+                        <div>
+                            <h1 class="title">${reportTitle}</h1>
+                            <p style="margin: 3px 0 0 0; font-size: 10px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026</p>
+                        </div>
                     </div>
                     <div class="meta">
                         <div><b>Emissão:</b> ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}</div>
@@ -727,10 +731,13 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <div>
-                        <h1 class="title">${reportTitle}</h1>
-                        <p style="margin: 3px 0 0 0; font-size: 10px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026</p>
+                <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #e5e7eb; padding-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 48px; width: auto;" alt="Polícia Penal" />
+                        <div>
+                            <h1 class="title">${reportTitle}</h1>
+                            <p style="margin: 3px 0 0 0; font-size: 10px; color: #6b7280; font-weight: 500;">Módulo de Estoque - Gestão de Dados P Taiúva - Exercício 2026</p>
+                        </div>
                     </div>
                     <div class="meta">
                         <div><b>Emissão:</b> ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}</div>

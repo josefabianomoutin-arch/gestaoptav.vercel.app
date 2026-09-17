@@ -6,6 +6,7 @@ import WeeklyScheduleControl from './WeeklyScheduleControl';
 import ConfirmModal from './ConfirmModal';
 import AgendaChegadas from './AgendaChegadas';
 import { Plus } from 'lucide-react';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 
 interface AdminScheduleViewProps {
   suppliers: Supplier[];
@@ -318,6 +319,9 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
                 </style>
             </head>
             <body>
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 50px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                </div>
                 <div class="header">ROMANEIO - ${getMonthName(reportSelectedMonth)}</div>
 
                 <div class="info-grid">

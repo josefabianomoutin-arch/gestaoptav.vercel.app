@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { ClipboardList, Search, Filter, CheckCircle2, Clock, AlertCircle, Edit3, Trash2, Save, X, CalendarPlus, Calendar, Wrench, FileText, Upload, ShieldCheck, Printer, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { ServiceOrder, MaintenanceSchedule } from '../types';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 
 interface AdminServiceOrderProps {
   orders: ServiceOrder[];
@@ -360,6 +361,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
         </head>
         <body>
           <div class="header-unit">
+            <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 48px; width: auto; margin: 0 auto 6px auto; display: block;" alt="Polícia Penal" />
             <h4>Secretaria da Administração Penitenciária</h4>
             <p>Polícia Penal - Penitenciária de Taiúva - Módulo de Manutenção</p>
           </div>
@@ -609,6 +611,9 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
           </style>
         </head>
         <body>
+          <div style="text-align: center; margin-bottom: 12px;">
+            <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 52px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+          </div>
           <div class="header">AUTORIZAÇÃO DE SAÍDA PARA TRABALHO</div>
           
           <div class="content">
@@ -917,6 +922,7 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
         </head>
         <body>
           <div class="header">
+            <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 48px; width: auto; margin: 0 auto 6px auto; display: block;" alt="Polícia Penal" />
             <h1>Seção de Infraestrutura e Logística</h1>
             <p>Panorama Geral do Sistema</p>
           </div>

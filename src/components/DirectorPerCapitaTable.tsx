@@ -19,6 +19,7 @@ import {
   Filter
 } from 'lucide-react';
 import { getPrintableLotDetails, generateStandardLabelStyles } from '../lib/utils';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 
 interface RowItem {
   index: number;
@@ -614,6 +615,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       <body>
         <div class="header-container">
           <div>
+            <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 40px; width: auto; margin-bottom: 4px; display: block;" alt="Polícia Penal" />
             <div class="logo">Secretaria da Administração Penitenciária</div>
             <div class="logo-sub">Polícia Penal - Penitenciária de Taiúva</div>
           </div>
@@ -1343,7 +1345,10 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       </head>
       <body>
         <div class="header-container">
-          <div class="logo">P. TAIÚVA<span>•</span>ESTOQUE</div>
+          <div>
+            <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 48px; width: auto; margin-bottom: 6px; display: block;" alt="Polícia Penal" />
+            <div class="logo">P. TAIÚVA<span>•</span>ESTOQUE</div>
+          </div>
           <div class="document-title">
             <h1>${titleText}</h1>
             <p>Módulo de Estoque - Gestão de Dados P Taiúva</p>
@@ -1739,7 +1744,10 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
       </head>
       <body>
         <div class="header-container">
-          <div class="logo">Polícia Penal - Penitenciária de Taiúva</div>
+          <div>
+            <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 40px; width: auto; margin-bottom: 4px; display: block;" alt="Polícia Penal" />
+            <div class="logo">Polícia Penal - Penitenciária de Taiúva</div>
+          </div>
           <div class="document-title">
             <h1>Relatório Histórico de Pedidos</h1>
             <p style="margin:2px 0 0 0; font-size: 8px; color: #64748b;">Módulo: Per Capita Diretores</p>

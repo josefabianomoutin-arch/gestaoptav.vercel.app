@@ -8,6 +8,7 @@ import VehicleInspectionTab from './VehicleInspectionTab';
 import VehicleUsageReportModal from './VehicleUsageReportModal';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 
 interface AdminVehicleExitOrderProps {
     orders: VehicleExitOrder[];
@@ -1356,6 +1357,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
             </head>
             <body>
                 <div class="header">
+                    <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 48px; width: auto; margin: 0 auto 6px auto; display: block;" alt="Polícia Penal" />
                     <h1>SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA</h1>
                     <h2>Coordenadoria das Unidades Prisionais da Região Norte do Estado</h2>
                     <h1 style="margin-top: 2px; font-size: 13pt;">PENITENCIÁRIA DE TAIÚVA</h1>

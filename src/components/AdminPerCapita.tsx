@@ -10,6 +10,7 @@ import AdminPerCapitaSuppliers from './AdminPerCapitaSuppliers';
 import AdminAtaGenerator from './AdminAtaGenerator';
 import AdminContractGenerator from './AdminContractGenerator';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import type { PerCapitaSupplier } from '../types';
 import { roundToTwoDecimalPlaces, ensureArray } from '../lib/utils';
 import { calculateAllowedWeeksFromSchedule } from '../lib/supplierUtils';
@@ -1960,9 +1961,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                     </div>
                                 </div>
                                 <div id="delivery-schedule-print" className="bg-white p-8 rounded-[2rem] border border-zinc-100 italic">
-                                    <h3 className="text-xl font-black text-zinc-800 uppercase tracking-tighter mb-8 text-center">
-                                        Cronograma de Entrega - {activeSubTab}
-                                    </h3>
+                                    <div className="flex items-center gap-4 mb-8 justify-center">
+                                        <PoliciaPenalLogo className="h-16 w-auto" />
+                                        <h3 className="text-xl font-black text-zinc-800 uppercase tracking-tighter text-center">
+                                            Cronograma de Entrega - {activeSubTab}
+                                        </h3>
+                                    </div>
                                     
                                     {scheduleView === 'CALENDAR' ? (
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

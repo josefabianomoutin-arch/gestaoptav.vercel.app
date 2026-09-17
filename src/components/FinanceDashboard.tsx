@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 import type { FinancialRecord, StandardMenu, DailyMenus, Supplier, ThirdPartyEntryLog, VehicleExitOrder, VehicleAsset, DriverAsset, WarehouseMovement, PerCapitaConfig, EpiLog, AcquisitionItem } from '../types';
 import AdminStandardMenu from './AdminStandardMenu';
 import AgendaChegadas from './AgendaChegadas';
@@ -154,13 +155,19 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
       r.status || '-'
     ]);
 
+    try {
+      doc.addImage(POLICIA_PENAL_BADGE_B64, 'PNG', 14, 10, 16, 21);
+    } catch (e) {
+      console.warn('Could not add badge image to PDF', e);
+    }
+
     doc.setFontSize(16);
-    doc.text(title, 14, 15);
+    doc.text(title, 34, 15);
     doc.setFontSize(10);
-    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 22);
+    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 34, 22);
 
     autoTable(doc, {
-      startY: 25,
+      startY: 35,
       head: [['Processo', 'Adiantado', 'PTRES', 'Natureza', 'Objetivo/Serviço', 'Valor Gasto', 'Status Final']],
       body: tableData,
       theme: 'striped',

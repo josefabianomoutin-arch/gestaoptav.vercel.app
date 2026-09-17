@@ -3,6 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import type { FinancialRecord } from '../types';
 import ConfirmModal from './ConfirmModal';
 import { toast } from 'sonner';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 
 interface AdminFinancialManagerProps {
   records: FinancialRecord[];
@@ -301,6 +302,9 @@ const AdminFinancialManager: React.FC<AdminFinancialManagerProps> = ({ records, 
             </style>
         </head>
         <body>
+            <div style="text-align: center; margin-bottom: 8px;">
+                <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 50px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+            </div>
             <h1>Relatório Financeiro</h1>
             <p>Data de Emissão: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
             

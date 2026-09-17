@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import type { Supplier, WarehouseMovement, Delivery, AcquisitionItem } from '../types';
 import ConfirmModal from './ConfirmModal';
 import { roundToTwoDecimalPlaces } from '../lib/utils';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 
 interface AdminContractItemsProps {
   suppliers: Supplier[];
@@ -363,6 +364,9 @@ const AdminContractItems: React.FC<AdminContractItemsProps> = ({ suppliers = [],
                                     </style>
                                 </head>
                                 <body>
+                                    <div style="text-align: center; margin-bottom: 8px;">
+                                        <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 50px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                                    </div>
                                     <h2>RELATÓRIO - CÁLCULO GERAL</h2>
                                     <div class="header-info">Data de emissão: ${new Date().toLocaleDateString('pt-BR')}</div>
                                     <table>

@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { EpiLog, AcquisitionItem } from '../types';
+import { PoliciaPenalLogo } from './PoliciaPenalLogo';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 
 const formatDateExtended = (dateStr: string) => {
   if (!dateStr) return '';
@@ -254,6 +256,7 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
               {printType === 'individual' && printTargetLog && (
                 <div className="space-y-6 text-sm">
                   <div className="text-center border-b border-gray-400 pb-4 space-y-1">
+                    <PoliciaPenalLogo className="h-10 w-auto mx-auto mb-1" />
                     <h3 className="text-base font-black tracking-wide">PENITENCIÁRIA DE TAIÚVA</h3>
                     <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Secretaria de Administração Penitenciária - SP</p>
                     <h4 className="text-md font-bold mt-2 uppercase text-orange-600">TERMO DE RESPONSABILIDADE E ENTREGA DE EPI</h4>
@@ -335,6 +338,7 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
               {printType === 'general' && (
                 <div className="space-y-6 text-sm">
                   <div className="text-center border-b border-gray-400 pb-4 space-y-1">
+                    <PoliciaPenalLogo className="h-10 w-auto mx-auto mb-1" />
                     <h3 className="text-base font-black tracking-wide">PENITENCIÁRIA DE TAIÚVA</h3>
                     <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Secretaria de Administração Penitenciária - SP</p>
                     <h4 className="text-md font-bold mt-2 uppercase text-indigo-700">COORDENADORIA DE ATIVIDADES E CONTROLE DE EPIS</h4>
@@ -440,6 +444,7 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
         {printType === 'individual' && printTargetLog ? (
           <div className="space-y-8 max-w-2xl mx-auto">
             <div className="text-center border-b-2 border-zinc-800 pb-4 space-y-1">
+              <img src={POLICIA_PENAL_BADGE_B64} alt="Polícia Penal" className="h-12 w-auto mx-auto mb-1" />
               <h3 className="text-lg font-black tracking-wide">PENITENCIÁRIA DE TAIÚVA</h3>
               <p className="text-xs text-zinc-600 uppercase tracking-widest font-bold">Secretaria de Administração Penitenciária - SP</p>
               <h4 className="text-lg font-extrabold mt-3 uppercase text-black tracking-wide">TERMO DE RESPONSABILIDADE E ENTREGA DE EPI</h4>
@@ -519,6 +524,7 @@ const AdminEPIControl: React.FC<AdminEPIControlProps> = ({ logs, acquisitionItem
         ) : (
           <div className="space-y-6">
             <div className="text-center border-b-2 border-black pb-4 space-y-1">
+              <img src={POLICIA_PENAL_BADGE_B64} alt="Polícia Penal" className="h-12 w-auto mx-auto mb-1" />
               <h3 className="text-lg font-black tracking-wide">PENITENCIÁRIA DE TAIÚVA</h3>
               <p className="text-xs text-zinc-600 uppercase tracking-widest font-bold">Secretaria de Administração Penitenciária - SP</p>
               <h4 className="text-md font-bold mt-2 uppercase">RELATÓRIO CONSOLIDADO / HISTÓRICO DE ENTREGA DE EPI</h4>

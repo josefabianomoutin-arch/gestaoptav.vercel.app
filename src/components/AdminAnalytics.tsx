@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { ensureArray } from '../lib/utils';
 import type { Supplier, WarehouseMovement, PerCapitaConfig } from '../types';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 
 interface AdminAnalyticsProps {
   suppliers: Supplier[];
@@ -308,6 +309,9 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], perCapi
                                             </style>
                                         </head>
                                         <body>
+                                            <div style="text-align: center; margin-bottom: 8px;">
+                                                <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 50px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                                            </div>
                                             <h2>AUDITORIA ANALÍTICA: META MENSAL VS. NOTAS FISCAIS</h2>
                                             <div class="header-info">Relatório gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</div>
                                             <table>

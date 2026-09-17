@@ -41,7 +41,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList, isLo
   const displayInfo = useMemo(() => publicInfoList.filter(info => !info.isConfidential), [publicInfoList]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-white relative overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-slate-100 relative overflow-hidden">
       {/* Infobar Ticker - Top */}
       <InfobarTicker 
         items={displayInfo} 

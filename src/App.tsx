@@ -4252,7 +4252,7 @@ const App: React.FC = () => {
     } else {
       // Role not recognized or not handled above
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="min-h-screen flex items-center justify-center bg-slate-100">
           <div className="text-center">
             <h2 className="text-xl font-bold mb-4">Módulo Indisponível</h2>
             <button onClick={handleLogout} className="bg-zinc-900 text-white px-6 py-2 rounded-lg">Voltar ao Login</button>
@@ -4265,7 +4265,7 @@ const App: React.FC = () => {
     const isMayOrLater = currentMonth >= 4;
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
         <div className="bg-white p-8 rounded-3xl shadow-xl border border-zinc-200 text-center max-w-md">
           <div className="bg-zinc-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -4289,7 +4289,7 @@ const App: React.FC = () => {
         setErrorDetails(e?.message || String(e));
       }
       const errorDisplay = (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
           <div className="bg-white p-8 rounded-3xl shadow-xl border border-red-200 text-center max-w-md">
             <div className="bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
@@ -4311,7 +4311,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-slate-100 flex flex-col">
       <Toaster position="top-right" richColors />
       {user && (
         <InfobarTicker 

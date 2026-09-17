@@ -19,6 +19,8 @@ import { SegregationTabContent } from './SegregationTabContent';
 import { DirectorPerCapitaTable } from './DirectorPerCapitaTable';
 import { getWeekNumber } from '../lib/supplierUtils';
 import { ensureArray, generateStandardLabelStyles } from '../lib/utils';
+import { PoliciaPenalLogo } from './PoliciaPenalLogo';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 
 interface AlmoxarifadoDashboardProps {
     currentUser: { name: string; cpf: string; role: string };
@@ -707,6 +709,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 </style>
             </head>
             <body>
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 50px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                </div>
                 <h2>Relatório de Controle de Entrada/Saída de Ferramentas</h2>
                 <div class="info-header">
                     <span>C.F.A. TAIÚVA - ALMOXARIFADO</span>
@@ -807,6 +812,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 </style>
             </head>
             <body>
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 50px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                </div>
                 <h2>Relatório de Inventário - Ferramentas Cadastradas</h2>
                 <div class="sub-header">C.F.A. TAIÚVA - GESTÃO DE PATRIMÔNIO E ALMOXARIFADO</div>
                 <div class="info-header">
@@ -904,6 +912,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 </style>
             </head>
             <body>
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 50px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                </div>
                 <h2>Relatório de Ferramentas Emprestadas / Em Uso</h2>
                 <div class="sub-header">C.F.A. TAIÚVA - CONTROLE DE ATIVOS EM POSSE DE COLABORADORES</div>
                 <div class="info-header">
@@ -1468,6 +1479,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             </head>
             <body>
                 <div class="container">
+                    <div style="text-align: center; margin-bottom: 8px;">
+                        <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 50px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                    </div>
                     <div class="header-title">CRONOGRAMA DE ENTREGA</div>
                     
                     <div class="paragraph">
@@ -1992,6 +2006,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 </style>
             </head>
             <body>
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 50px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                </div>
                 <div class="header">
                     CRONOGRAMA DE ENTREGAS
                 </div>
@@ -2762,6 +2779,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 </head>
                 <body>
                     <div class="header">
+                        <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 42px; width: auto; margin: 0 auto 4px auto; display: block;" alt="Polícia Penal" />
                         <div class="header-sap">Governo do Estado de São Paulo - Secretaria da Administração Penitenciária</div>
                         <div class="header-unit">Coordenadoria de Unidades Prisionais - Setor de Nutrição e Alimentação</div>
                         <div style="font-size: 8.5px; font-weight: bold; color: #333;">CONTROLE DE QUALIDADE - PESAGEM DIÁRIA DE MARMITAS</div>
@@ -3097,6 +3115,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             </head>
             <body>
                 <div class="page">
+                    <div style="text-align: center; margin-bottom: 8px;">
+                        <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 52px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                    </div>
                     <div class="header">
                         ATESTAMOS O RECEBIMENTO DOS MATERIAIS/SERVIÇOS RELACIONADOS, ENTREGA PELA EMPRESA:
                     </div>
@@ -3242,6 +3263,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             </head>
             <body>
                 <div class="page">
+                    <div style="text-align: center; margin-bottom: 8px;">
+                        <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 52px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                    </div>
                     <div class="header italic">
                         Atestamos o recebimento dos materiais/serviços relacionados, entrega pela empresa:
                     </div>
@@ -3341,13 +3365,16 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-800 pb-20 font-sans selection:bg-indigo-500/30 overflow-x-hidden">
-            <header className="bg-white shadow-sm p-3 md:p-4 sticky top-0 z-20 border-b border-slate-200">
+        <div className="min-h-screen bg-slate-100 text-slate-800 pb-20 font-sans selection:bg-indigo-500/30 overflow-x-hidden">
+            <header className="bg-slate-200/90 shadow-sm p-3 md:p-4 sticky top-0 z-20 border-b border-slate-300">
                 <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2.5 md:gap-4 max-w-7xl mx-auto">
                     <div className="flex justify-between items-center w-full md:w-auto">
-                        <div>
-                            <h1 className="text-base md:text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Módulo de Estoque</h1>
-                            <p className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Gestão de Dados P Taiuva 2026</p>
+                        <div className="flex items-center gap-3">
+                            <PoliciaPenalLogo className="h-10 w-auto object-contain shrink-0" />
+                            <div>
+                                <h1 className="text-base md:text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Módulo de Estoque</h1>
+                                <p className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Gestão de Dados P Taiuva 2026</p>
+                            </div>
                         </div>
                         <div className="flex items-center gap-2 md:hidden">
                             {typeof navigator !== 'undefined' && !navigator.onLine && (

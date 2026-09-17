@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Supplier, WarehouseMovement, PerCapitaConfig, ContractItem } from '../types';
 import { getCombinedSuppliers } from '../lib/supplierUtils';
 import { ensureArray, superNormalize, safeLocalStorageSetItem } from '../lib/utils';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 import { 
     FileText, 
     Printer, 
@@ -926,9 +927,12 @@ export const AdminInvoiceDeductionMap: React.FC<AdminInvoiceDeductionMapProps> =
             </head>
             <body>
                 <div style="margin-bottom: 6px; display: flex; justify-content: space-between; align-items: flex-end;">
-                    <div>
-                        <h2 style="margin: 0; font-size: 11pt; text-transform: uppercase; font-weight: 900;">Acompanhamento de NFs & Dedução Contratual</h2>
-                        <p style="margin: 2px 0 0 0; font-size: 7.5pt; color: #334155;">Fornecedor: <strong>${currentSupplier.name}</strong> | CPF/CNPJ: <strong>${currentSupplier.cpf}</strong> | Ano Base: <strong>${selectedYear}</strong></p>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 40px; width: auto;" alt="Polícia Penal" />
+                        <div>
+                            <h2 style="margin: 0; font-size: 11pt; text-transform: uppercase; font-weight: 900;">Acompanhamento de NFs & Dedução Contratual</h2>
+                            <p style="margin: 2px 0 0 0; font-size: 7.5pt; color: #334155;">Fornecedor: <strong>${currentSupplier.name}</strong> | CPF/CNPJ: <strong>${currentSupplier.cpf}</strong> | Ano Base: <strong>${selectedYear}</strong></p>
+                        </div>
                     </div>
                     <div style="text-align: right; font-size: 7pt;">
                         <span>Emissão: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</span>

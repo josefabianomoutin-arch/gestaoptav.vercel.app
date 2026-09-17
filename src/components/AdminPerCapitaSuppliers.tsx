@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import type { PerCapitaSupplier, Delivery } from '../types';
 import ConfirmModal from './ConfirmModal';
 import html2pdf from 'html2pdf.js';
+import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import { FileText, Upload, AlertCircle, X, Download, Trash2, Calendar } from 'lucide-react';
 import { ensureArray } from '../lib/utils';
 
@@ -387,6 +388,10 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
             )}
 
             <div ref={tableRef} className="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-gray-100">
+                <div className="flex items-center gap-4 p-6 border-b border-gray-100 print-only-header hidden">
+                    <PoliciaPenalLogo className="h-12 w-auto" />
+                    <h2 className="text-xl font-black text-gray-800 uppercase tracking-tighter">Relatório de {type}S</h2>
+                </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>

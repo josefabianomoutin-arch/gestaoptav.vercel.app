@@ -4,6 +4,7 @@ import type { AcquisitionItem, Supplier } from '../types';
 import { ManageContractSuppliersModal } from './AdminContractItems';
 import ConfirmModal from './ConfirmModal';
 import { roundToTwoDecimalPlaces } from '../lib/utils';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 
 interface AdminAcquisitionItemsProps {
     items: AcquisitionItem[];
@@ -137,6 +138,9 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                 </style>
             </head>
             <body>
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 50px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                </div>
                 <h2>RELATÓRIO DE AQUISIÇÃO - ${category}</h2>
                 <div class="header-info">Data de emissão: ${new Date().toLocaleDateString('pt-BR')}</div>
                 <table>
@@ -266,6 +270,9 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                 </style>
             </head>
             <body>
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 50px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                </div>
                 <h2>MAPA DE DISTRIBUIÇÃO POR FORNECEDOR - ${category}</h2>
                 <div class="header-info">Data de emissão: ${new Date().toLocaleDateString('pt-BR')}</div>
                 <table>

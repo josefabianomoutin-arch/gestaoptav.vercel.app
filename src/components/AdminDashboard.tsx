@@ -23,6 +23,7 @@ import WarehouseMovementForm from './WarehouseMovementForm';
 import AdminDirectorPerCapita from './AdminDirectorPerCapita';
 import AdminEPIControl from './AdminEPIControl';
 import AdminTaiuvaEnergyAccounting from './AdminTaiuvaEnergyAccounting';
+import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import { EnergyAccountingRecord } from '../types';
 
 type AdminTab = 'info' | 'register' | 'contracts' | 'finance' | 'analytics' | 'graphs' | 'schedule' | 'invoices' | 'perCapita' | 'cleaning' | 'vehicleExitOrder' | 'thirdPartyEntry' | 'directorPerCapita' | 'menu' | 'almoxarifado' | 'serviceOrder' | 'publicInfo' | 'epiControl' | 'energyAccounting';
@@ -638,13 +639,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   const isAbrilVerde = new Date().getMonth() === 3;
 
   return (
-    <div className={`flex h-screen overflow-hidden font-sans ${isAbrilVerde ? 'bg-emerald-50' : 'bg-zinc-50'}`}>
+    <div className={`flex h-screen overflow-hidden font-sans ${isAbrilVerde ? 'bg-emerald-50' : 'bg-slate-100'}`}>
       {/* Professional Sidebar Desktop */}
       <aside className="hidden md:flex w-72 flex-col shadow-2xl z-20 transition-all duration-500 bg-zinc-900 border-r border-zinc-800 text-white">
         <div className="p-8 border-b border-white/5">
           <div className="flex items-center gap-3 mb-2">
-            <div className={`h-10 w-10 rounded-2xl flex items-center justify-center shadow-lg rotate-3 transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-600' : 'bg-indigo-600'}`}>
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+            <div className="bg-white/10 p-1.5 rounded-2xl border border-white/10 shadow-lg flex items-center justify-center shrink-0">
+              <PoliciaPenalLogo className="h-9 w-auto object-contain max-w-[36px]" />
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tighter italic leading-none">GESTAO 2026</h1>
@@ -694,7 +695,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
 
       {/* Mobile Header */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-16 text-white flex items-center justify-between px-6 z-[100] border-b border-white/5 bg-zinc-900">
-        <h1 className="text-sm font-black uppercase italic tracking-tighter">GESTAO 2026</h1>
+        <div className="flex items-center gap-2.5">
+          <PoliciaPenalLogo className="h-8 w-auto object-contain shrink-0" />
+          <h1 className="text-sm font-black uppercase italic tracking-tighter">GESTAO 2026</h1>
+        </div>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 rounded-lg bg-zinc-800">
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16m-7 6h7"} /></svg>
         </button>
@@ -720,7 +724,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 flex flex-col min-w-0 relative pt-16 md:pt-0 transition-colors duration-500 ${isAbrilVerde ? 'bg-[#f0fdf4]' : 'bg-zinc-50'}`}>
+      <main className={`flex-1 flex flex-col min-w-0 relative pt-16 md:pt-0 transition-colors duration-500 ${isAbrilVerde ? 'bg-[#f0fdf4]' : 'bg-slate-100'}`}>
         {isAbrilVerde && (
           <div className="absolute inset-0 overflow-hidden pointer-events-none flex flex-col items-center justify-center opacity-[0.015] select-none">
             <h1 className="text-[20vw] font-black text-emerald-900 rotate-[-12deg] whitespace-nowrap">ABRIL VERDE</h1>
@@ -728,9 +732,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           </div>
         )}
         {/* Top Header Bar Desktop */}
-        <header className={`hidden md:flex h-20 bg-white border-b items-center justify-between px-10 sticky top-0 z-10 transition-all duration-500 ${isAbrilVerde ? 'border-emerald-100 shadow-sm shadow-emerald-100/50' : 'border-zinc-200'}`}>
+        <header className={`hidden md:flex h-20 border-b items-center justify-between px-10 sticky top-0 z-10 transition-all duration-500 ${isAbrilVerde ? 'bg-emerald-950 text-white border-emerald-900 shadow-sm' : 'bg-slate-200/90 border-slate-300'}`}>
           <div className="flex items-center gap-4">
-            <h2 className={`text-lg font-black uppercase tracking-tighter italic transition-colors duration-500 ${isAbrilVerde ? 'text-emerald-900' : 'text-zinc-800'}`}>
+            <PoliciaPenalLogo className="h-9 w-auto object-contain shrink-0" />
+            <h2 className={`text-lg font-black uppercase tracking-tighter italic transition-colors duration-500 ${isAbrilVerde ? 'text-white' : 'text-zinc-800'}`}>
               {visibleTabs.find(t => t.id === activeTab)?.name || 'Painel'}
             </h2>
             {isAbrilVerde && (

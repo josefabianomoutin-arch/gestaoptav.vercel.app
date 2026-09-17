@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import type { CleaningLog, FinancialRecord } from '../types';
 import ConfirmModal from './ConfirmModal';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 
 interface AdminCleaningLogProps {
   logs: CleaningLog[];
@@ -165,6 +166,7 @@ const AdminCleaningLog: React.FC<AdminCleaningLogProps> = ({ logs, financialReco
         </head>
         <body>
           <div class="header">
+            <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 48px; width: auto; margin-bottom: 6px; display: block; margin-left: auto; margin-right: auto;" alt="Polícia Penal" />
             <div class="header-sap">Secretaria da Administração Penitenciária</div>
             <div class="header-unit">Polícia Penal - Penitenciária de Taiúva</div>
             <div class="header-address">Rodovia Brigadeiro Faria Lima, SP 326, KM 359,6 Taiúva/SP - CEP: 14.720-000</div>

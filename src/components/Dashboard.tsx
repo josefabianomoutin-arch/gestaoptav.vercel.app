@@ -16,6 +16,8 @@ import { HOLIDAYS_2026 } from '../constants';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app } from '../firebaseConfig';
 import { toast } from 'sonner';
+import { PoliciaPenalLogo } from './PoliciaPenalLogo';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 
 // Definindo uma data simulada para garantir que o painel mostre o mês de Maio corretamente
 const SIMULATED_TODAY = new Date('2026-05-07T00:00:00');
@@ -486,6 +488,9 @@ const Dashboard: React.FC<DashboardProps> = ({
             </style>
         </head>
         <body>
+            <div style="text-align: center; margin-bottom: 8px;">
+                <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 52px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+            </div>
             <div class="header">ROMANEIO - ${targetMonthName}</div>
             <div class="info-grid">
                 <div class="info-box">
@@ -746,18 +751,16 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <div className={`min-h-screen text-gray-800 pb-20 transition-colors duration-500 relative overflow-hidden ${isAbrilVerde ? 'bg-[#f0fdf4]' : 'bg-gray-50'}`}>
+    <div className={`min-h-screen text-gray-800 pb-20 transition-colors duration-500 relative overflow-hidden ${isAbrilVerde ? 'bg-[#f0fdf4]' : 'bg-slate-100'}`}>
       {isAbrilVerde && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none flex flex-col items-center justify-center opacity-[0.015] select-none">
           <h1 className="text-[20vw] font-black text-emerald-900 rotate-[-12deg] whitespace-nowrap">ABRIL VERDE</h1>
           <h1 className="text-[15vw] font-black text-emerald-950 rotate-[-12deg] whitespace-nowrap mt-[-5vw]">SEGURANÇA</h1>
         </div>
       )}
-      <header className={`shadow-md p-4 flex justify-between items-center sticky top-0 z-50 transition-all duration-500 ${isAbrilVerde ? 'bg-emerald-950 text-white' : 'bg-white'}`}>
-        <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg rotate-3 transition-colors duration-500 ${isAbrilVerde ? 'bg-emerald-600' : 'bg-indigo-600'}`}>
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-          </div>
+      <header className={`shadow-md p-4 flex justify-between items-center sticky top-0 z-50 transition-all duration-500 ${isAbrilVerde ? 'bg-emerald-950 text-white' : 'bg-slate-200/90 border-b border-slate-300'}`}>
+        <div className="flex items-center gap-3">
+          <PoliciaPenalLogo className="h-10 w-auto object-contain shrink-0" />
           <div>
             <h1 className={`text-xl font-black uppercase tracking-tighter italic leading-none ${isAbrilVerde ? 'text-white' : headerColor}`}>Olá, {supplier.name.split(' ')[0]}!</h1>
             <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${isAbrilVerde ? 'text-emerald-400' : 'text-gray-400'}`}>

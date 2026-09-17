@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { VehicleExitOrder } from '../types';
 import { PoliciaPenalLogo } from './PoliciaPenalLogo';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
@@ -366,6 +367,12 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
       format: 'a4'
     });
 
+    try {
+      doc.addImage(POLICIA_PENAL_BADGE_B64, 'PNG', 14, 10, 16, 21);
+    } catch (e) {
+      console.warn('Could not add badge image to PDF', e);
+    }
+
     // Header
     doc.setFontSize(14);
     doc.setTextColor(30, 41, 59);
@@ -403,19 +410,28 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
           ? veh.localities.join('\n')
           : 'Não informada';
 
+        const datesSummary = veh.ordersList
+          .map(o => {
+            const dt = (o.date || o.exitDate || '').split('-').reverse().join('/');
+            const empName = o.responsibleServer || 'Condutor';
+            const loc = o.destination || 'Local';
+            return `${dt} - ${empName} (${loc})`;
+          })
+          .join('\n');
+
         tableData.push([
           `${veh.vehicleName}\n(${veh.plate})`,
           empSummary || 'Nenhum condutor',
           localitiesSummary,
           veh.totalOrders.toString(),
           formatMinutesToReadable(veh.totalMinutes),
-          veh.totalKm > 0 ? `${veh.totalKm} km` : '-'
+          datesSummary || '-'
         ]);
       });
 
       autoTable(doc, {
         startY: 38,
-        head: [['VEÍCULO / PLACA', 'FUNCIONÁRIOS (MOTORISTAS)', 'LOCALIDADE', 'VIAGENS', 'TEMPO TOTAL', 'KM TOTAL']],
+        head: [['VEÍCULO / PLACA', 'FUNCIONÁRIOS (MOTORISTAS)', 'LOCALIDADE', 'VIAGENS', 'TEMPO TOTAL', 'DATAS DAS SAÍDAS']],
         body: tableData,
         theme: 'grid',
         headStyles: {
@@ -426,17 +442,17 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
           fontSize: 8
         },
         styles: {
-          fontSize: 7,
+          fontSize: 6.5,
           cellPadding: 2,
           overflow: 'linebreak'
         },
         columnStyles: {
-          0: { cellWidth: 38, fontStyle: 'bold' },
-          1: { cellWidth: 44 },
-          2: { cellWidth: 42 },
-          3: { cellWidth: 16, halign: 'center' },
-          4: { cellWidth: 26, halign: 'center', fontStyle: 'bold' },
-          5: { cellWidth: 24, halign: 'center' }
+          0: { cellWidth: 32, fontStyle: 'bold' },
+          1: { cellWidth: 38 },
+          2: { cellWidth: 34 },
+          3: { cellWidth: 14, halign: 'center' },
+          4: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+          5: { cellWidth: 42 }
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         foot: [[
@@ -445,7 +461,7 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
           `${stats.totalEmployees} Funcionários`,
           stats.totalOrders.toString(),
           formatMinutesToReadable(stats.totalMinutes),
-          stats.totalKm > 0 ? `${stats.totalKm} km` : '-'
+          `${stats.totalOrders} Saídas Registradas`
         ]],
         footStyles: {
           fillColor: [241, 245, 249],
@@ -466,19 +482,28 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
           ? emp.localities.join('\n')
           : 'Não informada';
 
+        const datesSummary = emp.ordersList
+          .map(o => {
+            const dt = (o.date || o.exitDate || '').split('-').reverse().join('/');
+            const veh = o.vehicle || 'Veículo';
+            const loc = o.destination || 'Local';
+            return `${dt} - ${veh} (${loc})`;
+          })
+          .join('\n');
+
         tableData.push([
           emp.employeeName,
           vehiclesSummary || 'Nenhum veículo',
           localitiesSummary,
           emp.totalOrders.toString(),
           formatMinutesToReadable(emp.totalMinutes),
-          emp.totalKm > 0 ? `${emp.totalKm} km` : '-'
+          datesSummary || '-'
         ]);
       });
 
       autoTable(doc, {
         startY: 38,
-        head: [['FUNCIONÁRIO (RESPONSÁVEL)', 'VEÍCULOS / PLACAS', 'LOCALIDADE', 'VIAGENS', 'TEMPO TOTAL', 'KM TOTAL']],
+        head: [['FUNCIONÁRIO (RESPONSÁVEL)', 'VEÍCULOS / PLACAS', 'LOCALIDADE', 'VIAGENS', 'TEMPO TOTAL', 'DATAS DAS SAÍDAS']],
         body: tableData,
         theme: 'grid',
         headStyles: {
@@ -489,17 +514,17 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
           fontSize: 8
         },
         styles: {
-          fontSize: 7,
+          fontSize: 6.5,
           cellPadding: 2,
           overflow: 'linebreak'
         },
         columnStyles: {
-          0: { cellWidth: 38, fontStyle: 'bold' },
-          1: { cellWidth: 44 },
-          2: { cellWidth: 42 },
-          3: { cellWidth: 16, halign: 'center' },
-          4: { cellWidth: 26, halign: 'center', fontStyle: 'bold' },
-          5: { cellWidth: 24, halign: 'center' }
+          0: { cellWidth: 32, fontStyle: 'bold' },
+          1: { cellWidth: 38 },
+          2: { cellWidth: 34 },
+          3: { cellWidth: 14, halign: 'center' },
+          4: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+          5: { cellWidth: 42 }
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         foot: [[
@@ -508,7 +533,7 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
           `${stats.totalVehicles} Veículos`,
           stats.totalOrders.toString(),
           formatMinutesToReadable(stats.totalMinutes),
-          stats.totalKm > 0 ? `${stats.totalKm} km` : '-'
+          `${stats.totalOrders} Saídas Registradas`
         ]],
         footStyles: {
           fillColor: [241, 245, 249],
@@ -541,11 +566,15 @@ const VehicleUsageReportModal: React.FC<VehicleUsageReportModalProps> = ({
 
   // Export CSV
   const handleExportCSV = () => {
-    let csv = 'FUNCIONARIO;CARGO;VEICULO;PLACA;LOCALIDADE;SAIDAS;TEMPO_TOTAL_MINUTOS;TEMPO_FORMATADO;KM_TOTAL\n';
+    let csv = 'FUNCIONARIO;CARGO;VEICULO;PLACA;LOCALIDADE;DATA_SAIDA;TEMPO_MINUTOS;TEMPO_FORMATADO\n';
     employeeAggregations.forEach(emp => {
-      const locStr = emp.localities.join(' | ');
-      Array.from(emp.vehiclesMap.values()).forEach(v => {
-        csv += `"${emp.employeeName}";"${emp.role}";"${v.vehicleName}";"${v.plate}";"${locStr}";${v.count};${v.minutes};"${formatMinutesToReadable(v.minutes)}";${v.km}\n`;
+      emp.ordersList.forEach(o => {
+        const dt = (o.date || o.exitDate || '');
+        const veh = o.vehicle || '';
+        const plate = o.plate || '';
+        const dest = o.destination || '';
+        const duration = calculateOrderDurationMinutes(o);
+        csv += `"${emp.employeeName}";"${emp.role}";"${veh}";"${plate}";"${dest}";"${dt}";${duration};"${formatMinutesToReadable(duration)}"\n`;
       });
     });
 
