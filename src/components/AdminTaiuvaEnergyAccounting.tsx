@@ -17,6 +17,7 @@ import {
   Sliders,
   Layers
 } from 'lucide-react';
+import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import { toast } from 'sonner';
 import { EnergyAccountingRecord, EnergyBillItem, EnergySubmeterCompany } from '../types';
 import { DEFAULT_ENERGY_RECORD_AGO_26, DEFAULT_ENERGY_RECORD_JUL_26, recalculateEnergyRecord } from '../data/energyAccountingDefaults';
@@ -912,12 +913,16 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
         
         {/* Header strictly for print */}
         <div className="hidden print:block border-b-2 border-black pb-3 mb-4">
-          <div className="text-center">
-            <h1 className="text-lg font-black uppercase">GOVERNO DO ESTADO DE SÃO PAULO</h1>
-            <h2 className="text-sm font-bold uppercase">SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA - SAP</h2>
-            <h3 className="text-xs font-bold uppercase">PENITENCIÁRIA DE TAIÚVA</h3>
-            <p className="text-[11px] font-black mt-0.5">SEÇÃO DE INFRAESTRUTURA E MANUTENÇÃO - RATEIO DE ENERGIA ELÉTRICA</p>
-            <p className="text-[10px] font-semibold text-gray-700">MÊS DE REFERÊNCIA: {workingRecord.referenceMonth.toUpperCase()}</p>
+          <div className="flex items-center justify-between">
+            <div className="flex-1 text-center">
+              <h1 className="text-lg font-black uppercase">GOVERNO DO ESTADO DE SÃO PAULO</h1>
+              <h3 className="text-xs font-bold uppercase">PENITENCIÁRIA DE TAIÚVA</h3>
+              <p className="text-[11px] font-black mt-0.5">SEÇÃO DE INFRAESTRUTURA E MANUTENÇÃO - RATEIO DE ENERGIA ELÉTRICA</p>
+              <p className="text-[10px] font-semibold text-gray-700">MÊS DE REFERÊNCIA: {workingRecord.referenceMonth.toUpperCase()}</p>
+            </div>
+            <div className="flex-shrink-0">
+              <PoliciaPenalLogo />
+            </div>
           </div>
         </div>
 
@@ -1498,13 +1503,15 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
           <label className="text-xs font-black uppercase tracking-wider text-gray-500 block mb-2">
             Observações Gerais e Embasamento do Rateio (Aparece no Rodapé dos Relatórios)
           </label>
-          <textarea
-            rows={3}
-            value={workingRecord.generalNotes || ''}
-            onChange={(e) => updateRecord(prev => ({ ...prev, generalNotes: e.target.value }))}
-            placeholder=""
-            className="w-full p-3.5 text-xs text-gray-800 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all leading-relaxed"
-          />
+          <div className="w-full break-words whitespace-pre-wrap">
+            <textarea
+              rows={3}
+              value={workingRecord.generalNotes || ''}
+              onChange={(e) => updateRecord(prev => ({ ...prev, generalNotes: e.target.value }))}
+              placeholder=""
+              className="w-full p-3.5 text-xs text-gray-800 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all leading-relaxed resize-none"
+            />
+          </div>
         </div>
 
         {/* Print Signatures Block (Only visible on print) */}
@@ -2139,7 +2146,6 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
             <div className="border-2 border-black p-6 space-y-6 text-gray-900 bg-white">
               <div className="text-center border-b-2 border-black pb-4">
                 <h2 className="text-sm font-black uppercase tracking-wide">GOVERNO DO ESTADO DE SÃO PAULO</h2>
-                <h3 className="text-xs font-bold uppercase">SECRETARIA DA ADMINISTRAÇÃO PENITENCIÁRIA</h3>
                 <h4 className="text-xs font-bold uppercase">PENITENCIÁRIA DE TAIÚVA</h4>
                 <p className="text-[11px] font-black uppercase text-indigo-950 mt-1">
                   NOTIFICAÇÃO DE COBRANÇA E RESSARCIMENTO DE ENERGIA ELÉTRICA
