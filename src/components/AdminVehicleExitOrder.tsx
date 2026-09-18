@@ -2022,11 +2022,11 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                                 >
                                     <option value="" className="text-black">Todos os Meses</option>
                                     {(() => {
-                                        const currentYear = new Date().getFullYear();
-                                        return ['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => {
-                                            const ym = `${currentYear}-${m}`;
-                                            const d = new Date(currentYear, parseInt(m) - 1, 15);
-                                            const label = `${d.toLocaleDateString('pt-BR', { month: 'long' })} DE ${currentYear}`.toUpperCase();
+                                        const uniqueMonths = Array.from(new Set(orders.map(o => o.date.substring(0, 7))));
+                                        return uniqueMonths.sort((a, b) => b.localeCompare(a)).map(ym => {
+                                            const [y, m] = ym.split('-');
+                                            const d = new Date(parseInt(y), parseInt(m) - 1, 15);
+                                            const label = `${d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`.toUpperCase();
                                             return <option key={ym} value={ym} className="text-black">{label}</option>;
                                         });
                                     })()}
