@@ -273,28 +273,30 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
 
     const handleUpdatePereciveisSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
-        setPereciveisSuppliers(newSuppliers);
+        const field = activeSubTab === 'PERECÍVEIS' ? 'pereciveisSuppliers1Q' : (activeSubTab === 'PERECÍVEIS 2Q' ? 'pereciveisSuppliers2Q' : 'pereciveisSuppliers3Q');
+        if (activeSubTab === 'PERECÍVEIS') setPereciveisSuppliers1Q(newSuppliers);
+        else if (activeSubTab === 'PERECÍVEIS 2Q') setPereciveisSuppliers2Q(newSuppliers);
+        else setPereciveisSuppliers3Q(newSuppliers);
+
         const newConfig: PerCapitaConfig = {
             ...perCapitaConfig,
-            pereciveisSuppliers: newSuppliers,
+            [field]: newSuppliers,
         };
         try {
-            const result = await onUpdatePerCapitaConfig({ pereciveisSuppliers: newSuppliers });
+            const result = await onUpdatePerCapitaConfig({ [field]: newSuppliers });
             if (result && result.success) {
                 setIsDirty(false);
-                toast.success('Fornecedores de Perecíveis salvos com sucesso!');
+                toast.success('Fornecedores salvos com sucesso!');
                 if (onSyncPPAISToAgenda) {
                     await onSyncPPAISToAgenda(newConfig);
                 }
             } else {
-                console.error("Erro ao salvar fornecedores (pereciveis):", result);
-                toast.error("Erro ao salvar fornecedores (pereciveis): " + (result?.message || 'Erro desconhecido'));
+                toast.error("Erro ao salvar fornecedores: " + (result?.message || 'Erro desconhecido'));
             }
         } catch (error) {
-            console.error("Failed to save suppliers (pereciveis):", error);
-            toast.error("Erro ao salvar fornecedores (pereciveis).");
+            toast.error("Erro ao salvar fornecedores.");
         }
-    }, [onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
+    }, [activeSubTab, onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
 
     const handleUpdateEstocaveisSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
         setEstocaveisSuppliers(newSuppliers);
