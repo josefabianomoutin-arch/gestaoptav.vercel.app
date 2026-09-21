@@ -299,28 +299,30 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [activeSubTab, onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
 
     const handleUpdateEstocaveisSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
-        setEstocaveisSuppliers(newSuppliers);
+        const field = activeSubTab === 'ESTOCÁVEIS' ? 'estocaveisSuppliers1Q' : (activeSubTab === 'ESTOCÁVEIS 2Q' ? 'estocaveisSuppliers2Q' : 'estocaveisSuppliers3Q');
+        if (activeSubTab === 'ESTOCÁVEIS') setEstocaveisSuppliers1Q(newSuppliers);
+        else if (activeSubTab === 'ESTOCÁVEIS 2Q') setEstocaveisSuppliers2Q(newSuppliers);
+        else setEstocaveisSuppliers3Q(newSuppliers);
+
         const newConfig: PerCapitaConfig = {
             ...perCapitaConfig,
-            estocaveisSuppliers: newSuppliers,
+            [field]: newSuppliers,
         };
         try {
-            const result = await onUpdatePerCapitaConfig({ estocaveisSuppliers: newSuppliers });
+            const result = await onUpdatePerCapitaConfig({ [field]: newSuppliers });
             if (result && result.success) {
                 setIsDirty(false);
-                toast.success('Fornecedores de Estocáveis salvos com sucesso!');
+                toast.success('Fornecedores salvos com sucesso!');
                 if (onSyncPPAISToAgenda) {
                     await onSyncPPAISToAgenda(newConfig);
                 }
             } else {
-                console.error("Erro ao salvar fornecedores (estocaveis):", result);
-                toast.error("Erro ao salvar fornecedores (estocaveis): " + (result?.message || 'Erro desconhecido'));
+                toast.error("Erro ao salvar fornecedores: " + (result?.message || 'Erro desconhecido'));
             }
         } catch (error) {
-            console.error("Failed to save suppliers (estocaveis):", error);
-            toast.error("Erro ao salvar fornecedores (estocaveis).");
+            toast.error("Erro ao salvar fornecedores.");
         }
-    }, [onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
+    }, [activeSubTab, onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
 
     const handleUpdatePereciveis3QSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
         setPereciveisSuppliers3Q(newSuppliers);
@@ -393,14 +395,16 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [pereciveisSuppliers1Q, pereciveisSuppliers2Q, pereciveisSuppliers3Q, activeSubTab]);
 
     const estocaveisAsSuppliers = useMemo(() => {
-        return estocaveisSuppliers.filter(Boolean).map(p => ({
+        const suppliers = activeSubTab === 'ESTOCÁVEIS' ? estocaveisSuppliers1Q : 
+                          (activeSubTab === 'ESTOCÁVEIS 2Q' ? estocaveisSuppliers2Q : estocaveisSuppliers3Q);
+        return suppliers.filter(Boolean).map(p => ({
             ...p,
             cpf: p.cpfCnpj || p.cpf,
             deliveries: ensureArray(p.deliveries),
             allowedWeeks: calculateAllowedWeeksFromSchedule(p.monthlySchedule, 2026),
             initialValue: ensureArray(p.contractItems).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
         } as Supplier));
-    }, [estocaveisSuppliers]);
+    }, [estocaveisSuppliers1Q, estocaveisSuppliers2Q, estocaveisSuppliers3Q, activeSubTab]);
 
     const getActivePereciveisSuppliers = () => {
         if (activeSubTab === 'PERECÍVEIS') return pereciveisSuppliers1Q;
