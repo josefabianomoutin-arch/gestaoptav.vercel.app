@@ -2218,13 +2218,13 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 onDelete={onDeleteAcquisitionItem} 
                                 contractItems={
                                     activeSubTab === 'PPAIS' ? contractItemNamesByCategory['PPAIS'] :
-                                    activeSubTab === 'PERECÍVEIS' ? contractItemNamesByCategory['PERECÍVEIS'] :
-                                    (activeSubTab === 'ESTOCÁVEIS' ? contractItemNamesByCategory['ESTOCÁVEIS'] : contractItemNamesByCategory['OTHERS'])
+                                    (activeSubTab.startsWith('PERECÍVEIS') ? contractItemNamesByCategory['PERECÍVEIS'] :
+                                    (activeSubTab.startsWith('ESTOCÁVEIS') ? contractItemNamesByCategory['ESTOCÁVEIS'] : contractItemNamesByCategory['OTHERS']))
                                 }
                                 suppliers={
                                     activeSubTab === 'PPAIS' ? ppaisAsSuppliers : 
-                                    activeSubTab === 'PERECÍVEIS' ? pereciveisAsSuppliers : 
-                                    (activeSubTab === 'ESTOCÁVEIS' ? estocaveisAsSuppliers : suppliers)
+                                    (activeSubTab.startsWith('PERECÍVEIS') ? pereciveisAsSuppliers : 
+                                    (activeSubTab.startsWith('ESTOCÁVEIS') ? estocaveisAsSuppliers : suppliers))
                                 }
                                 allSuppliers={suppliers}
                                 onUpdateContractForItem={onUpdateContractForItem}
