@@ -379,14 +379,16 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [ppaisProducers]);
 
     const pereciveisAsSuppliers = useMemo(() => {
-        return pereciveisSuppliers.filter(Boolean).map(p => ({
+        const suppliers = activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers1Q : 
+                          (activeSubTab === 'PERECÍVEIS 2Q' ? pereciveisSuppliers2Q : pereciveisSuppliers3Q);
+        return suppliers.filter(Boolean).map(p => ({
             ...p,
             cpf: p.cpfCnpj || p.cpf,
             deliveries: ensureArray(p.deliveries),
             allowedWeeks: calculateAllowedWeeksFromSchedule(p.monthlySchedule, 2026),
             initialValue: ensureArray(p.contractItems).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
         } as Supplier));
-    }, [pereciveisSuppliers]);
+    }, [pereciveisSuppliers1Q, pereciveisSuppliers2Q, pereciveisSuppliers3Q, activeSubTab]);
 
     const estocaveisAsSuppliers = useMemo(() => {
         return estocaveisSuppliers.filter(Boolean).map(p => ({
@@ -398,8 +400,16 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         } as Supplier));
     }, [estocaveisSuppliers]);
 
-    const _handleUpdateContractForPpais = async (itemName: string, assignments: any[]) => {
-        return await onUpdateContractForItem(itemName, assignments);
+    const getActivePereciveisSuppliers = () => {
+        if (activeSubTab === 'PERECÍVEIS') return pereciveisSuppliers1Q;
+        if (activeSubTab === 'PERECÍVEIS 2Q') return pereciveisSuppliers2Q;
+        return pereciveisSuppliers3Q;
+    };
+
+    const getActiveEstocaveisSuppliers = () => {
+        if (activeSubTab === 'ESTOCÁVEIS') return estocaveisSuppliers1Q;
+        if (activeSubTab === 'ESTOCÁVEIS 2Q') return estocaveisSuppliers2Q;
+        return estocaveisSuppliers3Q;
     };
 
     const _handleUpdateContractForPereciveis = async (itemName: string, assignments: any[]) => {
@@ -425,13 +435,13 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         result['PPAIS'] = Array.from(ppaisNames).sort();
 
         const pereciveisNames = new Set<string>();
-        pereciveisSuppliers.forEach(s => {
+        [...pereciveisSuppliers1Q, ...pereciveisSuppliers2Q, ...pereciveisSuppliers3Q].forEach(s => {
             ensureArray(s.contractItems).forEach((ci: any) => pereciveisNames.add(ci.name));
         });
         result['PERECÍVEIS'] = Array.from(pereciveisNames).sort();
 
         const estocaveisNames = new Set<string>();
-        estocaveisSuppliers.forEach(s => {
+        [...estocaveisSuppliers1Q, ...estocaveisSuppliers2Q, ...estocaveisSuppliers3Q].forEach(s => {
             ensureArray(s.contractItems).forEach((ci: any) => estocaveisNames.add(ci.name));
         });
         result['ESTOCÁVEIS'] = Array.from(estocaveisNames).sort();
@@ -443,7 +453,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         result['OTHERS'] = Array.from(otherNames).sort();
 
         return result;
-    }, [suppliers, ppaisProducers, pereciveisSuppliers, estocaveisSuppliers]);
+    }, [suppliers, ppaisProducers, pereciveisSuppliers1Q, pereciveisSuppliers2Q, pereciveisSuppliers3Q, estocaveisSuppliers1Q, estocaveisSuppliers2Q, estocaveisSuppliers3Q]);
 
     const itemData = useMemo(() => {
       const data = new Map<string, { totalQuantity: number; totalValue: number; monthlyWeight: number; monthlyValue: number; unit: string; category: string }>();
