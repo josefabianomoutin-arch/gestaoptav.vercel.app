@@ -443,13 +443,123 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         } as Supplier));
     }, [currentEstocaveisSuppliers, selectedYear]);
 
-    const _handleUpdateContractForPereciveis = async (itemName: string, assignments: any[]) => {
-        return await onUpdateContractForItem(itemName, assignments);
-    };
+    const otherPereciveisQuadrimestres = useMemo(() => {
+        const all = [
+            { label: '1º Quadrimestre (Jan - Abr / 2026)', q: '1Q', y: 2026, list: pereciveisSuppliers1Q },
+            { label: '2º Quadrimestre (Mai - Ago / 2026)', q: '2Q', y: 2026, list: pereciveisSuppliers2Q },
+            { label: '3º Quadrimestre (Set - Dez / 2026)', q: '3Q', y: 2026, list: pereciveisSuppliers3Q },
+            { label: '1º Quadrimestre (Jan - Abr / 2027)', q: '1Q', y: 2027, list: pereciveisSuppliers2027_1Q },
+            { label: '2º Quadrimestre (Mai - Ago / 2027)', q: '2Q', y: 2027, list: pereciveisSuppliers2027_2Q },
+            { label: '3º Quadrimestre (Set - Dez / 2027)', q: '3Q', y: 2027, list: pereciveisSuppliers2027_3Q },
+        ];
+        return all
+            .filter(item => !(item.q === selectedQuadrimestre && item.y === selectedYear))
+            .map(item => ({ label: item.label, suppliers: item.list }));
+    }, [selectedQuadrimestre, selectedYear, pereciveisSuppliers1Q, pereciveisSuppliers2Q, pereciveisSuppliers3Q, pereciveisSuppliers2027_1Q, pereciveisSuppliers2027_2Q, pereciveisSuppliers2027_3Q]);
 
-    const _handleUpdateContractForEstocaveis = async (itemName: string, assignments: any[]) => {
-        return await onUpdateContractForItem(itemName, assignments);
-    };
+    const otherEstocaveisQuadrimestres = useMemo(() => {
+        const all = [
+            { label: '1º Quadrimestre (Jan - Abr / 2026)', q: '1Q', y: 2026, list: estocaveisSuppliers1Q },
+            { label: '2º Quadrimestre (Mai - Ago / 2026)', q: '2Q', y: 2026, list: estocaveisSuppliers2Q },
+            { label: '3º Quadrimestre (Set - Dez / 2026)', q: '3Q', y: 2026, list: estocaveisSuppliers3Q },
+            { label: '1º Quadrimestre (Jan - Abr / 2027)', q: '1Q', y: 2027, list: estocaveisSuppliers2027_1Q },
+            { label: '2º Quadrimestre (Mai - Ago / 2027)', q: '2Q', y: 2027, list: estocaveisSuppliers2027_2Q },
+            { label: '3º Quadrimestre (Set - Dez / 2027)', q: '3Q', y: 2027, list: estocaveisSuppliers2027_3Q },
+        ];
+        return all
+            .filter(item => !(item.q === selectedQuadrimestre && item.y === selectedYear))
+            .map(item => ({ label: item.label, suppliers: item.list }));
+    }, [selectedQuadrimestre, selectedYear, estocaveisSuppliers1Q, estocaveisSuppliers2Q, estocaveisSuppliers3Q, estocaveisSuppliers2027_1Q, estocaveisSuppliers2027_2Q, estocaveisSuppliers2027_3Q]);
+
+    const handleUpdateContractForCurrentQuadrimestre = useCallback(async (
+        itemName: string,
+        assignments: { supplierCpf: string; totalKg: number; valuePerKg: number; unit?: string; category?: string; comprasCode?: string; becCode?: string; commitmentNumber?: string; commitmentValue?: number; supplierName?: string }[]
+    ) => {
+        if (activeSubTab === 'PPAIS') {
+            return await onUpdateContractForItem(itemName, assignments);
+        }
+
+        const isPereciveis = activeSubTab.startsWith('PERECÍVEIS');
+        const isEstocaveis = activeSubTab.startsWith('ESTOCÁVEIS');
+
+        if (!isPereciveis && !isEstocaveis) {
+            return await onUpdateContractForItem(itemName, assignments);
+        }
+
+        const currentList = isPereciveis ? currentPereciveisSuppliers : currentEstocaveisSuppliers;
+        const cleanNorm = (s: string) => String(s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+        const normItemName = cleanNorm(itemName);
+
+        const updatedSuppliers = currentList.map(sup => {
+            const supCpf = String(sup.cpfCnpj || sup.cpf || '').replace(/[^\d]/g, '');
+            const matchingAssignment = assignments.find(a => String(a.supplierCpf || '').replace(/[^\d]/g, '') === supCpf);
+
+            const currentContractItems = ensureArray(sup.contractItems);
+            const filteredItems = currentContractItems.filter(ci => cleanNorm(ci.name) !== normItemName);
+
+            if (matchingAssignment && matchingAssignment.totalKg > 0) {
+                const newItem = {
+                    name: itemName,
+                    totalKg: matchingAssignment.totalKg,
+                    valuePerKg: matchingAssignment.valuePerKg,
+                    unit: matchingAssignment.unit || 'KG',
+                    monthlyWeight: matchingAssignment.totalKg / 4,
+                    monthlyValue: (matchingAssignment.totalKg * (matchingAssignment.valuePerKg || 0)) / 4,
+                    commitmentNumber: matchingAssignment.commitmentNumber || '',
+                    commitmentValue: matchingAssignment.commitmentValue || 0,
+                    comprasCode: matchingAssignment.comprasCode || '',
+                    becCode: matchingAssignment.becCode || ''
+                };
+                return {
+                    ...sup,
+                    contractItems: [...filteredItems, newItem]
+                };
+            } else {
+                return {
+                    ...sup,
+                    contractItems: filteredItems
+                };
+            }
+        });
+
+        if (isPereciveis) {
+            await handleUpdatePereciveisSuppliers(updatedSuppliers);
+        } else {
+            await handleUpdateEstocaveisSuppliers(updatedSuppliers);
+        }
+
+        const targetAcq = acquisitionItems.find(i => 
+            (cleanNorm(i.name) === normItemName || cleanNorm(i.contractItemName || '') === normItemName) &&
+            i.category === (isPereciveis ? 'PERECÍVEIS' : 'ESTOCÁVEIS') &&
+            (i.quadrimestre || '2Q') === selectedQuadrimestre &&
+            (i.year || 2026) === selectedYear
+        );
+
+        if (targetAcq && assignments.length > 0) {
+            const totalKg = assignments.reduce((acc, curr) => acc + (curr.totalKg || 0), 0);
+            const validPrice = assignments.find(a => (a.valuePerKg || 0) > 0)?.valuePerKg;
+            if (totalKg > 0 || (validPrice !== undefined && validPrice > 0)) {
+                await onUpdateAcquisitionItem({
+                    ...targetAcq,
+                    acquiredQuantity: totalKg > 0 ? totalKg : targetAcq.acquiredQuantity,
+                    unitValue: (validPrice !== undefined && validPrice > 0) ? validPrice : targetAcq.unitValue
+                });
+            }
+        }
+
+        return { success: true, message: 'Distribuição e valores salvos com sucesso no quadrimestre!' };
+    }, [
+        activeSubTab,
+        onUpdateContractForItem,
+        currentPereciveisSuppliers,
+        currentEstocaveisSuppliers,
+        handleUpdatePereciveisSuppliers,
+        handleUpdateEstocaveisSuppliers,
+        acquisitionItems,
+        selectedQuadrimestre,
+        selectedYear,
+        onUpdateAcquisitionItem
+    ]);
 
     const contractItemNamesByCategory = useMemo(() => {
         const result: Record<string, string[]> = {
@@ -2060,6 +2170,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 onDeleteDelivery={onDeleteDelivery}
                                 type="FORNECEDOR"
                                 colorScheme="indigo"
+                                quadrimestreInfo={{ quadrimestre: selectedQuadrimestre, year: selectedYear }}
+                                otherQuadrimestres={otherPereciveisQuadrimestres}
                             />
                         ) : activeSubTab.startsWith('ESTOCÁVEIS') && estocaveisSubTab === 'SUPPLIERS' ? (
                             <AdminPerCapitaSuppliers 
@@ -2069,6 +2181,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 onDeleteDelivery={onDeleteDelivery}
                                 type="FORNECEDOR"
                                 colorScheme="indigo"
+                                quadrimestreInfo={{ quadrimestre: selectedQuadrimestre, year: selectedYear }}
+                                otherQuadrimestres={otherEstocaveisQuadrimestres}
                             />
                         ) : (activeSubTab === 'PPAIS' || activeSubTab.startsWith('PERECÍVEIS') || activeSubTab.startsWith('ESTOCÁVEIS')) && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : activeSubTab.startsWith('PERECÍVEIS') ? pereciveisSubTab === 'CONTRACT' : estocaveisSubTab === 'CONTRACT') ? (
                             <div className="p-8 space-y-4">
@@ -2315,7 +2429,10 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                     (activeSubTab.startsWith('ESTOCÁVEIS') ? estocaveisAsSuppliers : suppliers))
                                 }
                                 allSuppliers={suppliers}
-                                onUpdateContractForItem={onUpdateContractForItem}
+                                onUpdateContractForItem={handleUpdateContractForCurrentQuadrimestre}
+                                year={selectedYear}
+                                quadrimestre={selectedQuadrimestre}
+                                allItems={acquisitionItems}
                             />
                         )}
                     </div>

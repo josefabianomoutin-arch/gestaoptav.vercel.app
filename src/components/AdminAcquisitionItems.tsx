@@ -5,6 +5,8 @@ import { ManageContractSuppliersModal } from './AdminContractItems';
 import ConfirmModal from './ConfirmModal';
 import { roundToTwoDecimalPlaces } from '../lib/utils';
 import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
+import { toast } from 'sonner';
+import { Copy, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface AdminAcquisitionItemsProps {
     items: AcquisitionItem[];
@@ -16,13 +18,36 @@ interface AdminAcquisitionItemsProps {
     allSuppliers?: Supplier[];
     onUpdateContractForItem?: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string, commitmentNumber?: string, commitmentValue?: number }[]) => Promise<{ success: boolean, message: string }>;
     perCapitaConfig?: any;
+    year?: number;
+    quadrimestre?: '1Q' | '2Q' | '3Q';
+    allItems?: AcquisitionItem[];
 }
 
-const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, category, onUpdate, onDelete, contractItems = [], suppliers = [], allSuppliers = [], onUpdateContractForItem }) => {
+const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ 
+    items, 
+    category, 
+    onUpdate, 
+    onDelete, 
+    contractItems = [], 
+    suppliers = [], 
+    allSuppliers = [], 
+    onUpdateContractForItem,
+    year,
+    quadrimestre,
+    allItems = []
+}) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [editingYear, setEditingYear] = useState<number | undefined>();
+    const [editingQuadrimestre, setEditingQuadrimestre] = useState<'1Q' | '2Q' | '3Q' | undefined>();
     const [manageItem, setManageItem] = useState<AcquisitionItem | null>(null);
+
+    // Copy Items from other Quadrimestre Modal State
+    const [showCopyModal, setShowCopyModal] = useState(false);
+    const [copySourcePeriod, setCopySourcePeriod] = useState<string>('');
+    const [copyKeepValues, setCopyKeepValues] = useState<boolean>(true);
+    const [isCopying, setIsCopying] = useState<boolean>(false);
 
     // Form state
     const [name, setName] = useState('');
@@ -66,15 +91,117 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
             .toUpperCase();
     };
 
-    const filteredItems = items.filter(item => {
-        const itemName = String(item.name || '').toLowerCase();
-        const compras = String(item.comprasCode || '');
-        const bec = String(item.becCode || '');
-        return normalizeCategory(item.category) === normalizeCategory(category) &&
-        (itemName.includes(searchTerm.toLowerCase()) ||
-         compras.includes(searchTerm) ||
-         bec.includes(searchTerm));
-    });
+    const isQuadrimestreCategory = category === 'PERECÍVEIS' || category === 'ESTOCÁVEIS';
+
+    const filteredItems = useMemo(() => {
+        return items.filter(item => {
+            const itemName = String(item.name || '').toLowerCase();
+            const compras = String(item.comprasCode || '');
+            const bec = String(item.becCode || '');
+            
+            const matchesCategory = normalizeCategory(item.category) === normalizeCategory(category);
+            if (!matchesCategory) return false;
+
+            if (isQuadrimestreCategory) {
+                const itemYear = item.year || 2026;
+                const itemQuad = item.quadrimestre || '2Q'; // itens legados sem quadrimestre pertencem ao 2Q de 2026
+                if (quadrimestre && itemQuad !== quadrimestre) return false;
+                if (year && itemYear !== year) return false;
+            }
+
+            return (
+                itemName.includes(searchTerm.toLowerCase()) ||
+                compras.includes(searchTerm) ||
+                bec.includes(searchTerm)
+            );
+        });
+    }, [items, category, isQuadrimestreCategory, quadrimestre, year, searchTerm]);
+
+    const sourcePeriodOptions = useMemo(() => {
+        if (!isQuadrimestreCategory) return [];
+        const sourceList = allItems && allItems.length > 0 ? allItems : items;
+        const periods = [
+            { id: '2026_1Q', year: 2026, quad: '1Q', label: '1º Quadrimestre (Jan - Abr / 2026)' },
+            { id: '2026_2Q', year: 2026, quad: '2Q', label: '2º Quadrimestre (Mai - Ago / 2026)' },
+            { id: '2026_3Q', year: 2026, quad: '3Q', label: '3º Quadrimestre (Set - Dez / 2026)' },
+            { id: '2027_1Q', year: 2027, quad: '1Q', label: '1º Quadrimestre (Jan - Abr / 2027)' },
+            { id: '2027_2Q', year: 2027, quad: '2Q', label: '2º Quadrimestre (Mai - Ago / 2027)' },
+            { id: '2027_3Q', year: 2027, quad: '3Q', label: '3º Quadrimestre (Set - Dez / 2027)' },
+        ];
+
+        const currentPeriodId = `${year || 2026}_${quadrimestre || '2Q'}`;
+
+        return periods
+            .filter(p => p.id !== currentPeriodId)
+            .map(p => {
+                const count = sourceList.filter(it => {
+                    if (normalizeCategory(it.category) !== normalizeCategory(category)) return false;
+                    const itYear = it.year || 2026;
+                    const itQuad = it.quadrimestre || '2Q';
+                    return itYear === p.year && itQuad === p.quad;
+                }).length;
+                return {
+                    ...p,
+                    count
+                };
+            });
+    }, [isQuadrimestreCategory, allItems, items, category, year, quadrimestre]);
+
+    const handleCopyItems = async () => {
+        if (!copySourcePeriod) {
+            toast.error('Selecione o quadrimestre de origem.');
+            return;
+        }
+        const [srcYearStr, srcQuad] = copySourcePeriod.split('_');
+        const srcYear = parseInt(srcYearStr, 10);
+        const sourceList = allItems && allItems.length > 0 ? allItems : items;
+
+        const itemsToCopy = sourceList.filter(it => {
+            if (normalizeCategory(it.category) !== normalizeCategory(category)) return false;
+            const itYear = it.year || 2026;
+            const itQuad = it.quadrimestre || '2Q';
+            return itYear === srcYear && itQuad === srcQuad;
+        });
+
+        if (itemsToCopy.length === 0) {
+            toast.error('Nenhum item encontrado no período de origem selecionado.');
+            return;
+        }
+
+        setIsCopying(true);
+        try {
+            let count = 0;
+            for (const it of itemsToCopy) {
+                const newItem: AcquisitionItem = {
+                    id: `acq-${Date.now()}-${Math.random().toString(36).substring(2, 7)}-${count}`,
+                    name: it.name,
+                    nickname: it.nickname || '',
+                    contractItemName: it.contractItemName || '',
+                    comprasCode: it.comprasCode || '',
+                    becCode: it.becCode || '',
+                    expenseNature: it.expenseNature || '',
+                    unit: it.unit || 'un',
+                    acquiredQuantity: copyKeepValues ? (it.acquiredQuantity || 0) : 0,
+                    stockBalance: copyKeepValues ? (it.stockBalance || 0) : 0,
+                    unitValue: copyKeepValues ? (it.unitValue || 0) : 0,
+                    unitValue23: 0,
+                    contractAddendum: 0,
+                    commitmentNumber: it.commitmentNumber || '',
+                    category,
+                    year: year || 2026,
+                    quadrimestre: quadrimestre || '2Q'
+                };
+                await onUpdate(newItem);
+                count++;
+            }
+            setShowCopyModal(false);
+            toast.success(`${count} itens copiados com sucesso para o ${quadrimestre === '1Q' ? '1º' : quadrimestre === '2Q' ? '2º' : '3º'} Quadrimestre (${year || 2026})!`);
+        } catch {
+            toast.error('Erro ao copiar itens.');
+        } finally {
+            setIsCopying(false);
+        }
+    };
 
 
     const totalCategoryValue = useMemo(() => {
@@ -338,7 +465,11 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                 unitValue23: parseFloat(unitValue23.replace(',', '.')) || 0,
                 contractAddendum: parseFloat(contractAddendum.replace(',', '.')) || 0,
                 commitmentNumber,
-                category
+                category,
+                ...(isQuadrimestreCategory ? {
+                    year: editingId ? (editingYear || year || 2026) : (year || 2026),
+                    quadrimestre: editingId ? (editingQuadrimestre || quadrimestre || '2Q') : (quadrimestre || '2Q')
+                } : {})
             };
 
             const res = await onUpdate(item);
@@ -368,6 +499,8 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
         setCommitmentNumber('');
         setIsAdding(false);
         setEditingId(null);
+        setEditingYear(undefined);
+        setEditingQuadrimestre(undefined);
     };
 
     const startEdit = (item: AcquisitionItem) => {
@@ -385,6 +518,8 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
         setContractAddendum(String(item.contractAddendum || 0).replace('.', ','));
         setCommitmentNumber(item.commitmentNumber || '');
         setEditingId(item.id);
+        setEditingYear(item.year || year || 2026);
+        setEditingQuadrimestre(item.quadrimestre || quadrimestre || '2Q');
         setIsAdding(true);
     };
 
@@ -414,7 +549,14 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                     <div className="h-4 w-px bg-zinc-800"></div>
                     <div className="flex flex-col">
                         <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Módulo de Aquisição</span>
-                        <span className="text-[11px] font-black text-white uppercase tracking-wider">{category}</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-black text-white uppercase tracking-wider">{category}</span>
+                            {isQuadrimestreCategory && (
+                                <span className="text-[9px] font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                    {quadrimestre === '1Q' ? '1º Quadrimestre (Jan - Abr)' : quadrimestre === '2Q' ? '2º Quadrimestre (Mai - Ago)' : '3º Quadrimestre (Set - Dez)'} • {year || 2026}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-4 relative z-10">
@@ -496,26 +638,42 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
 
                 {/* Ações Rápidas */}
                 <div className="lg:col-span-3 flex flex-col gap-3">
-                    <button 
-                        onClick={() => setIsAdding(true)}
-                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 group relative overflow-hidden"
-                    >
-                        <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="bg-white/20 p-2 rounded-xl group-hover:scale-110 transition-transform">
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
-                        </div>
-                        <span className="text-[10px] uppercase tracking-[0.2em]">Adicionar Item</span>
-                    </button>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => setIsAdding(true)}
+                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 group relative overflow-hidden py-3.5 px-3"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div className="bg-white/20 p-1.5 rounded-xl group-hover:scale-110 transition-transform">
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+                            </div>
+                            <span className="text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">Adicionar Item</span>
+                        </button>
+                        {isQuadrimestreCategory && (
+                            <button 
+                                onClick={() => {
+                                    const defaultOpt = sourcePeriodOptions.find(o => o.count > 0);
+                                    if (defaultOpt) setCopySourcePeriod(defaultOpt.id);
+                                    setShowCopyModal(true);
+                                }}
+                                className="bg-zinc-800 hover:bg-zinc-700 text-white font-black rounded-2xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 group px-4 py-3.5 border border-zinc-700"
+                                title="Copiar itens cadastrados em outro quadrimestre"
+                            >
+                                <Copy className="h-4 w-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+                                <span className="text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">Copiar</span>
+                            </button>
+                        )}
+                    </div>
                     <button 
                         onClick={handlePrint}
-                        className="flex-1 bg-white hover:bg-zinc-50 text-zinc-600 border-2 border-zinc-100 font-black rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-3 group"
+                        className="flex-1 bg-white hover:bg-zinc-50 text-zinc-600 border-2 border-zinc-100 font-black rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-3 group py-3"
                     >
                         <svg className="h-4 w-4 text-zinc-400 group-hover:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 00-2 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                         <span className="text-[10px] uppercase tracking-[0.2em]">Gerar Relatório</span>
                     </button>
                     <button 
                         onClick={handlePrintHorizontal}
-                        className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-2 border-emerald-100 font-black rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-3 group"
+                        className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-2 border-emerald-100 font-black rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-3 group py-3"
                     >
                         <svg className="h-4 w-4 text-emerald-400 group-hover:text-emerald-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                         <span className="text-[10px] uppercase tracking-[0.2em]">Mapa de Distribuição</span>
@@ -766,12 +924,45 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                             ))}
                             {filteredItems.length === 0 && (
                                 <tr>
-                                    <td colSpan={12} className="p-20 text-center">
+                                    <td colSpan={12} className="p-16 text-center">
                                         <div className="flex flex-col items-center gap-3">
-                                            <div className="bg-zinc-50 p-4 rounded-full">
+                                            <div className="bg-zinc-50 p-4 rounded-full border border-zinc-100">
                                                 <svg className="h-8 w-8 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
                                             </div>
-                                            <p className="text-zinc-400 font-bold uppercase text-[10px] tracking-widest">Nenhum produto encontrado</p>
+                                            <p className="text-zinc-600 font-black uppercase text-xs tracking-wider">
+                                                {isQuadrimestreCategory 
+                                                    ? `Nenhum item cadastrado para o ${quadrimestre === '1Q' ? '1º' : quadrimestre === '2Q' ? '2º' : '3º'} Quadrimestre (${year || 2026})`
+                                                    : 'Nenhum produto encontrado'
+                                                }
+                                            </p>
+                                            {isQuadrimestreCategory && (
+                                                <p className="text-zinc-400 text-xs max-w-md text-center">
+                                                    Cadastre itens individualmente para este quadrimestre com seus respectivos preços e quantidades, ou copie de outro quadrimestre.
+                                                </p>
+                                            )}
+                                            {isQuadrimestreCategory && (
+                                                <div className="flex gap-2 mt-2">
+                                                    <button 
+                                                        onClick={() => setIsAdding(true)}
+                                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all"
+                                                    >
+                                                        + Adicionar Item
+                                                    </button>
+                                                    {sourcePeriodOptions.some(o => o.count > 0) && (
+                                                        <button 
+                                                            onClick={() => {
+                                                                const defaultOpt = sourcePeriodOptions.find(o => o.count > 0);
+                                                                if (defaultOpt) setCopySourcePeriod(defaultOpt.id);
+                                                                setShowCopyModal(true);
+                                                            }}
+                                                            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-2"
+                                                        >
+                                                            <Copy className="w-3.5 h-3.5 text-indigo-400" />
+                                                            Copiar de Outro Quadrimestre
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -795,8 +986,17 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                     <h3 className="text-2xl font-black uppercase tracking-tighter leading-none">
                                         {editingId ? 'Editar Produto' : 'Novo Registro'}
                                     </h3>
-                                    <div className="mt-4 inline-flex items-center bg-white/10 px-3 py-1 rounded-full border border-white/10">
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-300">{category}</span>
+                                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                                        <div className="inline-flex items-center bg-white/10 px-3 py-1 rounded-full border border-white/10">
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-300">{category}</span>
+                                        </div>
+                                        {isQuadrimestreCategory && (
+                                            <div className="inline-flex items-center bg-indigo-500/20 px-3 py-1 rounded-full border border-indigo-400/30">
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-indigo-300">
+                                                    {((editingQuadrimestre || quadrimestre) === '1Q' ? '1º Quadrimestre' : (editingQuadrimestre || quadrimestre) === '2Q' ? '2º Quadrimestre' : '3º Quadrimestre')} • {editingYear || year || 2026}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 <button onClick={resetForm} className="p-2 hover:bg-white/10 rounded-full transition-colors">
@@ -870,7 +1070,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Nat. Despesa</label>
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Natureza de Despesa</label>
                                     <input 
                                         type="text" 
                                         value={expenseNature} 
@@ -879,7 +1079,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         placeholder="339030"
                                     />
                                 </div>
-                                <div className="space-y-2">
+                                <div className="space-y-2 md:col-span-3">
                                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Nota de Empenho</label>
                                     <input 
                                         type="text" 
@@ -892,7 +1092,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                             </div>
 
                             {/* Grid de Valores e Unidade */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            <div className={`grid grid-cols-2 ${isQuadrimestreCategory ? 'md:grid-cols-4' : 'md:grid-cols-5'} gap-6`}>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Unidade</label>
                                     <select 
@@ -909,7 +1109,9 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                     </select>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Qtd. Adq.</label>
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">
+                                        {isQuadrimestreCategory ? 'Qtd. Contratada' : 'Qtd. Adq.'}
+                                    </label>
                                     <input 
                                         type="text" 
                                         value={acquiredQuantity} 
@@ -918,7 +1120,7 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Saldo Est.</label>
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Saldo Estoque</label>
                                     <input 
                                         type="text" 
                                         value={stockBalance} 
@@ -926,26 +1128,41 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                         className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all"
                                     />
                                 </div>
+                                {isQuadrimestreCategory ? (
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest ml-1">Preço Unitário (R$)</label>
+                                        <input 
+                                            type="text" 
+                                            value={unitValue} 
+                                            onChange={e => setUnitValue(e.target.value)} 
+                                            className="w-full bg-indigo-50/30 border-2 border-indigo-200 rounded-2xl p-4 font-mono font-black text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all text-indigo-900"
+                                            placeholder="0,00"
+                                        />
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vlr. 1º Quad.</label>
+                                            <input 
+                                                type="text" 
+                                                value={unitValue} 
+                                                onChange={e => setUnitValue(e.target.value)} 
+                                                className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vlr. 2/3º Quad.</label>
+                                            <input 
+                                                type="text" 
+                                                value={unitValue23} 
+                                                onChange={e => setUnitValue23(e.target.value)} 
+                                                className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                            />
+                                        </div>
+                                    </>
+                                )}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vlr. 1º Quad.</label>
-                                    <input 
-                                        type="text" 
-                                        value={unitValue} 
-                                        onChange={e => setUnitValue(e.target.value)} 
-                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vlr. 2/3º Quad.</label>
-                                    <input 
-                                        type="text" 
-                                        value={unitValue23} 
-                                        onChange={e => setUnitValue23(e.target.value)} 
-                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Aditivo de Contrato</label>
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Aditivo Contrato</label>
                                     <input 
                                         type="text" 
                                         value={contractAddendum} 
@@ -970,6 +1187,110 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ items, ca
                                 className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 uppercase text-[10px] tracking-[0.2em] disabled:bg-zinc-400"
                             >
                                 {isSaving ? 'Processando...' : (editingId ? 'Atualizar Registro' : 'Confirmar Cadastro')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Cópia entre Quadrimestres */}
+            {showCopyModal && (
+                <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-md flex justify-center items-center z-[210] p-4">
+                    <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-in flex flex-col border border-zinc-200">
+                        <div className="bg-zinc-900 p-6 text-white relative overflow-hidden">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] block mb-1">Cópia de Cadastro</span>
+                                    <h3 className="text-xl font-black uppercase tracking-tight">Copiar Itens entre Quadrimestres</h3>
+                                    <p className="text-xs text-zinc-400 mt-1">
+                                        Destino: <strong className="text-white">{quadrimestre === '1Q' ? '1º' : quadrimestre === '2Q' ? '2º' : '3º'} Quadrimestre ({year || 2026})</strong>
+                                    </p>
+                                </div>
+                                <button onClick={() => setShowCopyModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-zinc-400 hover:text-white">
+                                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Quadrimestre de Origem</label>
+                                <select 
+                                    value={copySourcePeriod}
+                                    onChange={e => setCopySourcePeriod(e.target.value)}
+                                    className="w-full bg-zinc-50 border-2 border-zinc-200 rounded-2xl p-4 font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                >
+                                    <option value="">-- SELECIONE O PERÍODO DE ORIGEM --</option>
+                                    {sourcePeriodOptions.map(opt => (
+                                        <option key={opt.id} value={opt.id} disabled={opt.count === 0}>
+                                            {opt.label} — ({opt.count} {opt.count === 1 ? 'item' : 'itens'})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="space-y-3 bg-zinc-50 p-4 rounded-2xl border border-zinc-100">
+                                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block">Configuração dos Dados</span>
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input 
+                                        type="radio" 
+                                        name="copyKeep" 
+                                        checked={copyKeepValues} 
+                                        onChange={() => setCopyKeepValues(true)}
+                                        className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <div>
+                                        <span className="text-xs font-bold text-zinc-800 block">Manter preços e quantidades</span>
+                                        <span className="text-[10px] text-zinc-500">Copia os itens com os valores atuais para posterior ajuste</span>
+                                    </div>
+                                </label>
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input 
+                                        type="radio" 
+                                        name="copyKeep" 
+                                        checked={!copyKeepValues} 
+                                        onChange={() => setCopyKeepValues(false)}
+                                        className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <div>
+                                        <span className="text-xs font-bold text-zinc-800 block">Zerar preços e quantidades</span>
+                                        <span className="text-[10px] text-zinc-500">Importa apenas o catálogo para preencher novas cotações do zero</span>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex items-start gap-3">
+                                <AlertCircle className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+                                <p className="text-[11px] text-indigo-800 leading-relaxed">
+                                    Os itens copiados serão cadastrados exclusivamente no <strong>{quadrimestre === '1Q' ? '1º' : quadrimestre === '2Q' ? '2º' : '3º'} Quadrimestre de {year || 2026}</strong>. Os dados do período de origem permanecerão intocados.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-zinc-50 border-t border-zinc-100 flex gap-3">
+                            <button 
+                                onClick={() => setShowCopyModal(false)}
+                                disabled={isCopying}
+                                className="flex-1 bg-white border border-zinc-200 hover:bg-zinc-100 text-zinc-600 font-black py-3.5 rounded-xl transition-all uppercase text-[10px] tracking-widest disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={handleCopyItems}
+                                disabled={isCopying || !copySourcePeriod}
+                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl shadow-lg transition-all active:scale-95 uppercase text-[10px] tracking-widest disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {isCopying ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                        <span>Copiando...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Copy className="w-4 h-4" />
+                                        <span>Importar Itens</span>
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>

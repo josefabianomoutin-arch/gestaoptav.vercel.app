@@ -278,6 +278,8 @@ export interface AcquisitionItem {
     nickname?: string;
     commitmentNumber?: string;
     commitmentValue?: number;
+    year?: number;
+    quadrimestre?: '1Q' | '2Q' | '3Q';
 }
 
 export interface VehicleExitOrder {

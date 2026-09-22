@@ -5,7 +5,7 @@ import type { PerCapitaSupplier, Delivery } from '../types';
 import ConfirmModal from './ConfirmModal';
 import html2pdf from 'html2pdf.js';
 import { PoliciaPenalLogo } from './PoliciaPenalLogo';
-import { FileText, Upload, AlertCircle, X, Download, Trash2, Calendar } from 'lucide-react';
+import { FileText, Upload, AlertCircle, X, Download, Trash2, Calendar, Copy, RefreshCw } from 'lucide-react';
 import { ensureArray } from '../lib/utils';
 
 interface AdminPerCapitaSuppliersProps {
@@ -15,16 +15,93 @@ interface AdminPerCapitaSuppliersProps {
     onDeleteDelivery?: (supplierCpf: string, deliveryId: string) => Promise<{ success: boolean }>;
     type: 'PRODUTOR' | 'FORNECEDOR';
     colorScheme?: 'emerald' | 'indigo';
+    quadrimestreInfo?: { quadrimestre: string; year: number };
+    otherQuadrimestres?: { label: string; suppliers: PerCapitaSupplier[] }[];
 }
 
 const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppliers, onUpdate, onSaveInvoice, onDeleteDelivery, type, colorScheme = 'emerald' }) => {
+const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ 
+    suppliers, 
+    onUpdate, 
+    onSaveInvoice, 
+    onDeleteDelivery, 
+    type, 
+    colorScheme = 'emerald',
+    quadrimestreInfo,
+    otherQuadrimestres
+}) => {
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const tableRef = useRef<HTMLDivElement>(null);
     
+    // Copy Modal State
+    const [showCopyModal, setShowCopyModal] = useState(false);
+    const [copySourceIndex, setCopySourceIndex] = useState<number>(0);
+    const [copyKeepItems, setCopyKeepItems] = useState<boolean>(true);
+    const [isCopying, setIsCopying] = useState<boolean>(false);
+
+    const handleCopySuppliers = async () => {
+        if (!otherQuadrimestres || !otherQuadrimestres[copySourceIndex]) {
+            toast.error("Selecione um período de origem válido.");
+            return;
+        }
+
+        const source = otherQuadrimestres[copySourceIndex];
+        const sourceSuppliers = source.suppliers || [];
+
+        if (sourceSuppliers.length === 0) {
+            toast.error("O período de origem selecionado não possui fornecedores cadastrados.");
+            return;
+        }
+
+        setIsCopying(true);
+        try {
+            const cleanCpf = (c: string) => String(c || '').replace(/[^\d]/g, '');
+            const currentCpfs = new Set(suppliers.map(s => cleanCpf(s.cpfCnpj || s.cpf || '')));
+
+            const newSuppliersToAdd: PerCapitaSupplier[] = [];
+
+            for (const sup of sourceSuppliers) {
+                const supCpf = cleanCpf(sup.cpfCnpj || sup.cpf || '');
+                if (!supCpf) continue;
+
+                // Clone supplier
+                const clonedSupplier: PerCapitaSupplier = {
+                    ...sup,
+                    id: crypto.randomUUID ? crypto.randomUUID() : `sup_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                    deliveries: [],
+                    contractItems: copyKeepItems 
+                        ? (sup.contractItems || []).map(ci => ({ ...ci }))
+                        : []
+                };
+
+                if (!currentCpfs.has(supCpf)) {
+                    newSuppliersToAdd.push(clonedSupplier);
+                    currentCpfs.add(supCpf);
+                }
+            }
+
+            if (newSuppliersToAdd.length === 0) {
+                toast.info("Todos os fornecedores do período selecionado já constam neste quadrimestre.");
+                setShowCopyModal(false);
+                setIsCopying(false);
+                return;
+            }
+
+            const updatedList = [...suppliers, ...newSuppliersToAdd];
+            await onUpdate(updatedList);
+            toast.success(`${newSuppliersToAdd.length} fornecedor(es) importado(s) para este quadrimestre com sucesso!`);
+            setShowCopyModal(false);
+        } catch (err) {
+            console.error("Erro ao copiar fornecedores:", err);
+            toast.error("Erro ao copiar fornecedores.");
+        } finally {
+            setIsCopying(false);
+        }
+    };
+
     // Invoices Modal State
     const [showInvoicesModal, setShowInvoicesModal] = useState(false);
     const [selectedSupplierForInvoices, setSelectedSupplierForInvoices] = useState<PerCapitaSupplier | null>(null);
@@ -220,27 +297,47 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
     return (
         <div className="space-y-6 animate-fade-in">
             <div className={`flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-[2rem] shadow-xl border-b-4 ${colorClasses.border}`}>
-                <div className="relative w-full md:max-w-md">
-                    <input 
-                        type="text" 
-                        placeholder={`Pesquisar ${type.toLowerCase()}, CPF ou processo...`} 
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className={`w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-2xl outline-none font-bold transition-all shadow-inner`}
-                    />
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full md:max-w-xl">
+                    <div className="relative w-full">
+                        <input 
+                            type="text" 
+                            placeholder={`Pesquisar ${type.toLowerCase()}, CPF ou processo...`} 
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            className={`w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent ${colorClasses.focus} rounded-2xl outline-none font-bold transition-all shadow-inner`}
+                        />
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    </div>
+                    {quadrimestreInfo && (
+                        <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-xl">
+                            <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse"></span>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-950">
+                                {quadrimestreInfo.quadrimestre === '1Q' ? '1º Quadrimestre' : quadrimestreInfo.quadrimestre === '2Q' ? '2º Quadrimestre' : '3º Quadrimestre'} ({quadrimestreInfo.year})
+                            </span>
+                        </div>
+                    )}
                 </div>
-                <div className="flex gap-2 w-full md:w-auto">
+                <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
+                    {otherQuadrimestres && otherQuadrimestres.some(o => o.suppliers && o.suppliers.length > 0) && (
+                        <button 
+                            onClick={() => setShowCopyModal(true)}
+                            className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-800 text-white font-black py-4 px-6 rounded-2xl shadow-lg transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2"
+                            title="Importar cadastro de fornecedores de outro quadrimestre"
+                        >
+                            <Copy className="h-4 w-4 text-indigo-400" />
+                            Copiar
+                        </button>
+                    )}
                     <button 
                         onClick={handlePrintList}
-                        className="w-full md:w-auto bg-white border-2 border-gray-200 text-gray-600 font-black py-4 px-8 rounded-2xl shadow-lg hover:bg-gray-50 transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2"
+                        className="w-full sm:w-auto bg-white border-2 border-gray-200 text-gray-600 font-black py-4 px-6 rounded-2xl shadow-lg hover:bg-gray-50 transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                         PDF
                     </button>
                     <button 
                         onClick={() => { resetForm(); setIsAdding(true); }}
-                        className={`w-full md:w-auto ${colorClasses.bg} ${colorClasses.hover} text-white font-black py-4 px-8 rounded-2xl shadow-lg ${colorClasses.shadow} transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2`}
+                        className={`w-full sm:w-auto ${colorClasses.bg} ${colorClasses.hover} text-white font-black py-4 px-8 rounded-2xl shadow-lg ${colorClasses.shadow} transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2`}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
                         Novo {type}
@@ -675,6 +772,111 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({ suppl
                                 className="px-10 py-4 bg-white border-2 border-zinc-200 text-zinc-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-zinc-50 transition-all shadow-sm"
                             >
                                 Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Cópia de Fornecedores entre Quadrimestres */}
+            {showCopyModal && otherQuadrimestres && (
+                <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-md flex justify-center items-center z-[210] p-4">
+                    <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-in flex flex-col border border-zinc-200">
+                        <div className="bg-zinc-900 p-6 text-white relative overflow-hidden">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] block mb-1">Cópia de Cadastro</span>
+                                    <h3 className="text-xl font-black uppercase tracking-tight">Copiar {type}s entre Quadrimestres</h3>
+                                    {quadrimestreInfo && (
+                                        <p className="text-xs text-zinc-400 mt-1">
+                                            Destino: <strong className="text-white">{quadrimestreInfo.quadrimestre === '1Q' ? '1º' : quadrimestreInfo.quadrimestre === '2Q' ? '2º' : '3º'} Quadrimestre ({quadrimestreInfo.year})</strong>
+                                        </p>
+                                    )}
+                                </div>
+                                <button onClick={() => setShowCopyModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-zinc-400 hover:text-white">
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Quadrimestre de Origem</label>
+                                <select 
+                                    value={copySourceIndex}
+                                    onChange={e => setCopySourceIndex(Number(e.target.value))}
+                                    className="w-full bg-zinc-50 border-2 border-zinc-200 rounded-2xl p-4 font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                >
+                                    {otherQuadrimestres.map((opt, idx) => (
+                                        <option key={idx} value={idx} disabled={!opt.suppliers || opt.suppliers.length === 0}>
+                                            {opt.label} — ({(opt.suppliers || []).length} {type.toLowerCase()}{(opt.suppliers || []).length === 1 ? '' : 'es'})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="space-y-3 bg-zinc-50 p-4 rounded-2xl border border-zinc-100">
+                                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block">Itens e Contratos</span>
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input 
+                                        type="radio" 
+                                        name="copySupKeep" 
+                                        checked={copyKeepItems} 
+                                        onChange={() => setCopyKeepItems(true)}
+                                        className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <div>
+                                        <span className="text-xs font-bold text-zinc-800 block">Manter itens de contrato já distribuídos</span>
+                                        <span className="text-[10px] text-zinc-500">Copia fornecedores trazendo também suas distribuições de peso anteriores</span>
+                                    </div>
+                                </label>
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input 
+                                        type="radio" 
+                                        name="copySupKeep" 
+                                        checked={!copyKeepItems} 
+                                        onChange={() => setCopyKeepItems(false)}
+                                        className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <div>
+                                        <span className="text-xs font-bold text-zinc-800 block">Limpar itens de contrato</span>
+                                        <span className="text-[10px] text-zinc-500">Importa apenas o cadastro e dados dos fornecedores para nova distribuição</span>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex items-start gap-3">
+                                <AlertCircle className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+                                <p className="text-[11px] text-indigo-800 leading-relaxed">
+                                    Fornecedores já cadastrados neste quadrimestre não serão duplicados. Novos fornecedores serão adicionados mantendo os cadastros originais protegidos.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-zinc-50 border-t border-zinc-100 flex gap-3">
+                            <button 
+                                onClick={() => setShowCopyModal(false)}
+                                disabled={isCopying}
+                                className="flex-1 bg-white border border-zinc-200 hover:bg-zinc-100 text-zinc-600 font-black py-3.5 rounded-xl transition-all uppercase text-[10px] tracking-widest disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={handleCopySuppliers}
+                                disabled={isCopying}
+                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl shadow-lg transition-all active:scale-95 uppercase text-[10px] tracking-widest disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {isCopying ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                        <span>Importando...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Copy className="w-4 h-4" />
+                                        <span>Importar {type}s</span>
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
