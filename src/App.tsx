@@ -377,6 +377,26 @@ const App: React.FC = () => {
     const unsubPerCapita = onValue(perCapitaConfigRef, (snapshot) => {
       const data = snapshot.val();
       const config = data || {};
+      
+      // Auto-migração e salvaguarda: Garante que os dados dos meses anteriores (2Q) retornem se pereciveisSuppliers existia
+      const pLegacy = Array.isArray(config.pereciveisSuppliers) ? config.pereciveisSuppliers : Object.values(config.pereciveisSuppliers || {});
+      const p2Q = Array.isArray(config.pereciveisSuppliers2Q) ? config.pereciveisSuppliers2Q : Object.values(config.pereciveisSuppliers2Q || {});
+      if (p2Q.length === 0 && pLegacy.length > 0) {
+        config.pereciveisSuppliers2Q = pLegacy;
+      }
+      if (pLegacy.length === 0 && p2Q.length > 0) {
+        config.pereciveisSuppliers = p2Q;
+      }
+
+      const eLegacy = Array.isArray(config.estocaveisSuppliers) ? config.estocaveisSuppliers : Object.values(config.estocaveisSuppliers || {});
+      const e2Q = Array.isArray(config.estocaveisSuppliers2Q) ? config.estocaveisSuppliers2Q : Object.values(config.estocaveisSuppliers2Q || {});
+      if (e2Q.length === 0 && eLegacy.length > 0) {
+        config.estocaveisSuppliers2Q = eLegacy;
+      }
+      if (eLegacy.length === 0 && e2Q.length > 0) {
+        config.estocaveisSuppliers = e2Q;
+      }
+
       setPerCapitaConfig(config);
       setIsPerCapitaConfigLoaded(true);
       safeLocalStorageSetItem('cached_perCapitaConfig', JSON.stringify(config));
@@ -1284,7 +1304,9 @@ const App: React.FC = () => {
   const handleSyncPPAISToAgenda = async (overrideConfig?: PerCapitaConfig) => {
     const configToUse = overrideConfig || perCapitaConfig;
     const producers = ensureArray(configToUse?.ppaisProducers);
-    const pereciveis = ensureArray(configToUse?.pereciveisSuppliers);
+    const pereciveis = ensureArray(configToUse?.pereciveisSuppliers).length > 0 
+      ? ensureArray(configToUse?.pereciveisSuppliers)
+      : [...ensureArray(configToUse?.pereciveisSuppliers2Q), ...ensureArray(configToUse?.pereciveisSuppliers3Q), ...ensureArray(configToUse?.pereciveisSuppliers1Q)];
     const allPerCapita = [...producers, ...pereciveis];
 
     if (allPerCapita.length === 0) {

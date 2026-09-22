@@ -119,7 +119,13 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
     // 2. Add perCapitaConfig suppliers/producers from all tabs
     if (perCapitaConfig) {
-      const pcLists = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+      const pcLists = [
+        'ppaisProducers',
+        'pereciveisSuppliers', 'pereciveisSuppliers1Q', 'pereciveisSuppliers2Q', 'pereciveisSuppliers3Q',
+        'pereciveisSuppliers2027_1Q', 'pereciveisSuppliers2027_2Q', 'pereciveisSuppliers2027_3Q',
+        'estocaveisSuppliers', 'estocaveisSuppliers1Q', 'estocaveisSuppliers2Q', 'estocaveisSuppliers3Q',
+        'estocaveisSuppliers2027_1Q', 'estocaveisSuppliers2027_2Q', 'estocaveisSuppliers2027_3Q'
+      ];
       pcLists.forEach(listKey => {
         ensureArray(perCapitaConfig[listKey]).forEach((pcSupplier: any) => {
           if (!pcSupplier) return;
@@ -437,7 +443,13 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
 
     // Search specifically in perCapitaConfig as backup
     if (perCapitaConfig && cleanActiveCpf) {
-        const pcLists = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+        const pcLists = [
+          'ppaisProducers',
+          'pereciveisSuppliers', 'pereciveisSuppliers1Q', 'pereciveisSuppliers2Q', 'pereciveisSuppliers3Q',
+          'pereciveisSuppliers2027_1Q', 'pereciveisSuppliers2027_2Q', 'pereciveisSuppliers2027_3Q',
+          'estocaveisSuppliers', 'estocaveisSuppliers1Q', 'estocaveisSuppliers2Q', 'estocaveisSuppliers3Q',
+          'estocaveisSuppliers2027_1Q', 'estocaveisSuppliers2027_2Q', 'estocaveisSuppliers2027_3Q'
+        ];
         pcLists.forEach(listKey => {
             ensureArray<any>(perCapitaConfig[listKey]).forEach((pcSupplier: any) => {
                 if (pcSupplier && cleanStr(pcSupplier.cpfCnpj || pcSupplier.cpf) === cleanActiveCpf) {

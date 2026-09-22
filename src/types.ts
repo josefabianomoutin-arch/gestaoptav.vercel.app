@@ -104,12 +104,21 @@ export interface WarehouseMovement {
 
 export interface PerCapitaConfig {
     ppaisProducers?: PerCapitaSupplier[];
+    pereciveisSuppliers?: PerCapitaSupplier[];
+    estocaveisSuppliers?: PerCapitaSupplier[];
     pereciveisSuppliers1Q?: PerCapitaSupplier[];
     pereciveisSuppliers2Q?: PerCapitaSupplier[];
     pereciveisSuppliers3Q?: PerCapitaSupplier[];
     estocaveisSuppliers1Q?: PerCapitaSupplier[];
     estocaveisSuppliers2Q?: PerCapitaSupplier[];
     estocaveisSuppliers3Q?: PerCapitaSupplier[];
+    pereciveisSuppliers2027_1Q?: PerCapitaSupplier[];
+    pereciveisSuppliers2027_2Q?: PerCapitaSupplier[];
+    pereciveisSuppliers2027_3Q?: PerCapitaSupplier[];
+    estocaveisSuppliers2027_1Q?: PerCapitaSupplier[];
+    estocaveisSuppliers2027_2Q?: PerCapitaSupplier[];
+    estocaveisSuppliers2027_3Q?: PerCapitaSupplier[];
+    contractsByYearQuadrimestre?: Record<string, PerCapitaSupplier[]>;
     inmateCount?: number;
     staffCount?: number;
     customValues?: Record<string, any>;

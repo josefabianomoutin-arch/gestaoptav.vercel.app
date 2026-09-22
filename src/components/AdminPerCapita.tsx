@@ -79,8 +79,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS' | 'CONTRACT' | 'ATA' | 'SCHEDULE'>('ITEMS');
     const [pereciveisSubTab, setPereciveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
     const [estocaveisSubTab, setEstocaveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
-    const [pereciveis3QSubTab, setPereciveis3QSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
-    const [estocaveis3QSubTab, setEstocaveis3QSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
     const [staffCount, setStaffCount] = useState<number>(() => perCapitaConfig?.staffCount !== undefined ? Number(perCapitaConfig.staffCount) : parseInt(localStorage.getItem('perCapita_staffCount') || '0', 10));
     const [inmateCount, setInmateCount] = useState<number>(() => perCapitaConfig?.inmateCount !== undefined ? Number(perCapitaConfig.inmateCount) : parseInt(localStorage.getItem('perCapita_inmateCount') || '0', 10));
     const [customPerCapita, setCustomPerCapita] = useState<Record<string, string>>(() => perCapitaConfig?.customValues || {});
@@ -89,13 +87,21 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [monthlyQuota, setMonthlyQuota] = useState<Record<string, number>>(() => perCapitaConfig?.monthlyQuota || {});
     const [monthlyResource, setMonthlyResource] = useState<Record<string, number>>(() => perCapitaConfig?.monthlyResource || {});
     const [ptresResources, setPtresResources] = useState<Record<string, { pieces: number; services: number }>>(() => perCapitaConfig?.ptresResources || {});
+    const [selectedYear, setSelectedYear] = useState<number>(2026);
+    const [selectedQuadrimestre, setSelectedQuadrimestre] = useState<'1Q' | '2Q' | '3Q'>('3Q');
     const [ppaisProducers, setPpaisProducers] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.ppaisProducers));
     const [pereciveisSuppliers1Q, setPereciveisSuppliers1Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.pereciveisSuppliers1Q));
     const [pereciveisSuppliers2Q, setPereciveisSuppliers2Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.pereciveisSuppliers2Q));
     const [pereciveisSuppliers3Q, setPereciveisSuppliers3Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.pereciveisSuppliers3Q));
+    const [pereciveisSuppliers2027_1Q, setPereciveisSuppliers2027_1Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.pereciveisSuppliers2027_1Q));
+    const [pereciveisSuppliers2027_2Q, setPereciveisSuppliers2027_2Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.pereciveisSuppliers2027_2Q));
+    const [pereciveisSuppliers2027_3Q, setPereciveisSuppliers2027_3Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.pereciveisSuppliers2027_3Q));
     const [estocaveisSuppliers1Q, setEstocaveisSuppliers1Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.estocaveisSuppliers1Q));
     const [estocaveisSuppliers2Q, setEstocaveisSuppliers2Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.estocaveisSuppliers2Q));
     const [estocaveisSuppliers3Q, setEstocaveisSuppliers3Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.estocaveisSuppliers3Q));
+    const [estocaveisSuppliers2027_1Q, setEstocaveisSuppliers2027_1Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.estocaveisSuppliers2027_1Q));
+    const [estocaveisSuppliers2027_2Q, setEstocaveisSuppliers2027_2Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.estocaveisSuppliers2027_2Q));
+    const [estocaveisSuppliers2027_3Q, setEstocaveisSuppliers2027_3Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.estocaveisSuppliers2027_3Q));
     const [monthlyAdvances, setMonthlyAdvances] = useState<Record<string, number>>(() => perCapitaConfig?.monthlyAdvances || {});
     const [showComparison, setShowComparison] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
@@ -103,6 +109,49 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [comparisonFilter, setComparisonFilter] = useState<'TODOS' | 'SEM_ENTREGA' | 'ATENCAO' | 'AVANCADO' | 'CONCLUIDO' | 'COM_EMPENHO'>('TODOS');
     const [scheduleView, setScheduleView] = useState<'CALENDAR' | 'SUPPLIER'>('CALENDAR');
+
+    const currentPereciveisSuppliers = useMemo(() => {
+        if (selectedYear === 2027) {
+            if (selectedQuadrimestre === '1Q') return pereciveisSuppliers2027_1Q;
+            if (selectedQuadrimestre === '2Q') return pereciveisSuppliers2027_2Q;
+            return pereciveisSuppliers2027_3Q;
+        }
+        if (selectedQuadrimestre === '1Q') return pereciveisSuppliers1Q;
+        if (selectedQuadrimestre === '2Q') return pereciveisSuppliers2Q;
+        return pereciveisSuppliers3Q;
+    }, [selectedYear, selectedQuadrimestre, pereciveisSuppliers1Q, pereciveisSuppliers2Q, pereciveisSuppliers3Q, pereciveisSuppliers2027_1Q, pereciveisSuppliers2027_2Q, pereciveisSuppliers2027_3Q]);
+
+    const currentEstocaveisSuppliers = useMemo(() => {
+        if (selectedYear === 2027) {
+            if (selectedQuadrimestre === '1Q') return estocaveisSuppliers2027_1Q;
+            if (selectedQuadrimestre === '2Q') return estocaveisSuppliers2027_2Q;
+            return estocaveisSuppliers2027_3Q;
+        }
+        if (selectedQuadrimestre === '1Q') return estocaveisSuppliers1Q;
+        if (selectedQuadrimestre === '2Q') return estocaveisSuppliers2Q;
+        return estocaveisSuppliers3Q;
+    }, [selectedYear, selectedQuadrimestre, estocaveisSuppliers1Q, estocaveisSuppliers2Q, estocaveisSuppliers3Q, estocaveisSuppliers2027_1Q, estocaveisSuppliers2027_2Q, estocaveisSuppliers2027_3Q]);
+
+    const allPereciveisSuppliers = useMemo(() => [
+        ...pereciveisSuppliers1Q,
+        ...pereciveisSuppliers2Q,
+        ...pereciveisSuppliers3Q,
+        ...pereciveisSuppliers2027_1Q,
+        ...pereciveisSuppliers2027_2Q,
+        ...pereciveisSuppliers2027_3Q
+    ], [pereciveisSuppliers1Q, pereciveisSuppliers2Q, pereciveisSuppliers3Q, pereciveisSuppliers2027_1Q, pereciveisSuppliers2027_2Q, pereciveisSuppliers2027_3Q]);
+
+    const allEstocaveisSuppliers = useMemo(() => [
+        ...estocaveisSuppliers1Q,
+        ...estocaveisSuppliers2Q,
+        ...estocaveisSuppliers3Q,
+        ...estocaveisSuppliers2027_1Q,
+        ...estocaveisSuppliers2027_2Q,
+        ...estocaveisSuppliers2027_3Q
+    ], [estocaveisSuppliers1Q, estocaveisSuppliers2Q, estocaveisSuppliers3Q, estocaveisSuppliers2027_1Q, estocaveisSuppliers2027_2Q, estocaveisSuppliers2027_3Q]);
+
+    const _pereciveisSuppliers = currentPereciveisSuppliers;
+    const _estocaveisSuppliers = currentEstocaveisSuppliers;
 
     useEffect(() => {
         if (!perCapitaConfig) return;
@@ -126,17 +175,29 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             setPereciveisSuppliers1Q(ensureArray(perCapitaConfig.pereciveisSuppliers1Q));
             setPereciveisSuppliers2Q(ensureArray(perCapitaConfig.pereciveisSuppliers2Q));
             setPereciveisSuppliers3Q(ensureArray(perCapitaConfig.pereciveisSuppliers3Q));
+            setPereciveisSuppliers2027_1Q(ensureArray(perCapitaConfig.pereciveisSuppliers2027_1Q));
+            setPereciveisSuppliers2027_2Q(ensureArray(perCapitaConfig.pereciveisSuppliers2027_2Q));
+            setPereciveisSuppliers2027_3Q(ensureArray(perCapitaConfig.pereciveisSuppliers2027_3Q));
             setEstocaveisSuppliers1Q(ensureArray(perCapitaConfig.estocaveisSuppliers1Q));
             setEstocaveisSuppliers2Q(ensureArray(perCapitaConfig.estocaveisSuppliers2Q));
             setEstocaveisSuppliers3Q(ensureArray(perCapitaConfig.estocaveisSuppliers3Q));
+            setEstocaveisSuppliers2027_1Q(ensureArray(perCapitaConfig.estocaveisSuppliers2027_1Q));
+            setEstocaveisSuppliers2027_2Q(ensureArray(perCapitaConfig.estocaveisSuppliers2027_2Q));
+            setEstocaveisSuppliers2027_3Q(ensureArray(perCapitaConfig.estocaveisSuppliers2027_3Q));
         } else {
             if (perCapitaConfig.ppaisProducers) setPpaisProducers(ensureArray(perCapitaConfig.ppaisProducers));
             if (perCapitaConfig.pereciveisSuppliers1Q) setPereciveisSuppliers1Q(ensureArray(perCapitaConfig.pereciveisSuppliers1Q));
             if (perCapitaConfig.pereciveisSuppliers2Q) setPereciveisSuppliers2Q(ensureArray(perCapitaConfig.pereciveisSuppliers2Q));
             if (perCapitaConfig.pereciveisSuppliers3Q) setPereciveisSuppliers3Q(ensureArray(perCapitaConfig.pereciveisSuppliers3Q));
+            if (perCapitaConfig.pereciveisSuppliers2027_1Q) setPereciveisSuppliers2027_1Q(ensureArray(perCapitaConfig.pereciveisSuppliers2027_1Q));
+            if (perCapitaConfig.pereciveisSuppliers2027_2Q) setPereciveisSuppliers2027_2Q(ensureArray(perCapitaConfig.pereciveisSuppliers2027_2Q));
+            if (perCapitaConfig.pereciveisSuppliers2027_3Q) setPereciveisSuppliers2027_3Q(ensureArray(perCapitaConfig.pereciveisSuppliers2027_3Q));
             if (perCapitaConfig.estocaveisSuppliers1Q) setEstocaveisSuppliers1Q(ensureArray(perCapitaConfig.estocaveisSuppliers1Q));
             if (perCapitaConfig.estocaveisSuppliers2Q) setEstocaveisSuppliers2Q(ensureArray(perCapitaConfig.estocaveisSuppliers2Q));
             if (perCapitaConfig.estocaveisSuppliers3Q) setEstocaveisSuppliers3Q(ensureArray(perCapitaConfig.estocaveisSuppliers3Q));
+            if (perCapitaConfig.estocaveisSuppliers2027_1Q) setEstocaveisSuppliers2027_1Q(ensureArray(perCapitaConfig.estocaveisSuppliers2027_1Q));
+            if (perCapitaConfig.estocaveisSuppliers2027_2Q) setEstocaveisSuppliers2027_2Q(ensureArray(perCapitaConfig.estocaveisSuppliers2027_2Q));
+            if (perCapitaConfig.estocaveisSuppliers2027_3Q) setEstocaveisSuppliers2027_3Q(ensureArray(perCapitaConfig.estocaveisSuppliers2027_3Q));
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [perCapitaConfig]);
@@ -154,12 +215,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     useEffect(() => {
         if (selectedProducer) {
             const source = activeSubTab === 'PPAIS' ? ppaisProducers : 
-                           (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers1Q : 
-                           (activeSubTab === 'PERECÍVEIS 2Q' ? pereciveisSuppliers2Q :
-                           (activeSubTab === 'PERECÍVEIS 3Q' ? pereciveisSuppliers3Q :
-                           (activeSubTab === 'ESTOCÁVEIS' ? estocaveisSuppliers1Q :
-                           (activeSubTab === 'ESTOCÁVEIS 2Q' ? estocaveisSuppliers2Q :
-                           (activeSubTab === 'ESTOCÁVEIS 3Q' ? estocaveisSuppliers3Q : []))))));
+                           (activeSubTab.startsWith('PERECÍVEIS') ? currentPereciveisSuppliers : 
+                           (activeSubTab.startsWith('ESTOCÁVEIS') ? currentEstocaveisSuppliers : []));
             const updated = source.find(p => p.id === selectedProducer.id);
             if (updated) {
                 if (JSON.stringify(updated) !== JSON.stringify(selectedProducer)) {
@@ -169,7 +226,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 setSelectedProducer(null);
             }
         }
-    }, [ppaisProducers, pereciveisSuppliers1Q, pereciveisSuppliers2Q, pereciveisSuppliers3Q, estocaveisSuppliers1Q, estocaveisSuppliers2Q, estocaveisSuppliers3Q, activeSubTab, selectedProducer]);
+    }, [ppaisProducers, currentPereciveisSuppliers, currentEstocaveisSuppliers, activeSubTab, selectedProducer]);
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -187,9 +244,17 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             pereciveisSuppliers1Q,
             pereciveisSuppliers2Q,
             pereciveisSuppliers3Q,
+            pereciveisSuppliers2027_1Q,
+            pereciveisSuppliers2027_2Q,
+            pereciveisSuppliers2027_3Q,
             estocaveisSuppliers1Q,
             estocaveisSuppliers2Q,
             estocaveisSuppliers3Q,
+            estocaveisSuppliers2027_1Q,
+            estocaveisSuppliers2027_2Q,
+            estocaveisSuppliers2027_3Q,
+            pereciveisSuppliers: pereciveisSuppliers2Q,
+            estocaveisSuppliers: estocaveisSuppliers2Q,
             monthlyAdvances,
         };
         console.log("Saving new configuration:", newConfig);
@@ -273,10 +338,22 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
 
     const handleUpdatePereciveisSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
-        const field = activeSubTab === 'PERECÍVEIS' ? 'pereciveisSuppliers1Q' : (activeSubTab === 'PERECÍVEIS 2Q' ? 'pereciveisSuppliers2Q' : 'pereciveisSuppliers3Q');
-        if (activeSubTab === 'PERECÍVEIS') setPereciveisSuppliers1Q(newSuppliers);
-        else if (activeSubTab === 'PERECÍVEIS 2Q') setPereciveisSuppliers2Q(newSuppliers);
-        else setPereciveisSuppliers3Q(newSuppliers);
+        let field: keyof PerCapitaConfig;
+        if (selectedYear === 2027) {
+            field = selectedQuadrimestre === '1Q' ? 'pereciveisSuppliers2027_1Q' :
+                    selectedQuadrimestre === '2Q' ? 'pereciveisSuppliers2027_2Q' :
+                    'pereciveisSuppliers2027_3Q';
+            if (selectedQuadrimestre === '1Q') setPereciveisSuppliers2027_1Q(newSuppliers);
+            else if (selectedQuadrimestre === '2Q') setPereciveisSuppliers2027_2Q(newSuppliers);
+            else setPereciveisSuppliers2027_3Q(newSuppliers);
+        } else {
+            field = selectedQuadrimestre === '1Q' ? 'pereciveisSuppliers1Q' :
+                    selectedQuadrimestre === '2Q' ? 'pereciveisSuppliers2Q' :
+                    'pereciveisSuppliers3Q';
+            if (selectedQuadrimestre === '1Q') setPereciveisSuppliers1Q(newSuppliers);
+            else if (selectedQuadrimestre === '2Q') setPereciveisSuppliers2Q(newSuppliers);
+            else setPereciveisSuppliers3Q(newSuppliers);
+        }
 
         const newConfig: PerCapitaConfig = {
             ...perCapitaConfig,
@@ -286,23 +363,35 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             const result = await onUpdatePerCapitaConfig({ [field]: newSuppliers });
             if (result && result.success) {
                 setIsDirty(false);
-                toast.success('Fornecedores salvos com sucesso!');
+                toast.success(`Fornecedores de Perecíveis (${selectedYear} - ${selectedQuadrimestre}) salvos com sucesso!`);
                 if (onSyncPPAISToAgenda) {
                     await onSyncPPAISToAgenda(newConfig);
                 }
             } else {
                 toast.error("Erro ao salvar fornecedores: " + (result?.message || 'Erro desconhecido'));
             }
-        } catch (error) {
+        } catch {
             toast.error("Erro ao salvar fornecedores.");
         }
-    }, [activeSubTab, onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
+    }, [selectedYear, selectedQuadrimestre, onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
 
     const handleUpdateEstocaveisSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
-        const field = activeSubTab === 'ESTOCÁVEIS' ? 'estocaveisSuppliers1Q' : (activeSubTab === 'ESTOCÁVEIS 2Q' ? 'estocaveisSuppliers2Q' : 'estocaveisSuppliers3Q');
-        if (activeSubTab === 'ESTOCÁVEIS') setEstocaveisSuppliers1Q(newSuppliers);
-        else if (activeSubTab === 'ESTOCÁVEIS 2Q') setEstocaveisSuppliers2Q(newSuppliers);
-        else setEstocaveisSuppliers3Q(newSuppliers);
+        let field: keyof PerCapitaConfig;
+        if (selectedYear === 2027) {
+            field = selectedQuadrimestre === '1Q' ? 'estocaveisSuppliers2027_1Q' :
+                    selectedQuadrimestre === '2Q' ? 'estocaveisSuppliers2027_2Q' :
+                    'estocaveisSuppliers2027_3Q';
+            if (selectedQuadrimestre === '1Q') setEstocaveisSuppliers2027_1Q(newSuppliers);
+            else if (selectedQuadrimestre === '2Q') setEstocaveisSuppliers2027_2Q(newSuppliers);
+            else setEstocaveisSuppliers2027_3Q(newSuppliers);
+        } else {
+            field = selectedQuadrimestre === '1Q' ? 'estocaveisSuppliers1Q' :
+                    selectedQuadrimestre === '2Q' ? 'estocaveisSuppliers2Q' :
+                    'estocaveisSuppliers3Q';
+            if (selectedQuadrimestre === '1Q') setEstocaveisSuppliers1Q(newSuppliers);
+            else if (selectedQuadrimestre === '2Q') setEstocaveisSuppliers2Q(newSuppliers);
+            else setEstocaveisSuppliers3Q(newSuppliers);
+        }
 
         const newConfig: PerCapitaConfig = {
             ...perCapitaConfig,
@@ -312,65 +401,17 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             const result = await onUpdatePerCapitaConfig({ [field]: newSuppliers });
             if (result && result.success) {
                 setIsDirty(false);
-                toast.success('Fornecedores salvos com sucesso!');
+                toast.success(`Fornecedores de Estocáveis (${selectedYear} - ${selectedQuadrimestre}) salvos com sucesso!`);
                 if (onSyncPPAISToAgenda) {
                     await onSyncPPAISToAgenda(newConfig);
                 }
             } else {
                 toast.error("Erro ao salvar fornecedores: " + (result?.message || 'Erro desconhecido'));
             }
-        } catch (error) {
+        } catch {
             toast.error("Erro ao salvar fornecedores.");
         }
-    }, [activeSubTab, onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
-
-    const handleUpdatePereciveis3QSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
-        setPereciveisSuppliers3Q(newSuppliers);
-        const newConfig: PerCapitaConfig = {
-            ...perCapitaConfig,
-            pereciveisSuppliers3Q: newSuppliers,
-        };
-        try {
-            const result = await onUpdatePerCapitaConfig({ pereciveisSuppliers3Q: newSuppliers });
-            if (result && result.success) {
-                setIsDirty(false);
-                toast.success('Fornecedores de Perecíveis (3Q) salvos com sucesso!');
-                if (onSyncPPAISToAgenda) {
-                    await onSyncPPAISToAgenda(newConfig);
-                }
-            } else {
-                console.error("Erro ao salvar fornecedores (pereciveis 3Q):", result);
-                toast.error("Erro ao salvar fornecedores (pereciveis 3Q): " + (result?.message || 'Erro desconhecido'));
-            }
-        } catch (error) {
-            console.error("Failed to save suppliers (pereciveis 3Q):", error);
-            toast.error("Erro ao salvar fornecedores (pereciveis 3Q).");
-        }
-    }, [onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
-
-    const handleUpdateEstocaveis3QSuppliers = useCallback(async (newSuppliers: PerCapitaSupplier[]) => {
-        setEstocaveisSuppliers3Q(newSuppliers);
-        const newConfig: PerCapitaConfig = {
-            ...perCapitaConfig,
-            estocaveisSuppliers3Q: newSuppliers,
-        };
-        try {
-            const result = await onUpdatePerCapitaConfig({ estocaveisSuppliers3Q: newSuppliers });
-            if (result && result.success) {
-                setIsDirty(false);
-                toast.success('Fornecedores de Estocáveis (3Q) salvos com sucesso!');
-                if (onSyncPPAISToAgenda) {
-                    await onSyncPPAISToAgenda(newConfig);
-                }
-            } else {
-                console.error("Erro ao salvar fornecedores (estocaveis 3Q):", result);
-                toast.error("Erro ao salvar fornecedores (estocaveis 3Q): " + (result?.message || 'Erro desconhecido'));
-            }
-        } catch (error) {
-            console.error("Failed to save suppliers (estocaveis 3Q):", error);
-            toast.error("Erro ao salvar fornecedores (estocaveis 3Q).");
-        }
-    }, [onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
+    }, [selectedYear, selectedQuadrimestre, onUpdatePerCapitaConfig, onSyncPPAISToAgenda, perCapitaConfig]);
 
     const ppaisAsSuppliers = useMemo(() => {
         return ppaisProducers.filter(Boolean).map(p => ({
@@ -383,40 +424,24 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     }, [ppaisProducers]);
 
     const pereciveisAsSuppliers = useMemo(() => {
-        const suppliers = activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers1Q : 
-                          (activeSubTab === 'PERECÍVEIS 2Q' ? pereciveisSuppliers2Q : pereciveisSuppliers3Q);
-        return suppliers.filter(Boolean).map(p => ({
+        return currentPereciveisSuppliers.filter(Boolean).map(p => ({
             ...p,
             cpf: p.cpfCnpj || p.cpf,
             deliveries: ensureArray(p.deliveries),
-            allowedWeeks: calculateAllowedWeeksFromSchedule(p.monthlySchedule, 2026),
+            allowedWeeks: calculateAllowedWeeksFromSchedule(p.monthlySchedule, selectedYear),
             initialValue: ensureArray(p.contractItems).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
         } as Supplier));
-    }, [pereciveisSuppliers1Q, pereciveisSuppliers2Q, pereciveisSuppliers3Q, activeSubTab]);
+    }, [currentPereciveisSuppliers, selectedYear]);
 
     const estocaveisAsSuppliers = useMemo(() => {
-        const suppliers = activeSubTab === 'ESTOCÁVEIS' ? estocaveisSuppliers1Q : 
-                          (activeSubTab === 'ESTOCÁVEIS 2Q' ? estocaveisSuppliers2Q : estocaveisSuppliers3Q);
-        return suppliers.filter(Boolean).map(p => ({
+        return currentEstocaveisSuppliers.filter(Boolean).map(p => ({
             ...p,
             cpf: p.cpfCnpj || p.cpf,
             deliveries: ensureArray(p.deliveries),
-            allowedWeeks: calculateAllowedWeeksFromSchedule(p.monthlySchedule, 2026),
+            allowedWeeks: calculateAllowedWeeksFromSchedule(p.monthlySchedule, selectedYear),
             initialValue: ensureArray(p.contractItems).reduce((acc: any, curr: any) => acc + (curr.totalKg * (curr.valuePerKg || 0)), 0)
         } as Supplier));
-    }, [estocaveisSuppliers1Q, estocaveisSuppliers2Q, estocaveisSuppliers3Q, activeSubTab]);
-
-    const getActivePereciveisSuppliers = () => {
-        if (activeSubTab === 'PERECÍVEIS') return pereciveisSuppliers1Q;
-        if (activeSubTab === 'PERECÍVEIS 2Q') return pereciveisSuppliers2Q;
-        return pereciveisSuppliers3Q;
-    };
-
-    const getActiveEstocaveisSuppliers = () => {
-        if (activeSubTab === 'ESTOCÁVEIS') return estocaveisSuppliers1Q;
-        if (activeSubTab === 'ESTOCÁVEIS 2Q') return estocaveisSuppliers2Q;
-        return estocaveisSuppliers3Q;
-    };
+    }, [currentEstocaveisSuppliers, selectedYear]);
 
     const _handleUpdateContractForPereciveis = async (itemName: string, assignments: any[]) => {
         return await onUpdateContractForItem(itemName, assignments);
@@ -651,7 +676,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         });
 
         // 3. Pereciveis Suppliers
-        pereciveisSuppliers.forEach(p => {
+        allPereciveisSuppliers.forEach(p => {
             (Object.values(p.deliveries || {}) as Delivery[]).forEach(d => {
                 const m = getMonthFromDate(d.date);
                 if (m && execution[m]) {
@@ -661,7 +686,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         });
 
         // 4. Estocaveis Suppliers
-        estocaveisSuppliers.forEach(p => {
+        allEstocaveisSuppliers.forEach(p => {
             (Object.values(p.deliveries || {}) as Delivery[]).forEach(d => {
                 const m = getMonthFromDate(d.date);
                 if (m && execution[m]) {
@@ -671,7 +696,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         });
 
         return execution;
-    }, [suppliers, ppaisProducers, pereciveisSuppliers, estocaveisSuppliers, acquisitionItems]);
+    }, [suppliers, ppaisProducers, allPereciveisSuppliers, allEstocaveisSuppliers, acquisitionItems]);
 
     const categoryMonthlyAverages = useMemo(() => {
         const averages: Record<string, number> = {};
@@ -814,7 +839,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             });
         });
 
-        pereciveisSuppliers.forEach(p => {
+        currentPereciveisSuppliers.forEach(p => {
             (Object.values(p.contractItems || {}) as any[]).forEach(ci => {
                 const normalizedCi = normalizeItemName(ci.name);
                 if (!acqItemNames.has(normalizedCi)) {
@@ -824,7 +849,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                         supplierName: p.name,
                         itemName: ci.name,
                         fix: async () => {
-                            const updatedSuppliers = pereciveisSuppliers.map(prod => {
+                            const updatedSuppliers = currentPereciveisSuppliers.map(prod => {
                                 if (prod.cpfCnpj === p.cpfCnpj) {
                                     return { ...prod, contractItems: (prod.contractItems || []).filter(item => normalizeItemName(item.name) !== normalizedCi) };
                                 }
@@ -863,7 +888,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         });
 
         return issues;
-    }, [suppliers, ppaisProducers, pereciveisSuppliers, acquisitionItems, onUpdateContractForItem, ppaisAsSuppliers, pereciveisAsSuppliers, estocaveisAsSuppliers, handleUpdatePereciveisSuppliers, handleUpdateProducers]);
+    }, [suppliers, ppaisProducers, currentPereciveisSuppliers, acquisitionItems, onUpdateContractForItem, ppaisAsSuppliers, pereciveisAsSuppliers, estocaveisAsSuppliers, handleUpdatePereciveisSuppliers, handleUpdateProducers]);
 
     const handleFixAllInconsistencies = async () => {
         setIsSaving(true);
@@ -1371,7 +1396,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                         .map((s, idx) => {
                                             const items = Object.values(s.contractItems || {}) as any[];
                                             const category = ppaisProducers.some(p => matchCpfCnpj(p.cpfCnpj || p.cpf, s.cpf)) ? 'PPAIS' : 
-                                                             pereciveisSuppliers.some(p => matchCpfCnpj(p.cpfCnpj || p.cpf, s.cpf)) ? 'PERECÍVEIS' : 'ESTOCÁVEIS';
+                                                             allPereciveisSuppliers.some(p => matchCpfCnpj(p.cpfCnpj || p.cpf, s.cpf)) ? 'PERECÍVEIS' : 'ESTOCÁVEIS';
                                             
                                             
                                             return (
@@ -1860,19 +1885,99 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                         </div>
                     </div>
 
-                    {/* Navegação Interna de Alta Densidade (PPAIS / ESTOCÁVEIS / PERECÍVEIS / 3Q) */}
-                    {(activeSubTab === 'PPAIS' || activeSubTab === 'ESTOCÁVEIS' || activeSubTab === 'PERECÍVEIS' || activeSubTab === 'PERECÍVEIS 3Q' || activeSubTab === 'ESTOCÁVEIS 3Q') && (
+                    {/* Seletor de Ano e Quadrimestre para PERECÍVEIS e ESTOCÁVEIS */}
+                    {(activeSubTab.startsWith('PERECÍVEIS') || activeSubTab.startsWith('ESTOCÁVEIS')) && (
+                        <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm space-y-4">
+                            <div className="flex flex-wrap items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xs font-black uppercase text-zinc-400 tracking-wider">Ano de Exercício:</span>
+                                    <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedYear(2026)}
+                                            className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${selectedYear === 2026 ? 'bg-white text-indigo-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`}
+                                        >
+                                            2026
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedYear(2027)}
+                                            className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${selectedYear === 2027 ? 'bg-white text-indigo-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`}
+                                        >
+                                            2027
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="text-xs text-zinc-500 font-medium">
+                                    {selectedYear === 2026 ? (
+                                        <span>Exibindo contratos e cronogramas de <strong>2026</strong></span>
+                                    ) : (
+                                        <span>Planejamento e novos contratos de <strong>2027</strong></span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 pt-2 border-t border-zinc-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedQuadrimestre('1Q')}
+                                    className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
+                                        selectedQuadrimestre === '1Q'
+                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100 ring-2 ring-indigo-600 ring-offset-2'
+                                            : 'bg-zinc-50 text-zinc-600 hover:bg-zinc-100 border border-zinc-200'
+                                    }`}
+                                >
+                                    <span>1º Quadrimestre</span>
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${selectedQuadrimestre === '1Q' ? 'bg-indigo-700 text-indigo-100' : 'bg-zinc-200 text-zinc-600'}`}>
+                                        Jan - Abr
+                                    </span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedQuadrimestre('2Q')}
+                                    className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
+                                        selectedQuadrimestre === '2Q'
+                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100 ring-2 ring-indigo-600 ring-offset-2'
+                                            : 'bg-zinc-50 text-zinc-600 hover:bg-zinc-100 border border-zinc-200'
+                                    }`}
+                                >
+                                    <span>2º Quadrimestre</span>
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${selectedQuadrimestre === '2Q' ? 'bg-indigo-700 text-indigo-100' : 'bg-emerald-100 text-emerald-800'}`}>
+                                        Mai - Ago {selectedYear === 2026 ? '(Meses Anteriores)' : ''}
+                                    </span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedQuadrimestre('3Q')}
+                                    className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
+                                        selectedQuadrimestre === '3Q'
+                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100 ring-2 ring-indigo-600 ring-offset-2'
+                                            : 'bg-zinc-50 text-zinc-600 hover:bg-zinc-100 border border-zinc-200'
+                                    }`}
+                                >
+                                    <span>3º Quadrimestre</span>
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${selectedQuadrimestre === '3Q' ? 'bg-indigo-700 text-indigo-100' : 'bg-amber-100 text-amber-800'}`}>
+                                        Set - Dez {selectedYear === 2026 ? '(Novo Contrato)' : ''}
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Navegação Interna de Alta Densidade (Sub-abas) */}
+                    {(activeSubTab === 'PPAIS' || activeSubTab.startsWith('PERECÍVEIS') || activeSubTab.startsWith('ESTOCÁVEIS')) && (
                         <div className="flex gap-2 bg-zinc-100 p-1.5 rounded-2xl border border-zinc-200 w-fit">
                             <button 
                                 onClick={() => {
                                     if (activeSubTab === 'PPAIS') setPpaisSubTab('ITEMS');
-                                    else if (activeSubTab === 'PERECÍVEIS') setPereciveisSubTab('ITEMS');
-                                    else if (activeSubTab === 'ESTOCÁVEIS') setEstocaveisSubTab('ITEMS');
-                                    else if (activeSubTab === 'PERECÍVEIS 3Q') setPereciveis3QSubTab('ITEMS');
-                                    else if (activeSubTab === 'ESTOCÁVEIS 3Q') setEstocaveis3QSubTab('ITEMS');
+                                    else if (activeSubTab.startsWith('PERECÍVEIS')) setPereciveisSubTab('ITEMS');
+                                    else if (activeSubTab.startsWith('ESTOCÁVEIS')) setEstocaveisSubTab('ITEMS');
                                 }}
                                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'ITEMS' : activeSubTab === 'PERECÍVEIS' ? pereciveisSubTab === 'ITEMS' : activeSubTab === 'ESTOCÁVEIS' ? estocaveisSubTab === 'ITEMS' : activeSubTab === 'PERECÍVEIS 3Q' ? pereciveis3QSubTab === 'ITEMS' : estocaveis3QSubTab === 'ITEMS')
+                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'ITEMS' : activeSubTab.startsWith('PERECÍVEIS') ? pereciveisSubTab === 'ITEMS' : estocaveisSubTab === 'ITEMS')
                                     ? 'bg-white text-zinc-900 shadow-sm' 
                                     : 'text-zinc-500 hover:text-zinc-700'
                                 }`}
@@ -1882,13 +1987,11 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                             <button 
                                 onClick={() => {
                                     if (activeSubTab === 'PPAIS') setPpaisSubTab('PRODUCERS');
-                                    else if (activeSubTab === 'PERECÍVEIS') setPereciveisSubTab('SUPPLIERS');
-                                    else if (activeSubTab === 'ESTOCÁVEIS') setEstocaveisSubTab('SUPPLIERS');
-                                    else if (activeSubTab === 'PERECÍVEIS 3Q') setPereciveis3QSubTab('SUPPLIERS');
-                                    else if (activeSubTab === 'ESTOCÁVEIS 3Q') setEstocaveis3QSubTab('SUPPLIERS');
+                                    else if (activeSubTab.startsWith('PERECÍVEIS')) setPereciveisSubTab('SUPPLIERS');
+                                    else if (activeSubTab.startsWith('ESTOCÁVEIS')) setEstocaveisSubTab('SUPPLIERS');
                                 }}
                                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'PRODUCERS' : activeSubTab === 'PERECÍVEIS' ? pereciveisSubTab === 'SUPPLIERS' : activeSubTab === 'ESTOCÁVEIS' ? estocaveisSubTab === 'SUPPLIERS' : activeSubTab === 'PERECÍVEIS 3Q' ? pereciveis3QSubTab === 'SUPPLIERS' : estocaveis3QSubTab === 'SUPPLIERS')
+                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'PRODUCERS' : activeSubTab.startsWith('PERECÍVEIS') ? pereciveisSubTab === 'SUPPLIERS' : estocaveisSubTab === 'SUPPLIERS')
                                     ? 'bg-white text-zinc-900 shadow-sm' 
                                     : 'text-zinc-500 hover:text-zinc-700'
                                 }`}
@@ -1898,13 +2001,11 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                             <button 
                                 onClick={() => {
                                     if (activeSubTab === 'PPAIS') setPpaisSubTab('CONTRACT');
-                                    else if (activeSubTab === 'PERECÍVEIS') setPereciveisSubTab('CONTRACT');
-                                    else if (activeSubTab === 'ESTOCÁVEIS') setEstocaveisSubTab('CONTRACT');
-                                    else if (activeSubTab === 'PERECÍVEIS 3Q') setPereciveis3QSubTab('CONTRACT');
-                                    else if (activeSubTab === 'ESTOCÁVEIS 3Q') setEstocaveis3QSubTab('CONTRACT');
+                                    else if (activeSubTab.startsWith('PERECÍVEIS')) setPereciveisSubTab('CONTRACT');
+                                    else if (activeSubTab.startsWith('ESTOCÁVEIS')) setEstocaveisSubTab('CONTRACT');
                                 }}
                                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : activeSubTab === 'PERECÍVEIS' ? pereciveisSubTab === 'CONTRACT' : activeSubTab === 'ESTOCÁVEIS' ? estocaveisSubTab === 'CONTRACT' : activeSubTab === 'PERECÍVEIS 3Q' ? pereciveis3QSubTab === 'CONTRACT' : estocaveis3QSubTab === 'CONTRACT')
+                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : activeSubTab.startsWith('PERECÍVEIS') ? pereciveisSubTab === 'CONTRACT' : estocaveisSubTab === 'CONTRACT')
                                     ? 'bg-white text-zinc-900 shadow-sm' 
                                     : 'text-zinc-500 hover:text-zinc-700'
                                 }`}
@@ -1926,13 +2027,11 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                             <button 
                                 onClick={() => {
                                     if (activeSubTab === 'PPAIS') setPpaisSubTab('SCHEDULE');
-                                    else if (activeSubTab === 'PERECÍVEIS') setPereciveisSubTab('SCHEDULE');
-                                    else if (activeSubTab === 'ESTOCÁVEIS') setEstocaveisSubTab('SCHEDULE');
-                                    else if (activeSubTab === 'PERECÍVEIS 3Q') setPereciveis3QSubTab('SCHEDULE');
-                                    else if (activeSubTab === 'ESTOCÁVEIS 3Q') setEstocaveis3QSubTab('SCHEDULE');
+                                    else if (activeSubTab.startsWith('PERECÍVEIS')) setPereciveisSubTab('SCHEDULE');
+                                    else if (activeSubTab.startsWith('ESTOCÁVEIS')) setEstocaveisSubTab('SCHEDULE');
                                 }}
                                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'SCHEDULE' : activeSubTab === 'PERECÍVEIS' ? pereciveisSubTab === 'SCHEDULE' : activeSubTab === 'ESTOCÁVEIS' ? estocaveisSubTab === 'SCHEDULE' : activeSubTab === 'PERECÍVEIS 3Q' ? pereciveis3QSubTab === 'SCHEDULE' : estocaveis3QSubTab === 'SCHEDULE')
+                                    (activeSubTab === 'PPAIS' ? ppaisSubTab === 'SCHEDULE' : activeSubTab.startsWith('PERECÍVEIS') ? pereciveisSubTab === 'SCHEDULE' : estocaveisSubTab === 'SCHEDULE')
                                     ? 'bg-white text-zinc-900 shadow-sm' 
                                     : 'text-zinc-500 hover:text-zinc-700'
                                 }`}
@@ -1953,56 +2052,40 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 type="PRODUTOR"
                                 colorScheme="emerald"
                             />
-                        ) : activeSubTab === 'PERECÍVEIS' && pereciveisSubTab === 'SUPPLIERS' ? (
+                        ) : activeSubTab.startsWith('PERECÍVEIS') && pereciveisSubTab === 'SUPPLIERS' ? (
                             <AdminPerCapitaSuppliers 
-                                suppliers={pereciveisSuppliers}
+                                suppliers={currentPereciveisSuppliers}
                                 onUpdate={handleUpdatePereciveisSuppliers}
                                 onSaveInvoice={onSaveInvoice}
                                 onDeleteDelivery={onDeleteDelivery}
                                 type="FORNECEDOR"
                                 colorScheme="indigo"
                             />
-                        ) : activeSubTab === 'ESTOCÁVEIS' && estocaveisSubTab === 'SUPPLIERS' ? (
+                        ) : activeSubTab.startsWith('ESTOCÁVEIS') && estocaveisSubTab === 'SUPPLIERS' ? (
                             <AdminPerCapitaSuppliers 
-                                suppliers={estocaveisSuppliers}
+                                suppliers={currentEstocaveisSuppliers}
                                 onUpdate={handleUpdateEstocaveisSuppliers}
                                 onSaveInvoice={onSaveInvoice}
                                 onDeleteDelivery={onDeleteDelivery}
                                 type="FORNECEDOR"
                                 colorScheme="indigo"
                             />
-                        ) : activeSubTab === 'PERECÍVEIS 3Q' && pereciveis3QSubTab === 'SUPPLIERS' ? (
-                            <AdminPerCapitaSuppliers 
-                                suppliers={pereciveisSuppliers3Q}
-                                onUpdate={handleUpdatePereciveis3QSuppliers}
-                                onSaveInvoice={onSaveInvoice}
-                                onDeleteDelivery={onDeleteDelivery}
-                                type="FORNECEDOR"
-                                colorScheme="indigo"
-                            />
-                        ) : activeSubTab === 'ESTOCÁVEIS 3Q' && estocaveis3QSubTab === 'SUPPLIERS' ? (
-                            <AdminPerCapitaSuppliers 
-                                suppliers={estocaveisSuppliers3Q}
-                                onUpdate={handleUpdateEstocaveis3QSuppliers}
-                                onSaveInvoice={onSaveInvoice}
-                                onDeleteDelivery={onDeleteDelivery}
-                                type="FORNECEDOR"
-                                colorScheme="indigo"
-                            />
-                        ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS' || activeSubTab === 'ESTOCÁVEIS' || activeSubTab === 'PERECÍVEIS 3Q' || activeSubTab === 'ESTOCÁVEIS 3Q') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : activeSubTab === 'PERECÍVEIS' ? pereciveisSubTab === 'CONTRACT' : activeSubTab === 'ESTOCÁVEIS' ? estocaveisSubTab === 'CONTRACT' : activeSubTab === 'PERECÍVEIS 3Q' ? pereciveis3QSubTab === 'CONTRACT' : estocaveis3QSubTab === 'CONTRACT') ? (
+                        ) : (activeSubTab === 'PPAIS' || activeSubTab.startsWith('PERECÍVEIS') || activeSubTab.startsWith('ESTOCÁVEIS')) && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'CONTRACT' : activeSubTab.startsWith('PERECÍVEIS') ? pereciveisSubTab === 'CONTRACT' : estocaveisSubTab === 'CONTRACT') ? (
                             <div className="p-8 space-y-4">
-                                <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter">Selecione o Fornecedor para o Contrato</h3>
+                                <h3 className="text-lg font-black text-zinc-800 uppercase tracking-tighter">
+                                    Selecione o Fornecedor para o Contrato ({activeSubTab.startsWith('PERECÍVEIS') || activeSubTab.startsWith('ESTOCÁVEIS') ? `${selectedYear} - ${selectedQuadrimestre}` : 'PPAIS'})
+                                </h3>
                                 <select 
                                     className="w-full p-4 bg-white border border-zinc-200 rounded-xl font-bold text-sm"
                                     value={selectedProducer?.id || ''}
                                     onChange={(e) => {
-                                        const source = activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers);
+                                        const source = activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab.startsWith('PERECÍVEIS') ? currentPereciveisSuppliers : currentEstocaveisSuppliers);
                                         const selected = source.find(p => p.id === e.target.value);
                                         setSelectedProducer(selected || null);
                                     }}
                                 >
                                     <option value="">Selecione...</option>
-                                    {(activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers)).map(p => (
+                                    {(activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab.startsWith('PERECÍVEIS') ? currentPereciveisSuppliers : currentEstocaveisSuppliers)).map(p => (
                                         <option key={p.id} value={p.id}>{p.name}</option>
                                     ))}
                                 </select>
@@ -2019,7 +2102,7 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                 processDefinition={getSeiValue(seiProcessDefinitions, 'PPAIS')}
                                 items={acquisitionItems.filter(item => item.category === 'PPAIS')}
                             />
-                        ) : (activeSubTab === 'PPAIS' || activeSubTab === 'PERECÍVEIS' || activeSubTab === 'ESTOCÁVEIS') && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'SCHEDULE' : activeSubTab === 'PERECÍVEIS' ? pereciveisSubTab === 'SCHEDULE' : estocaveisSubTab === 'SCHEDULE') ? (
+                        ) : (activeSubTab === 'PPAIS' || activeSubTab.startsWith('PERECÍVEIS') || activeSubTab.startsWith('ESTOCÁVEIS')) && (activeSubTab === 'PPAIS' ? ppaisSubTab === 'SCHEDULE' : activeSubTab.startsWith('PERECÍVEIS') ? pereciveisSubTab === 'SCHEDULE' : estocaveisSubTab === 'SCHEDULE') ? (
                             <div className="p-8 space-y-8">
                                 <div className="flex flex-wrap gap-4 items-center justify-between mb-8">
                                     <div className="flex bg-zinc-100 p-1 rounded-xl">
@@ -2056,11 +2139,11 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
 
                                                 const opt = {
                                                     margin: [10, 10, 10, 10] as [number, number, number, number],
-                                                    filename: `Cronograma_Entrega_${activeSubTab}.pdf`,
+                                                    filename: `Cronograma_Entrega_${activeSubTab}_${selectedYear}_${selectedQuadrimestre}.pdf`,
                                                     image: { type: 'jpeg' as const, quality: 0.98 },
                                                     html2canvas: { 
                                                         scale: 2, 
-                                                        useCORS: true,
+                                                        useCORS: true, 
                                                         letterRendering: false,
                                                         scrollY: 0,
                                                         windowWidth: element.clientWidth
@@ -2087,14 +2170,14 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                     <div className="flex items-center gap-4 mb-8 justify-center">
                                         <PoliciaPenalLogo className="h-16 w-auto" />
                                         <h3 className="text-xl font-black text-zinc-800 uppercase tracking-tighter text-center">
-                                            Cronograma de Entrega - {activeSubTab}
+                                            Cronograma de Entrega - {activeSubTab} {activeSubTab !== 'PPAIS' ? `(${selectedYear} - ${selectedQuadrimestre})` : ''}
                                         </h3>
                                     </div>
                                     
                                     {scheduleView === 'CALENDAR' ? (
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                            {months.map(month => {
-                                                const currentSuppliers = activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers);
+                                            {(activeSubTab === 'PPAIS' ? months : (selectedQuadrimestre === '1Q' ? months.slice(0, 4) : selectedQuadrimestre === '2Q' ? months.slice(4, 8) : months.slice(8, 12))).map(month => {
+                                                const currentSuppliers = activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab.startsWith('PERECÍVEIS') ? currentPereciveisSuppliers : currentEstocaveisSuppliers);
                                                 const suppliersInMonth = currentSuppliers.filter(s => getSafeScheduleWeeks(s.monthlySchedule, month).length > 0);
                                                 if (suppliersInMonth.length === 0) return null;
 
@@ -2141,8 +2224,9 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                         </div>
                                     ) : (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                            {(activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab === 'PERECÍVEIS' ? pereciveisSuppliers : estocaveisSuppliers)).sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(s => {
-                                                const scheduledMonths = months.filter(m => getSafeScheduleWeeks(s.monthlySchedule, m).length > 0);
+                                            {(activeSubTab === 'PPAIS' ? ppaisProducers : (activeSubTab.startsWith('PERECÍVEIS') ? currentPereciveisSuppliers : currentEstocaveisSuppliers)).sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(s => {
+                                                const targetMonths = activeSubTab === 'PPAIS' ? months : (selectedQuadrimestre === '1Q' ? months.slice(0, 4) : selectedQuadrimestre === '2Q' ? months.slice(4, 8) : months.slice(8, 12));
+                                                const scheduledMonths = targetMonths.filter(m => getSafeScheduleWeeks(s.monthlySchedule, m).length > 0);
                                                 
                                                 const items = (s.contractItems || []) as any[];
 

@@ -1607,7 +1607,13 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             });
 
             if (perCapitaConfig) {
-                const pcLists = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+                const pcLists = [
+                    'ppaisProducers',
+                    'pereciveisSuppliers', 'pereciveisSuppliers1Q', 'pereciveisSuppliers2Q', 'pereciveisSuppliers3Q',
+                    'pereciveisSuppliers2027_1Q', 'pereciveisSuppliers2027_2Q', 'pereciveisSuppliers2027_3Q',
+                    'estocaveisSuppliers', 'estocaveisSuppliers1Q', 'estocaveisSuppliers2Q', 'estocaveisSuppliers3Q',
+                    'estocaveisSuppliers2027_1Q', 'estocaveisSuppliers2027_2Q', 'estocaveisSuppliers2027_3Q'
+                ];
                 pcLists.forEach(listKey => {
                     ensureArray(perCapitaConfig[listKey]).forEach((p: any) => {
                         if (!p) return;
@@ -1661,7 +1667,19 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             const allPcSuppliers = [
                                 ...(perCapitaConfig.ppaisProducers || []),
                                 ...(perCapitaConfig.pereciveisSuppliers || []),
-                                ...(perCapitaConfig.estocaveisSuppliers || [])
+                                ...(perCapitaConfig.pereciveisSuppliers1Q || []),
+                                ...(perCapitaConfig.pereciveisSuppliers2Q || []),
+                                ...(perCapitaConfig.pereciveisSuppliers3Q || []),
+                                ...(perCapitaConfig.pereciveisSuppliers2027_1Q || []),
+                                ...(perCapitaConfig.pereciveisSuppliers2027_2Q || []),
+                                ...(perCapitaConfig.pereciveisSuppliers2027_3Q || []),
+                                ...(perCapitaConfig.estocaveisSuppliers || []),
+                                ...(perCapitaConfig.estocaveisSuppliers1Q || []),
+                                ...(perCapitaConfig.estocaveisSuppliers2Q || []),
+                                ...(perCapitaConfig.estocaveisSuppliers3Q || []),
+                                ...(perCapitaConfig.estocaveisSuppliers2027_1Q || []),
+                                ...(perCapitaConfig.estocaveisSuppliers2027_2Q || []),
+                                ...(perCapitaConfig.estocaveisSuppliers2027_3Q || [])
                             ];
                             const pcSupplier = allPcSuppliers.find(s => s && (matchCpf(s.cpf, anyL.supplierCpf) || matchCpf(s.cpfCnpj, anyL.supplierCpf)));
                             if (pcSupplier) {
@@ -2322,9 +2340,27 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     if (!ca || !cb) return false;
                     return ca === cb || (ca.length === 11 && cb.length === 14 && cb.startsWith(ca)) || (cb.length === 11 && ca.length === 14 && ca.startsWith(cb));
                 };
+                const allPereciveis = [
+                    ...(perCapitaConfig.pereciveisSuppliers || []),
+                    ...(perCapitaConfig.pereciveisSuppliers1Q || []),
+                    ...(perCapitaConfig.pereciveisSuppliers2Q || []),
+                    ...(perCapitaConfig.pereciveisSuppliers3Q || []),
+                    ...(perCapitaConfig.pereciveisSuppliers2027_1Q || []),
+                    ...(perCapitaConfig.pereciveisSuppliers2027_2Q || []),
+                    ...(perCapitaConfig.pereciveisSuppliers2027_3Q || [])
+                ];
+                const allEstocaveis = [
+                    ...(perCapitaConfig.estocaveisSuppliers || []),
+                    ...(perCapitaConfig.estocaveisSuppliers1Q || []),
+                    ...(perCapitaConfig.estocaveisSuppliers2Q || []),
+                    ...(perCapitaConfig.estocaveisSuppliers3Q || []),
+                    ...(perCapitaConfig.estocaveisSuppliers2027_1Q || []),
+                    ...(perCapitaConfig.estocaveisSuppliers2027_2Q || []),
+                    ...(perCapitaConfig.estocaveisSuppliers2027_3Q || [])
+                ];
                 const isPpais = ensureArray(perCapitaConfig.ppaisProducers).some((p: any) => match(p.cpfCnpj || p.cpf, receiptSupplier.cpf));
-                const isPereciveis = ensureArray(perCapitaConfig.pereciveisSuppliers).some((p: any) => match(p.cpfCnpj || p.cpf, receiptSupplier.cpf));
-                const isEstocaveis = ensureArray(perCapitaConfig.estocaveisSuppliers).some((p: any) => match(p.cpfCnpj || p.cpf, receiptSupplier.cpf));
+                const isPereciveis = allPereciveis.some((p: any) => match(p.cpfCnpj || p.cpf, receiptSupplier.cpf));
+                const isEstocaveis = allEstocaveis.some((p: any) => match(p.cpfCnpj || p.cpf, receiptSupplier.cpf));
                 
                 if (isPpais) autoSei = perCapitaConfig.seiProcessNumbers?.['PPAIS'] || '';
                 else if (isPereciveis) autoSei = perCapitaConfig.seiProcessNumbers?.['PERECÍVEIS'] || perCapitaConfig.seiProcessNumbers?.['PERECIVEIS'] || '';

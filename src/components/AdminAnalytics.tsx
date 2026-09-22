@@ -98,11 +98,27 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ suppliers = [], perCapi
             
             // Tenta encontrar o cronograma mensal se for um produtor PPAIS/ITESP ou Perecíveis
             const ppaisProducer = perCapitaConfig?.ppaisProducers?.find(p => superNormalize(p.name) === sNorm || p.cpfCnpj === s.cpf);
-            const pereciveisSupplier = perCapitaConfig?.pereciveisSuppliers?.find(p => superNormalize(p.name) === sNorm || p.cpfCnpj === s.cpf);
-            const estocaveisSupplier = perCapitaConfig?.estocaveisSuppliers?.find(p => superNormalize(p.name) === sNorm || p.cpfCnpj === s.cpf);
-            const pereciveisSupplier3Q = perCapitaConfig?.pereciveisSuppliers3Q?.find(p => superNormalize(p.name) === sNorm || p.cpfCnpj === s.cpf);
-            const estocaveisSupplier3Q = perCapitaConfig?.estocaveisSuppliers3Q?.find(p => superNormalize(p.name) === sNorm || p.cpfCnpj === s.cpf);
-            const producerData = ppaisProducer || pereciveisSupplier || estocaveisSupplier || pereciveisSupplier3Q || estocaveisSupplier3Q;
+            const allPereciveis = [
+                ...(perCapitaConfig?.pereciveisSuppliers || []),
+                ...(perCapitaConfig?.pereciveisSuppliers1Q || []),
+                ...(perCapitaConfig?.pereciveisSuppliers2Q || []),
+                ...(perCapitaConfig?.pereciveisSuppliers3Q || []),
+                ...(perCapitaConfig?.pereciveisSuppliers2027_1Q || []),
+                ...(perCapitaConfig?.pereciveisSuppliers2027_2Q || []),
+                ...(perCapitaConfig?.pereciveisSuppliers2027_3Q || [])
+            ];
+            const allEstocaveis = [
+                ...(perCapitaConfig?.estocaveisSuppliers || []),
+                ...(perCapitaConfig?.estocaveisSuppliers1Q || []),
+                ...(perCapitaConfig?.estocaveisSuppliers2Q || []),
+                ...(perCapitaConfig?.estocaveisSuppliers3Q || []),
+                ...(perCapitaConfig?.estocaveisSuppliers2027_1Q || []),
+                ...(perCapitaConfig?.estocaveisSuppliers2027_2Q || []),
+                ...(perCapitaConfig?.estocaveisSuppliers2027_3Q || [])
+            ];
+            const pereciveisSupplier = allPereciveis.find(p => superNormalize(p.name) === sNorm || p.cpfCnpj === s.cpf || p.cpf === s.cpf);
+            const estocaveisSupplier = allEstocaveis.find(p => superNormalize(p.name) === sNorm || p.cpfCnpj === s.cpf || p.cpf === s.cpf);
+            const producerData = ppaisProducer || pereciveisSupplier || estocaveisSupplier;
             
             const isItesp = [...itespSet].some(allowed => sNorm.includes(allowed) || allowed.includes(sNorm));
 

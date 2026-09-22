@@ -88,8 +88,24 @@ export const calculateAllowedWeeksFromSchedule = (monthlySchedule: Record<string
 
 export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any): Supplier[] => {
     const producers = ensureArray(perCapitaConfig?.ppaisProducers);
-    const pereciveis = ensureArray(perCapitaConfig?.pereciveisSuppliers);
-    const estocaveis = ensureArray(perCapitaConfig?.estocaveisSuppliers);
+    const pereciveis = [
+        ...ensureArray(perCapitaConfig?.pereciveisSuppliers),
+        ...ensureArray(perCapitaConfig?.pereciveisSuppliers1Q),
+        ...ensureArray(perCapitaConfig?.pereciveisSuppliers2Q),
+        ...ensureArray(perCapitaConfig?.pereciveisSuppliers3Q),
+        ...ensureArray(perCapitaConfig?.pereciveisSuppliers2027_1Q),
+        ...ensureArray(perCapitaConfig?.pereciveisSuppliers2027_2Q),
+        ...ensureArray(perCapitaConfig?.pereciveisSuppliers2027_3Q)
+    ];
+    const estocaveis = [
+        ...ensureArray(perCapitaConfig?.estocaveisSuppliers),
+        ...ensureArray(perCapitaConfig?.estocaveisSuppliers1Q),
+        ...ensureArray(perCapitaConfig?.estocaveisSuppliers2Q),
+        ...ensureArray(perCapitaConfig?.estocaveisSuppliers3Q),
+        ...ensureArray(perCapitaConfig?.estocaveisSuppliers2027_1Q),
+        ...ensureArray(perCapitaConfig?.estocaveisSuppliers2027_2Q),
+        ...ensureArray(perCapitaConfig?.estocaveisSuppliers2027_3Q)
+    ];
 
     const parseNum = (val: any) => {
         if (typeof val === 'number') return val;
