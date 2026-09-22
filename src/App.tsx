@@ -295,7 +295,42 @@ const App: React.FC = () => {
         try {
           const parsed = JSON.parse(saved);
           if (parsed) {
-            setter(parsed);
+            if (key === 'perCapitaConfig') {
+              const pConfig = { ...parsed };
+              const pLegacy = Array.isArray(pConfig.pereciveisSuppliers) ? pConfig.pereciveisSuppliers : Object.values(pConfig.pereciveisSuppliers || {});
+              const p2Q = Array.isArray(pConfig.pereciveisSuppliers2Q) ? pConfig.pereciveisSuppliers2Q : Object.values(pConfig.pereciveisSuppliers2Q || {});
+              const p3Q = Array.isArray(pConfig.pereciveisSuppliers3Q) ? pConfig.pereciveisSuppliers3Q : Object.values(pConfig.pereciveisSuppliers3Q || {});
+              const restoredP2Q = p2Q.length > 0 ? p2Q : (pLegacy.length > 0 ? pLegacy : p3Q);
+              pConfig.pereciveisSuppliers2Q = restoredP2Q;
+              pConfig.pereciveisSuppliers = restoredP2Q;
+              pConfig.pereciveisSuppliers3Q = [];
+
+              const eLegacy = Array.isArray(pConfig.estocaveisSuppliers) ? pConfig.estocaveisSuppliers : Object.values(pConfig.estocaveisSuppliers || {});
+              const e2Q = Array.isArray(pConfig.estocaveisSuppliers2Q) ? pConfig.estocaveisSuppliers2Q : Object.values(pConfig.estocaveisSuppliers2Q || {});
+              const e3Q = Array.isArray(pConfig.estocaveisSuppliers3Q) ? pConfig.estocaveisSuppliers3Q : Object.values(pConfig.estocaveisSuppliers3Q || {});
+              const restoredE2Q = e2Q.length > 0 ? e2Q : (eLegacy.length > 0 ? eLegacy : e3Q);
+              pConfig.estocaveisSuppliers2Q = restoredE2Q;
+              pConfig.estocaveisSuppliers = restoredE2Q;
+              pConfig.estocaveisSuppliers3Q = [];
+
+              setter(pConfig);
+              setIsPerCapitaConfigLoaded(true);
+            } else if (key === 'acquisitionItems' && Array.isArray(parsed)) {
+              const sanitizedAcq = parsed.map((item: any) => {
+                if (!item) return item;
+                const cat = (item.category || '').trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+                // PPAIS permanece inalterado!
+                if (cat === 'PERECIVEIS' || cat === 'ESTOCAVEIS') {
+                  if (item.quadrimestre === '3Q' || !item.quadrimestre || item.year !== 2026) {
+                    return { ...item, year: 2026, quadrimestre: '2Q' };
+                  }
+                }
+                return item;
+              });
+              setter(sanitizedAcq);
+            } else {
+              setter(parsed);
+            }
             if (key === 'systemPasswords') setIsPasswordsLoaded(true);
             if (key === 'suppliers') setIsSuppliersLoaded(true);
             if (key === 'perCapitaConfig') setIsPerCapitaConfigLoaded(true);
@@ -378,23 +413,41 @@ const App: React.FC = () => {
       const data = snapshot.val();
       const config = data || {};
       
-      // Auto-migração e salvaguarda: Garante que os dados dos meses anteriores (2Q) retornem se pereciveisSuppliers existia
+      // Auto-migração e salvaguarda: Garante que os dados dos meses anteriores (2Q) retornem
+      // e o 3º Quadrimestre (3Q) fique em branco para novos contratos.
+      // PPAIS NÃO ENTRA NESTA REGRA: permanece inalterado!
       const pLegacy = Array.isArray(config.pereciveisSuppliers) ? config.pereciveisSuppliers : Object.values(config.pereciveisSuppliers || {});
       const p2Q = Array.isArray(config.pereciveisSuppliers2Q) ? config.pereciveisSuppliers2Q : Object.values(config.pereciveisSuppliers2Q || {});
-      if (p2Q.length === 0 && pLegacy.length > 0) {
-        config.pereciveisSuppliers2Q = pLegacy;
-      }
-      if (pLegacy.length === 0 && p2Q.length > 0) {
-        config.pereciveisSuppliers = p2Q;
-      }
+      const p3Q = Array.isArray(config.pereciveisSuppliers3Q) ? config.pereciveisSuppliers3Q : Object.values(config.pereciveisSuppliers3Q || {});
+      
+      const restoredP2Q = p2Q.length > 0 ? p2Q : (pLegacy.length > 0 ? pLegacy : p3Q);
+      config.pereciveisSuppliers2Q = restoredP2Q;
+      config.pereciveisSuppliers = restoredP2Q;
+      // 3Q fica em branco para novos contratos:
+      config.pereciveisSuppliers3Q = [];
 
       const eLegacy = Array.isArray(config.estocaveisSuppliers) ? config.estocaveisSuppliers : Object.values(config.estocaveisSuppliers || {});
       const e2Q = Array.isArray(config.estocaveisSuppliers2Q) ? config.estocaveisSuppliers2Q : Object.values(config.estocaveisSuppliers2Q || {});
-      if (e2Q.length === 0 && eLegacy.length > 0) {
-        config.estocaveisSuppliers2Q = eLegacy;
-      }
-      if (eLegacy.length === 0 && e2Q.length > 0) {
-        config.estocaveisSuppliers = e2Q;
+      const e3Q = Array.isArray(config.estocaveisSuppliers3Q) ? config.estocaveisSuppliers3Q : Object.values(config.estocaveisSuppliers3Q || {});
+
+      const restoredE2Q = e2Q.length > 0 ? e2Q : (eLegacy.length > 0 ? eLegacy : e3Q);
+      config.estocaveisSuppliers2Q = restoredE2Q;
+      config.estocaveisSuppliers = restoredE2Q;
+      // 3Q fica em branco para novos contratos:
+      config.estocaveisSuppliers3Q = [];
+
+      // Se havia dados em 3Q no banco que precisam ser limpos, ou 2Q precisa ser gravado:
+      if (database && navigator.onLine) {
+        if (p3Q.length > 0 || e3Q.length > 0 || (pLegacy.length > 0 && (!config.pereciveisSuppliers2Q || config.pereciveisSuppliers2Q.length === 0))) {
+          update(perCapitaConfigRef, {
+            pereciveisSuppliers: restoredP2Q,
+            pereciveisSuppliers2Q: restoredP2Q,
+            pereciveisSuppliers3Q: [],
+            estocaveisSuppliers: restoredE2Q,
+            estocaveisSuppliers2Q: restoredE2Q,
+            estocaveisSuppliers3Q: []
+          }).catch(e => console.warn("Erro ao sincronizar perCapitaConfig 2Q/3Q:", e));
+        }
       }
 
       setPerCapitaConfig(config);
@@ -724,8 +777,46 @@ const App: React.FC = () => {
     const unsubAcquisitionItems = onValue(acquisitionItemsRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
-      setAcquisitionItems(list as AcquisitionItem[]);
-      safeLocalStorageSetItem('cached_acquisitionItems', JSON.stringify(list));
+      
+      let needsFirebaseUpdate = false;
+      const updatesToFirebase: Record<string, any> = {};
+
+      const processedItems = (list as AcquisitionItem[]).map(item => {
+        if (!item || !item.name) return item;
+        const normCat = (item.category || '').trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+
+        // PPAIS não entra nesta regra: permanece inalterado!
+        if (normCat === 'PPAIS') {
+          return item;
+        }
+
+        if (normCat === 'PERECIVEIS' || normCat === 'ESTOCAVEIS') {
+          // Se o item pertence ao 3Q ou está sem quadrimestre/ano definido,
+          // retorna os dados cadastrados para o 2º Quadrimestre (2Q / 2026),
+          // deixando o 3º Quadrimestre em branco para novos contratos.
+          if (item.quadrimestre === '3Q' || !item.quadrimestre || item.year !== 2026) {
+            needsFirebaseUpdate = true;
+            const updated: AcquisitionItem = {
+              ...item,
+              year: 2026,
+              quadrimestre: '2Q'
+            };
+            if (item.id) {
+              updatesToFirebase[`acquisitionItems/${item.id}/quadrimestre`] = '2Q';
+              updatesToFirebase[`acquisitionItems/${item.id}/year`] = 2026;
+            }
+            return updated;
+          }
+        }
+        return item;
+      });
+
+      if (needsFirebaseUpdate && database && navigator.onLine && Object.keys(updatesToFirebase).length > 0) {
+        update(ref(database), updatesToFirebase).catch(e => console.warn("Erro ao sincronizar quadrimestre dos itens no Firebase:", e));
+      }
+
+      setAcquisitionItems(processedItems);
+      safeLocalStorageSetItem('cached_acquisitionItems', JSON.stringify(processedItems));
     });
     unsubscribes.push(unsubAcquisitionItems);
 
@@ -2818,7 +2909,9 @@ const App: React.FC = () => {
           ...current,
           ppaisProducers: tempPpais,
           pereciveisSuppliers: tempPereciveis,
-          estocaveisSuppliers: tempEstocaveis
+          pereciveisSuppliers2Q: tempPereciveis,
+          estocaveisSuppliers: tempEstocaveis,
+          estocaveisSuppliers2Q: tempEstocaveis
         };
       }, perCapitaConfig, 3000);
 
@@ -2897,7 +2990,9 @@ const App: React.FC = () => {
           ...perCapitaConfig, 
           ppaisProducers: updatedPpais, 
           pereciveisSuppliers: updatedPereciveis,
-          estocaveisSuppliers: updatedEstocaveis 
+          pereciveisSuppliers2Q: updatedPereciveis,
+          estocaveisSuppliers: updatedEstocaveis,
+          estocaveisSuppliers2Q: updatedEstocaveis
         });
       }
       return { success: true, message: 'Item atualizado com sucesso' };
@@ -2938,7 +3033,9 @@ const App: React.FC = () => {
           ...perCapitaConfig, 
           ppaisProducers: updatedPpais, 
           pereciveisSuppliers: updatedPereciveis,
-          estocaveisSuppliers: updatedEstocaveis
+          pereciveisSuppliers2Q: updatedPereciveis,
+          estocaveisSuppliers: updatedEstocaveis,
+          estocaveisSuppliers2Q: updatedEstocaveis
         });
       }
 

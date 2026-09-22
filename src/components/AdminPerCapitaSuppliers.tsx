@@ -7,6 +7,7 @@ import html2pdf from 'html2pdf.js';
 import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import { FileText, Upload, AlertCircle, X, Download, Trash2, Calendar, Copy, RefreshCw } from 'lucide-react';
 import { ensureArray } from '../lib/utils';
+import { calculateAllowedWeeksFromSchedule } from '../lib/supplierUtils';
 
 interface AdminPerCapitaSuppliersProps {
     suppliers: PerCapitaSupplier[];
@@ -225,6 +226,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({
             representativeName: representativeName.toUpperCase(),
             representativeCpf,
             monthlySchedule: cleanMonthlySchedule,
+            allowedWeeks: calculateAllowedWeeksFromSchedule(cleanMonthlySchedule, 2026),
         };
 
         let updatedSuppliers: PerCapitaSupplier[];
