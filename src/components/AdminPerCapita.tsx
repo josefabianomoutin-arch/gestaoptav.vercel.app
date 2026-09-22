@@ -87,17 +87,41 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const [monthlyQuota, setMonthlyQuota] = useState<Record<string, number>>(() => perCapitaConfig?.monthlyQuota || {});
     const [monthlyResource, setMonthlyResource] = useState<Record<string, number>>(() => perCapitaConfig?.monthlyResource || {});
     const [ptresResources, setPtresResources] = useState<Record<string, { pieces: number; services: number }>>(() => perCapitaConfig?.ptresResources || {});
-    const [selectedYear, setSelectedYear] = useState<number>(2026);
-    const [selectedQuadrimestre, setSelectedQuadrimestre] = useState<'1Q' | '2Q' | '3Q'>('3Q');
+    const [selectedYear, setSelectedYear] = useState<number>(() => {
+        try {
+            const saved = localStorage.getItem('perCapita_selectedYear');
+            const num = saved ? parseInt(saved, 10) : 2026;
+            return (num === 2026 || num === 2027) ? num : 2026;
+        } catch {
+            return 2026;
+        }
+    });
+    const [selectedQuadrimestre, setSelectedQuadrimestre] = useState<'1Q' | '2Q' | '3Q'>(() => {
+        try {
+            const saved = localStorage.getItem('perCapita_selectedQuadrimestre');
+            if (saved === '1Q' || saved === '2Q' || saved === '3Q') return saved;
+        } catch {
+            // ignore
+        }
+        return '2Q'; // Padrão: 2º Quadrimestre (Maio a Agosto - Dados Anteriores Cadastrados)
+    });
     const [ppaisProducers, setPpaisProducers] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.ppaisProducers));
     const [pereciveisSuppliers1Q, setPereciveisSuppliers1Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.pereciveisSuppliers1Q));
-    const [pereciveisSuppliers2Q, setPereciveisSuppliers2Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.pereciveisSuppliers2Q));
+    const [pereciveisSuppliers2Q, setPereciveisSuppliers2Q] = useState<PerCapitaSupplier[]>(() => {
+        const from2Q = ensureArray(perCapitaConfig?.pereciveisSuppliers2Q);
+        if (from2Q.length > 0) return from2Q;
+        return ensureArray(perCapitaConfig?.pereciveisSuppliers);
+    });
     const [pereciveisSuppliers3Q, setPereciveisSuppliers3Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.pereciveisSuppliers3Q));
     const [pereciveisSuppliers2027_1Q, setPereciveisSuppliers2027_1Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.pereciveisSuppliers2027_1Q));
     const [pereciveisSuppliers2027_2Q, setPereciveisSuppliers2027_2Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.pereciveisSuppliers2027_2Q));
     const [pereciveisSuppliers2027_3Q, setPereciveisSuppliers2027_3Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.pereciveisSuppliers2027_3Q));
     const [estocaveisSuppliers1Q, setEstocaveisSuppliers1Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.estocaveisSuppliers1Q));
-    const [estocaveisSuppliers2Q, setEstocaveisSuppliers2Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.estocaveisSuppliers2Q));
+    const [estocaveisSuppliers2Q, setEstocaveisSuppliers2Q] = useState<PerCapitaSupplier[]>(() => {
+        const from2Q = ensureArray(perCapitaConfig?.estocaveisSuppliers2Q);
+        if (from2Q.length > 0) return from2Q;
+        return ensureArray(perCapitaConfig?.estocaveisSuppliers);
+    });
     const [estocaveisSuppliers3Q, setEstocaveisSuppliers3Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.estocaveisSuppliers3Q));
     const [estocaveisSuppliers2027_1Q, setEstocaveisSuppliers2027_1Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.estocaveisSuppliers2027_1Q));
     const [estocaveisSuppliers2027_2Q, setEstocaveisSuppliers2027_2Q] = useState<PerCapitaSupplier[]>(() => ensureArray(perCapitaConfig?.estocaveisSuppliers2027_2Q));
@@ -173,13 +197,19 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             setPtresResources(perCapitaConfig.ptresResources || {});
             setPpaisProducers(ensureArray(perCapitaConfig.ppaisProducers));
             setPereciveisSuppliers1Q(ensureArray(perCapitaConfig.pereciveisSuppliers1Q));
-            setPereciveisSuppliers2Q(ensureArray(perCapitaConfig.pereciveisSuppliers2Q));
+            
+            const p2Q = ensureArray(perCapitaConfig.pereciveisSuppliers2Q);
+            setPereciveisSuppliers2Q(p2Q.length > 0 ? p2Q : ensureArray(perCapitaConfig.pereciveisSuppliers));
+
             setPereciveisSuppliers3Q(ensureArray(perCapitaConfig.pereciveisSuppliers3Q));
             setPereciveisSuppliers2027_1Q(ensureArray(perCapitaConfig.pereciveisSuppliers2027_1Q));
             setPereciveisSuppliers2027_2Q(ensureArray(perCapitaConfig.pereciveisSuppliers2027_2Q));
             setPereciveisSuppliers2027_3Q(ensureArray(perCapitaConfig.pereciveisSuppliers2027_3Q));
             setEstocaveisSuppliers1Q(ensureArray(perCapitaConfig.estocaveisSuppliers1Q));
-            setEstocaveisSuppliers2Q(ensureArray(perCapitaConfig.estocaveisSuppliers2Q));
+
+            const e2Q = ensureArray(perCapitaConfig.estocaveisSuppliers2Q);
+            setEstocaveisSuppliers2Q(e2Q.length > 0 ? e2Q : ensureArray(perCapitaConfig.estocaveisSuppliers));
+
             setEstocaveisSuppliers3Q(ensureArray(perCapitaConfig.estocaveisSuppliers3Q));
             setEstocaveisSuppliers2027_1Q(ensureArray(perCapitaConfig.estocaveisSuppliers2027_1Q));
             setEstocaveisSuppliers2027_2Q(ensureArray(perCapitaConfig.estocaveisSuppliers2027_2Q));
@@ -187,13 +217,19 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         } else {
             if (perCapitaConfig.ppaisProducers) setPpaisProducers(ensureArray(perCapitaConfig.ppaisProducers));
             if (perCapitaConfig.pereciveisSuppliers1Q) setPereciveisSuppliers1Q(ensureArray(perCapitaConfig.pereciveisSuppliers1Q));
-            if (perCapitaConfig.pereciveisSuppliers2Q) setPereciveisSuppliers2Q(ensureArray(perCapitaConfig.pereciveisSuppliers2Q));
+            if (perCapitaConfig.pereciveisSuppliers2Q || perCapitaConfig.pereciveisSuppliers) {
+                const p2Q = ensureArray(perCapitaConfig.pereciveisSuppliers2Q);
+                setPereciveisSuppliers2Q(p2Q.length > 0 ? p2Q : ensureArray(perCapitaConfig.pereciveisSuppliers));
+            }
             if (perCapitaConfig.pereciveisSuppliers3Q) setPereciveisSuppliers3Q(ensureArray(perCapitaConfig.pereciveisSuppliers3Q));
             if (perCapitaConfig.pereciveisSuppliers2027_1Q) setPereciveisSuppliers2027_1Q(ensureArray(perCapitaConfig.pereciveisSuppliers2027_1Q));
             if (perCapitaConfig.pereciveisSuppliers2027_2Q) setPereciveisSuppliers2027_2Q(ensureArray(perCapitaConfig.pereciveisSuppliers2027_2Q));
             if (perCapitaConfig.pereciveisSuppliers2027_3Q) setPereciveisSuppliers2027_3Q(ensureArray(perCapitaConfig.pereciveisSuppliers2027_3Q));
             if (perCapitaConfig.estocaveisSuppliers1Q) setEstocaveisSuppliers1Q(ensureArray(perCapitaConfig.estocaveisSuppliers1Q));
-            if (perCapitaConfig.estocaveisSuppliers2Q) setEstocaveisSuppliers2Q(ensureArray(perCapitaConfig.estocaveisSuppliers2Q));
+            if (perCapitaConfig.estocaveisSuppliers2Q || perCapitaConfig.estocaveisSuppliers) {
+                const e2Q = ensureArray(perCapitaConfig.estocaveisSuppliers2Q);
+                setEstocaveisSuppliers2Q(e2Q.length > 0 ? e2Q : ensureArray(perCapitaConfig.estocaveisSuppliers));
+            }
             if (perCapitaConfig.estocaveisSuppliers3Q) setEstocaveisSuppliers3Q(ensureArray(perCapitaConfig.estocaveisSuppliers3Q));
             if (perCapitaConfig.estocaveisSuppliers2027_1Q) setEstocaveisSuppliers2027_1Q(ensureArray(perCapitaConfig.estocaveisSuppliers2027_1Q));
             if (perCapitaConfig.estocaveisSuppliers2027_2Q) setEstocaveisSuppliers2027_2Q(ensureArray(perCapitaConfig.estocaveisSuppliers2027_2Q));
@@ -206,10 +242,12 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         try {
             localStorage.setItem('perCapita_staffCount', staffCount.toString());
             localStorage.setItem('perCapita_inmateCount', inmateCount.toString());
+            localStorage.setItem('perCapita_selectedYear', selectedYear.toString());
+            localStorage.setItem('perCapita_selectedQuadrimestre', selectedQuadrimestre);
         } catch (e) {
-            console.warn("Could not preserve staff/inmate count locally:", e);
+            console.warn("Could not preserve staff/inmate/period count locally:", e);
         }
-    }, [staffCount, inmateCount]);
+    }, [staffCount, inmateCount, selectedYear, selectedQuadrimestre]);
 
     // Sincronizar selectedProducer com as alterações da lista de fornecedores
     useEffect(() => {
@@ -231,6 +269,15 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     const handleSave = async () => {
         setIsSaving(true);
         setSaveSuccess(false);
+
+        const safePereciveis2Q = (pereciveisSuppliers2Q && pereciveisSuppliers2Q.length > 0)
+            ? pereciveisSuppliers2Q
+            : ensureArray(perCapitaConfig?.pereciveisSuppliers);
+
+        const safeEstocaveis2Q = (estocaveisSuppliers2Q && estocaveisSuppliers2Q.length > 0)
+            ? estocaveisSuppliers2Q
+            : ensureArray(perCapitaConfig?.estocaveisSuppliers);
+
         const newConfig: PerCapitaConfig = {
             staffCount,
             inmateCount,
@@ -242,19 +289,19 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             ptresResources,
             ppaisProducers,
             pereciveisSuppliers1Q,
-            pereciveisSuppliers2Q,
+            pereciveisSuppliers2Q: safePereciveis2Q,
             pereciveisSuppliers3Q,
             pereciveisSuppliers2027_1Q,
             pereciveisSuppliers2027_2Q,
             pereciveisSuppliers2027_3Q,
             estocaveisSuppliers1Q,
-            estocaveisSuppliers2Q,
+            estocaveisSuppliers2Q: safeEstocaveis2Q,
             estocaveisSuppliers3Q,
             estocaveisSuppliers2027_1Q,
             estocaveisSuppliers2027_2Q,
             estocaveisSuppliers2027_3Q,
-            pereciveisSuppliers: pereciveisSuppliers2Q,
-            estocaveisSuppliers: estocaveisSuppliers2Q,
+            pereciveisSuppliers: safePereciveis2Q,
+            estocaveisSuppliers: safeEstocaveis2Q,
             monthlyAdvances,
         };
         console.log("Saving new configuration:", newConfig);
@@ -355,12 +402,17 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             else setPereciveisSuppliers3Q(newSuppliers);
         }
 
+        const updatePayload: Partial<PerCapitaConfig> = { [field]: newSuppliers };
+        if (selectedYear === 2026 && selectedQuadrimestre === '2Q') {
+            updatePayload.pereciveisSuppliers = newSuppliers;
+        }
+
         const newConfig: PerCapitaConfig = {
             ...perCapitaConfig,
-            [field]: newSuppliers,
+            ...updatePayload,
         };
         try {
-            const result = await onUpdatePerCapitaConfig({ [field]: newSuppliers });
+            const result = await onUpdatePerCapitaConfig(updatePayload);
             if (result && result.success) {
                 setIsDirty(false);
                 toast.success(`Fornecedores de Perecíveis (${selectedYear} - ${selectedQuadrimestre}) salvos com sucesso!`);
@@ -393,12 +445,17 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
             else setEstocaveisSuppliers3Q(newSuppliers);
         }
 
+        const updatePayload: Partial<PerCapitaConfig> = { [field]: newSuppliers };
+        if (selectedYear === 2026 && selectedQuadrimestre === '2Q') {
+            updatePayload.estocaveisSuppliers = newSuppliers;
+        }
+
         const newConfig: PerCapitaConfig = {
             ...perCapitaConfig,
-            [field]: newSuppliers,
+            ...updatePayload,
         };
         try {
-            const result = await onUpdatePerCapitaConfig({ [field]: newSuppliers });
+            const result = await onUpdatePerCapitaConfig(updatePayload);
             if (result && result.success) {
                 setIsDirty(false);
                 toast.success(`Fornecedores de Estocáveis (${selectedYear} - ${selectedQuadrimestre}) salvos com sucesso!`);
@@ -2054,8 +2111,8 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                     }`}
                                 >
                                     <span>2º Quadrimestre</span>
-                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${selectedQuadrimestre === '2Q' ? 'bg-indigo-700 text-indigo-100' : 'bg-emerald-100 text-emerald-800'}`}>
-                                        Mai - Ago {selectedYear === 2026 ? '(Meses Anteriores)' : ''}
+                                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${selectedQuadrimestre === '2Q' ? 'bg-indigo-700 text-indigo-100' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'}`}>
+                                        Mai - Ago {selectedYear === 2026 ? '• Dados Anteriores' : ''}
                                     </span>
                                 </button>
 
@@ -2069,11 +2126,44 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                                     }`}
                                 >
                                     <span>3º Quadrimestre</span>
-                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${selectedQuadrimestre === '3Q' ? 'bg-indigo-700 text-indigo-100' : 'bg-amber-100 text-amber-800'}`}>
-                                        Set - Dez {selectedYear === 2026 ? '(Novo Contrato)' : ''}
+                                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${selectedQuadrimestre === '3Q' ? 'bg-indigo-700 text-indigo-100' : 'bg-amber-100 text-amber-800 border border-amber-200'}`}>
+                                        Set - Dez {selectedYear === 2026 ? '• Novo Período' : ''}
                                     </span>
                                 </button>
                             </div>
+
+                            {/* Banner informativo de preservação dos dados de Maio a Agosto */}
+                            {selectedYear === 2026 && selectedQuadrimestre === '2Q' && (
+                                <div className="p-3.5 bg-emerald-50/80 rounded-2xl border border-emerald-200/80 flex items-center justify-between gap-3 text-xs text-emerald-900">
+                                    <div className="flex items-center gap-2.5">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0"></span>
+                                        <p>
+                                            <strong>2º Quadrimestre (Maio a Agosto / 2026):</strong> Todos os dados cadastrados dos meses anteriores estão <strong>ativos e preservados</strong> (itens, fornecedores, preços e contratos).
+                                        </p>
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase px-2.5 py-1 bg-emerald-200/70 text-emerald-900 rounded-lg whitespace-nowrap">
+                                        Base de Dados Preservada
+                                    </span>
+                                </div>
+                            )}
+
+                            {selectedYear === 2026 && selectedQuadrimestre === '3Q' && (
+                                <div className="p-3.5 bg-blue-50/80 rounded-2xl border border-blue-200/80 flex items-center justify-between gap-3 text-xs text-blue-900">
+                                    <div className="flex items-center gap-2.5">
+                                        <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
+                                        <p>
+                                            <strong>3º Quadrimestre (Setembro a Dezembro / 2026):</strong> Período independente. Os dados cadastrados de Maio a Agosto permanecem intocados no 2º Quadrimestre e podem ser clonados para este período via botões de cópia.
+                                        </p>
+                                    </div>
+                                    <button 
+                                        type="button"
+                                        onClick={() => setSelectedQuadrimestre('2Q')}
+                                        className="text-[10px] font-black uppercase px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg whitespace-nowrap transition-colors"
+                                    >
+                                        Ver Maio a Agosto
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
 
