@@ -2968,97 +2968,173 @@ const App: React.FC = () => {
 
   const handleUpdateAcquisitionItem = async (item: AcquisitionItem) => {
     try {
-      const itemRef = child(acquisitionItemsRef, item.id);
-      const oldItem = acquisitionItems.find(i => i.id === item.id) || null;
+      // 1. Sanitizar o item para garantir tipos e eliminar qualquer valor undefined (que trava ou gera erro no Firebase)
+      const sanitizedItem: AcquisitionItem = {
+        id: String(item.id || `acq-${Date.now()}`),
+        name: String(item.name || '').trim().toUpperCase(),
+        nickname: String(item.nickname || '').trim().toUpperCase(),
+        contractItemName: String(item.contractItemName || '').trim(),
+        comprasCode: String(item.comprasCode || '').trim(),
+        becCode: String(item.becCode || '').trim(),
+        expenseNature: String(item.expenseNature || '').trim(),
+        unit: String(item.unit || 'un').trim(),
+        acquiredQuantity: Number(item.acquiredQuantity) || 0,
+        stockBalance: Number(item.stockBalance) || 0,
+        unitValue: Number(item.unitValue) || 0,
+        unitValue23: Number(item.unitValue23) || 0,
+        contractAddendum: Number(item.contractAddendum) || 0,
+        commitmentNumber: String(item.commitmentNumber || '').trim(),
+        category: String(item.category || '').trim(),
+        year: item.year ? Number(item.year) : 2026,
+        quadrimestre: (item.quadrimestre as any) || '2Q'
+      };
 
-      await set(itemRef, item);
+      const oldItem = acquisitionItems.find(i => i.id === sanitizedItem.id) || null;
 
-      // Se o nome mudou, atualizar nos fornecedores
-      if (oldItem && oldItem.name !== item.name) {
-        for (const supplier of suppliers) {
-          if (supplier.contractItems && supplier.cpf) {
-            const updatedItems = supplier.contractItems.map(ci => 
-              ci.name === oldItem.name ? { ...ci, name: item.name } : ci
-            );
-            if (JSON.stringify(updatedItems) !== JSON.stringify(supplier.contractItems)) {
-              await update(child(suppliersRef, supplier.cpf), { contractItems: updatedItems });
+      // 2. Atualização otimista imediata no estado local e cache (resposta em 0ms no navegador)
+      setAcquisitionItems(prev => {
+        const existingIdx = prev.findIndex(i => i.id === sanitizedItem.id);
+        let updatedList: AcquisitionItem[];
+        if (existingIdx >= 0) {
+          updatedList = [...prev];
+          updatedList[existingIdx] = sanitizedItem;
+        } else {
+          updatedList = [sanitizedItem, ...prev];
+        }
+        safeLocalStorageSetItem('cached_acquisitionItems', JSON.stringify(updatedList));
+        return updatedList;
+      });
+
+      // 3. Sincronização segura com o Firebase (com proteção de timeout para nunca travar o app)
+      if (database && acquisitionItemsRef) {
+        try {
+          const itemRef = child(acquisitionItemsRef, sanitizedItem.id);
+          const savePromise = set(itemRef, sanitizedItem);
+          const timeoutPromise = new Promise(resolve => setTimeout(resolve, 3000));
+          await Promise.race([savePromise, timeoutPromise]);
+        } catch (dbErr) {
+          console.warn("Firebase set acquisitionItem com timeout ou offline, mantido localmente:", dbErr);
+        }
+      }
+
+      // 4. Se o nome mudou, atualizar fornecedores correspondentes
+      if (oldItem && oldItem.name !== sanitizedItem.name) {
+        try {
+          for (const supplier of suppliers) {
+            if (supplier.contractItems && supplier.cpf) {
+              const updatedItems = supplier.contractItems.map(ci => 
+                ci.name === oldItem.name ? { ...ci, name: sanitizedItem.name } : ci
+              );
+              if (JSON.stringify(updatedItems) !== JSON.stringify(supplier.contractItems)) {
+                if (suppliersRef) {
+                  update(child(suppliersRef, supplier.cpf), { contractItems: updatedItems }).catch(e => console.warn(e));
+                }
+              }
             }
           }
+
+          const updateSupplierList = (list: any[]) => ensureArray(list).map(p => ({
+            ...p,
+            contractItems: (p.contractItems || []).map((ci: any) => ci.name === oldItem.name ? { ...ci, name: sanitizedItem.name } : ci)
+          }));
+
+          if (perCapitaConfigRef) {
+            update(perCapitaConfigRef, { 
+              ppaisProducers: updateSupplierList(perCapitaConfig.ppaisProducers || []),
+              pereciveisSuppliers: updateSupplierList(perCapitaConfig.pereciveisSuppliers || []),
+              pereciveisSuppliers1Q: updateSupplierList(perCapitaConfig.pereciveisSuppliers1Q || []),
+              pereciveisSuppliers2Q: updateSupplierList(perCapitaConfig.pereciveisSuppliers2Q || []),
+              pereciveisSuppliers3Q: updateSupplierList(perCapitaConfig.pereciveisSuppliers3Q || []),
+              pereciveisSuppliers2027_1Q: updateSupplierList(perCapitaConfig.pereciveisSuppliers2027_1Q || []),
+              pereciveisSuppliers2027_2Q: updateSupplierList(perCapitaConfig.pereciveisSuppliers2027_2Q || []),
+              pereciveisSuppliers2027_3Q: updateSupplierList(perCapitaConfig.pereciveisSuppliers2027_3Q || []),
+              estocaveisSuppliers: updateSupplierList(perCapitaConfig.estocaveisSuppliers || []),
+              estocaveisSuppliers1Q: updateSupplierList(perCapitaConfig.estocaveisSuppliers1Q || []),
+              estocaveisSuppliers2Q: updateSupplierList(perCapitaConfig.estocaveisSuppliers2Q || []),
+              estocaveisSuppliers3Q: updateSupplierList(perCapitaConfig.estocaveisSuppliers3Q || []),
+              estocaveisSuppliers2027_1Q: updateSupplierList(perCapitaConfig.estocaveisSuppliers2027_1Q || []),
+              estocaveisSuppliers2027_2Q: updateSupplierList(perCapitaConfig.estocaveisSuppliers2027_2Q || []),
+              estocaveisSuppliers2027_3Q: updateSupplierList(perCapitaConfig.estocaveisSuppliers2027_3Q || []),
+            }).catch(e => console.warn(e));
+          }
+        } catch (linkErr) {
+          console.warn("Erro secundário ao atualizar nomes vinculados nos fornecedores:", linkErr);
         }
-
-        const updateSupplierList = (list: any[]) => ensureArray(list).map(p => ({
-          ...p,
-          contractItems: (p.contractItems || []).map((ci: any) => ci.name === oldItem.name ? { ...ci, name: item.name } : ci)
-        }));
-
-        await update(perCapitaConfigRef, { 
-          ppaisProducers: updateSupplierList(perCapitaConfig.ppaisProducers || []),
-          pereciveisSuppliers: updateSupplierList(perCapitaConfig.pereciveisSuppliers || []),
-          pereciveisSuppliers1Q: updateSupplierList(perCapitaConfig.pereciveisSuppliers1Q || []),
-          pereciveisSuppliers2Q: updateSupplierList(perCapitaConfig.pereciveisSuppliers2Q || []),
-          pereciveisSuppliers3Q: updateSupplierList(perCapitaConfig.pereciveisSuppliers3Q || []),
-          pereciveisSuppliers2027_1Q: updateSupplierList(perCapitaConfig.pereciveisSuppliers2027_1Q || []),
-          pereciveisSuppliers2027_2Q: updateSupplierList(perCapitaConfig.pereciveisSuppliers2027_2Q || []),
-          pereciveisSuppliers2027_3Q: updateSupplierList(perCapitaConfig.pereciveisSuppliers2027_3Q || []),
-          estocaveisSuppliers: updateSupplierList(perCapitaConfig.estocaveisSuppliers || []),
-          estocaveisSuppliers1Q: updateSupplierList(perCapitaConfig.estocaveisSuppliers1Q || []),
-          estocaveisSuppliers2Q: updateSupplierList(perCapitaConfig.estocaveisSuppliers2Q || []),
-          estocaveisSuppliers3Q: updateSupplierList(perCapitaConfig.estocaveisSuppliers3Q || []),
-          estocaveisSuppliers2027_1Q: updateSupplierList(perCapitaConfig.estocaveisSuppliers2027_1Q || []),
-          estocaveisSuppliers2027_2Q: updateSupplierList(perCapitaConfig.estocaveisSuppliers2027_2Q || []),
-          estocaveisSuppliers2027_3Q: updateSupplierList(perCapitaConfig.estocaveisSuppliers2027_3Q || []),
-        });
       }
       return { success: true, message: 'Item atualizado com sucesso' };
     } catch (e) {
-      console.error(e);
+      console.error('Erro em handleUpdateAcquisitionItem:', e);
       return { success: false, message: 'Erro ao atualizar item' };
     }
   };
 
   const handleDeleteAcquisitionItem = async (id: string) => {
     try {
-      const itemRef = child(acquisitionItemsRef, id);
+      // Atualização otimista imediata no estado local e cache
+      setAcquisitionItems(prev => {
+        const updatedList = prev.filter(i => i.id !== id);
+        safeLocalStorageSetItem('cached_acquisitionItems', JSON.stringify(updatedList));
+        return updatedList;
+      });
+
       const item = acquisitionItems.find(i => i.id === id) || null;
 
       if (item) {
-        for (const supplier of suppliers) {
-          if (supplier.contractItems && supplier.cpf) {
-            const updatedItems = supplier.contractItems.filter(ci => ci.name !== item.name);
-            if (updatedItems.length !== supplier.contractItems.length) {
-              await update(child(suppliersRef, supplier.cpf), { contractItems: updatedItems });
+        try {
+          for (const supplier of suppliers) {
+            if (supplier.contractItems && supplier.cpf) {
+              const updatedItems = supplier.contractItems.filter(ci => ci.name !== item.name);
+              if (updatedItems.length !== supplier.contractItems.length) {
+                if (suppliersRef) {
+                  update(child(suppliersRef, supplier.cpf), { contractItems: updatedItems }).catch(e => console.warn(e));
+                }
+              }
             }
           }
+
+          const filterSupplierList = (list: any[]) => ensureArray(list).map(p => ({
+            ...p,
+            contractItems: (p.contractItems || []).filter((ci: any) => ci.name !== item.name)
+          }));
+
+          if (perCapitaConfigRef) {
+            update(perCapitaConfigRef, { 
+              ppaisProducers: filterSupplierList(perCapitaConfig.ppaisProducers || []),
+              pereciveisSuppliers: filterSupplierList(perCapitaConfig.pereciveisSuppliers || []),
+              pereciveisSuppliers1Q: filterSupplierList(perCapitaConfig.pereciveisSuppliers1Q || []),
+              pereciveisSuppliers2Q: filterSupplierList(perCapitaConfig.pereciveisSuppliers2Q || []),
+              pereciveisSuppliers3Q: filterSupplierList(perCapitaConfig.pereciveisSuppliers3Q || []),
+              pereciveisSuppliers2027_1Q: filterSupplierList(perCapitaConfig.pereciveisSuppliers2027_1Q || []),
+              pereciveisSuppliers2027_2Q: filterSupplierList(perCapitaConfig.pereciveisSuppliers2027_2Q || []),
+              pereciveisSuppliers2027_3Q: filterSupplierList(perCapitaConfig.pereciveisSuppliers2027_3Q || []),
+              estocaveisSuppliers: filterSupplierList(perCapitaConfig.estocaveisSuppliers || []),
+              estocaveisSuppliers1Q: filterSupplierList(perCapitaConfig.estocaveisSuppliers1Q || []),
+              estocaveisSuppliers2Q: filterSupplierList(perCapitaConfig.estocaveisSuppliers2027_2Q || []),
+              estocaveisSuppliers3Q: filterSupplierList(perCapitaConfig.estocaveisSuppliers3Q || []),
+              estocaveisSuppliers2027_1Q: filterSupplierList(perCapitaConfig.estocaveisSuppliers2027_1Q || []),
+              estocaveisSuppliers2027_2Q: filterSupplierList(perCapitaConfig.estocaveisSuppliers2027_2Q || []),
+              estocaveisSuppliers2027_3Q: filterSupplierList(perCapitaConfig.estocaveisSuppliers2027_3Q || []),
+            }).catch(e => console.warn(e));
+          }
+        } catch (unlinkErr) {
+          console.warn("Erro secundário ao remover itens vinculados dos fornecedores:", unlinkErr);
         }
-
-        const filterSupplierList = (list: any[]) => ensureArray(list).map(p => ({
-          ...p,
-          contractItems: (p.contractItems || []).filter((ci: any) => ci.name !== item.name)
-        }));
-
-        await update(perCapitaConfigRef, { 
-          ppaisProducers: filterSupplierList(perCapitaConfig.ppaisProducers || []),
-          pereciveisSuppliers: filterSupplierList(perCapitaConfig.pereciveisSuppliers || []),
-          pereciveisSuppliers1Q: filterSupplierList(perCapitaConfig.pereciveisSuppliers1Q || []),
-          pereciveisSuppliers2Q: filterSupplierList(perCapitaConfig.pereciveisSuppliers2Q || []),
-          pereciveisSuppliers3Q: filterSupplierList(perCapitaConfig.pereciveisSuppliers3Q || []),
-          pereciveisSuppliers2027_1Q: filterSupplierList(perCapitaConfig.pereciveisSuppliers2027_1Q || []),
-          pereciveisSuppliers2027_2Q: filterSupplierList(perCapitaConfig.pereciveisSuppliers2027_2Q || []),
-          pereciveisSuppliers2027_3Q: filterSupplierList(perCapitaConfig.pereciveisSuppliers2027_3Q || []),
-          estocaveisSuppliers: filterSupplierList(perCapitaConfig.estocaveisSuppliers || []),
-          estocaveisSuppliers1Q: filterSupplierList(perCapitaConfig.estocaveisSuppliers1Q || []),
-          estocaveisSuppliers2Q: filterSupplierList(perCapitaConfig.estocaveisSuppliers2Q || []),
-          estocaveisSuppliers3Q: filterSupplierList(perCapitaConfig.estocaveisSuppliers3Q || []),
-          estocaveisSuppliers2027_1Q: filterSupplierList(perCapitaConfig.estocaveisSuppliers2027_1Q || []),
-          estocaveisSuppliers2027_2Q: filterSupplierList(perCapitaConfig.estocaveisSuppliers2027_2Q || []),
-          estocaveisSuppliers2027_3Q: filterSupplierList(perCapitaConfig.estocaveisSuppliers2027_3Q || []),
-        });
       }
 
-      await remove(itemRef);
+      if (database && acquisitionItemsRef) {
+        try {
+          const itemRef = child(acquisitionItemsRef, id);
+          const removePromise = remove(itemRef);
+          const timeoutPromise = new Promise(resolve => setTimeout(resolve, 3000));
+          await Promise.race([removePromise, timeoutPromise]);
+        } catch (dbErr) {
+          console.warn("Firebase remove item com timeout ou offline:", dbErr);
+        }
+      }
+
       return { success: true, message: 'Item excluído com sucesso' };
     } catch (e) {
-      console.error(e);
+      console.error('Erro em handleDeleteAcquisitionItem:', e);
       return { success: false, message: 'Erro ao excluir item' };
     }
   };
