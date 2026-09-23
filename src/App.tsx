@@ -3070,14 +3070,25 @@ const App: React.FC = () => {
 
   const handleDeleteAcquisitionItem = async (id: string) => {
     try {
-      // Atualização otimista imediata no estado local e cache
+      const item = acquisitionItems.find(i => i.id === id) || null;
+
+      if (database && acquisitionItemsRef) {
+        try {
+          const itemRef = child(acquisitionItemsRef, id);
+          await remove(itemRef);
+          await set(itemRef, null);
+        } catch (dbErr) {
+          console.error("Erro ao remover item do Firebase:", dbErr);
+          return { success: false, message: 'Erro ao excluir item do banco de dados' };
+        }
+      }
+
+      // Atualização otimista imediata no estado local e cache após confirmação do DB
       setAcquisitionItems(prev => {
         const updatedList = prev.filter(i => i.id !== id);
         safeLocalStorageSetItem('cached_acquisitionItems', JSON.stringify(updatedList));
         return updatedList;
       });
-
-      const item = acquisitionItems.find(i => i.id === id) || null;
 
       if (item) {
         try {
@@ -3118,17 +3129,6 @@ const App: React.FC = () => {
           }
         } catch (unlinkErr) {
           console.warn("Erro secundário ao remover itens vinculados dos fornecedores:", unlinkErr);
-        }
-      }
-
-      if (database && acquisitionItemsRef) {
-        try {
-          const itemRef = child(acquisitionItemsRef, id);
-          const removePromise = remove(itemRef);
-          const timeoutPromise = new Promise(resolve => setTimeout(resolve, 3000));
-          await Promise.race([removePromise, timeoutPromise]);
-        } catch (dbErr) {
-          console.warn("Firebase remove item com timeout ou offline:", dbErr);
         }
       }
 
