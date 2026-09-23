@@ -1395,13 +1395,27 @@ const App: React.FC = () => {
   const handleSyncPPAISToAgenda = async (overrideConfig?: PerCapitaConfig) => {
     const configToUse = overrideConfig || perCapitaConfig;
     const producers = ensureArray(configToUse?.ppaisProducers);
-    const pereciveis = ensureArray(configToUse?.pereciveisSuppliers).length > 0 
-      ? ensureArray(configToUse?.pereciveisSuppliers)
-      : [...ensureArray(configToUse?.pereciveisSuppliers2Q), ...ensureArray(configToUse?.pereciveisSuppliers3Q), ...ensureArray(configToUse?.pereciveisSuppliers1Q)];
-    const allPerCapita = [...producers, ...pereciveis];
+    const pereciveis = [
+      ...ensureArray(configToUse?.pereciveisSuppliers),
+      ...ensureArray(configToUse?.pereciveisSuppliers1Q),
+      ...ensureArray(configToUse?.pereciveisSuppliers2Q),
+      ...ensureArray(configToUse?.pereciveisSuppliers3Q),
+      ...ensureArray(configToUse?.pereciveisSuppliers2027_1Q),
+      ...ensureArray(configToUse?.pereciveisSuppliers2027_2Q),
+      ...ensureArray(configToUse?.pereciveisSuppliers2027_3Q),
+    ];
+    const estocaveis = [
+      ...ensureArray(configToUse?.estocaveisSuppliers),
+      ...ensureArray(configToUse?.estocaveisSuppliers1Q),
+      ...ensureArray(configToUse?.estocaveisSuppliers2Q),
+      ...ensureArray(configToUse?.estocaveisSuppliers3Q),
+      ...ensureArray(configToUse?.estocaveisSuppliers2027_1Q),
+      ...ensureArray(configToUse?.estocaveisSuppliers2027_2Q),
+      ...ensureArray(configToUse?.estocaveisSuppliers2027_3Q),
+    ];
+    const allPerCapita = [...producers, ...pereciveis, ...estocaveis].filter(Boolean);
 
     if (allPerCapita.length === 0) {
-      toast.error('Nenhum cadastro Per Capita encontrado.');
       return;
     }
 
@@ -1409,14 +1423,17 @@ const App: React.FC = () => {
       // Get all current suppliers to handle the "not registered" ones
       const suppliersSnapshot = await get(suppliersRef);
       const allSuppliers = suppliersSnapshot.val() || {};
-      const registeredCpfs = new Set(allPerCapita.map(p => p.cpfCnpj));
 
       for (const entry of allPerCapita) {
+        if (!entry) continue;
+        const entryCpf = String(entry.cpfCnpj || entry.cpf || '').trim();
+        if (!entryCpf) continue;
+
         // Calculate weeks for the entire year (Jan-Dec) to keep both contracts independent
         const uniqueNewWeeks = calculateAllowedWeeksFromSchedule(entry.monthlySchedule, 2026);
 
-        const supplierRef = child(suppliersRef, entry.cpfCnpj);
-        const existingSupplier = allSuppliers[entry.cpfCnpj] as Supplier | null;
+        const supplierRef = child(suppliersRef, entryCpf);
+        const existingSupplier = allSuppliers[entryCpf] as Supplier | null;
 
         if (existingSupplier) {
           // Merge Q1 and Q2/Q3 data to keep them independent but accessible
@@ -1436,8 +1453,8 @@ const App: React.FC = () => {
         } else {
           // New entry - only sync weeks, no items in the main list
           const newSupplier: Supplier = {
-            name: entry.name,
-            cpf: entry.cpfCnpj,
+            name: entry.name || '',
+            cpf: entryCpf,
             initialValue: 0,
             contractItems: [], // Keep empty in main list
             deliveries: [],

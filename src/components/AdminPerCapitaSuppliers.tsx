@@ -226,7 +226,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({
             representativeName: representativeName.toUpperCase(),
             representativeCpf,
             monthlySchedule: cleanMonthlySchedule,
-            allowedWeeks: calculateAllowedWeeksFromSchedule(cleanMonthlySchedule, 2026),
+            allowedWeeks: calculateAllowedWeeksFromSchedule(cleanMonthlySchedule, quadrimestreInfo?.year || 2026),
         };
 
         let updatedSuppliers: PerCapitaSupplier[];
