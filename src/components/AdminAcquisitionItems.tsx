@@ -171,7 +171,23 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({
         setIsCopying(true);
         try {
             let count = 0;
+            let skipped = 0;
+            const targetYear = year || 2026;
+            const targetQuad = quadrimestre || '2Q';
+
+            const existingTargetNames = new Set(
+                sourceList
+                    .filter(it => normalizeCategory(it.category) === normalizeCategory(category) && (it.year || 2026) === targetYear && (it.quadrimestre || '2Q') === targetQuad)
+                    .map(it => normalizeItemName(it.name))
+            );
+
             for (const it of itemsToCopy) {
+                const normName = normalizeItemName(it.name);
+                if (existingTargetNames.has(normName)) {
+                    skipped++;
+                    continue;
+                }
+
                 const newItem: AcquisitionItem = {
                     id: `acq-${Date.now()}-${Math.random().toString(36).substring(2, 7)}-${count}`,
                     name: it.name,
@@ -188,14 +204,19 @@ const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({
                     contractAddendum: 0,
                     commitmentNumber: it.commitmentNumber || '',
                     category,
-                    year: year || 2026,
-                    quadrimestre: quadrimestre || '2Q'
+                    year: targetYear,
+                    quadrimestre: targetQuad
                 };
                 await onUpdate(newItem);
+                existingTargetNames.add(normName);
                 count++;
             }
             setShowCopyModal(false);
-            toast.success(`${count} itens copiados com sucesso para o ${quadrimestre === '1Q' ? '1º' : quadrimestre === '2Q' ? '2º' : '3º'} Quadrimestre (${year || 2026})!`);
+            if (count > 0) {
+                toast.success(`${count} itens copiados com sucesso para o ${targetQuad === '1Q' ? '1º' : targetQuad === '2Q' ? '2º' : '3º'} Quadrimestre (${targetYear})!${skipped > 0 ? ` (${skipped} já existiam e foram ignorados)` : ''}`);
+            } else {
+                toast.info(`Nenhum novo item copiado. Todos os ${skipped} itens já existiam neste quadrimestre.`);
+            }
         } catch {
             toast.error('Erro ao copiar itens.');
         } finally {

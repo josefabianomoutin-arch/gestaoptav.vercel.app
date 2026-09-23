@@ -199,8 +199,8 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({
     };
 
     const handleSave = () => {
-        if (!name || !cpfCnpj || !processNumber) {
-            toast.error(`Preencha os campos obrigatórios: Nome, CPF/CNPJ e Número do Processo.`);
+        if (!name || !name.trim() || !cpfCnpj || !cpfCnpj.trim()) {
+            toast.error(`Preencha os campos obrigatórios: Nome e CPF/CNPJ.`);
             return;
         }
 
