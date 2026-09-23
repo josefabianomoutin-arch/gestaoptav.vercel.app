@@ -1197,27 +1197,54 @@ const App: React.FC = () => {
       return false;
     };
 
-    const ppaisProducer = ensureArray(perCapitaConfig.ppaisProducers).find(matchProducerOrSupplier);
-    if (ppaisProducer) {
-      setUser({ name: ppaisProducer.name, cpf: ppaisProducer.cpfCnpj || ppaisProducer.cpf || numericPass, role: 'producer' });
-      return true;
-    }
+    const allCandidateSuppliers = [
+      ...ensureArray(perCapitaConfig.ppaisProducers),
+      ...ensureArray(perCapitaConfig.pereciveisSuppliers),
+      ...ensureArray(perCapitaConfig.pereciveisSuppliers1Q),
+      ...ensureArray(perCapitaConfig.pereciveisSuppliers2Q),
+      ...ensureArray(perCapitaConfig.pereciveisSuppliers3Q),
+      ...ensureArray(perCapitaConfig.pereciveisSuppliers2027_1Q),
+      ...ensureArray(perCapitaConfig.pereciveisSuppliers2027_2Q),
+      ...ensureArray(perCapitaConfig.pereciveisSuppliers2027_3Q),
+      ...ensureArray(perCapitaConfig.estocaveisSuppliers),
+      ...ensureArray(perCapitaConfig.estocaveisSuppliers1Q),
+      ...ensureArray(perCapitaConfig.estocaveisSuppliers2Q),
+      ...ensureArray(perCapitaConfig.estocaveisSuppliers3Q),
+      ...ensureArray(perCapitaConfig.estocaveisSuppliers2027_1Q),
+      ...ensureArray(perCapitaConfig.estocaveisSuppliers2027_2Q),
+      ...ensureArray(perCapitaConfig.estocaveisSuppliers2027_3Q),
+      ...ensureArray(suppliers)
+    ];
 
-    const pereciveisSupplier = ensureArray(perCapitaConfig.pereciveisSuppliers).find(matchProducerOrSupplier);
-    if (pereciveisSupplier) {
-      setUser({ name: pereciveisSupplier.name, cpf: pereciveisSupplier.cpfCnpj || pereciveisSupplier.cpf || numericPass, role: 'pereciveis_supplier' });
-      return true;
-    }
+    const matchedSupplier = allCandidateSuppliers.find(matchProducerOrSupplier);
+    if (matchedSupplier) {
+      let role = 'supplier';
+      const isPpais = ensureArray(perCapitaConfig.ppaisProducers).some(p => (p.cpfCnpj || p.cpf) === (matchedSupplier.cpfCnpj || matchedSupplier.cpf));
+      const isPereciveis = [
+        perCapitaConfig.pereciveisSuppliers,
+        perCapitaConfig.pereciveisSuppliers1Q,
+        perCapitaConfig.pereciveisSuppliers2Q,
+        perCapitaConfig.pereciveisSuppliers3Q,
+        perCapitaConfig.pereciveisSuppliers2027_1Q,
+        perCapitaConfig.pereciveisSuppliers2027_2Q,
+        perCapitaConfig.pereciveisSuppliers2027_3Q
+      ].some(list => ensureArray(list).some(p => (p.cpfCnpj || p.cpf) === (matchedSupplier.cpfCnpj || matchedSupplier.cpf)));
 
-    const estocaveisSupplier = ensureArray(perCapitaConfig.estocaveisSuppliers).find(matchProducerOrSupplier);
-    if (estocaveisSupplier) {
-      setUser({ name: estocaveisSupplier.name, cpf: estocaveisSupplier.cpfCnpj || estocaveisSupplier.cpf || numericPass, role: 'estocaveis_supplier' });
-      return true;
-    }
+      const isEstocaveis = [
+        perCapitaConfig.estocaveisSuppliers,
+        perCapitaConfig.estocaveisSuppliers1Q,
+        perCapitaConfig.estocaveisSuppliers2Q,
+        perCapitaConfig.estocaveisSuppliers3Q,
+        perCapitaConfig.estocaveisSuppliers2027_1Q,
+        perCapitaConfig.estocaveisSuppliers2027_2Q,
+        perCapitaConfig.estocaveisSuppliers2027_3Q
+      ].some(list => ensureArray(list).some(p => (p.cpfCnpj || p.cpf) === (matchedSupplier.cpfCnpj || matchedSupplier.cpf)));
 
-    const supplier = suppliers.find(s => matchProducerOrSupplier(s));
-    if (supplier) {
-      setUser({ name: supplier.name, cpf: supplier.cpf || supplier.cnpj || numericPass, role: 'supplier' });
+      if (isPpais) role = 'producer';
+      else if (isPereciveis) role = 'pereciveis_supplier';
+      else if (isEstocaveis) role = 'estocaveis_supplier';
+
+      setUser({ name: matchedSupplier.name, cpf: matchedSupplier.cpfCnpj || matchedSupplier.cpf || numericPass, role: role as any });
       return true;
     }
 
@@ -1233,35 +1260,56 @@ const App: React.FC = () => {
         let found = false;
         if (perCapitaSnap.exists()) {
           const config = perCapitaSnap.val() || {};
-          const dbPpais = ensureArray<any>(config.ppaisProducers).find(matchProducerOrSupplier);
-          if (dbPpais) {
-            setUser({ name: dbPpais.name, cpf: dbPpais.cpfCnpj || dbPpais.cpf || numericPass, role: 'producer' });
+          const allDbSuppliers = [
+            ...ensureArray(config.ppaisProducers),
+            ...ensureArray(config.pereciveisSuppliers),
+            ...ensureArray(config.pereciveisSuppliers1Q),
+            ...ensureArray(config.pereciveisSuppliers2Q),
+            ...ensureArray(config.pereciveisSuppliers3Q),
+            ...ensureArray(config.pereciveisSuppliers2027_1Q),
+            ...ensureArray(config.pereciveisSuppliers2027_2Q),
+            ...ensureArray(config.pereciveisSuppliers2027_3Q),
+            ...ensureArray(config.estocaveisSuppliers),
+            ...ensureArray(config.estocaveisSuppliers1Q),
+            ...ensureArray(config.estocaveisSuppliers2Q),
+            ...ensureArray(config.estocaveisSuppliers3Q),
+            ...ensureArray(config.estocaveisSuppliers2027_1Q),
+            ...ensureArray(config.estocaveisSuppliers2027_2Q),
+            ...ensureArray(config.estocaveisSuppliers2027_3Q),
+            ...(supSnap.exists() ? Object.values(supSnap.val() || {}) : [])
+          ];
+
+          const dbMatched = allDbSuppliers.find(matchProducerOrSupplier);
+          if (dbMatched) {
+            let role = 'supplier';
+            const isPpais = ensureArray(config.ppaisProducers).some(p => (p.cpfCnpj || p.cpf) === (dbMatched.cpfCnpj || dbMatched.cpf));
+            const isPereciveis = [
+              config.pereciveisSuppliers,
+              config.pereciveisSuppliers1Q,
+              config.pereciveisSuppliers2Q,
+              config.pereciveisSuppliers3Q,
+              config.pereciveisSuppliers2027_1Q,
+              config.pereciveisSuppliers2027_2Q,
+              config.pereciveisSuppliers2027_3Q
+            ].some(list => ensureArray(list).some(p => (p.cpfCnpj || p.cpf) === (dbMatched.cpfCnpj || dbMatched.cpf)));
+
+            const isEstocaveis = [
+              config.estocaveisSuppliers,
+              config.estocaveisSuppliers1Q,
+              config.estocaveisSuppliers2Q,
+              config.estocaveisSuppliers3Q,
+              config.estocaveisSuppliers2027_1Q,
+              config.estocaveisSuppliers2027_2Q,
+              config.estocaveisSuppliers2027_3Q
+            ].some(list => ensureArray(list).some(p => (p.cpfCnpj || p.cpf) === (dbMatched.cpfCnpj || dbMatched.cpf)));
+
+            if (isPpais) role = 'producer';
+            else if (isPereciveis) role = 'pereciveis_supplier';
+            else if (isEstocaveis) role = 'estocaveis_supplier';
+
+            setUser({ name: dbMatched.name, cpf: dbMatched.cpfCnpj || dbMatched.cpf || numericPass, role: role as any });
             found = true;
           }
-          if (!found) {
-            const dbPereciveis = ensureArray<any>(config.pereciveisSuppliers).find(matchProducerOrSupplier);
-            if (dbPereciveis) {
-              setUser({ name: dbPereciveis.name, cpf: dbPereciveis.cpfCnpj || dbPereciveis.cpf || numericPass, role: 'pereciveis_supplier' });
-              found = true;
-            }
-          }
-          if (!found) {
-            const dbEstocaveis = ensureArray<any>(config.estocaveisSuppliers).find(matchProducerOrSupplier);
-            if (dbEstocaveis) {
-              setUser({ name: dbEstocaveis.name, cpf: dbEstocaveis.cpfCnpj || dbEstocaveis.cpf || numericPass, role: 'estocaveis_supplier' });
-              found = true;
-            }
-          }
-        }
-        
-        if (!found && supSnap.exists()) {
-           const supData = supSnap.val() || {};
-           const supArray = Array.isArray(supData) ? supData : Object.values(supData);
-           const dbSupplier: any = supArray.find(s => matchProducerOrSupplier(s));
-           if (dbSupplier) {
-             setUser({ name: dbSupplier.name, cpf: dbSupplier.cpf || dbSupplier.cnpj || numericPass, role: 'supplier' });
-             found = true;
-           }
         }
         
         if (found) return true;
