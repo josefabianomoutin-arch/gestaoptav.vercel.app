@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
-import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Save, Database, X, Wrench, Pencil, ArrowRightLeft, Check, AlertTriangle, QrCode, Scale, Utensils, FileSpreadsheet, Server } from 'lucide-react';
+import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Save, Database, X, Wrench, Pencil, ArrowRightLeft, Check, AlertTriangle, QrCode, Scale, Utensils, FileSpreadsheet } from 'lucide-react';
 import { getDatabase, ref, set, get, push, remove, onValue } from 'firebase/database';
 import { app } from '../firebaseConfig';
 import { HOLIDAYS_2026 } from '../constants';
@@ -22,7 +22,6 @@ import { ensureArray, generateStandardLabelStyles } from '../lib/utils';
 import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 import AdminExcelAlmoxarifado from './AdminExcelAlmoxarifado';
-import { AdminServidorInternoModal } from './AdminServidorInternoModal';
 
 interface AlmoxarifadoDashboardProps {
     currentUser: { name: string; cpf: string; role: string };
@@ -162,7 +161,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     onDeleteMarmitaWeightLog
 }) => {
     const [activeTab, setActiveTab] = useState<string>('history');
-    const [showServerModal, setShowServerModal] = useState<boolean>(false);
     const [receiptSupplierCpf, setReceiptSupplierCpf] = useState('');
     const [receiptInvoice, setReceiptInvoice] = useState('');
     const [receiptProcessoSei, setReceiptProcessoSei] = useState('');
@@ -3438,16 +3436,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             </div>
                         )}
                         <div className="flex bg-slate-100 p-1 rounded-xl md:rounded-2xl overflow-x-auto w-full md:w-auto shrink max-w-full">
-                            {['history', 'movement_history', 'image_history', 'validity', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'directors_percapita', 'camara_fria', 'excel', 'server_code', 'sync'].map(tab => (
+                            {['history', 'movement_history', 'image_history', 'validity', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'directors_percapita', 'camara_fria', 'excel', 'sync'].map(tab => (
                                 <button 
                                     key={tab}
-                                    onClick={() => {
-                                        if (tab === 'server_code') {
-                                            setShowServerModal(true);
-                                        } else {
-                                            setActiveTab(tab);
-                                        }
-                                    }} 
+                                    onClick={() => setActiveTab(tab)} 
                                     className={`px-3 md:px-5 py-1.5 md:py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase transition-all whitespace-nowrap shrink-0 ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                                     {tab === 'history' ? 'Consulta & Gestão' : 
                                      tab === 'movement_history' ? 'Log de Movimentação' : 
@@ -3460,8 +3452,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                      tab === 'manual_receipt' ? 'Termo Manual' : 
                                      tab === 'directors_percapita' ? 'Per Capita Diretores' : 
                                      tab === 'camara_fria' ? 'Câmaras Frias' : 
-                                     tab === 'excel' ? '📊 Planilha Excel' : 
-                                     tab === 'server_code' ? '💻 Servidor Interno' : 'Sincronização'}
+                                     tab === 'excel' ? '📊 Planilha Excel' : 'Sincronização'}
                                 </button>
                             ))}
                         </div>
@@ -3472,14 +3463,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         >
                             <FileSpreadsheet className="h-4 w-4 text-emerald-200" />
                             <span className="hidden sm:inline">Planilha Excel</span>
-                        </button>
-                        <button 
-                            onClick={() => setShowServerModal(true)} 
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2 px-3 md:px-4 rounded-xl text-[10px] md:text-xs uppercase border border-indigo-500 shadow-sm flex items-center gap-1.5 active:scale-95 transition-all shrink-0 shadow-indigo-100"
-                            title="Código-Fonte para Servidor Interno Fechado (On-Premise / Sem Internet)"
-                        >
-                            <Server className="h-4 w-4 text-indigo-200" />
-                            <span className="hidden sm:inline">Servidor Interno</span>
                         </button>
                         <button onClick={onLogout} className="hidden md:block bg-slate-100 text-slate-600 font-black py-2 px-6 rounded-xl text-xs uppercase border border-slate-200 shadow-sm hover:bg-slate-200 active:scale-95 transition-all shrink-0">
                             Sair
@@ -6529,10 +6512,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 </div>
             )}
             </main>
-            <AdminServidorInternoModal 
-                isOpen={showServerModal} 
-                onClose={() => setShowServerModal(false)} 
-            />
             <style>{`
                 .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
                 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }

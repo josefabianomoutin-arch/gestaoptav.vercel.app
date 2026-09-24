@@ -4,7 +4,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import html2pdf from 'html2pdf.js';
-import { Server } from 'lucide-react';
 import type { Supplier, PerCapitaConfig, WarehouseMovement, AcquisitionItem, Delivery } from '../types';
 import AdminAcquisitionItems from './AdminAcquisitionItems';
 import AdminPerCapitaSuppliers from './AdminPerCapitaSuppliers';
@@ -15,7 +14,6 @@ import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import type { PerCapitaSupplier } from '../types';
 import { roundToTwoDecimalPlaces, ensureArray } from '../lib/utils';
 import { calculateAllowedWeeksFromSchedule } from '../lib/supplierUtils';
-import { AdminServidorInternoModal } from './AdminServidorInternoModal';
 
 interface AdminPerCapitaProps {
   suppliers: Supplier[];
@@ -77,7 +75,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
     onDeleteDelivery
 }) => {
     const [selectedProducer, setSelectedProducer] = useState<PerCapitaSupplier | null>(null);
-    const [showServerModal, setShowServerModal] = useState<boolean>(false);
     const [activeSubTab, setActiveSubTab] = useState<'CALCULO' | 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'PERECÍVEIS 3Q' | 'ESTOCÁVEIS 3Q' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'EPI' | 'ADIANTAMENTOS' | 'CONTROLE' | 'AUDIT'>('CALCULO');
     const [ppaisSubTab, setPpaisSubTab] = useState<'ITEMS' | 'PRODUCERS' | 'CONTRACT' | 'ATA' | 'SCHEDULE'>('ITEMS');
     const [pereciveisSubTab, setPereciveisSubTab] = useState<'ITEMS' | 'SUPPLIERS' | 'CONTRACT' | 'SCHEDULE'>('ITEMS');
@@ -1191,14 +1188,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
                 </div>
                 
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => setShowServerModal(true)}
-                        className="flex items-center gap-2 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest bg-slate-900 text-white shadow-lg hover:bg-slate-800 active:scale-95 transition-all border border-slate-700"
-                        title="Baixar Código-Fonte Completo para Servidor Interno Fechado (On-Premise)"
-                    >
-                        <Server className="h-4 w-4 text-indigo-400" />
-                        <span>Servidor Interno (.ZIP)</span>
-                    </button>
                     <button 
                         onClick={handleSave}
                         disabled={!isDirty || isSaving}
@@ -2542,10 +2531,6 @@ const AdminPerCapita: React.FC<AdminPerCapitaProps> = ({
         </div>
     )}
 
-            <AdminServidorInternoModal
-                isOpen={showServerModal}
-                onClose={() => setShowServerModal(false)}
-            />
         <style>{`
                 .input-field { all: unset; box-sizing: border-box; display: block; width: 100%; padding: 1rem; border: 2px solid #F3F4F6; border-radius: 1rem; background-color: #fff; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); } 
                 .input-field:focus { border-color: #10B981; background-color: #fff; box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.15); }

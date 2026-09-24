@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  estoque-percapita:
+    build: .
+    container_name: sistema_estoque_percapita
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      # Persistência dos dados e uploads fora do container
+      - ./server-data:/app/server-data
+      - ./uploads:/app/uploads
