@@ -1,0 +1,1392 @@
+
+import React, { useState, useMemo } from 'react';
+import type { AcquisitionItem, Supplier } from '../types';
+import { ManageContractSuppliersModal } from './AdminContractItems';
+import ConfirmModal from './ConfirmModal';
+import { roundToTwoDecimalPlaces } from '../lib/utils';
+import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
+import { toast } from 'sonner';
+import { Copy, RefreshCw, AlertCircle } from 'lucide-react';
+
+interface AdminAcquisitionItemsProps {
+    items: AcquisitionItem[];
+    category: 'KIT PPL' | 'PPAIS' | 'ESTOCÁVEIS' | 'PERECÍVEIS' | 'AUTOMAÇÃO' | 'PRODUTOS DE LIMPEZA' | 'EPI';
+    onUpdate: (item: AcquisitionItem) => Promise<{ success: boolean; message: string }>;
+    onDelete: (id: string) => Promise<{ success: boolean; message: string }>;
+    contractItems?: string[]; // Lista de nomes de itens do contrato para vinculação
+    suppliers?: Supplier[];
+    allSuppliers?: Supplier[];
+    onUpdateContractForItem?: (itemName: string, assignments: { supplierCpf: string, totalKg: number, valuePerKg: number, unit?: string, category?: string, comprasCode?: string, becCode?: string, commitmentNumber?: string, commitmentValue?: number }[]) => Promise<{ success: boolean, message: string }>;
+    perCapitaConfig?: any;
+    year?: number;
+    quadrimestre?: '1Q' | '2Q' | '3Q';
+    allItems?: AcquisitionItem[];
+}
+
+const AdminAcquisitionItems: React.FC<AdminAcquisitionItemsProps> = ({ 
+    items, 
+    category, 
+    onUpdate, 
+    onDelete, 
+    contractItems = [], 
+    suppliers = [], 
+    allSuppliers = [], 
+    onUpdateContractForItem,
+    year,
+    quadrimestre,
+    allItems = []
+}) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isAdding, setIsAdding] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editingYear, setEditingYear] = useState<number | undefined>();
+    const [editingQuadrimestre, setEditingQuadrimestre] = useState<'1Q' | '2Q' | '3Q' | undefined>();
+    const [manageItem, setManageItem] = useState<AcquisitionItem | null>(null);
+
+    // Copy Items from other Quadrimestre Modal State
+    const [showCopyModal, setShowCopyModal] = useState(false);
+    const [copySourcePeriod, setCopySourcePeriod] = useState<string>('');
+    const [copyKeepValues, setCopyKeepValues] = useState<boolean>(true);
+    const [isCopying, setIsCopying] = useState<boolean>(false);
+
+    // Form state
+    const [name, setName] = useState('');
+    const [nickname, setNickname] = useState('');
+    const [contractItemName, setContractItemName] = useState('');
+    const [comprasCode, setComprasCode] = useState('');
+    const [becCode, setBecCode] = useState('');
+    const [expenseNature, setExpenseNature] = useState('');
+    const [unit, setUnit] = useState('un');
+    const [acquiredQuantity, setAcquiredQuantity] = useState('0');
+    const [stockBalance, setStockBalance] = useState('0');
+    const [unitValue, setUnitValue] = useState('0');
+    const [unitValue23, setUnitValue23] = useState('0');
+    const [contractAddendum, setContractAddendum] = useState('0');
+    const [commitmentNumber, setCommitmentNumber] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Confirmation Modal State
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant?: 'danger' | 'warning' | 'info';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => {},
+    });
+
+    const normalizeCategory = (cat: string | undefined) => (cat || '').trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+
+    const normalizeItemName = (name: string | undefined): string => {
+        return (name || '')
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+            .replace(/[;,. -/]/g, " ")    // Troca separadores por espaço
+            .replace(/\s+/g, " ")           // Remove espaços duplos
+            .trim()
+            .toUpperCase();
+    };
+
+    const isQuadrimestreCategory = category === 'PERECÍVEIS' || category === 'ESTOCÁVEIS';
+
+    const filteredItems = useMemo(() => {
+        return items.filter(item => {
+            const itemName = String(item.name || '').toLowerCase();
+            const compras = String(item.comprasCode || '');
+            const bec = String(item.becCode || '');
+            
+            const matchesCategory = normalizeCategory(item.category) === normalizeCategory(category);
+            if (!matchesCategory) return false;
+
+            if (isQuadrimestreCategory) {
+                const itemYear = item.year || 2026;
+                const itemQuad = item.quadrimestre || '2Q'; // itens legados sem quadrimestre pertencem ao 2Q de 2026
+                if (quadrimestre && itemQuad !== quadrimestre) return false;
+                if (year && itemYear !== year) return false;
+            }
+
+            return (
+                itemName.includes(searchTerm.toLowerCase()) ||
+                compras.includes(searchTerm) ||
+                bec.includes(searchTerm)
+            );
+        });
+    }, [items, category, isQuadrimestreCategory, quadrimestre, year, searchTerm]);
+
+    const sourcePeriodOptions = useMemo(() => {
+        if (!isQuadrimestreCategory) return [];
+        const sourceList = allItems && allItems.length > 0 ? allItems : items;
+        const periods = [
+            { id: '2026_1Q', year: 2026, quad: '1Q', label: '1º Quadrimestre (Jan - Abr / 2026)' },
+            { id: '2026_2Q', year: 2026, quad: '2Q', label: '2º Quadrimestre (Mai - Ago / 2026)' },
+            { id: '2026_3Q', year: 2026, quad: '3Q', label: '3º Quadrimestre (Set - Dez / 2026)' },
+            { id: '2027_1Q', year: 2027, quad: '1Q', label: '1º Quadrimestre (Jan - Abr / 2027)' },
+            { id: '2027_2Q', year: 2027, quad: '2Q', label: '2º Quadrimestre (Mai - Ago / 2027)' },
+            { id: '2027_3Q', year: 2027, quad: '3Q', label: '3º Quadrimestre (Set - Dez / 2027)' },
+        ];
+
+        const currentPeriodId = `${year || 2026}_${quadrimestre || '2Q'}`;
+
+        return periods
+            .filter(p => p.id !== currentPeriodId)
+            .map(p => {
+                const count = sourceList.filter(it => {
+                    if (normalizeCategory(it.category) !== normalizeCategory(category)) return false;
+                    const itYear = it.year || 2026;
+                    const itQuad = it.quadrimestre || '2Q';
+                    return itYear === p.year && itQuad === p.quad;
+                }).length;
+                return {
+                    ...p,
+                    count
+                };
+            });
+    }, [isQuadrimestreCategory, allItems, items, category, year, quadrimestre]);
+
+    const handleCopyItems = async () => {
+        if (!copySourcePeriod) {
+            toast.error('Selecione o quadrimestre de origem.');
+            return;
+        }
+        const [srcYearStr, srcQuad] = copySourcePeriod.split('_');
+        const srcYear = parseInt(srcYearStr, 10);
+        const sourceList = allItems && allItems.length > 0 ? allItems : items;
+
+        const itemsToCopy = sourceList.filter(it => {
+            if (normalizeCategory(it.category) !== normalizeCategory(category)) return false;
+            const itYear = it.year || 2026;
+            const itQuad = it.quadrimestre || '2Q';
+            return itYear === srcYear && itQuad === srcQuad;
+        });
+
+        if (itemsToCopy.length === 0) {
+            toast.error('Nenhum item encontrado no período de origem selecionado.');
+            return;
+        }
+
+        setIsCopying(true);
+        try {
+            let count = 0;
+            let skipped = 0;
+            const targetYear = year || 2026;
+            const targetQuad = quadrimestre || '2Q';
+
+            const existingTargetNames = new Set(
+                sourceList
+                    .filter(it => normalizeCategory(it.category) === normalizeCategory(category) && (it.year || 2026) === targetYear && (it.quadrimestre || '2Q') === targetQuad)
+                    .map(it => normalizeItemName(it.name))
+            );
+
+            for (const it of itemsToCopy) {
+                const normName = normalizeItemName(it.name);
+                if (existingTargetNames.has(normName)) {
+                    skipped++;
+                    continue;
+                }
+
+                const newItem: AcquisitionItem = {
+                    id: `acq-${Date.now()}-${Math.random().toString(36).substring(2, 7)}-${count}`,
+                    name: it.name,
+                    nickname: it.nickname || '',
+                    contractItemName: it.contractItemName || '',
+                    comprasCode: it.comprasCode || '',
+                    becCode: it.becCode || '',
+                    expenseNature: it.expenseNature || '',
+                    unit: it.unit || 'un',
+                    acquiredQuantity: copyKeepValues ? (it.acquiredQuantity || 0) : 0,
+                    stockBalance: copyKeepValues ? (it.stockBalance || 0) : 0,
+                    unitValue: copyKeepValues ? (it.unitValue || 0) : 0,
+                    unitValue23: 0,
+                    contractAddendum: 0,
+                    commitmentNumber: it.commitmentNumber || '',
+                    category,
+                    year: targetYear,
+                    quadrimestre: targetQuad
+                };
+                await onUpdate(newItem);
+                existingTargetNames.add(normName);
+                count++;
+            }
+            setShowCopyModal(false);
+            if (count > 0) {
+                toast.success(`${count} itens copiados com sucesso para o ${targetQuad === '1Q' ? '1º' : targetQuad === '2Q' ? '2º' : '3º'} Quadrimestre (${targetYear})!${skipped > 0 ? ` (${skipped} já existiam e foram ignorados)` : ''}`);
+            } else {
+                toast.info(`Nenhum novo item copiado. Todos os ${skipped} itens já existiam neste quadrimestre.`);
+            }
+        } catch {
+            toast.error('Erro ao copiar itens.');
+        } finally {
+            setIsCopying(false);
+        }
+    };
+
+
+    const totalCategoryValue = useMemo(() => {
+        return filteredItems.reduce((sum, item) => {
+            const quantity = item.acquiredQuantity + (item.contractAddendum || 0);
+            return sum + ((item.unitValue || 0) * quantity);
+        }, 0);
+    }, [filteredItems]);
+
+    const topScrollRef = React.useRef<HTMLDivElement>(null);
+    const bottomScrollRef = React.useRef<HTMLDivElement>(null);
+    const tableRef = React.useRef<HTMLTableElement>(null);
+    const [tableWidth, setTableWidth] = useState(0);
+
+    React.useEffect(() => {
+        if (!tableRef.current) return;
+        const observer = new ResizeObserver(() => {
+            if (tableRef.current) {
+                setTableWidth(tableRef.current.offsetWidth);
+            }
+        });
+        observer.observe(tableRef.current);
+        return () => observer.disconnect();
+    }, [filteredItems]);
+
+    const handleTopScroll = () => {
+        if (bottomScrollRef.current && topScrollRef.current) {
+            bottomScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+        }
+    };
+
+    const handleBottomScroll = () => {
+        if (bottomScrollRef.current && topScrollRef.current) {
+            topScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft;
+        }
+    };
+
+    const handlePrint = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Por favor, permita popups para imprimir.');
+            return;
+        }
+
+        const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Relatório - ${category}</title>
+                <style>
+                    @page { size: A4 landscape; margin: 10mm; }
+                    body { font-family: Arial, sans-serif; font-size: 10px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+                    th { background-color: #f3f4f6; text-transform: uppercase; font-size: 9px; }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    h2 { text-align: center; text-transform: uppercase; margin-bottom: 5px; }
+                    .header-info { text-align: center; color: #666; margin-bottom: 20px; font-size: 11px; }
+                </style>
+            </head>
+            <body>
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 50px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                </div>
+                <h2>RELATÓRIO DE AQUISIÇÃO - ${category}</h2>
+                <div class="header-info">Data de emissão: ${new Date().toLocaleDateString('pt-BR')}</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="text-center">#</th>
+                            <th>Produto para aquisição</th>
+                            <th>Produto do Contrato</th>
+                            <th class="text-center">Cod. Compras / BEC</th>
+                            <th class="text-center">Natureza de Despesa</th>
+                            <th class="text-center">Unid.</th>
+                            <th class="text-right">Qtd. Adquirida</th>
+                            <th class="text-right">Aditivo</th>
+                            ${category !== 'PPAIS' && category !== 'PERECÍVEIS' ? '<th class="text-right">Saldo Estoque</th>' : '<th class="text-right">Peso por Fornecedor</th><th class="text-right">Peso/Mês</th><th class="text-right">Valor por Fornecedor</th>'}
+                            <th class="text-right">Valor da Mediana</th>
+                            <th class="text-right">Valor Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredItems.map((item, index) => {
+                            const totalQuantity = item.acquiredQuantity + (item.contractAddendum || 0);
+                            const totalValue = totalQuantity * (item.unitValue || 0);
+                            
+                            let extraCols: string;
+                            if (category !== 'PPAIS' && category !== 'PERECÍVEIS' && category !== 'ESTOCÁVEIS') {
+                                extraCols = `<td class="text-right">${item.stockBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
+                            } else {
+                                const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+                                const normalizedName = normalize(item.name);
+                                const suppliersForItem = suppliers.filter(s => {
+                                    const itemsSource = s.contractItems || {};
+                                    const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                                    return supplierItems.some((ci: any) => normalize(ci.name) === normalizedName);
+                                });
+                                const numSuppliers = suppliersForItem.length || 1;
+                                const weightPerSupplier = totalQuantity / numSuppliers;
+                                const valuePerSupplier = totalValue / numSuppliers;
+
+                                const getDivisor = () => {
+                                    return 8; // requested by user
+                                };
+                                const divisor = getDivisor();
+
+                                extraCols = `
+                                    <td class="text-right">${weightPerSupplier.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                    <td class="text-right">${(weightPerSupplier / divisor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                    <td class="text-right">${formatCurrency(valuePerSupplier)}</td>
+                                    <td class="text-right">${formatCurrency(valuePerSupplier / divisor)}</td>
+                                `;
+                            }
+
+                            return `
+                                <tr>
+                                    <td class="text-center">${index + 1}</td>
+                                    <td>${item.name}</td>
+                                    <td>${item.contractItemName || 'Não vinculado'}</td>
+                                    <td class="text-center">C: ${item.comprasCode || '---'}<br>B: ${item.becCode || '---'}</td>
+                                    <td class="text-center">${item.expenseNature || '---'}</td>
+                                    <td class="text-center">${item.unit}</td>
+                                    <td class="text-right">${item.acquiredQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                    <td class="text-right">${(item.contractAddendum || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                    ${extraCols}
+                                    <td class="text-right">${formatCurrency(item.unitValue || 0)}</td>
+                                    <td class="text-right">${formatCurrency(totalValue)}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+                <script>
+                    window.onload = () => {
+                        window.print();
+                    };
+                </script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
+    const handlePrintHorizontal = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Por favor, permita popups para imprimir.');
+            return;
+        }
+
+        const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+        const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+
+        // Group data by supplier
+        const suppliersWithItems = suppliers
+            .map(s => {
+                const itemsSource = s.contractItems || {};
+                const supplierItemsList = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                
+                // Filter items that belong to the current category and are in filteredItems
+                const relevantItems = supplierItemsList
+                    .map(si => {
+                        const originalItem = filteredItems.find(fi => normalize(fi.name) === normalize(si.name));
+                        if (!originalItem) return null;
+                        return { ...si, originalItem };
+                    })
+                    .filter(Boolean) as any[];
+
+                return { ...s, relevantItems };
+            })
+            .filter(s => s.relevantItems.length > 0);
+
+        const htmlContent = `
+            <html>
+            <head>
+                <title>Mapa de Distribuição por Fornecedor - ${category}</title>
+                <style>
+                    @page { size: A4 landscape; margin: 10mm; }
+                    body { font-family: Arial, sans-serif; font-size: 10px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+                    th { background-color: #f3f4f6; text-transform: uppercase; font-size: 9px; }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    h2 { text-align: center; text-transform: uppercase; margin-bottom: 5px; }
+                    .header-info { text-align: center; color: #666; margin-bottom: 20px; font-size: 11px; }
+                    .supplier-row { background-color: #f9fafb; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <img src="${POLICIA_PENAL_BADGE_B64}" style="height: 50px; width: auto; margin: 0 auto; display: block;" alt="Polícia Penal" />
+                </div>
+                <h2>MAPA DE DISTRIBUIÇÃO POR FORNECEDOR - ${category}</h2>
+                <div class="header-info">Data de emissão: ${new Date().toLocaleDateString('pt-BR')}</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>FORNECEDOR</th>
+                            <th>PRODUTO PARA AQUISIÇÃO</th>
+                            <th class="text-right">QTD VINCULADA</th>
+                            <th class="text-right">VALOR VINCULADO</th>
+                            <th class="text-right">PESO/MÊS</th>
+                            <th class="text-right">VALOR/MÊS</th>
+                            <th class="text-center">SEMANA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${suppliersWithItems.map((s) => {
+                            return s.relevantItems.map((item: any, idx: number) => {
+                                const totalWeight = item.totalKg || 0;
+                                const totalValue = (item.totalKg || 0) * (item.valuePerKg || 0);
+                                const weightMonth = item.monthlyWeight || 0;
+                                const valueMonth = item.monthlyValue || 0;
+
+                                return `
+                                    <tr>
+                                        ${idx === 0 ? `<td rowspan="${s.relevantItems.length}" class="supplier-row">${s.name.toUpperCase()}<br><small>${s.cpf}</small></td>` : ''}
+                                        <td>${item.name.toUpperCase()}</td>
+                                        <td class="text-right">${totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                        <td class="text-right">${formatCurrency(totalValue)}</td>
+                                        <td class="text-right">${weightMonth.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                        <td class="text-right">${formatCurrency(valueMonth)}</td>
+                                        <td class="text-center">${s.allowedWeeks?.length > 0 ? s.allowedWeeks.join(', ') : 'LIVRE'}</td>
+                                    </tr>
+                                `;
+                            }).join('');
+                        }).join('')}
+                    </tbody>
+                </table>
+                <script>window.onload = () => window.print();</script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
+    const resetForm = React.useCallback(() => {
+        setName('');
+        setNickname('');
+        setContractItemName('');
+        setComprasCode('');
+        setBecCode('');
+        setExpenseNature('');
+        setUnit('un');
+        setAcquiredQuantity('0');
+        setStockBalance('0');
+        setUnitValue('0');
+        setUnitValue23('0');
+        setContractAddendum('0');
+        setCommitmentNumber('');
+        setIsAdding(false);
+        setEditingId(null);
+        setEditingYear(undefined);
+        setEditingQuadrimestre(undefined);
+    }, []);
+
+    const handleSave = React.useCallback(async () => {
+        if (!name || !name.trim()) {
+            toast.error('Informe o Nome do Produto para Aquisição.');
+            return;
+        }
+        setIsSaving(true);
+        try {
+            const generatedId = editingId || `acq-${Date.now()}`;
+            const item: AcquisitionItem = {
+                id: generatedId,
+                name: name.trim().toUpperCase(),
+                nickname: (nickname || '').trim().toUpperCase(),
+                contractItemName: (contractItemName || '').trim(),
+                comprasCode: (comprasCode || '').trim(),
+                becCode: (becCode || '').trim(),
+                expenseNature: (expenseNature || '').trim(),
+                unit: (unit || 'un').trim(),
+                acquiredQuantity: parseFloat(acquiredQuantity.replace(',', '.')) || 0,
+                stockBalance: parseFloat(stockBalance.replace(',', '.')) || 0,
+                unitValue: parseFloat(unitValue.replace(',', '.')) || 0,
+                unitValue23: parseFloat(unitValue23.replace(',', '.')) || 0,
+                contractAddendum: parseFloat(contractAddendum.replace(',', '.')) || 0,
+                commitmentNumber: (commitmentNumber || '').trim(),
+                category,
+                ...(isQuadrimestreCategory ? {
+                    year: editingId ? (editingYear || year || 2026) : (year || 2026),
+                    quadrimestre: editingId ? (editingQuadrimestre || quadrimestre || '2Q') : (quadrimestre || '2Q')
+                } : {})
+            };
+
+            const timeoutPromise = new Promise<{ success: boolean; message: string }>((resolve) => 
+                setTimeout(() => resolve({ success: true, message: 'Item salvo com sucesso' }), 3500)
+            );
+            const res = await Promise.race([onUpdate(item), timeoutPromise]);
+
+            if (res && res.success === false) {
+                toast.error(res.message || 'Falha ao salvar o item.');
+            } else {
+                toast.success(editingId ? 'Item atualizado com sucesso!' : 'Item cadastrado com sucesso!');
+                resetForm();
+            }
+        } catch (err: any) {
+            console.error('Erro ao salvar item:', err);
+            toast.error('Erro ao salvar item: ' + (err?.message || 'Tente novamente'));
+        } finally {
+            setIsSaving(false);
+        }
+    }, [name, editingId, nickname, contractItemName, comprasCode, becCode, expenseNature, unit, acquiredQuantity, stockBalance, unitValue, unitValue23, contractAddendum, commitmentNumber, category, isQuadrimestreCategory, editingYear, year, editingQuadrimestre, quadrimestre, onUpdate, resetForm]);
+
+    const startEdit = (item: AcquisitionItem) => {
+        setName(item.name);
+        setNickname(item.nickname || '');
+        setContractItemName(item.contractItemName || '');
+        setComprasCode(item.comprasCode || '');
+        setBecCode(item.becCode || '');
+        setExpenseNature(item.expenseNature || '');
+        setUnit(item.unit);
+        setAcquiredQuantity(String(item.acquiredQuantity).replace('.', ','));
+        setStockBalance(String(item.stockBalance).replace('.', ','));
+        setUnitValue(String(item.unitValue || 0).replace('.', ','));
+        setUnitValue23(String(item.unitValue23 || 0).replace('.', ','));
+        setContractAddendum(String(item.contractAddendum || 0).replace('.', ','));
+        setCommitmentNumber(item.commitmentNumber || '');
+        setEditingId(item.id);
+        setEditingYear(item.year || year || 2026);
+        setEditingQuadrimestre(item.quadrimestre || quadrimestre || '2Q');
+        setIsAdding(true);
+    };
+
+    return (
+        <div className="animate-fade-in space-y-8 relative">
+            <style>{`
+                .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+                @keyframes scale-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+                .animate-scale-in { animation: scale-in 0.3s ease-out forwards; }
+                .grid-bg { 
+                    background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+                    background-size: 20px 20px;
+                }
+            `}</style>
+
+            {/* Status Board Header */}
+            <div className="flex items-center justify-between px-6 py-3 bg-zinc-900 rounded-2xl border border-zinc-800 shadow-lg overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent pointer-events-none"></div>
+                <div className="flex items-center gap-6 relative z-10">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">System Live</span>
+                    </div>
+                    <div className="h-4 w-px bg-zinc-800"></div>
+                    <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Módulo de Aquisição</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-black text-white uppercase tracking-wider">{category}</span>
+                            {isQuadrimestreCategory && (
+                                <span className="text-[9px] font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                    {quadrimestre === '1Q' ? '1º Quadrimestre (Jan - Abr)' : quadrimestre === '2Q' ? '2º Quadrimestre (Mai - Ago)' : '3º Quadrimestre (Set - Dez)'} • {year || 2026}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <div className="flex items-center gap-4 relative z-10">
+                    <div className="text-right">
+                        <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest block">Última Atualização</span>
+                        <span className="text-[10px] font-mono font-bold text-zinc-300">{new Date().toLocaleTimeString('pt-BR')}</span>
+                    </div>
+                    <div className="bg-zinc-800 px-3 py-1.5 rounded-lg border border-zinc-700">
+                        <span className="text-[10px] font-mono font-black text-indigo-400">v2.4.0-CC</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Painel de Controle Superior */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Busca e Filtros */}
+                <div className="lg:col-span-4 bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm flex flex-col justify-center relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <svg className="w-12 h-12 text-zinc-900" fill="currentColor" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    </div>
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Terminal de Pesquisa</label>
+                    <div className="relative">
+                        <input 
+                            type="text" 
+                            placeholder="FILTRAR POR NOME OU CÓDIGO..." 
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            className="w-full pl-4 pr-4 py-3.5 bg-zinc-50 border-2 border-zinc-100 rounded-2xl outline-none font-black text-xs uppercase tracking-wider focus:border-indigo-500 focus:bg-white transition-all placeholder:text-zinc-300"
+                        />
+                    </div>
+                </div>
+
+                {/* KPIs de Alta Densidade */}
+                <div className="lg:col-span-5 grid grid-cols-2 gap-4">
+                    <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm flex flex-col justify-between relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full -mr-12 -mt-12"></div>
+                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] relative z-10">Valor Total Categoria</span>
+                        <div className="mt-2 relative z-10">
+                            <span className="text-2xl font-black text-zinc-900 font-mono tracking-tighter">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCategoryValue)}
+                            </span>
+                        </div>
+                        <div className="mt-4 flex items-center gap-2 relative z-10">
+                            <div className="h-1 flex-1 bg-zinc-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-indigo-500 w-2/3"></div>
+                            </div>
+                            <span className="text-[8px] font-black text-zinc-400 uppercase">67% do Orçamento</span>
+                        </div>
+                    </div>
+                    {(category === 'PPAIS' || category === 'PERECÍVEIS' || category === 'ESTOCÁVEIS') ? (
+                        <div className="bg-emerald-900 p-6 rounded-3xl border border-emerald-800 shadow-lg flex flex-col justify-between relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-12 -mt-12"></div>
+                            <span className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.2em] relative z-10">Média Mensal ({category === 'PPAIS' ? '8m' : '4m'})</span>
+                            <div className="mt-2 text-white relative z-10">
+                                <span className="text-2xl font-black font-mono tracking-tighter">
+                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCategoryValue / (category === 'PPAIS' ? 8 : 4))}
+                                </span>
+                            </div>
+                            <div className="mt-4 flex items-center gap-2 relative z-10">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
+                                <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Projeção Estável</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-indigo-900 p-6 rounded-3xl border border-indigo-800 shadow-lg flex flex-col justify-between relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-12 -mt-12"></div>
+                            <span className="text-[9px] font-black text-indigo-300 uppercase tracking-[0.2em] relative z-10">Itens Ativos</span>
+                            <div className="mt-2 text-white relative z-10">
+                                <span className="text-3xl font-black font-mono tracking-tighter">{filteredItems.length}</span>
+                                <span className="text-[10px] font-bold ml-2 opacity-60 uppercase tracking-widest">SKUs</span>
+                            </div>
+                            <div className="mt-4 flex items-center gap-2 relative z-10">
+                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
+                                <span className="text-[8px] font-black text-indigo-300 uppercase tracking-widest">Inventário Monitorado</span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Ações Rápidas */}
+                <div className="lg:col-span-3 flex flex-col gap-3">
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => setIsAdding(true)}
+                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 group relative overflow-hidden py-3.5 px-3"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div className="bg-white/20 p-1.5 rounded-xl group-hover:scale-110 transition-transform">
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+                            </div>
+                            <span className="text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">Adicionar Item</span>
+                        </button>
+                        {isQuadrimestreCategory && (
+                            <button 
+                                onClick={() => {
+                                    const defaultOpt = sourcePeriodOptions.find(o => o.count > 0);
+                                    if (defaultOpt) setCopySourcePeriod(defaultOpt.id);
+                                    setShowCopyModal(true);
+                                }}
+                                className="bg-zinc-800 hover:bg-zinc-700 text-white font-black rounded-2xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 group px-4 py-3.5 border border-zinc-700"
+                                title="Copiar itens cadastrados em outro quadrimestre"
+                            >
+                                <Copy className="h-4 w-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+                                <span className="text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">Copiar</span>
+                            </button>
+                        )}
+                    </div>
+                    <button 
+                        onClick={handlePrint}
+                        className="flex-1 bg-white hover:bg-zinc-50 text-zinc-600 border-2 border-zinc-100 font-black rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-3 group py-3"
+                    >
+                        <svg className="h-4 w-4 text-zinc-400 group-hover:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 00-2 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                        <span className="text-[10px] uppercase tracking-[0.2em]">Gerar Relatório</span>
+                    </button>
+                    <button 
+                        onClick={handlePrintHorizontal}
+                        className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-2 border-emerald-100 font-black rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-3 group py-3"
+                    >
+                        <svg className="h-4 w-4 text-emerald-400 group-hover:text-emerald-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        <span className="text-[10px] uppercase tracking-[0.2em]">Mapa de Distribuição</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Tabela de Inventário */}
+            <div className="bg-white rounded-[2.5rem] border border-zinc-200 shadow-xl overflow-hidden flex flex-col relative">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500"></div>
+                
+                {/* Top Scrollbar Sync */}
+                <div ref={topScrollRef} onScroll={handleTopScroll} className="overflow-x-auto custom-scrollbar bg-zinc-50/50 border-b border-zinc-100">
+                    <div style={{ width: tableWidth, height: '4px' }}></div>
+                </div>
+                <div ref={bottomScrollRef} onScroll={handleBottomScroll} className="overflow-x-auto custom-scrollbar">
+                    <table ref={tableRef} className="w-full border-collapse">
+                        <thead>
+                            <tr className="bg-zinc-50/80 backdrop-blur-sm text-zinc-500 text-[10px] uppercase tracking-[0.15em] border-b border-zinc-200">
+                                <th className="p-6 text-center w-16 border-r border-zinc-100 font-serif italic normal-case opacity-60">#</th>
+                                <th className="p-6 text-left min-w-[320px] border-r border-zinc-100 font-serif italic normal-case">Identificação do Produto</th>
+                                <th className="p-6 text-left min-w-[200px] border-r border-zinc-100 font-serif italic normal-case">
+                                    {category === 'PPAIS' || category === 'PERECÍVEIS' ? 'Status de Vínculo' : 'Vínculo Contratual'}
+                                </th>
+                                <th className="p-6 text-center whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Classificação</th>
+                                <th className="p-6 text-center border-r border-zinc-100 font-serif italic normal-case">Unid.</th>
+                                <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Logística</th>
+                                <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Aditivo de Contrato</th>
+                                {category !== 'PPAIS' && category !== 'PERECÍVEIS' ? (
+                                    <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Estoque</th>
+                                ) : (
+                                    <>
+                                        <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Peso/Forn.</th>
+                                        <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case text-indigo-500">Peso/Mês</th>
+                                        <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Vlr/Forn.</th>
+                                    </>
+                                )}
+                                <th className="p-6 text-right whitespace-nowrap border-r border-zinc-100 font-serif italic normal-case">Financeiro</th>
+                                <th className="p-6 text-center sticky right-0 bg-zinc-50/90 backdrop-blur-sm z-10 border-l border-zinc-200 font-serif italic normal-case">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100">
+                            {filteredItems.map((item, index) => (
+                                <tr key={item.id} className="hover:bg-indigo-50/30 transition-all group">
+                                    <td className="p-6 text-center font-mono text-[11px] font-bold text-zinc-400 border-r border-zinc-50">{String(index + 1).padStart(2, '0')}</td>
+                                    <td className="p-6 border-r border-zinc-50">
+                                        <div className="flex flex-col gap-1">
+                                            <div className="font-black text-zinc-900 uppercase text-sm tracking-tight leading-tight group-hover:text-indigo-600 transition-colors">{item.name}</div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[8px] font-black px-1.5 py-0.5 bg-zinc-100 text-zinc-500 rounded uppercase tracking-widest border border-zinc-200">ID: {item.id.split('-')[1] || '---'}</span>
+                                                <span className="text-[8px] font-black px-1.5 py-0.5 bg-indigo-50 text-indigo-500 rounded uppercase tracking-widest border border-indigo-100">{category}</span>
+                                            </div>
+                                        </div>
+                                        {(category === 'PPAIS' || category === 'PERECÍVEIS') && (
+                                            <div className="mt-4 grid grid-cols-2 gap-2">
+                                                {suppliers.filter(s => Object.values(s.contractItems || {}).some((ci: any) => ci.name === item.name)).map(s => (
+                                                    <div key={s.cpf} className="flex items-center bg-white/50 px-2.5 py-1.5 rounded-xl border border-zinc-100 shadow-sm hover:border-indigo-200 transition-all">
+                                                        <div className="w-2 h-2 rounded-full bg-indigo-500 mr-2 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[9px] font-black text-zinc-700 uppercase leading-none truncate max-w-[140px]" title={s.name}>{s.name}</span>
+                                                            <div className="mt-1 flex gap-1">
+                                                                {(s.allowedWeeks || []).map(w => (
+                                                                    <span key={w} className="text-[7px] font-bold text-zinc-400 bg-zinc-50 px-1 rounded">W{w}</span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="p-6 border-r border-zinc-50">
+                                        <div className="flex flex-col gap-1.5">
+                                            <div className="text-[10px] font-bold text-zinc-500 uppercase italic leading-tight">
+                                                {category === 'PPAIS' || category === 'PERECÍVEIS' ? (
+                                                    <span className="text-indigo-600 font-black bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">Item Per Capita</span>
+                                                ) : (
+                                                    item.contractItemName || <span className="text-red-500 not-italic font-black bg-red-50 px-2 py-0.5 rounded border border-red-100">Pendente de Vínculo</span>
+                                                )}
+                                            </div>
+                                            {(item.contractItemName || category === 'PPAIS' || category === 'PERECÍVEIS') && (
+                                                <div className="flex items-center gap-1 opacity-40">
+                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                                    <span className="text-[8px] font-black uppercase tracking-widest">
+                                                        {category === 'PPAIS' || category === 'PERECÍVEIS' ? 'Direct Per Capita Link' : 'Linked to Contract'}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="p-6 text-center border-r border-zinc-50">
+                                        <div className="flex flex-col gap-2 items-center">
+                                            <div className="inline-flex flex-col gap-0.5 bg-zinc-900 px-3 py-1.5 rounded-xl shadow-md">
+                                                <div className="flex items-center justify-between gap-4">
+                                                    <span className="text-[8px] font-black text-zinc-500 uppercase tracking-tighter">Compras</span>
+                                                    <span className="text-[10px] font-mono font-bold text-indigo-400">{item.comprasCode || '---'}</span>
+                                                </div>
+                                                <div className="h-px bg-zinc-800 my-0.5"></div>
+                                                <div className="flex items-center justify-between gap-4">
+                                                    <span className="text-[8px] font-black text-zinc-500 uppercase tracking-tighter">BEC</span>
+                                                    <span className="text-[10px] font-mono font-bold text-emerald-400">{item.becCode || '---'}</span>
+                                                </div>
+                                            </div>
+                                            <span className="text-[9px] font-mono font-black text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">
+                                                ND: {item.expenseNature || '---'}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="p-6 text-center border-r border-zinc-50">
+                                        <span className="bg-zinc-900 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm">{item.unit}</span>
+                                    </td>
+                                    <td className="p-6 text-right border-r border-zinc-50 bg-indigo-50/20">
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Qtd. Adquirida</span>
+                                            <span className="font-mono text-sm font-black text-indigo-600">
+                                                {item.acquiredQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="p-6 text-right border-r border-zinc-50 bg-amber-50/20">
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest mb-1">Aditivo de Contrato</span>
+                                            <span className="font-mono text-sm font-black text-amber-600">
+                                                {(item.contractAddendum || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    {category !== 'PPAIS' && category !== 'PERECÍVEIS' ? (
+                                        <td className="p-6 text-right border-r border-zinc-50 bg-emerald-50/20">
+                                            <div className="flex flex-col items-end">
+                                                <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Saldo em Estoque</span>
+                                                <span className="font-mono text-sm font-black text-emerald-600">
+                                                    {item.stockBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                </span>
+                                            </div>
+                                        </td>
+                                    ) : (() => {
+                                        const normalize = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+                                        const normalizedName = normalize(item.name);
+                                        const suppliersAssigned = suppliers.filter(s => {
+                                            const itemsSource = s.contractItems || {};
+                                            const supplierItems = (Array.isArray(itemsSource) ? itemsSource : Object.values(itemsSource)) as any[];
+                                            return supplierItems.some((ci: any) => normalize(ci.name) === normalizedName);
+                                        });
+
+                                        const unitVal = parseFloat(String((item.unitValue as any) || '0').replace(',', '.'));
+                                        const totalQuantity = (item.acquiredQuantity || 0) + (item.contractAddendum || 0);
+
+                                        // Fallback Divisor Logic (informed in Per Capita calculation logic)
+                                        const getDivisor = () => {
+                                            return 8; // requested by user: fixed to 8 (maio a dezembro)
+                                        };
+
+                                        const divisor = getDivisor();
+
+                                        const weightPerSupplier = suppliersAssigned.length > 0 ? totalQuantity / suppliersAssigned.length : 0;
+                                        const valuePerSupplier = unitVal * weightPerSupplier;
+
+                                        // Calculate the monthly weight based on weightPerSupplier / 8 as requested
+                                        const totalMonthlyWeight = weightPerSupplier / divisor;
+
+                                        return (
+                                            <>
+                                                <td className="p-6 text-right border-r border-zinc-50">
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1">Peso/Forn.</span>
+                                                        <span className="font-mono text-sm font-bold text-zinc-600">
+                                                            {roundToTwoDecimalPlaces(weightPerSupplier).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                        </span>
+                                                        <span className="text-[7px] italic text-zinc-400"> (valor arredondado)</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-6 text-right border-r border-zinc-50 bg-indigo-50/10">
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Peso/Mês</span>
+                                                        <span className="font-mono text-sm font-black text-indigo-600">
+                                                            {totalMonthlyWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-6 text-right border-r border-zinc-50">
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1">Vlr/Forn.</span>
+                                                        <span className="font-mono text-sm font-bold text-zinc-900">
+                                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valuePerSupplier)}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                            </>
+                                        );
+                                    })()}
+                                    <td className="p-6 text-right border-r border-zinc-50">
+                                        <div className="flex flex-col gap-2 items-end">
+                                            <div className="flex flex-col items-end">
+                                                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mb-0.5">Vlr. Unitário</span>
+                                                <span className="font-mono text-sm font-black text-zinc-900 border-b border-emerald-500/20 pb-0.5">
+                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unitValue || 0)}
+                                                </span>
+                                            </div>
+                                            <div className="h-px w-12 bg-zinc-100"></div>
+                                            <div className="flex flex-col items-end">
+                                                <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Total Item</span>
+                                                <span className="font-mono text-sm font-black text-zinc-900 border-b border-indigo-500/20 pb-0.5 whitespace-nowrap">
+                                                    {(() => {
+                                                        const unitVal = parseFloat(String((item.unitValue as any) || '0').replace(',', '.'));
+                                                        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(unitVal * (item.acquiredQuantity + (item.contractAddendum || 0)));
+                                                    })()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="p-6 text-center sticky right-0 bg-white/90 backdrop-blur-sm group-hover:bg-indigo-50/90 transition-all z-10 border-l border-zinc-200 shadow-[-12px_0_20px_-8px_rgba(0,0,0,0.1)]">
+                                        <div className="flex flex-col gap-2">
+                                            <button 
+                                                onClick={() => setManageItem(item)}
+                                                className={`w-full ${category === 'PPAIS' || category === 'PERECÍVEIS' || category === 'ESTOCÁVEIS' ? 'bg-indigo-600' : 'bg-zinc-900'} text-white hover:opacity-90 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95`}
+                                            >
+                                                {category === 'PPAIS' || category === 'PERECÍVEIS' || category === 'ESTOCÁVEIS' ? 'Distribuir Peso' : 'Vincular'}
+                                            </button>
+                                            <div className="flex gap-2">
+                                                <button 
+                                                    onClick={() => startEdit(item)}
+                                                    className="flex-1 p-2.5 text-zinc-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all border border-transparent hover:border-indigo-100 shadow-sm"
+                                                >
+                                                    <svg className="h-4 w-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                </button>
+                                                <button 
+                                                    onClick={() => {
+                                                        setConfirmConfig({
+                                                            isOpen: true,
+                                                            title: 'Excluir Item',
+                                                            message: 'Tem certeza que deseja excluir este item?',
+                                                            variant: 'danger',
+                                                            onConfirm: () => {
+                                                                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                                                                onDelete(item.id);
+                                                            }
+                                                        });
+                                                    }}
+                                                    className="flex-1 p-2.5 text-zinc-400 hover:text-red-600 hover:bg-white rounded-xl transition-all border border-transparent hover:border-red-100 shadow-sm"
+                                                >
+                                                    <svg className="h-4 w-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {filteredItems.length === 0 && (
+                                <tr>
+                                    <td colSpan={12} className="p-16 text-center">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="bg-zinc-50 p-4 rounded-full border border-zinc-100">
+                                                <svg className="h-8 w-8 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                                            </div>
+                                            <p className="text-zinc-600 font-black uppercase text-xs tracking-wider">
+                                                {isQuadrimestreCategory 
+                                                    ? `Nenhum item cadastrado para o ${quadrimestre === '1Q' ? '1º' : quadrimestre === '2Q' ? '2º' : '3º'} Quadrimestre (${year || 2026})`
+                                                    : 'Nenhum produto encontrado'
+                                                }
+                                            </p>
+                                            {isQuadrimestreCategory && (
+                                                <p className="text-zinc-400 text-xs max-w-md text-center">
+                                                    Cadastre itens individualmente para este quadrimestre com seus respectivos preços e quantidades, ou copie de outro quadrimestre.
+                                                </p>
+                                            )}
+                                            {isQuadrimestreCategory && (
+                                                <div className="flex gap-2 mt-2">
+                                                    <button 
+                                                        onClick={() => setIsAdding(true)}
+                                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all"
+                                                    >
+                                                        + Adicionar Item
+                                                    </button>
+                                                    {sourcePeriodOptions.some(o => o.count > 0) && (
+                                                        <button 
+                                                            onClick={() => {
+                                                                const defaultOpt = sourcePeriodOptions.find(o => o.count > 0);
+                                                                if (defaultOpt) setCopySourcePeriod(defaultOpt.id);
+                                                                setShowCopyModal(true);
+                                                            }}
+                                                            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-2"
+                                                        >
+                                                            <Copy className="w-3.5 h-3.5 text-indigo-400" />
+                                                            Copiar de Outro Quadrimestre
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Modal de Cadastro / Edição */}
+            {isAdding && (
+                <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-md flex justify-center items-center z-[200] p-4">
+                    <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[90vh] border border-zinc-200">
+                        <div className="bg-zinc-900 p-8 text-white flex-shrink-0 relative overflow-hidden">
+                            {/* Background Decoration */}
+                            <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
+                            
+                            <div className="relative z-10 flex justify-between items-start">
+                                <div>
+                                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] block mb-2">Editor de Inventário</span>
+                                    <h3 className="text-2xl font-black uppercase tracking-tighter leading-none">
+                                        {editingId ? 'Editar Produto' : 'Novo Registro'}
+                                    </h3>
+                                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                                        <div className="inline-flex items-center bg-white/10 px-3 py-1 rounded-full border border-white/10">
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-300">{category}</span>
+                                        </div>
+                                        {isQuadrimestreCategory && (
+                                            <div className="inline-flex items-center bg-indigo-500/20 px-3 py-1 rounded-full border border-indigo-400/30">
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-indigo-300">
+                                                    {((editingQuadrimestre || quadrimestre) === '1Q' ? '1º Quadrimestre' : (editingQuadrimestre || quadrimestre) === '2Q' ? '2º Quadrimestre' : '3º Quadrimestre')} • {editingYear || year || 2026}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <button onClick={resetForm} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-8 space-y-8 overflow-y-auto flex-1 custom-scrollbar">
+                            {/* Seção Principal */}
+                            <div className="space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Nome do Produto para Aquisição</label>
+                                    <textarea 
+                                        rows={2}
+                                        value={name} 
+                                        onChange={e => setName(e.target.value)} 
+                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all resize-none"
+                                        placeholder="Ex: ARROZ AGULHINHA TIPO 1"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Apelido (Nome abreviado para Entrada)</label>
+                                    <input 
+                                        type="text"
+                                        value={nickname} 
+                                        onChange={e => setNickname(e.target.value)} 
+                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                        placeholder="Ex: ARROZ"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vínculo com Item do Contrato</label>
+                                    <div className="relative">
+                                        <select 
+                                            value={contractItemName} 
+                                            onChange={e => setContractItemName(e.target.value)}
+                                            className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none"
+                                        >
+                                            <option value="">-- SELECIONE O ITEM DO CONTRATO --</option>
+                                            {contractItems.map(ci => <option key={ci} value={ci}>{ci}</option>)}
+                                        </select>
+                                        <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-zinc-400">
+                                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Grid de Códigos e Natureza */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Cód. Compras</label>
+                                    <input 
+                                        type="text" 
+                                        value={comprasCode} 
+                                        onChange={e => setComprasCode(e.target.value)} 
+                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                        placeholder="00.000.000"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Cód. BEC</label>
+                                    <input 
+                                        type="text" 
+                                        value={becCode} 
+                                        onChange={e => setBecCode(e.target.value)} 
+                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                        placeholder="0000000"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Natureza de Despesa</label>
+                                    <input 
+                                        type="text" 
+                                        value={expenseNature} 
+                                        onChange={e => setExpenseNature(e.target.value)} 
+                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                        placeholder="339030"
+                                    />
+                                </div>
+                                <div className="space-y-2 md:col-span-3">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Nota de Empenho</label>
+                                    <input 
+                                        type="text" 
+                                        value={commitmentNumber} 
+                                        onChange={e => setCommitmentNumber(e.target.value.toUpperCase())} 
+                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                        placeholder="Ex: 2024NE00123"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Grid de Valores e Unidade */}
+                            <div className={`grid grid-cols-2 ${isQuadrimestreCategory ? 'md:grid-cols-4' : 'md:grid-cols-5'} gap-6`}>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Unidade</label>
+                                    <select 
+                                        value={unit} 
+                                        onChange={e => setUnit(e.target.value)}
+                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none"
+                                    >
+                                        <option value="un">un</option>
+                                        <option value="kg">kg</option>
+                                        <option value="litro">L</option>
+                                        <option value="caixa">cx</option>
+                                        <option value="embalagem">emb</option>
+                                        <option value="dz">dz</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">
+                                        {isQuadrimestreCategory ? 'Qtd. Contratada' : 'Qtd. Adq.'}
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        value={acquiredQuantity} 
+                                        onChange={e => setAcquiredQuantity(e.target.value)} 
+                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Saldo Estoque</label>
+                                    <input 
+                                        type="text" 
+                                        value={stockBalance} 
+                                        onChange={e => setStockBalance(e.target.value)} 
+                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                    />
+                                </div>
+                                {isQuadrimestreCategory ? (
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest ml-1">Preço Unitário (R$)</label>
+                                        <input 
+                                            type="text" 
+                                            value={unitValue} 
+                                            onChange={e => setUnitValue(e.target.value)} 
+                                            className="w-full bg-indigo-50/30 border-2 border-indigo-200 rounded-2xl p-4 font-mono font-black text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all text-indigo-900"
+                                            placeholder="0,00"
+                                        />
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vlr. 1º Quad.</label>
+                                            <input 
+                                                type="text" 
+                                                value={unitValue} 
+                                                onChange={e => setUnitValue(e.target.value)} 
+                                                className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vlr. 2/3º Quad.</label>
+                                            <input 
+                                                type="text" 
+                                                value={unitValue23} 
+                                                onChange={e => setUnitValue23(e.target.value)} 
+                                                className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                            />
+                                        </div>
+                                    </>
+                                )}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Aditivo Contrato</label>
+                                    <input 
+                                        type="text" 
+                                        value={contractAddendum} 
+                                        onChange={e => setContractAddendum(e.target.value)} 
+                                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 font-mono font-bold text-sm text-right focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-8 bg-zinc-50 border-t border-zinc-100 flex gap-4 flex-shrink-0">
+                            <button 
+                                onClick={resetForm}
+                                disabled={isSaving}
+                                className="flex-1 bg-white border-2 border-zinc-200 hover:bg-zinc-100 text-zinc-500 font-black py-4 rounded-2xl transition-all uppercase text-[10px] tracking-[0.2em] disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={handleSave}
+                                disabled={isSaving}
+                                className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 uppercase text-[10px] tracking-[0.2em] disabled:bg-zinc-400"
+                            >
+                                {isSaving ? 'Processando...' : (editingId ? 'Atualizar Registro' : 'Confirmar Cadastro')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Cópia entre Quadrimestres */}
+            {showCopyModal && (
+                <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-md flex justify-center items-center z-[210] p-4">
+                    <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-in flex flex-col border border-zinc-200">
+                        <div className="bg-zinc-900 p-6 text-white relative overflow-hidden">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] block mb-1">Cópia de Cadastro</span>
+                                    <h3 className="text-xl font-black uppercase tracking-tight">Copiar Itens entre Quadrimestres</h3>
+                                    <p className="text-xs text-zinc-400 mt-1">
+                                        Destino: <strong className="text-white">{quadrimestre === '1Q' ? '1º' : quadrimestre === '2Q' ? '2º' : '3º'} Quadrimestre ({year || 2026})</strong>
+                                    </p>
+                                </div>
+                                <button onClick={() => setShowCopyModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-zinc-400 hover:text-white">
+                                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Quadrimestre de Origem</label>
+                                <select 
+                                    value={copySourcePeriod}
+                                    onChange={e => setCopySourcePeriod(e.target.value)}
+                                    className="w-full bg-zinc-50 border-2 border-zinc-200 rounded-2xl p-4 font-bold text-sm focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                                >
+                                    <option value="">-- SELECIONE O PERÍODO DE ORIGEM --</option>
+                                    {sourcePeriodOptions.map(opt => (
+                                        <option key={opt.id} value={opt.id} disabled={opt.count === 0}>
+                                            {opt.label} — ({opt.count} {opt.count === 1 ? 'item' : 'itens'})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="space-y-3 bg-zinc-50 p-4 rounded-2xl border border-zinc-100">
+                                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block">Configuração dos Dados</span>
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input 
+                                        type="radio" 
+                                        name="copyKeep" 
+                                        checked={copyKeepValues} 
+                                        onChange={() => setCopyKeepValues(true)}
+                                        className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <div>
+                                        <span className="text-xs font-bold text-zinc-800 block">Manter preços e quantidades</span>
+                                        <span className="text-[10px] text-zinc-500">Copia os itens com os valores atuais para posterior ajuste</span>
+                                    </div>
+                                </label>
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input 
+                                        type="radio" 
+                                        name="copyKeep" 
+                                        checked={!copyKeepValues} 
+                                        onChange={() => setCopyKeepValues(false)}
+                                        className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <div>
+                                        <span className="text-xs font-bold text-zinc-800 block">Zerar preços e quantidades</span>
+                                        <span className="text-[10px] text-zinc-500">Importa apenas o catálogo para preencher novas cotações do zero</span>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex items-start gap-3">
+                                <AlertCircle className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+                                <p className="text-[11px] text-indigo-800 leading-relaxed">
+                                    Os itens copiados serão cadastrados exclusivamente no <strong>{quadrimestre === '1Q' ? '1º' : quadrimestre === '2Q' ? '2º' : '3º'} Quadrimestre de {year || 2026}</strong>. Os dados do período de origem permanecerão intocados.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-zinc-50 border-t border-zinc-100 flex gap-3">
+                            <button 
+                                onClick={() => setShowCopyModal(false)}
+                                disabled={isCopying}
+                                className="flex-1 bg-white border border-zinc-200 hover:bg-zinc-100 text-zinc-600 font-black py-3.5 rounded-xl transition-all uppercase text-[10px] tracking-widest disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={handleCopyItems}
+                                disabled={isCopying || !copySourcePeriod}
+                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl shadow-lg transition-all active:scale-95 uppercase text-[10px] tracking-widest disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {isCopying ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                        <span>Copiando...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Copy className="w-4 h-4" />
+                                        <span>Importar Itens</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {manageItem && onUpdateContractForItem && (
+                <ManageContractSuppliersModal 
+                    itemName={manageItem.name} 
+                    currentSuppliers={suppliers.flatMap(s => {
+                        const targetNames = [
+                            normalizeItemName(manageItem.name),
+                            normalizeItemName(manageItem.contractItemName || '')
+                        ].filter(Boolean);
+
+                        return (Object.values(s.contractItems || {}) as any[])
+                            .filter((ci: any) => targetNames.includes(normalizeItemName(ci.name)))
+                            .map((ci: any) => ({
+                                supplierName: s.name,
+                                supplierCpf: s.cpf,
+                                amount: ci.totalKg,
+                                price: ci.valuePerKg,
+                                monthlyWeight: ci.monthlyWeight,
+                                monthlyValue: ci.monthlyValue,
+                                commitmentNumber: ci.commitmentNumber,
+                                commitmentValue: ci.commitmentValue
+                            }));
+                    })} 
+                    allSuppliers={allSuppliers.length > 0 ? allSuppliers : suppliers} 
+                    unit={`${manageItem.unit}-1`}
+                    category={manageItem.category}
+                    comprasCode={manageItem.comprasCode}
+                    becCode={manageItem.becCode}
+                    acquiredQuantity={manageItem.acquiredQuantity + (manageItem.contractAddendum || 0)}
+                    onClose={() => setManageItem(null)} 
+                    onSave={async (assignments) => {
+                        try {
+                            const displayName = (category === 'PPAIS' || category === 'PERECÍVEIS') ? manageItem.name : (manageItem.contractItemName || manageItem.name);
+                            const res = await onUpdateContractForItem(displayName, assignments);
+                            if (res.success) {
+                                setManageItem(null);
+                            } else {
+                                alert(res.message);
+                            }
+                            return res;
+                        } catch (e: any) {
+                            alert(e.message);
+                            return { success: false, message: e.message };
+                        }
+                    }}
+                />
+            )}
+
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                variant={confirmConfig.variant}
+            />
+        </div>
+    );
+};
+
+export default AdminAcquisitionItems;
