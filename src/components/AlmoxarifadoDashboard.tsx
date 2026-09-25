@@ -23,6 +23,7 @@ import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 import AdminExcelAlmoxarifado from './AdminExcelAlmoxarifado';
 import { AdminServidorInternoModal } from './AdminServidorInternoModal';
+import AdminServiceOrder from './AdminServiceOrder';
 
 interface AlmoxarifadoDashboardProps {
     currentUser: { name: string; cpf: string; role: string };
@@ -70,6 +71,14 @@ interface AlmoxarifadoDashboardProps {
     marmitaWeightLogs?: MarmitaWeightLog[];
     onRegisterMarmitaWeightLog?: (log: any) => Promise<{ success: boolean; message: string }>;
     onDeleteMarmitaWeightLog?: (id: string) => Promise<any>;
+    serviceOrders: any[];
+    onRegisterServiceOrder: (order: any) => Promise<{ success: boolean; message: string }>;
+    onUpdateServiceOrder: (order: any) => Promise<{ success: boolean; message: string }>;
+    onDeleteServiceOrder: (id: string) => Promise<any>;
+    maintenanceSchedules?: any[];
+    onRegisterMaintenanceSchedule?: (schedule: any) => Promise<{ success: boolean; message: string }>;
+    onUpdateMaintenanceSchedule?: (id: string, updates: any) => Promise<{ success: boolean; message: string }>;
+    onDeleteMaintenanceSchedule?: (id: string) => Promise<any>;
     [key: string]: any;
 }
 
@@ -159,7 +168,15 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     onDeleteTemperatureLog,
     marmitaWeightLogs = [],
     onRegisterMarmitaWeightLog,
-    onDeleteMarmitaWeightLog
+    onDeleteMarmitaWeightLog,
+    serviceOrders,
+    onRegisterServiceOrder,
+    onUpdateServiceOrder,
+    onDeleteServiceOrder,
+    maintenanceSchedules,
+    onRegisterMaintenanceSchedule,
+    onUpdateMaintenanceSchedule,
+    onDeleteMaintenanceSchedule
 }) => {
     const [activeTab, setActiveTab] = useState<string>('history');
     const [showServerModal, setShowServerModal] = useState<boolean>(false);
@@ -3438,7 +3455,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             </div>
                         )}
                         <div className="flex bg-slate-100 p-1 rounded-xl md:rounded-2xl overflow-x-auto w-full md:w-auto shrink max-w-full">
-                            {['history', 'movement_history', 'image_history', 'validity', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'directors_percapita', 'camara_fria', 'excel', 'server_code', 'sync'].map(tab => (
+                            {['history', 'movement_history', 'image_history', 'validity', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'directors_percapita', 'camara_fria', 'infraestrutura', 'server_code', 'sync'].map(tab => (
                                 <button 
                                     key={tab}
                                     onClick={() => {
@@ -3460,19 +3477,11 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                      tab === 'manual_receipt' ? 'Termo Manual' : 
                                      tab === 'directors_percapita' ? 'Per Capita Diretores' : 
                                      tab === 'camara_fria' ? 'Câmaras Frias' : 
-                                     tab === 'excel' ? '📊 Planilha Excel' : 
+                                     tab === 'infraestrutura' ? 'Infraestrutura' : 
                                      tab === 'server_code' ? '💻 Servidor Interno' : 'Sincronização'}
                                 </button>
                             ))}
                         </div>
-                        <button 
-                            onClick={() => setActiveTab('excel')} 
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2 px-3 md:px-4 rounded-xl text-[10px] md:text-xs uppercase border border-emerald-500 shadow-sm flex items-center gap-1.5 active:scale-95 transition-all shrink-0"
-                            title="Acessar e Baixar Planilha Excel Oficial"
-                        >
-                            <FileSpreadsheet className="h-4 w-4 text-emerald-200" />
-                            <span className="hidden sm:inline">Planilha Excel</span>
-                        </button>
                         <button 
                             onClick={() => setShowServerModal(true)} 
                             className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2 px-3 md:px-4 rounded-xl text-[10px] md:text-xs uppercase border border-indigo-500 shadow-sm flex items-center gap-1.5 active:scale-95 transition-all shrink-0 shadow-indigo-100"
@@ -6389,11 +6398,16 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             </div>
                         )}
                     </div>
-                ) : activeTab === 'excel' ? (
-                    <AdminExcelAlmoxarifado
-                        suppliers={suppliers}
-                        warehouseLog={warehouseLog}
-                        acquisitionItems={acquisitionItems}
+                ) : activeTab === 'infraestrutura' ? (
+                    <AdminServiceOrder
+                        orders={serviceOrders}
+                        onUpdate={onUpdateServiceOrder}
+                        onDelete={onDeleteServiceOrder}
+                        onRegisterOrder={onRegisterServiceOrder}
+                        maintenanceSchedules={maintenanceSchedules}
+                        onRegisterMaintenanceSchedule={onRegisterMaintenanceSchedule}
+                        onUpdateMaintenanceSchedule={onUpdateMaintenanceSchedule}
+                        onDeleteMaintenanceSchedule={onDeleteMaintenanceSchedule}
                     />
                 ) : null}
             {/* Tool Modal Dialog - rendered at root level with z-[9999] to avoid z-index stacking issues */}

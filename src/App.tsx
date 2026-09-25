@@ -4028,6 +4028,14 @@ const App: React.FC = () => {
                    return { success: true, message: 'Ok' };
                }}
                onDeleteMarmitaWeightLog={async (id) => remove(child(marmitaWeightLogsRef, id))}
+               serviceOrders={serviceOrders}
+               onRegisterServiceOrder={handleRegisterServiceOrder}
+               onUpdateServiceOrder={handleUpdateServiceOrder}
+               onDeleteServiceOrder={handleDeleteServiceOrder}
+               maintenanceSchedules={maintenanceSchedules}
+               onRegisterMaintenanceSchedule={handleRegisterMaintenanceSchedule}
+               onUpdateMaintenanceSchedule={handleUpdateMaintenanceSchedule}
+               onDeleteMaintenanceSchedule={handleDeleteMaintenanceSchedule}
              />;
     }
 
