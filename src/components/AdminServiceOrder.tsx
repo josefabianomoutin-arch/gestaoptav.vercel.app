@@ -9,6 +9,7 @@ interface AdminServiceOrderProps {
   orders: ServiceOrder[];
   onUpdate: (order: ServiceOrder) => Promise<{ success: boolean; message: string }>;
   onDelete: (id: string) => Promise<{ success: boolean; message: string }>;
+  onRegisterOrder?: (order: Omit<ServiceOrder, 'id'>) => Promise<{ success: boolean; message: string }>;
   maintenanceSchedules?: MaintenanceSchedule[];
   onRegisterMaintenanceSchedule?: (schedule: Omit<MaintenanceSchedule, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateMaintenanceSchedule?: (idOrSchedule: string | MaintenanceSchedule, updates?: Partial<MaintenanceSchedule>) => Promise<{ success: boolean; message: string }>;
@@ -35,12 +36,25 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
   orders = [], 
   onUpdate, 
   onDelete,
+  onRegisterOrder,
   maintenanceSchedules = [],
   onRegisterMaintenanceSchedule,
   onUpdateMaintenanceSchedule,
   systemPasswords = {}
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
+  const [isSubmittingNewOrder, setIsSubmittingNewOrder] = useState(false);
+  const [newOrderForm, setNewOrderForm] = useState<Omit<ServiceOrder, 'id'>>({
+    requestingSector: '',
+    serviceType: 'hidraulico',
+    category: 'manutenção',
+    requester: '',
+    description: '',
+    date: new Date().toISOString().split('T')[0],
+    priority: 'media',
+    status: 'pendente'
+  });
   const [filterStatus, setFilterStatus] = useState<string>('todos');
   const [filterStage, setFilterStage] = useState<string>('todas');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1100,6 +1114,16 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
               <CheckCircle2 className="h-3.5 w-3.5" />
               Concluídos
             </button>
+            {onRegisterOrder && (
+              <button
+                onClick={() => setIsNewOrderModalOpen(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-4 rounded-xl text-[9px] uppercase tracking-widest transition-all flex items-center gap-1.5 shadow-md active:scale-95 ml-1"
+                title="Cadastrar Nova Solicitação de Infraestrutura"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Nova O.S.
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1922,6 +1946,179 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all shadow-lg flex items-center gap-2"
                 >
                   <Save className="h-4 w-4" /> Salvar Agendamento
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Nova Ordem de Serviço da Infraestrutura */}
+      {isNewOrderModalOpen && onRegisterOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[90vh]">
+            <div className="bg-indigo-900 text-white p-6 flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/10 p-2.5 rounded-2xl">
+                  <Wrench className="h-6 w-6 text-indigo-300" />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg uppercase tracking-tight">Nova Solicitação de Infraestrutura</h3>
+                  <p className="text-[10px] text-indigo-300 font-bold uppercase tracking-widest">Abertura de Ordem de Serviço</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsNewOrderModalOpen(false)}
+                className="text-white/70 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!newOrderForm.requestingSector.trim()) {
+                  toast.error('Informe o setor solicitante');
+                  return;
+                }
+                if (!newOrderForm.description.trim()) {
+                  toast.error('Informe a descrição do serviço');
+                  return;
+                }
+                setIsSubmittingNewOrder(true);
+                try {
+                  const res = await onRegisterOrder(newOrderForm);
+                  if (res.success) {
+                    toast.success(res.message || 'Ordem de serviço registrada com sucesso!');
+                    setIsNewOrderModalOpen(false);
+                    setNewOrderForm({
+                      requestingSector: '',
+                      serviceType: 'hidraulico',
+                      category: 'manutenção',
+                      requester: '',
+                      description: '',
+                      date: new Date().toISOString().split('T')[0],
+                      priority: 'media',
+                      status: 'pendente'
+                    });
+                  } else {
+                    toast.error(res.message || 'Erro ao registrar solicitação');
+                  }
+                } catch (err: any) {
+                  toast.error(err?.message || 'Erro ao registrar');
+                } finally {
+                  setIsSubmittingNewOrder(false);
+                }
+              }}
+              className="p-6 space-y-4 overflow-y-auto flex-1"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">
+                    Setor Solicitante *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newOrderForm.requestingSector}
+                    onChange={(e) => setNewOrderForm({ ...newOrderForm, requestingSector: e.target.value.toUpperCase() })}
+                    placeholder="EX: COZINHA, PORTARIA, RAIO 1"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-gray-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">
+                    Solicitante / Servidor
+                  </label>
+                  <input
+                    type="text"
+                    value={newOrderForm.requester}
+                    onChange={(e) => setNewOrderForm({ ...newOrderForm, requester: e.target.value.toUpperCase() })}
+                    placeholder="NOME DO SERVIDOR"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-gray-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 uppercase"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">
+                    Tipo de Serviço
+                  </label>
+                  <select
+                    value={newOrderForm.serviceType}
+                    onChange={(e) => setNewOrderForm({ ...newOrderForm, serviceType: e.target.value as any })}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-bold text-gray-800 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="hidraulico">Hidráulico</option>
+                    <option value="eletrico">Elétrico</option>
+                    <option value="predial">Predial</option>
+                    <option value="refrigeracao">Refrigeração</option>
+                    <option value="serralheria">Serralheria</option>
+                    <option value="marcenaria">Marcenaria</option>
+                    <option value="pintura">Pintura</option>
+                    <option value="outro">Outro</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">
+                    Prioridade
+                  </label>
+                  <select
+                    value={newOrderForm.priority}
+                    onChange={(e) => setNewOrderForm({ ...newOrderForm, priority: e.target.value as any })}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-bold text-gray-800 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="baixa">Baixa</option>
+                    <option value="media">Média</option>
+                    <option value="alta">Alta</option>
+                    <option value="urgente">Urgente</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">
+                    Data da Solicitação
+                  </label>
+                  <input
+                    type="date"
+                    value={newOrderForm.date}
+                    onChange={(e) => setNewOrderForm({ ...newOrderForm, date: e.target.value })}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">
+                  Descrição Detalhada do Problema / Serviço *
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  value={newOrderForm.description}
+                  onChange={(e) => setNewOrderForm({ ...newOrderForm, description: e.target.value })}
+                  placeholder="Descreva minuciosamente o reparo, local exato e especificações necessárias..."
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-xs font-bold text-gray-800 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsNewOrderModalOpen(false)}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-black py-2.5 px-5 rounded-xl text-xs uppercase transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingNewOrder}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2.5 px-6 rounded-xl text-xs uppercase transition-all shadow-md flex items-center gap-2 active:scale-95 disabled:opacity-50"
+                >
+                  <Save className="h-4 w-4" />
+                  {isSubmittingNewOrder ? 'Salvando...' : 'Cadastrar O.S.'}
                 </button>
               </div>
             </form>
