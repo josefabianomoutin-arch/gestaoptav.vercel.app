@@ -24,6 +24,7 @@ import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 import AdminExcelAlmoxarifado from './AdminExcelAlmoxarifado';
 import { AdminServidorInternoModal } from './AdminServidorInternoModal';
 import AdminServiceOrder from './AdminServiceOrder';
+import { AdminTaiuvaEnergyAccounting } from './AdminTaiuvaEnergyAccounting';
 
 interface AlmoxarifadoDashboardProps {
     currentUser: { name: string; cpf: string; role: string };
@@ -176,7 +177,10 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     maintenanceSchedules,
     onRegisterMaintenanceSchedule,
     onUpdateMaintenanceSchedule,
-    onDeleteMaintenanceSchedule
+    onDeleteMaintenanceSchedule,
+    energyAccountingRecords,
+    _onSaveEnergyAccountingRecord,
+    _onDeleteEnergyAccountingRecord
 }) => {
     const [activeTab, setActiveTab] = useState<string>('history');
     const [showServerModal, setShowServerModal] = useState<boolean>(false);
@@ -3455,7 +3459,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             </div>
                         )}
                         <div className="flex bg-slate-100 p-1 rounded-xl md:rounded-2xl overflow-x-auto w-full md:w-auto shrink max-w-full">
-                            {['history', 'movement_history', 'image_history', 'validity', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'directors_percapita', 'camara_fria', 'infraestrutura', 'server_code', 'sync'].map(tab => (
+                            {['history', 'movement_history', 'validity', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'directors_percapita', 'camara_fria', 'infraestrutura', 'energy', 'server_code', 'sync'].map(tab => (
                                 <button 
                                     key={tab}
                                     onClick={() => {
@@ -3468,9 +3472,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     className={`px-3 md:px-5 py-1.5 md:py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase transition-all whitespace-nowrap shrink-0 ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                                     {tab === 'history' ? 'Consulta & Gestão' : 
                                      tab === 'movement_history' ? 'Log de Movimentação' : 
-                                     tab === 'image_history' ? 'Notas Fiscais' : 
                                      tab === 'validity' ? 'Validade' : 
-                                     tab === 'agenda' ? 'Agenda' : 
                                      tab === 'cronograma' ? 'Cronograma' : 
                                      tab === 'menu' ? 'Cardápio' : 
                                      tab === 'receipt' ? 'Controle Doc.' : 
@@ -3478,6 +3480,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                      tab === 'directors_percapita' ? 'Per Capita Diretores' : 
                                      tab === 'camara_fria' ? 'Câmaras Frias' : 
                                      tab === 'infraestrutura' ? 'Infraestrutura' : 
+                                     tab === 'energy' ? 'Energia' : 
                                      tab === 'server_code' ? '💻 Servidor Interno' : 'Sincronização'}
                                 </button>
                             ))}
@@ -6408,6 +6411,11 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         onRegisterMaintenanceSchedule={onRegisterMaintenanceSchedule}
                         onUpdateMaintenanceSchedule={onUpdateMaintenanceSchedule}
                         onDeleteMaintenanceSchedule={onDeleteMaintenanceSchedule}
+                    />
+                ) : activeTab === 'energy' ? (
+                    <AdminTaiuvaEnergyAccounting 
+                        records={energyAccountingRecords}
+                        userRole="infraestrutura"
                     />
                 ) : null}
             {/* Tool Modal Dialog - rendered at root level with z-[9999] to avoid z-index stacking issues */}
