@@ -1,0 +1,571 @@
+
+export interface LotInfo {
+    number: string;
+    expirationDate: string;
+    lotNumber?: string;
+    remainingQuantity?: number;
+}
+
+export interface Delivery {
+    id: string;
+    date: string;
+    time: string;
+    item: string;
+    kg: number;
+    value: number;
+    itemId?: string;
+    itemName?: string;
+    invoiceUploaded: boolean;
+    invoiceNumber?: string;
+    invoiceUrl?: string;
+    invoiceDate?: string;
+    lotNumber?: string;
+    expirationDate?: string;
+    isOpened?: boolean;
+    barcode?: string;
+    receiptTermNumber?: string;
+    nl?: string;
+    pd?: string;
+    ne?: string;
+    arrivalTime?: string;
+    exitTime?: string;
+    lots?: LotInfo[];
+    observations?: string;
+}
+
+export interface ContractItem {
+    id?: string;
+    name: string;
+    totalKg: number;
+    valuePerKg: number;
+    monthlyWeight?: number;
+    monthlyValue?: number;
+    unit?: string;
+    period?: '1_QUAD' | '2_3_QUAD' | string;
+    category?: string;
+    comprasCode?: string;
+    becCode?: string;
+    commitmentNumber?: string;
+    commitmentValue?: number;
+}
+
+export interface Supplier {
+    name: string;
+    cpf: string;
+    initialValue: number;
+    contractItems: ContractItem[];
+    deliveries: any; // flexible to allow array methods or object access as seen in current code
+    allowedWeeks: number[];
+    monthlySchedule?: Record<string, number[]>;
+    address?: string;
+    city?: string;
+    processNumber?: string;
+    observations?: string;
+    [key: string]: any;
+}
+
+export interface MonthlyQuota {
+    name: string;
+    monthlyQuota: number;
+    deliveredThisMonth: number;
+    remainingThisMonth: number;
+    unit: string;
+}
+
+export interface WarehouseMovement {
+    id: string;
+    date: string;
+    timestamp: number;
+    type: 'entrada' | 'saida' | 'saída';
+    item: string;
+    kg: number;
+    supplierName: string;
+    supplierCpf: string;
+    invoiceNumber?: string;
+    lotNumber?: string;
+    expirationDate?: string;
+    responsible?: string;
+    itemName?: string;
+    inboundInvoice?: string;
+    outboundInvoice?: string;
+    quantity?: number;
+    barcode?: string;
+    nlNumber?: string;
+    pdNumber?: string;
+    neNumber?: string;
+    ne?: string;
+    value?: number;
+    totalValue?: number;
+    weight?: number;
+    invoiceUrl?: string;
+    lotId?: string;
+    deliveryId?: string;
+}
+
+export interface PerCapitaConfig {
+    ppaisProducers?: PerCapitaSupplier[];
+    pereciveisSuppliers?: PerCapitaSupplier[];
+    estocaveisSuppliers?: PerCapitaSupplier[];
+    pereciveisSuppliers1Q?: PerCapitaSupplier[];
+    pereciveisSuppliers2Q?: PerCapitaSupplier[];
+    pereciveisSuppliers3Q?: PerCapitaSupplier[];
+    estocaveisSuppliers1Q?: PerCapitaSupplier[];
+    estocaveisSuppliers2Q?: PerCapitaSupplier[];
+    estocaveisSuppliers3Q?: PerCapitaSupplier[];
+    pereciveisSuppliers2027_1Q?: PerCapitaSupplier[];
+    pereciveisSuppliers2027_2Q?: PerCapitaSupplier[];
+    pereciveisSuppliers2027_3Q?: PerCapitaSupplier[];
+    estocaveisSuppliers2027_1Q?: PerCapitaSupplier[];
+    estocaveisSuppliers2027_2Q?: PerCapitaSupplier[];
+    estocaveisSuppliers2027_3Q?: PerCapitaSupplier[];
+    contractsByYearQuadrimestre?: Record<string, PerCapitaSupplier[]>;
+    inmateCount?: number;
+    staffCount?: number;
+    customValues?: Record<string, any>;
+    seiProcessNumbers?: Record<string, string>;
+    seiProcessDefinitions?: Record<string, string>;
+    monthlyQuota?: Record<string, number>;
+    monthlyResource?: Record<string, number>;
+    ptresResources?: Record<string, any>;
+    monthlyAdvances?: Record<string, number>;
+}
+
+export interface PerCapitaSupplier {
+    id: string;
+    name: string;
+    cpfCnpj: string;
+    cpf?: string;
+    address?: string;
+    city?: string;
+    processNumber?: string;
+    monthlySchedule?: Record<string, number[]>;
+    deliveries?: Delivery[];
+    contractItems?: ContractItem[];
+    contractNumber?: string;
+    representativeName?: string;
+    representativeCpf?: string;
+}
+
+export interface CleaningLog {
+    id: string;
+    date: string;
+    area?: string;
+    responsible: string;
+    shift?: string;
+    observations?: string;
+    location?: string;
+    maintenanceDetails?: string;
+    type?: string;
+    serviceProcessId?: string;
+    partsProcessId?: string;
+    numeroProcesso?: string;
+}
+
+export interface DirectorPerCapitaLog {
+    id: string;
+    date: string;
+    month: string;
+    week: string;
+    recipient: string;
+    items: DirectorItem[];
+    totalValue: number;
+}
+
+export interface MenuRow {
+    id?: string;
+    item?: string;
+    monday?: string;
+    tuesday?: string;
+    wednesday?: string;
+    thursday?: string;
+    friday?: string;
+    saturday?: string;
+    sunday?: string;
+    contractedItem?: string;
+    unitWeight?: any;
+    totalWeight?: any;
+    foodItem?: string;
+    preparationDetails?: string;
+    period?: string;
+    description?: string;
+}
+
+export interface StandardMenu {
+    [key: string]: MenuRow[];
+}
+
+export interface DailyMenus {
+    [date: string]: {
+        breakfast?: string;
+        lunch?: string;
+        dinner?: string;
+        snack?: string;
+    } | any;
+}
+
+export interface FinancialRecord {
+    id: string;
+    date: string;
+    description: string;
+    value: number;
+    type: 'receita' | 'despesa' | 'entrada' | 'saida';
+    category: string;
+    natureza?: string;
+    tipo?: 'CUSTO FIXO' | 'CUSTO VARIÁVEL' | 'RECEITA' | string;
+    valorRecebido?: number;
+    valorUtilizado?: number;
+    valorSolicitado?: number;
+    status?: string;
+    dataRecebimento?: string;
+    dataPagamento?: string;
+    numeroProcesso?: string;
+    descricao?: string;
+    numeroEmpenho?: string;
+    notaCredito?: string;
+    dataFinalizacaoProcesso?: string;
+    modalidade?: string;
+    adiantado?: any;
+    ptres?: string;
+    favorecido?: string;
+    data?: string;
+    dataSolicitacao?: string;
+    selecao?: any;
+    justificativa?: string;
+    localUtilizado?: string;
+}
+
+export interface ThirdPartyEntryLog {
+    id: string;
+    date: string;
+    time: string;
+    companyName: string;
+    companyCnpj: string;
+    driverName?: string;
+    vehiclePlate?: string;
+    status: 'agendado' | 'concluido' | 'cancelado';
+    arrivalTime?: string;
+    locations?: string[] | string;
+    photo?: string;
+    vehicle?: string;
+    plate?: string;
+    serviceExecutionNumber?: string;
+    contractNumber?: string;
+    serviceDetails?: string;
+    receiptTermDate?: string;
+    monitoringResponsible?: string;
+    pestControlResponsible?: string;
+    exitTime?: string;
+    observations?: string;
+    idNumber?: string;
+    barcode?: string;
+}
+
+export interface AcquisitionItem {
+    id: string;
+    name: string;
+    unit: string;
+    category: string;
+    supplierName?: string;
+    comprasCode?: string;
+    becCode?: string;
+    acquiredQuantity: number;
+    contractAddendum?: number;
+    unitValue: number;
+    unitValue23?: number; // Valor para 2º e 3º quadrimestre
+    stockBalance?: number;
+    contractItemName?: string;
+    expenseNature?: string;
+    nickname?: string;
+    commitmentNumber?: string;
+    commitmentValue?: number;
+    year?: number;
+    quadrimestre?: '1Q' | '2Q' | '3Q';
+}
+
+export interface VehicleExitOrder {
+    id: string;
+    date: string;
+    time?: string;
+    vehicleId?: string;
+    driverId?: string;
+    destination: string;
+    kmOut?: number;
+    kmIn?: number;
+    status: 'aberta' | 'concluida';
+    exitTime?: string;
+    returnTime?: string;
+    plate?: string;
+    validationRole?: string;
+    exitDate?: string;
+    returnDate?: string;
+    pdfUrl?: string;
+    responsibleServer?: string;
+    serverRole?: string;
+    fctNumber?: string;
+    companions?: any[];
+    observations?: string;
+    checklist?: {
+        water?: boolean | 'NA';
+        oil?: boolean | 'NA';
+        tires?: boolean | 'NA';
+        lights?: boolean | 'NA';
+        wipers?: boolean | 'NA';
+        bypassed: boolean;
+    };
+    validatedBy?: string;
+    validationTimestamp?: string;
+    assetNumber?: string;
+    vehicle?: string;
+}
+
+export interface VehicleAsset {
+    id: string;
+    name?: string;
+    plate: string;
+    model: string;
+    brand?: string;
+    assetNumber?: string;
+}
+
+export interface DriverAsset {
+    id: string;
+    name: string;
+    licenseNumber?: string;
+    role?: string;
+    cnhCategory?: string;
+    isFitToDrive?: boolean;
+}
+
+export interface DailyAllowance {
+    id: string;
+    date: string;
+    staffId: string;
+    value: number;
+}
+
+export interface Staff {
+    id: string;
+    name: string;
+    role: string;
+}
+
+export interface ValidationRole {
+    id: string;
+    name?: string;
+    permissions?: string[];
+    roleName?: string;
+    responsibleName?: string;
+    password?: string;
+}
+
+export interface VehicleInspection {
+    id: string;
+    date: string;
+    vehicleId: string;
+    inspector: string;
+    items: Record<string, boolean>;
+    driverId?: string;
+    type?: string;
+    breakdownDescription?: string;
+    lightingIssues?: string[];
+    lightingDescription?: string;
+    fluidIssues?: string[];
+    fluidDescription?: string;
+    mechanicIssues?: string[];
+    mechanicDescription?: string;
+    wheelIssues?: string[];
+    wheelDescription?: string;
+    damageIssues?: string[];
+    damageDescription?: string;
+    wiperIssues?: string[];
+    wiperDescription?: string;
+    currentKM?: string;
+    nextOilChangeKM?: string;
+    oilChangeDescription?: string;
+}
+
+export interface ServiceOrder {
+    id: string;
+    date?: string;
+    requester: string;
+    description: string;
+    status: 'pendente' | 'em_andamento' | 'concluida' | 'concluido' | 'cancelado';
+    requestingSector?: string;
+    projectStage?: string;
+    priority?: string;
+    createdAt?: string;
+    location?: string;
+    inspectionObservations?: string;
+    serviceType?: string;
+    category?: string;
+    updatedAt?: string;
+}
+
+export interface MaintenanceSchedule {
+    id: string;
+    vehicleId?: string;
+    date: string;
+    description: string;
+    status: 'agendado' | 'concluido' | 'cancelado' | 'em_andamento' | 'concluida';
+    time?: string;
+    location?: string;
+    accompanyingPerson?: string;
+    toolsNeeded?: string;
+    tools?: any[];
+    ppls?: any[];
+    toolsStatus?: string;
+    validatedByChief?: boolean;
+    validatedByDirector?: boolean;
+    validatedByChiefAt?: string;
+    validatedByDirectorAt?: string;
+    exitAuthorizationUrl?: string;
+    serviceOrderId?: string;
+    entryAuthorizedAt?: string;
+    entryAuthorizedBy?: string;
+    returnAuthorizedAt?: string;
+    returnAuthorizedBy?: string;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface PublicInfo {
+    id: string;
+    title: string;
+    content: string;
+    date: string;
+    sector?: string;
+    imageUrl?: string;
+    updatedAt?: string;
+    isConfidential?: boolean;
+}
+
+export interface DirectorItem {
+    id?: string;
+    name: string;
+    quantity: number;
+    unitPrice?: number;
+    unit?: string;
+    totalValue?: number;
+    expirationDate?: string;
+}
+
+export interface EpiLog {
+    id: string;
+    date: string;
+    time: string;
+    responsible: string;
+    registration?: string;
+    itemName: string;
+    quantity: number;
+    value: number;
+    observations?: string;
+    acquisitionItemId?: string;
+}
+
+export interface SegregationLog {
+    id: string;
+    entryDate: string;
+    entryTime: string;
+    exitDate?: string;
+    exitTime?: string;
+    productName: string;
+    reason: string;
+    status: 'SEGREGADO' | 'LIBERADO';
+    responsibleName?: string;
+    observations?: string;
+    quantity?: number;
+    unit?: string;
+}
+
+export type UserRole = 'admin' | 'almoxarifado' | 'itesp' | 'financeiro' | 'cardapio' | 'subportaria' | 'infraestrutura' | 'ordem_saida' | 'julio' | 'producer' | 'pereciveis_supplier' | 'estocaveis_supplier' | 'supplier' | 'ordem_servico';
+
+export interface MarmitaWeightLog {
+    id: string;
+    date: string; // YYYY-MM-DD
+    period: 'ALMOÇO' | 'JANTA';
+    stage?: 'INÍCIO DA PRODUÇÃO' | 'FINAL DA PRODUÇÃO';
+    targetWeight: number; // e.g. 500g
+    toleranceGrams?: number; // e.g. 20g
+    time: string; // HH:MM
+    responsible: string;
+    observations?: string;
+    samples: number[]; // Array of 15 sample weight values in grams
+    averageWeight: number;
+    minWeight: number;
+    maxWeight: number;
+    compliantCount: number;
+    createdAt?: string;
+}
+
+export interface EnergyBillItem {
+    id: string;
+    code?: string;
+    description: string;
+    registeredQuantity?: number;
+    billedQuantity?: number;
+    unit?: string; // "kWh", "kW", "UN"
+    tariffAneel?: number;
+    tariffWithTaxes?: number;
+    totalOperationValue: number;
+    isForaPontaEnergy?: boolean; // soma para Fora Ponta
+    baseIcms?: number;
+    aliqIcms?: number;
+    icms?: number;
+    basePisCofins?: number;
+    pis?: number;
+    cofins?: number;
+    isCreditOrDeduction?: boolean;
+}
+
+export interface EnergySubmeterCompany {
+    id: string;
+    cnpj: string;
+    companyName: string;
+    address: string;
+    meterId?: string;
+    referenceMonth: string;
+    previousReading: number;
+    currentReading: number;
+    unit: string;
+    monthlyConsumption: number;
+    baseTotalKWh: number;
+    amountToPay: number;
+    status: 'PAGO' | 'PENDENTE';
+    readingDate: string;
+    nextReadingDate: string;
+    notes?: string;
+    paidAt?: string;
+}
+
+export interface EnergyAccountingRecord {
+    id: string; // e.g. "ago-26"
+    referenceMonth: string; // e.g. "ago/26"
+    year: number;
+    month: number;
+    contractNumber?: string; // e.g. "916202097384"
+    items: EnergyBillItem[];
+    subtotal: number;
+    totalDistribuidora: number;
+    cipMunicipal?: number;
+    totalDevolucoesAjustes?: number;
+    irrfConsumo: number;
+    irrfDemanda: number;
+    irrfConsumoPercentage?: number;
+    irrfDemandaPercentage?: number;
+    totalRetencoes: number;
+    totalAPagar: number;
+    valorConsolidado: number;
+    somaKWhForaPonta: number;
+    custoMedioPorKWh: number;
+    pisPercentage: number;
+    cofinsPercentage: number;
+    basePisCofins: number;
+    pisTotal: number;
+    cofinsTotal: number;
+    companies: EnergySubmeterCompany[];
+    generalNotes?: string;
+    updatedAt?: string;
+    createdAt?: string;
+}
+
+
