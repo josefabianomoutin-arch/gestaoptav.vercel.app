@@ -2,16 +2,179 @@
 <html lang="pt-br">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="https://cdn-icons-png.flaticon.com/512/2897/2897785.png" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#1e40af" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <script>
+      // Desregistrar service workers e limpar caches de versões anteriores
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for (let registration of registrations) {
+            registration.unregister();
+          }
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (let name of names) {
+            caches.delete(name);
+          }
+        });
+      }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gestão de Ordens de Saída & Estoque</title>
+    <title>Download Planilha de Ordens de Saída</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        background-color: #0f172a;
+        color: #f8fafc;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .card {
+        max-width: 680px;
+        width: 100%;
+        background-color: #020617;
+        border: 1px solid #1e293b;
+        border-radius: 24px;
+        padding: 40px 32px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        text-align: center;
+      }
+      .badge {
+        display: inline-block;
+        background-color: rgba(6, 95, 70, 0.25);
+        color: #34d399;
+        border: 1px solid rgba(52, 211, 153, 0.4);
+        padding: 6px 18px;
+        border-radius: 50px;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 20px;
+      }
+      h1 {
+        font-size: 26px;
+        font-weight: 900;
+        color: #ffffff;
+        margin-bottom: 12px;
+        line-height: 1.3;
+      }
+      p {
+        font-size: 14px;
+        color: #94a3b8;
+        line-height: 1.6;
+        margin-bottom: 30px;
+      }
+      .btn-download {
+        display: block;
+        background-color: #059669;
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 16px;
+        padding: 20px 24px;
+        font-size: 16px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        box-shadow: 0 10px 25px -5px rgba(5, 150, 105, 0.6);
+        transition: transform 0.1s, background-color 0.2s;
+        cursor: pointer;
+        width: 100%;
+        margin-bottom: 24px;
+      }
+      .btn-download:hover {
+        background-color: #047857;
+      }
+      .btn-download:active {
+        transform: scale(0.98);
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-top: 24px;
+        border-top: 1px solid #1e293b;
+        padding-top: 24px;
+        text-align: left;
+      }
+      .stat-box {
+        background-color: #090d16;
+        padding: 14px;
+        border-radius: 12px;
+        border: 1px solid #1e293b;
+      }
+      .stat-num {
+        font-size: 22px;
+        font-weight: 900;
+      }
+      .stat-label {
+        font-size: 11px;
+        color: #64748b;
+        text-transform: uppercase;
+        font-weight: 700;
+        margin-top: 4px;
+      }
+      .links-row {
+        margin-top: 24px;
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .links-row a {
+        font-size: 12px;
+        color: #38bdf8;
+        text-decoration: none;
+        font-weight: 700;
+      }
+      .links-row a:hover {
+        text-decoration: underline;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="card">
+        <div class="badge">📊 Central Oficial de Downloads</div>
+        <h1>Baixar Planilha de Ordens de Saída & Banco Completo</h1>
+        <p>
+          Arquivo oficial do Microsoft Excel (<code>.xlsx</code>) contendo <strong>834 Ordens de Saída de Veículos</strong>, <strong>1.217 Entradas de Estoque</strong>, 81 Fornecedores, Frotas e Motoristas, pronto para uso.
+        </p>
+
+        <a 
+          href="/Planilha_Ordens_de_Saida_e_Banco_Completo.xlsx" 
+          download="Planilha_Ordens_de_Saida_e_Banco_Completo.xlsx"
+          class="btn-download"
+        >
+          📥 BAIXAR PLANILHA EXCEL OFICIAL (.XLSX)
+        </a>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-num" style="color: #38bdf8;">834</div>
+            <div class="stat-label">Ordens de Saída</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" style="color: #34d399;">1.217</div>
+            <div class="stat-label">Entradas Estoque</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" style="color: #fbbf24;">81</div>
+            <div class="stat-label">Fornecedores</div>
+          </div>
+        </div>
+
+        <div class="links-row">
+          <a href="/sistema_estoque_percapita_servidor_interno.zip" download>📦 Pacote Servidor (.ZIP)</a>
+          <span style="color: #334155;">•</span>
+          <a href="/banco_de_dados_atual.json" download>🗄️ Banco Bruto (.JSON)</a>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

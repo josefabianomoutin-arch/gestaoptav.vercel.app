@@ -30,7 +30,7 @@ export default function App() {
       setTimeout(() => setDownloaded(false), 4000);
     } catch (err) {
       console.error('Erro:', err);
-      window.location.href = '/download-planilha';
+      window.location.href = '/Planilha_Ordens_de_Saida_e_Banco_Completo.xlsx';
     }
   };
 
