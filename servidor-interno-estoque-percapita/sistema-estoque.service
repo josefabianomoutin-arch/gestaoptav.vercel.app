@@ -1,0 +1,23 @@
+[Unit]
+Description=Sistema de Gestao de Estoque, Almoxarifado e Per Capita (Servidor Interno Fechado)
+Documentation=https://localhost:3000/
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/estoque
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOST=0.0.0.0
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sistema-estoque
+
+# Limites de seguranca POSIX Linux
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

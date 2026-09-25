@@ -19,7 +19,7 @@ interface AdminServidorInternoModalProps {
 }
 
 export const AdminServidorInternoModal: React.FC<AdminServidorInternoModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'windows' | 'linux' | 'docker' | 'rede' | 'estrutura'>('windows');
+  const [activeTab, setActiveTab] = useState<'linux' | 'systemd' | 'docker' | 'rede' | 'estrutura'>('linux');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -30,23 +30,32 @@ export const AdminServidorInternoModal: React.FC<AdminServidorInternoModalProps>
     setTimeout(() => setCopiedCode(null), 2500);
   };
 
-  const windowsBatchSnippet = `@echo off
-REM Iniciar Servidor Interno Fechado (Estoque + Per Capita)
-node server.js
-REM O sistema abrira em http://localhost:3000`;
-
   const linuxSnippet = `# 1. Extrair pacote no servidor
-unzip sistema_estoque_percapita_servidor_interno.zip -d /opt/estoque
+sudo mkdir -p /opt/estoque
+sudo unzip sistema_estoque_percapita_servidor_interno.zip -d /opt/estoque
 cd /opt/estoque
 
-# 2. Dar permissão ao script
-chmod +x iniciar_servidor.sh
+# 2. Conceder permissão aos scripts Linux
+chmod +x *.sh
 
-# 3. Iniciar o sistema
+# 3. Iniciar imediatamente no terminal
 ./iniciar_servidor.sh
 
-# 4. (Opcional) Liberar porta no Firewall
-sudo ufw allow 3000/tcp`;
+# 4. (Opcional) Liberar porta no Firewall Ubuntu/Debian
+sudo ufw allow 3000/tcp && sudo ufw reload`;
+
+  const systemdSnippet = `# Instalar e ativar como serviço de inicialização automática (systemd)
+sudo ./instalar_servico_linux.sh
+
+# Verificar se o serviço está ativo
+sudo systemctl status sistema-estoque
+
+# Acompanhar logs em tempo real
+sudo journalctl -u sistema-estoque -f
+
+# Comandos de parada e reinício
+sudo systemctl restart sistema-estoque
+sudo systemctl stop sistema-estoque`;
 
   const dockerSnippet = `# Subir container com Docker Compose
 docker compose up -d --build
@@ -171,16 +180,6 @@ pm2 startup`;
         {/* Body Tabs */}
         <div className="flex border-b border-slate-200 bg-white px-6 pt-3 gap-2 overflow-x-auto text-xs font-bold">
           <button
-            onClick={() => setActiveTab('windows')}
-            className={`pb-3 px-3 border-b-2 transition flex items-center gap-1.5 ${
-              activeTab === 'windows'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            🪟 Windows (1 Clique)
-          </button>
-          <button
             onClick={() => setActiveTab('linux')}
             className={`pb-3 px-3 border-b-2 transition flex items-center gap-1.5 ${
               activeTab === 'linux'
@@ -188,7 +187,17 @@ pm2 startup`;
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            🐧 Linux / Ubuntu Server
+            🐧 Linux Server (Execução Imediata)
+          </button>
+          <button
+            onClick={() => setActiveTab('systemd')}
+            className={`pb-3 px-3 border-b-2 transition flex items-center gap-1.5 ${
+              activeTab === 'systemd'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            ⚙️ Serviço Linux (systemd 24/7)
           </button>
           <button
             onClick={() => setActiveTab('docker')}
@@ -225,45 +234,66 @@ pm2 startup`;
         {/* Tab Content Area */}
         <div className="p-6 overflow-y-auto flex-1 space-y-4 bg-slate-50/50">
           
-          {/* TAB 1: WINDOWS */}
-          {activeTab === 'windows' && (
+          {/* TAB 1: LINUX IMEDIATO */}
+          {activeTab === 'linux' && (
             <div className="space-y-4">
               <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-3">
                 <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs">1</span>
-                  Passo a Passo de Instalação no Windows
+                  <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs">🐧</span>
+                  Instalação e Execução Nativa no Linux / Ubuntu Server
                 </h3>
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                  O pacote está 100% pré-compilado para ambiente Linux fechado. Não necessita de conexão com a internet ou comandos adicionais de build.
+                </p>
                 <ol className="list-decimal list-inside space-y-2 text-xs sm:text-sm text-slate-600 leading-relaxed ml-2">
-                  <li>
-                    Baixe o pacote acima clicando no botão <strong>"Baixar Pacote (.ZIP)"</strong>.
-                  </li>
-                  <li>
-                    Extraia o arquivo <code>.zip</code> em uma pasta permanente no seu computador ou servidor (ex: <code>C:\Sistemas\EstoquePercapita</code>).
-                  </li>
-                  <li>
-                    Certifique-se de que o <strong>Node.js</strong> está instalado no computador (versão 18 ou 20 LTS disponível gratuitamente em <code>https://nodejs.org</code>).
-                  </li>
-                  <li>
-                    Dê um <strong>duplo clique no arquivo <code>iniciar_servidor.bat</code></strong>.
-                  </li>
-                  <li>
-                    O script cuidará de tudo automaticamente: verificará o ambiente, instalará dependências se necessário e abrirá o navegador em <code>http://localhost:3000</code>.
-                  </li>
+                  <li>Extraia o arquivo no servidor em <code>/opt/estoque</code>.</li>
+                  <li>Dê permissão de execução: <code>chmod +x *.sh</code>.</li>
+                  <li>Execute o script: <code>./iniciar_servidor.sh</code>.</li>
+                  <li>O sistema iniciará instantaneamente na porta <code>3000</code>.</li>
                 </ol>
               </div>
 
               <div className="bg-slate-900 text-slate-200 rounded-xl p-4 font-mono text-xs relative">
                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-slate-400">
-                  <span>Arquivo: iniciar_servidor.bat</span>
+                  <span>Comandos no Terminal Linux:</span>
                   <button
-                    onClick={() => handleCopy(windowsBatchSnippet, 'bat')}
+                    onClick={() => handleCopy(linuxSnippet, 'linux')}
                     className="flex items-center gap-1 text-xs hover:text-white transition"
                   >
-                    {copiedCode === 'bat' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedCode === 'bat' ? 'Copiado!' : 'Copiar'}</span>
+                    {copiedCode === 'linux' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedCode === 'linux' ? 'Copiado!' : 'Copiar'}</span>
                   </button>
                 </div>
-                <pre className="text-emerald-400 overflow-x-auto whitespace-pre">{windowsBatchSnippet}</pre>
+                <pre className="text-emerald-400 overflow-x-auto whitespace-pre">{linuxSnippet}</pre>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: SYSTEMD */}
+          {activeTab === 'systemd' && (
+            <div className="space-y-4">
+              <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-3">
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs">⚙️</span>
+                  Serviço de Segundo Plano 24/7 (systemd)
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                  Permite que o sistema execute de forma ininterrupta como um serviço nativo do Linux, reiniciando automaticamente caso o servidor seja desligado.
+                </p>
+              </div>
+
+              <div className="bg-slate-900 text-slate-200 rounded-xl p-4 font-mono text-xs relative">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-slate-400">
+                  <span>Configuração e Comandos de Gerenciamento:</span>
+                  <button
+                    onClick={() => handleCopy(systemdSnippet, 'systemd')}
+                    className="flex items-center gap-1 text-xs hover:text-white transition"
+                  >
+                    {copiedCode === 'systemd' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedCode === 'systemd' ? 'Copiado!' : 'Copiar'}</span>
+                  </button>
+                </div>
+                <pre className="text-indigo-300 overflow-x-auto whitespace-pre">{systemdSnippet}</pre>
               </div>
             </div>
           )}

@@ -83,6 +83,11 @@ app.use('/uploads', express.static(UPLOADS_DIR));
 // ROTAS DA API LOCAL (REST) - SERVIDOR INTERNO FECHADO (SEM INTERNET)
 // -------------------------------------------------------------
 
+// Health check para monitoramento Linux / systemd / Docker
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'OK', uptime: process.uptime() });
+});
+
 // Status do Servidor e Diagnóstico da Rede Interna
 app.get('/api/status', (req, res) => {
   const networkInterfaces = os.networkInterfaces();
@@ -356,3 +361,17 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📁 Pasta de Arquivos/Uploads:  ${UPLOADS_DIR}`);
   console.log('================================================================');
 });
+
+// Tratamento de sinais POSIX Linux (SIGINT, SIGTERM, SIGHUP) para encerramento seguro
+const gracefulShutdown = (signal) => {
+  console.log(`\n[Linux Server] Recebido sinal ${signal}. Salvando banco de dados e encerrando com segurança...`);
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveDatabase();
+  console.log('[Linux Server] Finalização concluída com sucesso.');
+  process.exit(0);
+};
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGHUP', () => gracefulShutdown('SIGHUP'));
+
