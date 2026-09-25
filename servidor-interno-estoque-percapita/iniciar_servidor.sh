@@ -47,13 +47,8 @@ else
     npm run build || true
 fi
 
-# 3. Verificar dependências de execução (node_modules)
-if [ ! -d "node_modules/express" ]; then
-    echo -e "${YELLOW}[3/3] Instalando dependências do servidor backend (npm install --omit=dev)...${NC}"
-    npm install --omit=dev || npm install || true
-else
-    echo -e "${GREEN}[3/3] Módulos do servidor pré-instalados em ./node_modules${NC}"
-fi
+# 3. Servidor Standalone Autônomo
+echo -e "${GREEN}[3/3] Servidor Node.js standalone 100% autônomo (Zero dependências externas)${NC}"
 
 # 4. Garantir diretórios de persistência de dados e uploads
 mkdir -p server-data uploads

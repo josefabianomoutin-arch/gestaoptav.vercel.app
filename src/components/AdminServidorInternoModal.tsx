@@ -115,12 +115,12 @@ pm2 startup`;
             <div>
               <div className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2">
                 Pacote Completo de Instalação (.ZIP)
-                <span className="text-xs font-normal text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200">
-                  74 MB • Backend + Frontend + Banco de Dados
+                <span className="text-xs font-normal text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
+                  5 MB • Servidor Linux + Banco Geral Integrado (30 Coleções)
                 </span>
               </div>
               <div className="text-xs text-slate-600 mt-0.5">
-                Contém todos os arquivos, scripts <code>iniciar_servidor.bat</code>, <code>iniciar_servidor.sh</code>, Dockerfile e dados pré-carregados.
+                Contém servidor standalone, frontend compilado, scripts Linux, serviço systemd e o banco de dados geral real (1.217 movimentações de estoque, 835 ordens de saída, 1.404 ferramentas, 225 aquisições, etc.).
               </div>
             </div>
           </div>

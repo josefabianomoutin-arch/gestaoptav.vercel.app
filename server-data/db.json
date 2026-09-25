@@ -1,0 +1,14 @@
+{
+  "suppliers": [],
+  "warehouseLog": [],
+  "perCapitaConfig": {},
+  "cleaningLogs": [],
+  "dailyMenus": {},
+  "standardMenu": {},
+  "acquisitionItems": [],
+  "systemPasswords": {
+    "admin": "admin123",
+    "almoxarife": "almox123",
+    "nutri": "nutri123"
+  }
+}

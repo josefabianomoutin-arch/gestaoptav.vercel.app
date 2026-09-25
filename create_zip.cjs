@@ -38,6 +38,10 @@ async function createZip() {
 
     // Adicionar diretório inteiro preservando permissões de execução
     archive.directory(sourceDir, false, (data) => {
+      // Ignorar binários pesados de uploads para respeitar o limite de 32MB do Cloud Run
+      if (data.name.startsWith('uploads/') && data.name !== 'uploads/') {
+        return false;
+      }
       if (data.name.endsWith('.sh')) {
         data.mode = 0o755;
       }
