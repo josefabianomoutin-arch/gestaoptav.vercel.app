@@ -30,6 +30,18 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  // Rota de download forçado da planilha com Content-Disposition attachment
+  app.get("/download-planilha", (req, res) => {
+    const filePath = path.join(publicDir, "Planilha_Ordens_de_Saida_e_Banco_Completo.xlsx");
+    if (fs.existsSync(filePath)) {
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", 'attachment; filename="Planilha_Ordens_de_Saida_e_Banco_Completo.xlsx"');
+      fs.createReadStream(filePath).pipe(res);
+    } else {
+      res.status(404).send("Arquivo não encontrado");
+    }
+  });
+
   // Rotas desativadas
   app.all(["/api/proxy-storage-upload", "/api/gemini", "/api/gemini-extract", "/api/gemini-compare"], (req, res) => {
     res.status(404).send();

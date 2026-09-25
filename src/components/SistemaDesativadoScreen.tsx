@@ -65,8 +65,8 @@ export const SistemaDesativadoScreen: React.FC = () => {
       }, 4000);
     } catch (err: any) {
       console.error('Erro no download direto:', err);
-      // Fallback
-      window.location.href = '/Planilha_Ordens_de_Saida_e_Banco_Completo.xlsx';
+      // Fallback para rota express dedicada com cabeçalho de attachment
+      window.location.href = '/download-planilha';
     }
   };
 
