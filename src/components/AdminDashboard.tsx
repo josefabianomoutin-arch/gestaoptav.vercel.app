@@ -108,6 +108,7 @@ interface AdminDashboardProps {
   onRegisterMaintenanceSchedule: (schedule: Omit<MaintenanceSchedule, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateMaintenanceSchedule: (idOrSchedule: string | MaintenanceSchedule, updates?: Partial<MaintenanceSchedule>) => Promise<{ success: boolean; message: string }>;
   onDeleteMaintenanceSchedule: (id: string) => Promise<{ success: boolean; message: string }>;
+  onRestoreInfrastructureData?: () => Promise<{ success: boolean; message: string }>;
   validationRoles: any[];
   onUpdateSupplierObservations?: (cpf: string, observations: string) => Promise<{ success: boolean; message?: string }>;
   systemPasswords: Record<string, string>;
@@ -435,13 +436,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           allowDelete={true}
       />;
       case 'serviceOrder': return <AdminServiceOrder
-          orders={serviceOrders}
+          orders={serviceOrders || []}
           onUpdate={onUpdateServiceOrder}
           onDelete={onDeleteServiceOrder}
-          maintenanceSchedules={maintenanceSchedules}
+          maintenanceSchedules={maintenanceSchedules || []}
           onRegisterMaintenanceSchedule={onRegisterMaintenanceSchedule}
           onUpdateMaintenanceSchedule={onUpdateMaintenanceSchedule}
           onDeleteMaintenanceSchedule={onDeleteMaintenanceSchedule}
+          onRestoreInfrastructureData={props.onRestoreInfrastructureData}
           systemPasswords={systemPasswords}
       />;
       case 'energyAccounting': return <AdminTaiuvaEnergyAccounting

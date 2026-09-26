@@ -50,6 +50,7 @@ interface VehicleOrderDashboardProps {
   onRegisterMaintenanceSchedule?: (schedule: Omit<MaintenanceSchedule, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateMaintenanceSchedule?: (idOrSchedule: string | MaintenanceSchedule, updates?: Partial<MaintenanceSchedule>) => Promise<{ success: boolean; message: string }>;
   onDeleteMaintenanceSchedule?: (id: string) => Promise<{ success: boolean; message: string }>;
+  onRestoreInfrastructureData?: () => Promise<{ success: boolean; message: string }>;
   systemPasswords?: Record<string, string>;
   onLogout: () => void;
   role?: 'infraestrutura' | 'ordem_saida';
@@ -89,6 +90,7 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
   onRegisterMaintenanceSchedule,
   onUpdateMaintenanceSchedule,
   onDeleteMaintenanceSchedule,
+  onRestoreInfrastructureData,
   systemPasswords = {},
   onLogout,
   role
@@ -272,13 +274,14 @@ const VehicleOrderDashboard: React.FC<VehicleOrderDashboardProps> = ({
 
         {activeTab === 'servicos' && onUpdateServiceOrder && onDeleteServiceOrder && (
           <AdminServiceOrder
-            orders={serviceOrders}
+            orders={serviceOrders || []}
             onUpdate={onUpdateServiceOrder}
             onDelete={onDeleteServiceOrder}
-            maintenanceSchedules={maintenanceSchedules}
+            maintenanceSchedules={maintenanceSchedules || []}
             onRegisterMaintenanceSchedule={onRegisterMaintenanceSchedule}
             onUpdateMaintenanceSchedule={onUpdateMaintenanceSchedule}
             onDeleteMaintenanceSchedule={onDeleteMaintenanceSchedule}
+            onRestoreInfrastructureData={onRestoreInfrastructureData}
             systemPasswords={systemPasswords}
           />
         )}

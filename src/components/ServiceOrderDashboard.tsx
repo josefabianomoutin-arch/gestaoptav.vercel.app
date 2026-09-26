@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { ClipboardList, Plus, Clock, CheckCircle2, AlertCircle, XCircle, Calendar, User, Users, FileText, ExternalLink } from 'lucide-react';
+import { ClipboardList, Plus, Clock, CheckCircle2, AlertCircle, XCircle, Calendar, User, Users, FileText, ExternalLink, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import { ServiceOrder, MaintenanceSchedule } from '../types';
 
@@ -9,6 +9,7 @@ interface ServiceOrderDashboardProps {
   maintenanceSchedules?: MaintenanceSchedule[];
   onRegisterServiceOrder: (order: Omit<ServiceOrder, 'id'>) => Promise<{ success: boolean; message: string }>;
   onLogout: () => void;
+  onRestoreInfrastructureData?: () => Promise<{ success: boolean; message: string }>;
 }
 
 const formatDateSafe = (dateVal: any, fallback = '---'): string => {
@@ -31,9 +32,21 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
   maintenanceSchedules = [],
   onRegisterServiceOrder,
   onLogout,
+  onRestoreInfrastructureData,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const handleRestore = async () => {
+    if (!onRestoreInfrastructureData) return;
+    setIsRestoring(true);
+    try {
+      await onRestoreInfrastructureData();
+    } finally {
+      setIsRestoring(false);
+    }
+  };
   const [formData, setFormData] = useState<Omit<ServiceOrder, 'id' | 'createdAt' | 'updatedAt' | 'priority' | 'status' | 'inspectionObservations'>>({
     requestingSector: '',
     serviceType: 'hidraulico',
@@ -153,10 +166,21 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            {onRestoreInfrastructureData && (
+              <button 
+                onClick={handleRestore}
+                disabled={isRestoring}
+                className="bg-emerald-600 text-white hover:bg-emerald-700 font-black py-3 px-6 rounded-2xl text-xs uppercase tracking-widest transition-all flex items-center gap-2 active:scale-95 shadow-lg disabled:opacity-50 cursor-pointer"
+                title="Sincronizar com os 221 registros oficiais de infraestrutura"
+              >
+                <Database className="h-4 w-4" />
+                <span>{isRestoring ? 'Sincronizando...' : 'Trazer Dados Oficiais (221 O.S.)'}</span>
+              </button>
+            )}
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="group relative bg-indigo-600 text-white hover:bg-indigo-700 font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all flex items-center gap-3 active:scale-95 shadow-lg overflow-hidden"
+              className="group relative bg-indigo-600 text-white hover:bg-indigo-700 font-black py-3 px-8 rounded-2xl text-xs uppercase transition-all flex items-center gap-3 active:scale-95 shadow-lg overflow-hidden cursor-pointer"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
               <Plus className="h-4 w-4 relative z-10" />
@@ -352,15 +376,29 @@ const ServiceOrderDashboard: React.FC<ServiceOrderDashboardProps> = ({
               </div>
             ))
           ) : (
-            <div className="col-span-full py-32 text-center">
-              <div className="relative inline-block mb-8">
+            <div className="col-span-full py-24 text-center space-y-4">
+              <div className="relative inline-block mb-4">
                 <div className="absolute inset-0 bg-indigo-50 blur-3xl rounded-full" />
-                <div className="relative bg-gray-50 border border-gray-200 w-28 h-28 rounded-full flex items-center justify-center mx-auto">
-                  <ClipboardList className="h-12 w-12 text-gray-300" />
+                <div className="relative bg-gray-50 border border-gray-200 w-24 h-24 rounded-full flex items-center justify-center mx-auto">
+                  <ClipboardList className="h-10 w-10 text-indigo-400" />
                 </div>
               </div>
-              <h2 className="text-2xl font-black text-gray-300 uppercase tracking-[0.3em] italic">Vazio Absoluto</h2>
-              <p className="text-gray-400 text-sm mt-3 font-bold uppercase tracking-widest">Nenhuma solicitação registrada no momento</p>
+              <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tight italic">Nenhuma solicitação localizada</h2>
+              <p className="text-gray-400 text-xs font-bold uppercase tracking-widest max-w-md mx-auto">
+                Você pode registrar uma nova ordem de serviço ou carregar os 221 registros oficiais da Gestão de Infraestrutura.
+              </p>
+              {onRestoreInfrastructureData && (
+                <div className="pt-2">
+                  <button 
+                    onClick={handleRestore}
+                    disabled={isRestoring}
+                    className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black px-6 py-3.5 rounded-2xl text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                  >
+                    <Database className="h-4 w-4" />
+                    <span>{isRestoring ? 'Sincronizando...' : 'Trazer Dados da Gestão de Infraestrutura (221 O.S.)'}</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

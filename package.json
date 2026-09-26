@@ -14,7 +14,7 @@
     "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "firebase": "^12.15.0",
-    "framer-motion": "^12.42.1",
+    "framer-motion": "11.18.2",
     "html2pdf.js": "^0.14.0",
     "html5-qrcode": "^2.3.8",
     "jsbarcode": "^3.12.3",

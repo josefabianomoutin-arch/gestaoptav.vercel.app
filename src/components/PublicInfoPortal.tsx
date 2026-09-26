@@ -13,13 +13,11 @@ const PublicInfoPortal: React.FC<PublicInfoPortalProps> = ({ isOpen, onClose, in
   const [selectedInfo, setSelectedInfo] = React.useState<PublicInfo | null>(null);
   const [zoomedImage, setZoomedImage] = React.useState<string | null>(null);
 
-  const [prevIsOpen, setPrevIsOpen] = React.useState(isOpen);
-  if (isOpen !== prevIsOpen) {
-    setPrevIsOpen(isOpen);
-    if (!isOpen && selectedInfo !== null) {
-      setSelectedInfo(null);
-    }
-  }
+  const handleClose = () => {
+    setSelectedInfo(null);
+    setZoomedImage(null);
+    onClose();
+  };
 
   // Filter non-confidential items and sort by date/updatedAt descending (newest first)
   const displayItems = React.useMemo(() => {
@@ -36,7 +34,7 @@ const PublicInfoPortal: React.FC<PublicInfoPortalProps> = ({ isOpen, onClose, in
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={handleClose}
             className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
           />
           
@@ -84,7 +82,7 @@ const PublicInfoPortal: React.FC<PublicInfoPortalProps> = ({ isOpen, onClose, in
                   </div>
                 </div>
                 <button 
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="p-2.5 sm:p-3 hover:bg-white/20 rounded-2xl transition-all active:scale-90 group"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-8 sm:w-8 group-hover:rotate-90 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">

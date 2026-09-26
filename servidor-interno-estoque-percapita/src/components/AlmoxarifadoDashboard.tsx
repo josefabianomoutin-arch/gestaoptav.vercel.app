@@ -11,7 +11,6 @@ import AgendaChegadas from './AgendaChegadas';
 import { Html5Qrcode } from 'html5-qrcode';
 import WarehouseMovementForm from './WarehouseMovementForm';
 import AdminWarehouseLog from './AdminWarehouseLog';
-import ValidityAnalysisPanel from './ValidityAnalysisPanel';
 import SynchronizationModule from './SynchronizationModule';
 import AdminStandardMenu from './AdminStandardMenu';
 import AdminCleaningLog from './AdminCleaningLog';
@@ -3436,7 +3435,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             </div>
                         )}
                         <div className="flex bg-slate-100 p-1 rounded-xl md:rounded-2xl overflow-x-auto w-full md:w-auto shrink max-w-full">
-                            {['history', 'movement_history', 'image_history', 'validity', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'directors_percapita', 'camara_fria', 'excel', 'sync'].map(tab => (
+                            {['history', 'movement_history', 'image_history', 'agenda', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'directors_percapita', 'camara_fria', 'excel', 'sync'].map(tab => (
                                 <button 
                                     key={tab}
                                     onClick={() => setActiveTab(tab)} 
@@ -3444,7 +3443,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     {tab === 'history' ? 'Consulta & Gestão' : 
                                      tab === 'movement_history' ? 'Log de Movimentação' : 
                                      tab === 'image_history' ? 'Notas Fiscais' : 
-                                     tab === 'validity' ? 'Validade' : 
                                      tab === 'agenda' ? 'Agenda' : 
                                      tab === 'cronograma' ? 'Cronograma' : 
                                      tab === 'menu' ? 'Cardápio' : 
@@ -3660,8 +3658,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             </div>
                         </div>
                     </div>
-                ) : activeTab === 'validity' ? (
-                    <ValidityAnalysisPanel warehouseLog={warehouseLog} />
                 ) : activeTab === 'manual_receipt' ? (
                     <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in relative">
                         <div className="p-4 md:p-6 border-b border-gray-100 bg-amber-600 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 italic shrink-0">

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
-import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Save, Database, X, Wrench, Pencil, ArrowRightLeft, Check, AlertTriangle, QrCode, Scale, Utensils, FileSpreadsheet, Server } from 'lucide-react';
+import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Save, Database, X, Wrench, Pencil, ArrowRightLeft, Check, AlertTriangle, QrCode, Scale, Utensils, Server } from 'lucide-react';
 import { getDatabase, ref, set, get, push, remove, onValue } from 'firebase/database';
 import { app } from '../firebaseConfig';
 import { HOLIDAYS_2026 } from '../constants';
@@ -11,8 +11,6 @@ import AgendaChegadas from './AgendaChegadas';
 import { Html5Qrcode } from 'html5-qrcode';
 import WarehouseMovementForm from './WarehouseMovementForm';
 import AdminWarehouseLog from './AdminWarehouseLog';
-import ValidityAnalysisPanel from './ValidityAnalysisPanel';
-import SynchronizationModule from './SynchronizationModule';
 import AdminStandardMenu from './AdminStandardMenu';
 import AdminCleaningLog from './AdminCleaningLog';
 import { SegregationTabContent } from './SegregationTabContent';
@@ -21,7 +19,6 @@ import { getWeekNumber } from '../lib/supplierUtils';
 import { ensureArray, generateStandardLabelStyles } from '../lib/utils';
 import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
-import AdminExcelAlmoxarifado from './AdminExcelAlmoxarifado';
 import { AdminServidorInternoModal } from './AdminServidorInternoModal';
 import AdminServiceOrder from './AdminServiceOrder';
 import { AdminTaiuvaEnergyAccounting } from './AdminTaiuvaEnergyAccounting';
@@ -80,6 +77,7 @@ interface AlmoxarifadoDashboardProps {
     onRegisterMaintenanceSchedule?: (schedule: any) => Promise<{ success: boolean; message: string }>;
     onUpdateMaintenanceSchedule?: (id: string, updates: any) => Promise<{ success: boolean; message: string }>;
     onDeleteMaintenanceSchedule?: (id: string) => Promise<any>;
+    onRestoreInfrastructureData?: () => Promise<{ success: boolean; message: string }>;
     [key: string]: any;
 }
 
@@ -178,6 +176,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
     onRegisterMaintenanceSchedule,
     onUpdateMaintenanceSchedule,
     onDeleteMaintenanceSchedule,
+    onRestoreInfrastructureData,
     energyAccountingRecords,
     _onSaveEnergyAccountingRecord,
     _onDeleteEnergyAccountingRecord
@@ -3459,7 +3458,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             </div>
                         )}
                         <div className="flex bg-slate-100 p-1 rounded-xl md:rounded-2xl overflow-x-auto w-full md:w-auto shrink max-w-full">
-                            {['history', 'movement_history', 'validity', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'directors_percapita', 'camara_fria', 'infraestrutura', 'energy', 'server_code', 'sync'].map(tab => (
+                            {['history', 'movement_history', 'cronograma', 'menu', 'receipt', 'manual_receipt', 'directors_percapita', 'camara_fria', 'infraestrutura', 'energy', 'server_code'].map(tab => (
                                 <button 
                                     key={tab}
                                     onClick={() => {
@@ -3472,7 +3471,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     className={`px-3 md:px-5 py-1.5 md:py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase transition-all whitespace-nowrap shrink-0 ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                                     {tab === 'history' ? 'Consulta & Gestão' : 
                                      tab === 'movement_history' ? 'Log de Movimentação' : 
-                                     tab === 'validity' ? 'Validade' : 
                                      tab === 'cronograma' ? 'Cronograma' : 
                                      tab === 'menu' ? 'Cardápio' : 
                                      tab === 'receipt' ? 'Controle Doc.' : 
@@ -3480,8 +3478,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                      tab === 'directors_percapita' ? 'Per Capita Diretores' : 
                                      tab === 'camara_fria' ? 'Câmaras Frias' : 
                                      tab === 'infraestrutura' ? 'Infraestrutura' : 
-                                     tab === 'energy' ? 'Energia' : 
-                                     tab === 'server_code' ? '💻 Servidor Interno' : 'Sincronização'}
+                                     tab === 'energy' ? 'Energia' : '💻 Servidor Interno'}
                                 </button>
                             ))}
                         </div>
@@ -3689,8 +3686,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                             </div>
                         </div>
                     </div>
-                ) : activeTab === 'validity' ? (
-                    <ValidityAnalysisPanel warehouseLog={warehouseLog} />
                 ) : activeTab === 'manual_receipt' ? (
                     <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in relative">
                         <div className="p-4 md:p-6 border-b border-gray-100 bg-amber-600 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 italic shrink-0">
@@ -3967,18 +3962,6 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                           perCapitaConfig={perCapitaConfig}
                         />
                     </div>
-                ) : activeTab === 'sync' ? (
-                    <SynchronizationModule onSyncWithFirebase={async (data) => {
-                        let successCount = 0;
-                        for (const entry of data) {
-                            const res = entry.type === 'entrada' ? await onRegisterEntry(entry) : await onRegisterWithdrawal(entry);
-                            if (!res.success) throw new Error(res.message);
-                            successCount++;
-                            // Evita travamento da tela permitindo que o React renderize entre as inserções
-                            await new Promise(r => setTimeout(r, 50));
-                        }
-                        return successCount > 0;
-                    }} />
                 ) : activeTab === 'agenda' ? (
                     <AgendaChegadas 
                         suppliers={suppliers} 
@@ -6403,14 +6386,15 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     </div>
                 ) : activeTab === 'infraestrutura' ? (
                     <AdminServiceOrder
-                        orders={serviceOrders}
+                        orders={serviceOrders || []}
                         onUpdate={onUpdateServiceOrder}
                         onDelete={onDeleteServiceOrder}
                         onRegisterOrder={onRegisterServiceOrder}
-                        maintenanceSchedules={maintenanceSchedules}
+                        maintenanceSchedules={maintenanceSchedules || []}
                         onRegisterMaintenanceSchedule={onRegisterMaintenanceSchedule}
                         onUpdateMaintenanceSchedule={onUpdateMaintenanceSchedule}
                         onDeleteMaintenanceSchedule={onDeleteMaintenanceSchedule}
+                        onRestoreInfrastructureData={onRestoreInfrastructureData}
                     />
                 ) : activeTab === 'energy' ? (
                     <AdminTaiuvaEnergyAccounting 

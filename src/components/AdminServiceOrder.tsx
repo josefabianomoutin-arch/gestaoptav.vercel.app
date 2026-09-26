@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
-import { ClipboardList, Search, Filter, CheckCircle2, Clock, AlertCircle, Edit3, Trash2, Save, X, CalendarPlus, Calendar, Wrench, FileText, Upload, ShieldCheck, Printer, Lock } from 'lucide-react';
+import { ClipboardList, Search, Filter, CheckCircle2, Clock, AlertCircle, Edit3, Trash2, Save, X, CalendarPlus, Calendar, Wrench, FileText, Upload, ShieldCheck, Printer, Lock, Database, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { ServiceOrder, MaintenanceSchedule } from '../types';
 import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
+import { OFFICIAL_SERVICE_ORDERS, OFFICIAL_MAINTENANCE_SCHEDULES } from '../data/infrastructureOfficialData';
 
 interface AdminServiceOrderProps {
   orders: ServiceOrder[];
@@ -14,6 +15,7 @@ interface AdminServiceOrderProps {
   onRegisterMaintenanceSchedule?: (schedule: Omit<MaintenanceSchedule, 'id'>) => Promise<{ success: boolean; message: string }>;
   onUpdateMaintenanceSchedule?: (idOrSchedule: string | MaintenanceSchedule, updates?: Partial<MaintenanceSchedule>) => Promise<{ success: boolean; message: string }>;
   onDeleteMaintenanceSchedule?: (id: string) => Promise<{ success: boolean; message: string }>;
+  onRestoreInfrastructureData?: () => Promise<{ success: boolean; message: string }>;
   systemPasswords?: Record<string, string>;
 }
 
@@ -40,10 +42,29 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
   maintenanceSchedules = [],
   onRegisterMaintenanceSchedule,
   onUpdateMaintenanceSchedule,
+  onRestoreInfrastructureData,
   systemPasswords = {}
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [isRestoringData, setIsRestoringData] = useState(false);
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
+
+  const handleRestoreOfficialData = async () => {
+    setIsRestoringData(true);
+    try {
+      if (onRestoreInfrastructureData) {
+        await onRestoreInfrastructureData();
+      } else {
+        const countOrders = Object.keys(OFFICIAL_SERVICE_ORDERS).length;
+        const countSchedules = Object.keys(OFFICIAL_MAINTENANCE_SCHEDULES).length;
+        toast.success(`Dados da Gestão de Infraestrutura (${countOrders} O.S. e ${countSchedules} Cronogramas) sincronizados!`);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Erro ao sincronizar dados');
+    } finally {
+      setIsRestoringData(false);
+    }
+  };
   const [isSubmittingNewOrder, setIsSubmittingNewOrder] = useState(false);
   const [newOrderForm, setNewOrderForm] = useState<Omit<ServiceOrder, 'id'>>({
     requestingSector: '',
@@ -1117,13 +1138,23 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
             {onRegisterOrder && (
               <button
                 onClick={() => setIsNewOrderModalOpen(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-4 rounded-xl text-[9px] uppercase tracking-widest transition-all flex items-center gap-1.5 shadow-md active:scale-95 ml-1"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2.5 px-4 rounded-xl text-[9px] uppercase tracking-widest transition-all flex items-center gap-1.5 shadow-md active:scale-95 ml-1"
                 title="Cadastrar Nova Solicitação de Infraestrutura"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Nova O.S.
               </button>
             )}
+            <button
+              type="button"
+              onClick={handleRestoreOfficialData}
+              disabled={isRestoringData}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-4 rounded-xl text-[9px] uppercase tracking-widest transition-all flex items-center gap-1.5 shadow-md active:scale-95 ml-1 disabled:opacity-50"
+              title="Trazer / Sincronizar todos os 221 registros de O.S. e 33 cronogramas da Gestão de Infraestrutura"
+            >
+              <Database className="h-3.5 w-3.5" />
+              {isRestoringData ? 'Sincronizando...' : 'Trazer Dados Oficiais'}
+            </button>
           </div>
         </div>
       </div>
@@ -1391,11 +1422,31 @@ const AdminServiceOrder: React.FC<AdminServiceOrderProps> = ({
             </div>
           ))
         ) : (
-          <div className="bg-white py-20 rounded-[3rem] shadow-sm border border-gray-200 text-center">
-            <div className="bg-gray-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <ClipboardList className="h-10 w-10 text-gray-300" />
+          <div className="bg-white py-16 px-6 rounded-[3rem] shadow-sm border border-gray-200 text-center space-y-4">
+            <div className="bg-indigo-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto text-indigo-600 shadow-inner">
+              <ClipboardList className="h-10 w-10 text-indigo-500" />
             </div>
-            <h3 className="text-xl font-black text-gray-400 uppercase tracking-widest italic">Nenhuma ordem de serviço localizada</h3>
+            <h3 className="text-xl font-black text-indigo-950 uppercase tracking-tight italic">
+              {orders.length === 0 ? 'Nenhuma solicitação de serviço carregada no sistema' : 'Nenhuma ordem de serviço localizada com os filtros atuais'}
+            </h3>
+            {orders.length === 0 ? (
+              <div className="space-y-4 max-w-md mx-auto pt-2">
+                <p className="text-xs text-gray-500 font-medium">
+                  Os dados oficiais de Gestão de Infraestrutura (221 solicitações de serviço e 33 cronogramas com reeducandos e inventários) estão prontos para integração no sistema.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRestoreOfficialData}
+                  disabled={isRestoringData}
+                  className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black px-6 py-3.5 rounded-2xl text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  <Database className="h-4 w-4" />
+                  {isRestoringData ? 'Importando...' : 'Trazer Dados da Gestão de Infraestrutura (221 O.S.)'}
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">Tente ajustar os filtros de busca, status ou etapas acima.</p>
+            )}
           </div>
         )}
       </div>

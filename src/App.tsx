@@ -20,6 +20,7 @@ import { app } from './firebaseConfig';
 import { getCombinedSuppliers, calculateAllowedWeeksFromSchedule, getWeekNumber } from './lib/supplierUtils';
 import { ensureArray, safeLocalStorageSetItem, safeLocalStorageSetItemAsync, sanitizeForFirebase } from './lib/utils';
 import { DEFAULT_ENERGY_RECORD_AGO_26, DEFAULT_ENERGY_RECORD_JUL_26 } from './data/energyAccountingDefaults';
+import { OFFICIAL_SERVICE_ORDERS, OFFICIAL_MAINTENANCE_SCHEDULES } from './data/infrastructureOfficialData';
 
 const INITIAL_ENERGY_ACCOUNTING_RECORDS: Record<string, EnergyAccountingRecord> = {
   'jul-26': DEFAULT_ENERGY_RECORD_JUL_26,
@@ -191,12 +192,20 @@ const App: React.FC = () => {
   const [acquisitionItems, setAcquisitionItems] = useState<AcquisitionItem[]>(() => getCachedState('acquisitionItems', []));
   const [vehicleExitOrders, setVehicleExitOrders] = useState<VehicleExitOrder[]>(() => getCachedState('vehicleExitOrders', []));
   const [vehicleInspections, setVehicleInspections] = useState<VehicleInspection[]>(() => getCachedState('vehicleInspections', []));
-  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>(() => getCachedState('serviceOrders', []));
+  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>(() => {
+    const cached = getCachedState<ServiceOrder[]>('serviceOrders', []);
+    if (cached && cached.length > 0) return cached;
+    return Object.values(OFFICIAL_SERVICE_ORDERS);
+  });
   const [vehicleAssets, setVehicleAssets] = useState<VehicleAsset[]>(() => getCachedState('vehicleAssets', []));
   const [driverAssets, setDriverAssets] = useState<DriverAsset[]>(() => getCachedState('driverAssets', []));
   const [validationRoles, setValidationRoles] = useState<ValidationRole[]>(() => getCachedState('validationRoles', []));
   const [systemPasswords, setSystemPasswords] = useState<Record<string, string>>(() => getCachedState('systemPasswords', {}));
-  const [maintenanceSchedules, setMaintenanceSchedules] = useState<MaintenanceSchedule[]>(() => getCachedState('maintenanceSchedules', []));
+  const [maintenanceSchedules, setMaintenanceSchedules] = useState<MaintenanceSchedule[]>(() => {
+    const cached = getCachedState<MaintenanceSchedule[]>('maintenanceSchedules', []);
+    if (cached && cached.length > 0) return cached;
+    return Object.values(OFFICIAL_MAINTENANCE_SCHEDULES);
+  });
   const [_dailyAllowances, setDailyAllowances] = useState<any[]>([]);
   const [_staff, setStaff] = useState<any[]>([]);
   const [publicInfo, setPublicInfo] = useState<PublicInfo[]>(() => getCachedState('publicInfo', []));
@@ -837,8 +846,19 @@ const App: React.FC = () => {
     const unsubServiceOrders = onValue(serviceOrdersRef, (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.values(data) : [];
-      setServiceOrders(list as ServiceOrder[]);
-      safeLocalStorageSetItem('cached_serviceOrders', JSON.stringify(list));
+      if (list.length === 0) {
+        const officialOrders = Object.values(OFFICIAL_SERVICE_ORDERS);
+        setServiceOrders(officialOrders);
+        safeLocalStorageSetItem('cached_serviceOrders', JSON.stringify(officialOrders));
+        if (database) {
+          set(serviceOrdersRef, OFFICIAL_SERVICE_ORDERS).catch((err) =>
+            console.warn('Auto-sync serviceOrders to Firebase:', err)
+          );
+        }
+      } else {
+        setServiceOrders(list as ServiceOrder[]);
+        safeLocalStorageSetItem('cached_serviceOrders', JSON.stringify(list));
+      }
     });
     unsubscribes.push(unsubServiceOrders);
 
@@ -890,23 +910,19 @@ const App: React.FC = () => {
       const data = snapshot.val();
       const list = data ? Object.values(data) as MaintenanceSchedule[] : [];
       
-      const hasCamaraFria = list.some(item => item.date === '2026-07-20' && item.description.toLowerCase().includes('câmara fria'));
-      if (!hasCamaraFria) {
-        const newRef = push(maintenanceSchedulesRef);
-        const seedItem: MaintenanceSchedule = {
-          id: newRef.key as string,
-          date: '2026-07-20',
-          description: 'Manutenção da Câmara Fria',
-          status: 'agendado',
-          location: 'Cozinha Industrial / UP',
-          time: '08:00',
-          accompanyingPerson: 'Equipe de Manutenção Técnica'
-        };
-        set(newRef, seedItem);
+      if (list.length === 0 || (list.length === 1 && list[0].description === 'Manutenção da Câmara Fria')) {
+        const officialSchedules = Object.values(OFFICIAL_MAINTENANCE_SCHEDULES);
+        setMaintenanceSchedules(officialSchedules);
+        safeLocalStorageSetItem('cached_maintenanceSchedules', JSON.stringify(officialSchedules));
+        if (database) {
+          set(maintenanceSchedulesRef, OFFICIAL_MAINTENANCE_SCHEDULES).catch((err) =>
+            console.warn('Auto-sync maintenanceSchedules to Firebase:', err)
+          );
+        }
+      } else {
+        setMaintenanceSchedules(list as MaintenanceSchedule[]);
+        safeLocalStorageSetItem('cached_maintenanceSchedules', JSON.stringify(list));
       }
-
-      setMaintenanceSchedules(list as MaintenanceSchedule[]);
-      safeLocalStorageSetItem('cached_maintenanceSchedules', JSON.stringify(list));
     });
     unsubscribes.push(unsubMaintenance);
 
@@ -1350,6 +1366,29 @@ const App: React.FC = () => {
     } catch (e) {
       console.error('Erro ao excluir ordem de serviço:', e);
       return { success: false, message: 'Falha ao excluir ordem de serviço.' };
+    }
+  };
+
+  const handleRestoreInfrastructureData = async () => {
+    try {
+      const officialOrders = Object.values(OFFICIAL_SERVICE_ORDERS);
+      const officialSchedules = Object.values(OFFICIAL_MAINTENANCE_SCHEDULES);
+      setServiceOrders(officialOrders);
+      setMaintenanceSchedules(officialSchedules);
+      safeLocalStorageSetItem('cached_serviceOrders', JSON.stringify(officialOrders));
+      safeLocalStorageSetItem('cached_maintenanceSchedules', JSON.stringify(officialSchedules));
+      if (serviceOrdersRef && maintenanceSchedulesRef) {
+        await Promise.all([
+          set(serviceOrdersRef, OFFICIAL_SERVICE_ORDERS),
+          set(maintenanceSchedulesRef, OFFICIAL_MAINTENANCE_SCHEDULES)
+        ]);
+      }
+      toast.success(`Gestão de Infraestrutura: ${officialOrders.length} Ordens de Serviço e ${officialSchedules.length} Cronogramas sincronizados!`);
+      return { success: true, message: 'Dados sincronizados com sucesso' };
+    } catch (e: any) {
+      console.error('Erro ao restaurar infraestrutura:', e);
+      toast.error('Erro ao conectar com servidor, dados mantidos localmente');
+      return { success: false, message: e?.message || 'Erro ao sincronizar' };
     }
   };
 
@@ -3933,6 +3972,7 @@ const App: React.FC = () => {
           }}
           onUpdateMaintenanceSchedule={handleUpdateMaintenanceSchedule}
           onDeleteMaintenanceSchedule={handleDeleteMaintenanceSchedule}
+          onRestoreInfrastructureData={handleRestoreInfrastructureData}
           vehicleInspections={vehicleInspections}
           onRegisterVehicleInspection={async (inspection) => {
             const r = push(vehicleInspectionsRef);
@@ -4151,6 +4191,15 @@ const App: React.FC = () => {
                    return { success: true, message: 'Ok' };
                }}
                onDeleteMarmitaWeightLog={async (id) => remove(child(marmitaWeightLogsRef, id))}
+               serviceOrders={serviceOrders}
+               onRegisterServiceOrder={handleRegisterServiceOrder}
+               onUpdateServiceOrder={handleUpdateServiceOrder}
+               onDeleteServiceOrder={handleDeleteServiceOrder}
+               maintenanceSchedules={maintenanceSchedules}
+               onRegisterMaintenanceSchedule={handleRegisterMaintenanceSchedule}
+               onUpdateMaintenanceSchedule={handleUpdateMaintenanceSchedule}
+               onDeleteMaintenanceSchedule={handleDeleteMaintenanceSchedule}
+               onRestoreInfrastructureData={handleRestoreInfrastructureData}
              />;
     }
 
@@ -4325,6 +4374,7 @@ const App: React.FC = () => {
           maintenanceSchedules={maintenanceSchedules}
           onRegisterServiceOrder={handleRegisterServiceOrder}
           onLogout={handleLogout}
+          onRestoreInfrastructureData={handleRestoreInfrastructureData}
         />
       );
     }
@@ -4350,6 +4400,7 @@ const App: React.FC = () => {
           onRegisterMaintenanceSchedule={handleRegisterMaintenanceSchedule}
           onUpdateMaintenanceSchedule={handleUpdateMaintenanceSchedule}
           onDeleteMaintenanceSchedule={handleDeleteMaintenanceSchedule}
+          onRestoreInfrastructureData={handleRestoreInfrastructureData}
           onRegister={async (order) => {
             const r = push(vehicleExitOrdersRef);
             const id = r.key || `order-${Date.now()}`;
