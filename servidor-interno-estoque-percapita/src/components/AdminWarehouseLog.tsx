@@ -825,7 +825,7 @@ const AdminWarehouseLog: React.FC<AdminWarehouseLogProps> = ({
             <html>
             <head>
                 <title>Etiqueta - ${item.itemName}</title>
-                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <script src="/JsBarcode.all.min.js"></script>
                 <style>
                     ${generateStandardLabelStyles()}
                 </style>

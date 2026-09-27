@@ -115,7 +115,7 @@ const AdminStandardMenu: React.FC<AdminStandardMenuProps> = ({ template, dailyMe
           <html>
           <head>
               <title>Etiqueta - ${lot.itemName}</title>
-              <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+              <script src="/JsBarcode.all.min.js"></script>
               <style>
                   @page { 
                       size: 100mm 50mm; 

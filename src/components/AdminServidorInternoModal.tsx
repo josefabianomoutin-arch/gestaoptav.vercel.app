@@ -132,7 +132,17 @@ pm2 startup`;
               className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase shadow-md active:scale-95 transition"
             >
               <Download className="w-4 h-4" />
-              Baixar Pacote (.ZIP)
+              Baixar Servidor On-Premise (.ZIP)
+            </a>
+
+            <a
+              href="/codigo_fonte_completo.zip"
+              download="codigo_fonte_completo.zip"
+              className="inline-flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-300 px-3.5 py-2.5 rounded-xl font-semibold text-xs shadow-sm active:scale-95 transition"
+              title="Baixar código-fonte completo do projeto"
+            >
+              <Download className="w-4 h-4 text-blue-600" />
+              <span>Código-Fonte (.ZIP)</span>
             </a>
 
             <a

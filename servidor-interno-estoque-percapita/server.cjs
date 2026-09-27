@@ -24439,6 +24439,24 @@ app.post("/api/upload", (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+app.post("/api/proxy-storage-upload", (req, res) => {
+  try {
+    const { path: filePath, base64, contentType } = req.body;
+    if (!base64 || !filePath) {
+      return res.status(400).json({ success: false, error: "Dados incompletos" });
+    }
+    const cleanBase64 = base64.replace(/^data:.*?;base64,/, "");
+    const buffer = Buffer.from(cleanBase64, "base64");
+    const safePath = filePath.replace(/[^a-zA-Z0-9.\-\/]/g, "_");
+    const targetFile = import_path.default.join(UPLOADS_DIR, safePath);
+    const dir = import_path.default.dirname(targetFile);
+    if (!import_fs.default.existsSync(dir)) import_fs.default.mkdirSync(dir, { recursive: true });
+    import_fs.default.writeFileSync(targetFile, buffer);
+    res.json({ success: true, url: `/uploads/${safePath}` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 app.get("/api/backup/export", (req, res) => {
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Content-Disposition", `attachment; filename="backup_servidor_interno_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.json"`);

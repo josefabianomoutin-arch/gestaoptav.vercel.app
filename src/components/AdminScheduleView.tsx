@@ -439,8 +439,8 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = (props) => {
                 </div>
                 ${qrcodeSectionHtml}
 
-                <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <script src="/qrcode.min.js"></script>
+                <script src="/JsBarcode.all.min.js"></script>
                 <script>
                     window.onload = function() {
                         try {

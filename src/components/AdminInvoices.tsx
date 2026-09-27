@@ -709,7 +709,7 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                                         <html>
                                         <head>
                                             <title>Etiqueta - ${inv.invoiceNumber}</title>
-                                            <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                                            <script src="/JsBarcode.all.min.js"></script>
                                             <style>
                                                 @page { size: 100mm 50mm; margin: 0; }
                                                 body { font-family: sans-serif; margin: 0; padding: 5mm; }

@@ -210,15 +210,25 @@ const App: React.FC = () => {
   const [_staff, setStaff] = useState<any[]>([]);
   const [publicInfo, setPublicInfo] = useState<PublicInfo[]>(() => getCachedState('publicInfo', []));
   const [directorPerCapita, setDirectorPerCapita] = useState<any>(() => getCachedState('directorPerCapita', null));
+  const hasOutdatedDummyEnergy = (rec?: any): boolean => {
+    if (!rec) return true;
+    const comps = Array.isArray(rec.companies) ? rec.companies : [];
+    return comps.some((c: any) => 
+      c.companyName?.toUpperCase().includes('ONETECH') || 
+      c.companyName?.toUpperCase().includes('BIFON') || 
+      c.companyName?.toUpperCase().includes('MRV')
+    );
+  };
+
   const [energyAccountingRecords, setEnergyAccountingRecords] = useState<Record<string, EnergyAccountingRecord>>(() => {
     const cached = getCachedState<Record<string, EnergyAccountingRecord>>('energyAccountingRecords', INITIAL_ENERGY_ACCOUNTING_RECORDS);
     if (cached && typeof cached === 'object' && Object.keys(cached).length > 0) {
       let changed = false;
-      if (!cached['jul-26']) {
+      if (!cached['jul-26'] || hasOutdatedDummyEnergy(cached['jul-26'])) {
         cached['jul-26'] = DEFAULT_ENERGY_RECORD_JUL_26;
         changed = true;
       }
-      if (!cached['ago-26']) {
+      if (!cached['ago-26'] || hasOutdatedDummyEnergy(cached['ago-26'])) {
         cached['ago-26'] = DEFAULT_ENERGY_RECORD_AGO_26;
         changed = true;
       }
@@ -997,11 +1007,11 @@ const App: React.FC = () => {
       if (data && typeof data === 'object') {
         const merged = { ...data };
         let needsSeed = false;
-        if (!merged['jul-26']) {
+        if (!merged['jul-26'] || hasOutdatedDummyEnergy(merged['jul-26'])) {
           merged['jul-26'] = DEFAULT_ENERGY_RECORD_JUL_26;
           needsSeed = true;
         }
-        if (!merged['ago-26']) {
+        if (!merged['ago-26'] || hasOutdatedDummyEnergy(merged['ago-26'])) {
           merged['ago-26'] = DEFAULT_ENERGY_RECORD_AGO_26;
           needsSeed = true;
         }

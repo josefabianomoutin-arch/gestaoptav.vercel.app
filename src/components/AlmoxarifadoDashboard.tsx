@@ -682,7 +682,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 </div>
                 <div class="footer">Patrimônio / Controle de Ferramentas</div>
 
-                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <script src="/JsBarcode.all.min.js"></script>
                 <script>
                     window.onload = function() {
                         try {
@@ -2415,7 +2415,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             <html>
             <head>
                 <title>Etiquetas - NF ${receiptData.invoiceNumber}</title>
-                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <script src="/JsBarcode.all.min.js"></script>
                 <style>
                     ${generateStandardLabelStyles()}
                 </style>
@@ -3108,7 +3108,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             <html>
             <head>
                 <title>Termo de Recebimento - NF ${receiptData.invoiceNumber}</title>
-                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <script src="/JsBarcode.all.min.js"></script>
                 <style>
                     @page { 
                         size: A4; 
@@ -3302,7 +3302,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
             <html>
             <head>
                 <title>Termo Manual - NF ${manualReceipt.invoiceNumber}</title>
-                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <script src="/JsBarcode.all.min.js"></script>
                 <style>
                     @page { size: A4; margin: 0; }
                     body { font-family: Arial, sans-serif; padding: 0; margin: 0; background: white; }

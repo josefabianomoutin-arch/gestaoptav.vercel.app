@@ -11,7 +11,7 @@ import SendInvoiceModal from './SendInvoiceModal';
 import ConfirmModal from './ConfirmModal';
 import EditInvoiceItemsModal from './EditInvoiceItemsModal';
 import { speechService } from '../services/speechService';
-import { HelpCircle, Volume2, Calendar as CalendarIcon, FileText, Search, Download, Upload, Plus, Edit2 } from 'lucide-react';
+import { HelpCircle, Volume2, Calendar as CalendarIcon, FileText, Search, Download, Plus, Edit2 } from 'lucide-react';
 import { HOLIDAYS_2026 } from '../constants';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app } from '../firebaseConfig';
@@ -30,7 +30,6 @@ interface DashboardProps {
   onScheduleDelivery: (supplierCpf: string, date: string, time: string, observations?: string, invoiceNumber?: string, invoiceUrl?: string) => void;
   onCancelDeliveries: (supplierCpf: string, deliveryIds: string[]) => void;
   onSaveInvoice: (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string) => Promise<void>;
-  onUpdateInvoiceUrl: (supplierCpf: string, invoiceNumber: string, invoiceUrl: string) => Promise<{ success: boolean; message?: string }>;
   emailModalData: {
     recipient: string;
     cc: string;
@@ -57,7 +56,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   onScheduleDelivery, 
   onCancelDeliveries,
   onSaveInvoice,
-  onUpdateInvoiceUrl,
   emailModalData,
   onCloseEmailModal
 }) => {
@@ -558,8 +556,8 @@ const Dashboard: React.FC<DashboardProps> = ({
             
             ${qrcodeSectionHtml}
 
-            <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-            <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+            <script src="/qrcode.min.js"></script>
+            <script src="/JsBarcode.all.min.js"></script>
             <script>
                 window.onload = function() {
                     try {
@@ -983,53 +981,20 @@ const Dashboard: React.FC<DashboardProps> = ({
                                                   )}
                                                   
                                                   <div className="relative group">
-                                                      <input 
-                                                          type="file" 
-                                                          id={`file-upload-${invoice.isPending ? invoice.items[0].id : invoice.invoiceNumber}`} 
-                                                          className="hidden" 
-                                                          accept="application/pdf"
-                                                          onChange={(e) => {
-                                                              if (e.target.files && e.target.files[0]) {
-                                                                  try {
-                                                                      const file = e.target.files[0];
-                                                                      const reader = new FileReader();
-                                                                      reader.onload = async (event) => {
-                                                                          try {
-                                                                              const result = await onUpdateInvoiceUrl(supplier.cpf, invoice.invoiceNumber, event.target?.result as string);
-                                                                              if (result && result.success === false) {
-                                                                                  toast.error(result.message || 'Erro ao enviar a nota.');
-                                                                              } else {
-                                                                                  toast.success('Nota enviada com sucesso!');
-                                                                              }
-                                                                          } catch (_err) {
-                                                                              toast.error('Erro de conexão ao enviar a nota.');
-                                                                          }
-                                                                      };
-                                                                      reader.onerror = () => {
-                                                                          toast.error('Erro ao ler o arquivo.');
-                                                                      };
-                                                                      reader.readAsDataURL(file);
-                                                                  } catch (error) {
-                                                                      console.error(error);
-                                                                      toast.error('Erro ao processar o arquivo.');
-                                                                  }
-                                                              }
-                                                          }} 
-                                                      />
-                                                      <button 
-                                                          onClick={() => {
-                                                              if (invoice.isPending) {
-                                                                  handleOpenSendInvoiceModal({ date: invoice.date, deliveries: invoice.items });
-                                                              } else {
-                                                                  document.getElementById(`file-upload-${invoice.isPending ? invoice.items[0].id : invoice.invoiceNumber}`)?.click();
-                                                              }
-                                                          }} 
-                                                          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md active:scale-95 ${invoice.invoiceUrl ? 'bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white' : 'bg-rose-600 text-white hover:bg-rose-700'}`} 
-                                                          title="Upload Nota"
-                                                      >
-                                                          <Upload className="h-3.5 w-3.5" />
-                                                          {invoice.invoiceUrl ? 'Reenviar' : invoice.isPending ? 'Vincular Nota' : 'Enviar PDF'}
-                                                      </button>
+                                                      {/* Upload desativado nesta aba conforme solicitação: uso centralizado na Gestão de Entradas */}
+                                                      <div className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-sm ${invoice.invoiceUrl ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                          {invoice.invoiceUrl ? (
+                                                              <>
+                                                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                                  Nota Vinculada
+                                                              </>
+                                                          ) : (
+                                                              <>
+                                                                  <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                                                  Aguardando Nota
+                                                              </>
+                                                          )}
+                                                      </div>
                                                   </div>
                                               </div>
                                           </td>

@@ -1442,7 +1442,7 @@ const AdminVehicleExitOrder: React.FC<AdminVehicleExitOrderProps> = ({
                     </div>
                 </div>
                 
-                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <script src="/JsBarcode.all.min.js"></script>
                 <script>
                     window.onload = () => {
                         const fallbackSvg = document.getElementById("barcode-print");

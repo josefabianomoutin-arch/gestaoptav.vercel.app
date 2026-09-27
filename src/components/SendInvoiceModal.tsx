@@ -169,49 +169,12 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Link ou Arquivo da Nota Fiscal</label>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Número da Nota Fiscal</label>
               <div className="flex flex-col gap-2">
-                {!(invoiceUrl && invoiceUrl.startsWith('data:')) && (
-                  <input 
-                      type="text" 
-                      value={invoiceUrl}
-                      onChange={(e) => setInvoiceUrl(e.target.value)}
-                      placeholder="URL da nota fiscal (opcional se enviar arquivo)"
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
-                  />
-                )}
-                <label className="flex items-center justify-center gap-3 px-4 py-3 bg-emerald-600 text-white rounded-xl cursor-pointer hover:bg-emerald-700 transition-all shadow-md group">
-                    <Plus className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
-                    <div className="text-left">
-                        <p className="text-[10px] font-black uppercase tracking-widest leading-none">Anexar PDF da Nota</p>
-                        <p className="text-[8px] font-bold opacity-80 uppercase tracking-tighter mt-1">Clique para selecionar o arquivo</p>
-                    </div>
-                    <input type="file" accept="application/pdf" className="hidden" onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                            setLoading(true);
-                            try {
-                                const reader = new FileReader();
-                                reader.onload = (event) => {
-                                    setInvoiceUrl(event.target?.result as string);
-                                    setLoading(false);
-                                };
-                                reader.onerror = () => {
-                                    alert("Erro ao ler o arquivo selecionado.");
-                                    setLoading(false);
-                                };
-                                reader.readAsDataURL(file);
-                            } catch(e) {
-                                console.error(e);
-                                alert("Erro ao processar arquivo da nota fiscal.");
-                                setLoading(false);
-                            }
-                        }
-                    }} />
-                </label>
-                {invoiceUrl && (
-                  <p className="text-[9px] text-green-600 font-bold uppercase truncate px-2">✓ Arquivo carregado ou link inserido</p>
-                )}
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Centralização de Arquivos</p>
+                  <p className="text-[9px] text-slate-400 font-bold leading-tight">O anexo do PDF deve ser realizado exclusivamente pela aba <span className="text-indigo-600 font-black">"GESTÃO DE ENTRADAS"</span> após o registro dos itens.</p>
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

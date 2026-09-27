@@ -41,19 +41,19 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
   onNavigateToDeductionMap,
   onNavigateToEstoque: _onNavigateToEstoque
 }) => {
+  // Helper to check if record has outdated dummy mock data
+  const hasOutdatedDummyData = (rec?: EnergyAccountingRecord): boolean => {
+    if (!rec) return true;
+    const comps = rec.companies || [];
+    return comps.some(c => 
+      c.companyName?.toUpperCase().includes('ONETECH') || 
+      c.companyName?.toUpperCase().includes('BIFON') || 
+      c.companyName?.toUpperCase().includes('MRV')
+    );
+  };
+
   // Local persistence fallback
   const [localRecords, setLocalRecords] = useState<Record<string, EnergyAccountingRecord>>(() => {
-    try {
-      const saved = localStorage.getItem('energy_accounting_taiuva_records');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.error('Error loading local energy records:', e);
-    }
     const initial: Record<string, EnergyAccountingRecord> = { 
       'jul-26': DEFAULT_ENERGY_RECORD_JUL_26,
       'ago-26': DEFAULT_ENERGY_RECORD_AGO_26 
@@ -64,11 +64,11 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
           let modified = false;
-          if (!parsed['jul-26']) {
+          if (!parsed['jul-26'] || hasOutdatedDummyData(parsed['jul-26'])) {
             parsed['jul-26'] = DEFAULT_ENERGY_RECORD_JUL_26;
             modified = true;
           }
-          if (!parsed['ago-26']) {
+          if (!parsed['ago-26'] || hasOutdatedDummyData(parsed['ago-26'])) {
             parsed['ago-26'] = DEFAULT_ENERGY_RECORD_AGO_26;
             modified = true;
           }
@@ -96,23 +96,26 @@ export const AdminTaiuvaEnergyAccounting: React.FC<AdminTaiuvaEnergyAccountingPr
     if (records && typeof records === 'object') {
       Object.entries(records).forEach(([id, rec]) => {
         if (!rec) return;
+        // If server record has outdated mock data, discard it
+        if (hasOutdatedDummyData(rec)) return;
+
         const local = merged[id];
-        if (!local) {
+        if (!local || hasOutdatedDummyData(local)) {
           merged[id] = rec;
         } else {
           const serverTime = new Date(rec.updatedAt || 0).getTime();
           const localTime = new Date(local.updatedAt || 0).getTime();
-          if (serverTime > localTime) {
+          if (serverTime >= localTime) {
             merged[id] = rec;
           }
         }
       });
     }
 
-    if (!merged['jul-26']) {
+    if (!merged['jul-26'] || hasOutdatedDummyData(merged['jul-26'])) {
       merged['jul-26'] = DEFAULT_ENERGY_RECORD_JUL_26;
     }
-    if (!merged['ago-26']) {
+    if (!merged['ago-26'] || hasOutdatedDummyData(merged['ago-26'])) {
       merged['ago-26'] = DEFAULT_ENERGY_RECORD_AGO_26;
     }
     return merged;

@@ -12,16 +12,25 @@ import {
   ShieldCheck, 
   HardDrive, 
   Network, 
-  AlertTriangle
+  AlertTriangle,
+  Maximize,
+  Zap,
+  Minimize,
+  Monitor,
+  X,
+  ExternalLink,
+  Sparkles
 } from 'lucide-react';
 import AlmoxarifadoDashboard from './components/AlmoxarifadoDashboard';
 import AdminPerCapita from './components/AdminPerCapita';
 import AdminExcelAlmoxarifado from './components/AdminExcelAlmoxarifado';
+import { AdminTaiuvaEnergyAccounting } from './components/AdminTaiuvaEnergyAccounting';
+import { DEFAULT_ENERGY_RECORD_JUL_26, DEFAULT_ENERGY_RECORD_AGO_26 } from './data/energyAccountingDefaults';
 import { localDatabase, ServerStatus } from './services/localDatabase';
-import { Supplier, WarehouseMovement, PerCapitaConfig, Delivery } from './types';
+import { Supplier, WarehouseMovement, PerCapitaConfig, Delivery, EnergyAccountingRecord } from './types';
 
 export default function App() {
-  const [activeModule, setActiveModule] = useState<'almoxarifado' | 'percapita' | 'excel' | 'servidor'>('almoxarifado');
+  const [activeModule, setActiveModule] = useState<'almoxarifado' | 'percapita' | 'energia' | 'excel' | 'servidor'>('almoxarifado');
   const [loading, setLoading] = useState(true);
   const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null);
 
@@ -32,6 +41,10 @@ export default function App() {
   const [acquisitionItems, setAcquisitionItems] = useState<any[]>([]);
   const [thirdPartyEntries, setThirdPartyEntries] = useState<any[]>([]);
   const [publicInfo, setPublicInfo] = useState<any[]>([]);
+  const [energyAccountingRecords, setEnergyAccountingRecords] = useState<Record<string, EnergyAccountingRecord>>({
+    'jul-26': DEFAULT_ENERGY_RECORD_JUL_26,
+    'ago-26': DEFAULT_ENERGY_RECORD_AGO_26
+  });
 
   // Usuário local do servidor
   const [currentUser, _setCurrentUser] = useState({
@@ -39,6 +52,92 @@ export default function App() {
     name: 'Administrador do Servidor Interno',
     role: 'almoxarifado'
   });
+
+  // Estados de Modo Programa e Tela Cheia
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showAppModeModal, setShowAppModeModal] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handlePrompt = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handlePrompt);
+
+    const handleFs = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFs);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handlePrompt);
+      document.removeEventListener('fullscreenchange', handleFs);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
+
+  const handleInstallApp = async () => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice.outcome === 'accepted') {
+        setInstallPrompt(null);
+      }
+    } else {
+      setShowAppModeModal(true);
+    }
+  };
+
+  const downloadBatLauncher = (mode: 'app' | 'kiosk') => {
+    const currentUrl = window.location.href;
+    const flag = mode === 'kiosk' ? '--kiosk' : '--app';
+    const bat = `@echo off
+title Abrir Sistema Estoque e Per Capita (${mode === 'kiosk' ? 'Tela Cheia' : 'Modo Programa'})
+echo Abrindo o sistema em janela isolada de programa...
+set URL=${currentUrl}
+
+where msedge >nul 2>nul
+if %ERRORLEVEL% equ 0 (
+    start msedge ${flag}="%URL%"
+    exit /b 0
+)
+
+where chrome >nul 2>nul
+if %ERRORLEVEL% equ 0 (
+    start chrome ${flag}="%URL%"
+    exit /b 0
+)
+
+if exist "%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe" (
+    start "" "%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe" ${flag}="%URL%"
+    exit /b 0
+)
+if exist "%ProgramFiles(x86)%\\Google\\Chrome\\Application\\chrome.exe" (
+    start "" "%ProgramFiles(x86)%\\Google\\Chrome\\Application\\chrome.exe" ${flag}="%URL%"
+    exit /b 0
+)
+if exist "%ProgramFiles(x86)%\\Microsoft\\Edge\\Application\\msedge.exe" (
+    start "" "%ProgramFiles(x86)%\\Microsoft\\Edge\\Application\\msedge.exe" ${flag}="%URL%"
+    exit /b 0
+)
+
+start "" "%URL%"
+exit /b 0
+`;
+    const blob = new Blob([bat], { type: 'application/x-bat' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = mode === 'kiosk' ? 'Abrir_Sistema_Tela_Cheia_Kiosk.bat' : 'Abrir_Sistema_Como_Programa.bat';
+    a.click();
+  };
 
   // Carregar dados locais ao iniciar
   const loadAllData = async () => {
@@ -51,6 +150,7 @@ export default function App() {
         loadedAcquisitions,
         loadedThirdParty,
         loadedPublicInfo,
+        loadedEnergy,
         status
       ] = await Promise.all([
         localDatabase.getCollection<Supplier[]>('suppliers'),
@@ -59,6 +159,7 @@ export default function App() {
         localDatabase.getCollection<any[]>('acquisitionItems'),
         localDatabase.getCollection<any[]>('thirdPartyEntries'),
         localDatabase.getCollection<any[]>('publicInfo'),
+        localDatabase.getCollection<Record<string, EnergyAccountingRecord>>('energyAccountingRecords'),
         localDatabase.getStatus()
       ]);
 
@@ -68,6 +169,9 @@ export default function App() {
       if (loadedAcquisitions) setAcquisitionItems(Array.isArray(loadedAcquisitions) ? loadedAcquisitions : Object.values(loadedAcquisitions));
       if (loadedThirdParty) setThirdPartyEntries(Array.isArray(loadedThirdParty) ? loadedThirdParty : Object.values(loadedThirdParty));
       if (loadedPublicInfo) setPublicInfo(Array.isArray(loadedPublicInfo) ? loadedPublicInfo : Object.values(loadedPublicInfo));
+      if (loadedEnergy && typeof loadedEnergy === 'object' && Object.keys(loadedEnergy).length > 0) {
+        setEnergyAccountingRecords(loadedEnergy);
+      }
       if (status) setServerStatus(status);
     } catch (err) {
       console.error('[App] Erro ao carregar dados locais:', err);
@@ -191,6 +295,22 @@ export default function App() {
     }
   };
 
+  // Handlers para Módulo de Rateio de Energia
+  const handleSaveEnergyAccountingRecord = async (record: EnergyAccountingRecord) => {
+    const updated = { ...energyAccountingRecords, [record.id]: record };
+    setEnergyAccountingRecords(updated);
+    await localDatabase.setCollection('energyAccountingRecords', updated);
+    return { success: true, message: 'Demonstrativo de consumo salvo com sucesso!' };
+  };
+
+  const handleDeleteEnergyAccountingRecord = async (id: string) => {
+    const updated = { ...energyAccountingRecords };
+    delete updated[id];
+    setEnergyAccountingRecords(updated);
+    await localDatabase.setCollection('energyAccountingRecords', updated);
+    return { success: true, message: 'Demonstrativo excluído com sucesso!' };
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
       {/* Barra Superior Master do Servidor Interno */}
@@ -243,6 +363,18 @@ export default function App() {
               </button>
 
               <button
+                onClick={() => setActiveModule('energia')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeModule === 'energia'
+                    ? 'bg-yellow-600 text-white shadow'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Zap className="w-4 h-4" />
+                Rateio de Energia
+              </button>
+
+              <button
                 onClick={() => setActiveModule('excel')}
                 className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   activeModule === 'excel'
@@ -267,8 +399,26 @@ export default function App() {
               </button>
             </nav>
 
-            {/* Status e Recarregamento */}
-            <div className="flex items-center space-x-3">
+            {/* Ações Rápidas: Tela Cheia, Modo Programa e Status */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={toggleFullscreen}
+                title={isFullscreen ? "Sair da Tela Cheia (F11)" : "Abrir em Tela Cheia (F11)"}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition shadow-sm"
+              >
+                {isFullscreen ? <Minimize className="w-3.5 h-3.5 text-amber-400" /> : <Maximize className="w-3.5 h-3.5 text-blue-400" />}
+                <span className="hidden sm:inline">{isFullscreen ? "Sair Tela Cheia" : "Tela Cheia (F11)"}</span>
+              </button>
+
+              <button
+                onClick={() => setShowAppModeModal(true)}
+                title="Configurar para abrir como Programa Desktop (Sem Guia e Sem Barra de Navegação)"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm border border-emerald-500/50"
+              >
+                <Monitor className="w-3.5 h-3.5" />
+                <span>Abrir como Programa</span>
+              </button>
+
               <button
                 onClick={loadAllData}
                 disabled={loading}
@@ -277,8 +427,9 @@ export default function App() {
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-blue-400' : ''}`} />
               </button>
-              <div className="text-right">
-                <span className="text-xs block text-slate-400">Usuário Local</span>
+              
+              <div className="text-right hidden md:block pl-1">
+                <span className="text-[11px] block text-slate-400">Usuário Local</span>
                 <span className="text-xs font-semibold text-emerald-400">Administrador</span>
               </div>
             </div>
@@ -399,6 +550,18 @@ export default function App() {
                   }}
                   onSaveInvoice={handleSaveInvoice}
                   onDeleteDelivery={handleDeleteDelivery}
+                />
+              </div>
+            )}
+
+            {/* MÓDULO: RATEIO DE ENERGIA ELÉTRICA (PAVILHÕES DE TRABALHO) */}
+            {activeModule === 'energia' && (
+              <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+                <AdminTaiuvaEnergyAccounting
+                  records={energyAccountingRecords}
+                  onSaveRecord={handleSaveEnergyAccountingRecord}
+                  onDeleteRecord={handleDeleteEnergyAccountingRecord}
+                  userRole="infraestrutura"
                 />
               </div>
             )}
@@ -570,6 +733,133 @@ export default function App() {
           </>
         )}
       </main>
+
+      {/* Modal de Configuração do Modo Programa / Tela Cheia */}
+      {showAppModeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-200 overflow-hidden my-8">
+            
+            {/* Cabeçalho do Modal */}
+            <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500 rounded-lg text-white font-bold">
+                  <Monitor className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Abrir Sistema como Programa (Sem Abas)</h3>
+                  <p className="text-xs text-slate-400">Remova a barra de endereços e guias do navegador</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAppModeModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Conteúdo com Opções */}
+            <div className="p-6 space-y-6">
+              
+              {/* Opção 1: Atalho Automático para Windows */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-600 text-white">
+                      Recomendado • 1 Clique
+                    </span>
+                    <h4 className="font-bold text-slate-900 text-base">Baixar Atalho para a Área de Trabalho</h4>
+                    <p className="text-xs text-slate-600">
+                      Gera um arquivo inicializador configurado para este IP (<b>{window.location.host}</b>). Ao clicar nele, o sistema abre em uma janela isolada sem guias e sem barra de navegação!
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => downloadBatLauncher('app')}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition shadow"
+                  >
+                    <Download className="w-4 h-4" />
+                    Baixar Atalho: Modo Janela de Programa (.bat)
+                  </button>
+
+                  <button
+                    onClick={() => downloadBatLauncher('kiosk')}
+                    className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-xs transition shadow"
+                  >
+                    <Maximize className="w-4 h-4" />
+                    Baixar Atalho: Tela Cheia 100% Kiosk (.bat)
+                  </button>
+                </div>
+                <p className="text-[11px] text-emerald-800 mt-2">
+                  * Basta salvar o arquivo na sua Área de Trabalho do Windows e clicar duas vezes para abrir.
+                </p>
+              </div>
+
+              {/* Opção 2: Método Nativo do Navegador (Chrome / Edge) */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-3">
+                <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  Como transformar em Programa direto no Navegador (2 passos):
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-700">
+                  <div className="p-3 bg-white rounded-lg border border-slate-200">
+                    <span className="font-bold text-blue-600 block mb-1">No Google Chrome:</span>
+                    <ol className="list-decimal list-inside space-y-1 text-slate-600">
+                      <li>Clique no menu <b>⋮</b> (3 pontinhos no canto superior direito).</li>
+                      <li>Vá em <b>Salvar e compartilhar</b> (ou <i>Mais ferramentas</i>).</li>
+                      <li>Clique em <b>Criar atalho...</b></li>
+                      <li>Marque a caixinha <b>☑ Abrir como janela</b>.</li>
+                      <li>Clique em <b>Criar</b>.</li>
+                    </ol>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-slate-200">
+                    <span className="font-bold text-indigo-600 block mb-1">No Microsoft Edge:</span>
+                    <ol className="list-decimal list-inside space-y-1 text-slate-600">
+                      <li>Clique no menu <b>...</b> no canto superior direito.</li>
+                      <li>Selecione <b>Aplicativos</b>.</li>
+                      <li>Clique em <b>Instalar este site como um aplicativo</b>.</li>
+                      <li>Confirme em <b>Instalar</b>.</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+
+              {/* Opção 3: Tecla de Atalho F11 */}
+              <div className="flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <div className="text-xs text-amber-900">
+                  <span className="font-bold block text-sm mb-0.5">Atalho Instantâneo de Teclado:</span>
+                  Pressione a tecla <b>F11</b> no teclado para alternar a tela cheia completa a qualquer instante.
+                </div>
+                <button
+                  onClick={() => {
+                    toggleFullscreen();
+                    setShowAppModeModal(false);
+                  }}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition whitespace-nowrap shadow"
+                >
+                  {isFullscreen ? 'Sair de Tela Cheia' : 'Ativar Tela Cheia Agora'}
+                </button>
+              </div>
+
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div className="bg-slate-100 px-6 py-3 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => setShowAppModeModal(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg text-xs transition"
+              >
+                Entendido / Fechar
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -42,8 +42,65 @@ async function startServer() {
     }
   });
 
+  // Download do Servidor Interno On-Premise 100% Offline
+  app.get("/download-servidor-interno", (req, res) => {
+    const filePath = path.join(publicDir, "sistema_estoque_percapita_servidor_interno.zip");
+    if (fs.existsSync(filePath)) {
+      res.setHeader("Content-Type", "application/zip");
+      res.setHeader("Content-Disposition", 'attachment; filename="sistema_estoque_percapita_servidor_interno.zip"');
+      fs.createReadStream(filePath).pipe(res);
+    } else {
+      res.status(404).send("Arquivo ZIP do servidor interno não encontrado");
+    }
+  });
+
+  // Download do Código-Fonte Completo do Projeto
+  app.get("/download-codigo-fonte", (req, res) => {
+    const filePath = path.join(publicDir, "codigo_fonte_completo.zip");
+    if (fs.existsSync(filePath)) {
+      res.setHeader("Content-Type", "application/zip");
+      res.setHeader("Content-Disposition", 'attachment; filename="codigo_fonte_completo.zip"');
+      fs.createReadStream(filePath).pipe(res);
+    } else {
+      res.status(404).send("Arquivo ZIP do código-fonte não encontrado");
+    }
+  });
+
+  // Proxy de upload de arquivos (Salva localmente para o Servidor Interno)
+  app.post("/api/proxy-storage-upload", async (req, res) => {
+    try {
+      const { path: filePath, base64 } = req.body;
+      if (!base64 || !filePath) {
+        return res.status(400).json({ success: false, error: "Dados incompletos para upload" });
+      }
+
+      // Remover prefixo base64 se existir (ex: data:application/pdf;base64,)
+      const base64Data = base64.split(';base64,').pop();
+      const buffer = Buffer.from(base64Data, 'base64');
+
+      // Sanitizar o caminho e garantir que a pasta existe
+      // Substituir barras por subpastas locais
+      const safePath = filePath.replace(/[^a-zA-Z0-9./-]/g, '_');
+      const fullLocalPath = path.join(uploadsDir, safePath);
+      const dir = path.dirname(fullLocalPath);
+
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+      fs.writeFileSync(fullLocalPath, buffer);
+
+      console.log(`Arquivo salvo localmente: ${fullLocalPath}`);
+
+      // Retornar URL acessível via /uploads/
+      const fileUrl = `/uploads/${safePath}`;
+      res.json({ success: true, url: fileUrl });
+    } catch (error: any) {
+      console.error("Erro no proxy-storage-upload:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // Rotas desativadas
-  app.all(["/api/proxy-storage-upload", "/api/gemini", "/api/gemini-extract", "/api/gemini-compare"], (req, res) => {
+  app.all(["/api/gemini", "/api/gemini-extract", "/api/gemini-compare"], (req, res) => {
     res.status(404).send();
   });
 

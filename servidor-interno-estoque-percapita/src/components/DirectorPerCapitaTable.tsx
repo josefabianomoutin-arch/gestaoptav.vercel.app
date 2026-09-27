@@ -1521,7 +1521,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
         <html>
         <head>
             <title>${title}</title>
-            <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+            <script src="/JsBarcode.all.min.js"></script>
             <style>
                 ${generateStandardLabelStyles()}
             </style>
@@ -1579,7 +1579,7 @@ export const DirectorPerCapitaTable: React.FC<DirectorPerCapitaTableProps> = ({
         <html>
         <head>
             <title>Etiqueta de Cota - ${fullItemName}</title>
-            <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+            <script src="/JsBarcode.all.min.js"></script>
             <style>
                 ${generateStandardLabelStyles()}
             </style>

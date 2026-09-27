@@ -129,3 +129,28 @@ Qualquer computador conectado à mesma rede local pode abrir o navegador e digit
 `http://[IP-DO-SERVIDOR-LINUX]:3000`
 
 *(Exemplo: `http://192.168.1.150:3000`)*
+
+---
+
+## 🖥️ 9. Como Abrir Sempre em Tela Cheia / Como Programa (Sem Guias nem Barra de URL)
+
+Para que os operadores utilizem o sistema como um programa desktop nativo (sem abas do Chrome e sem a barra de endereços):
+
+### Método A: Atalho Automático Windows (.bat)
+1. Dentro do sistema, clique no botão verde superior **"Abrir como Programa"** e depois em **"Baixar Atalho: Modo Janela de Programa (.bat)"**.
+2. Salve o arquivo na Área de Trabalho do Windows.
+3. Ao clicar duas vezes, ele abrirá automaticamente o Chrome ou Edge com a flag `--app="http://IP:3000"`, executando em janela limpa de programa, sem nenhuma guia ou URL.
+
+### Método B: Pelo Próprio Navegador (2 Cliques)
+* **No Google Chrome:**
+  1. Acesse o sistema.
+  2. Clique no menu de 3 pontinhos (`⋮`) no canto superior direito.
+  3. Vá em **Salvar e compartilhar** > **Criar atalho...**
+  4. Marque a opção: **☑ "Abrir como janela"**.
+  5. Clique em **Criar**. O Chrome adicionará um ícone na sua Área de Trabalho com o nome e logo do sistema.
+* **No Microsoft Edge:**
+  1. Acesse o sistema.
+  2. Clique no menu de 3 pontinhos (`...`) > **Aplicativos** > **Instalar este site como um aplicativo**.
+
+### Método C: Tela Cheia Instantânea
+* Basta pressionar a tecla **F11** no teclado ou clicar no botão **"Tela Cheia (F11)"** no cabeçalho do sistema.

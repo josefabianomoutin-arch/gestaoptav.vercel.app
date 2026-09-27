@@ -23,7 +23,9 @@ import WarehouseMovementForm from './WarehouseMovementForm';
 import AdminDirectorPerCapita from './AdminDirectorPerCapita';
 import AdminEPIControl from './AdminEPIControl';
 import AdminTaiuvaEnergyAccounting from './AdminTaiuvaEnergyAccounting';
+import { AdminServidorInternoModal } from './AdminServidorInternoModal';
 import { PoliciaPenalLogo } from './PoliciaPenalLogo';
+import { Server, Download, HardDrive } from 'lucide-react';
 import { EnergyAccountingRecord } from '../types';
 
 type AdminTab = 'info' | 'register' | 'contracts' | 'finance' | 'analytics' | 'graphs' | 'schedule' | 'invoices' | 'perCapita' | 'cleaning' | 'vehicleExitOrder' | 'thirdPartyEntry' | 'directorPerCapita' | 'menu' | 'almoxarifado' | 'serviceOrder' | 'publicInfo' | 'epiControl' | 'energyAccounting';
@@ -206,6 +208,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       { key: 'WILLIAN OLIVEIRA DOS SANTOS', name: 'Diretor Willian Oliveira dos santos', default: '22743505826' },
   ];
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showServerModal, setShowServerModal] = useState(false);
   const backupInputRef = useRef<HTMLInputElement>(null);
   
   const [confirmConfig, setConfirmConfig] = useState<{
@@ -748,7 +751,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
             )}
           </div>
           
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowServerModal(true)}
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black px-4 py-2 rounded-xl text-xs uppercase tracking-wider shadow-sm transition active:scale-95 cursor-pointer"
+              title="Salvar Backup e Configurações no Servidor Próprio / Linux"
+            >
+              <Server className="w-4 h-4 text-indigo-200" />
+              <span>Salvar no Servidor</span>
+            </button>
+
             <div className="flex flex-col items-end">
               <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Usuário Ativo</span>
               <span className="text-xs font-bold text-zinc-800">Administrador Master</span>
