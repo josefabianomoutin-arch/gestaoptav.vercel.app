@@ -15,10 +15,10 @@ import VehicleOrderDashboard from './components/VehicleOrderDashboard';
 import JulioDashboard from './components/JulioDashboard';
 import ServiceOrderDashboard from './components/ServiceOrderDashboard';
 import InfobarTicker from './components/InfobarTicker';
-import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from 'firebase/database';
+import { getDatabase, ref, onValue, set, runTransaction, push, child, update, remove, get } from './lib/db';
 import { app } from './firebaseConfig';
 import { getCombinedSuppliers, calculateAllowedWeeksFromSchedule, getWeekNumber } from './lib/supplierUtils';
-import { ensureArray, safeLocalStorageSetItem, safeLocalStorageSetItemAsync, sanitizeForFirebase } from './lib/utils';
+import { ensureArray, safeLocalStorageSetItem, safeLocalStorageSetItemAsync, sanitizeForFirebase, generateSafeId } from './lib/utils';
 import { DEFAULT_ENERGY_RECORD_AGO_26, DEFAULT_ENERGY_RECORD_JUL_26 } from './data/energyAccountingDefaults';
 import { OFFICIAL_SERVICE_ORDERS, OFFICIAL_MAINTENANCE_SCHEDULES } from './data/infrastructureOfficialData';
 
@@ -1506,6 +1506,9 @@ const App: React.FC = () => {
       ...ensureArray(configToUse?.estocaveisSuppliers2027_3Q),
     ];
     const allPerCapita = [...producers, ...pereciveis, ...estocaveis].filter(Boolean);
+    const registeredCpfs = new Set(
+      allPerCapita.map(p => String(p?.cpfCnpj || p?.cpf || '').trim()).filter(Boolean)
+    );
 
     if (allPerCapita.length === 0) {
       return;
@@ -1589,6 +1592,17 @@ const App: React.FC = () => {
         }
       }
 
+      // Recarrega fornecedores no estado da aplicação
+      const updatedSnapshot = await get(suppliersRef);
+      const updatedData = updatedSnapshot.val() || {};
+      const updatedList = Object.entries(updatedData).map(([key, value]: [string, any]) => ({
+        ...value,
+        id: value.id || key,
+        cpf: value.cpf || key
+      }));
+      setSuppliers(updatedList as Supplier[]);
+      safeLocalStorageSetItem('cached_suppliers', JSON.stringify(updatedList));
+
       toast.success('Agenda sincronizada com sucesso!');
     } catch (error) {
       console.error('Erro ao sincronizar agenda:', error);
@@ -1608,7 +1622,8 @@ const App: React.FC = () => {
 
       const updatePromises = Object.entries(newConfig).map(([key, value]) => {
         if (value !== undefined) {
-          return set(child(perCapitaConfigRef, key), value);
+          const cleanVal = sanitizeForFirebase(value);
+          return set(child(perCapitaConfigRef, key), cleanVal);
         }
         return Promise.resolve();
       });
@@ -1626,18 +1641,29 @@ const App: React.FC = () => {
   const handleRegisterSupplier = async (name: string, cpf: string, allowedWeeks: number[]) => {
     try {
       console.log('Tentando registrar fornecedor:', { name, cpf, allowedWeeks });
+      const cleanCpf = cpf.replace(/\D/g, '');
       const newSupplier: Supplier = {
-        name,
-        cpf,
+        name: name.toUpperCase().trim(),
+        cpf: cleanCpf,
         initialValue: 0,
         contractItems: [],
         deliveries: [],
         allowedWeeks
       };
-      await set(child(suppliersRef, cpf), newSupplier);
+      await set(child(suppliersRef, cleanCpf), newSupplier);
+
+      setSuppliers(prev => {
+        const filtered = prev.filter(s => s.cpf !== cleanCpf);
+        const updated = [...filtered, newSupplier];
+        safeLocalStorageSetItem('cached_suppliers', JSON.stringify(updated));
+        return updated;
+      });
+
+      toast.success(`Fornecedor ${name.toUpperCase().trim()} cadastrado com sucesso!`);
       console.log('Fornecedor registrado com sucesso!');
     } catch (error) {
       console.error('Erro ao registrar fornecedor:', error);
+      toast.error('Erro ao registrar fornecedor: ' + (error instanceof Error ? error.message : String(error)));
       throw error;
     }
   };
@@ -1666,6 +1692,17 @@ const App: React.FC = () => {
           await remove(child(suppliersRef, oldCpf));
         }
       }
+      setSuppliers(prev => {
+        const updated = prev.map(s => {
+          if (s.cpf === oldCpf) {
+            return { ...s, name: newName, cpf: newCpf, allowedWeeks: newAllowedWeeks };
+          }
+          return s;
+        });
+        safeLocalStorageSetItem('cached_suppliers', JSON.stringify(updated));
+        return updated;
+      });
+
       console.log('Fornecedor atualizado com sucesso!');
       return null;
     } catch (error) {
@@ -2432,7 +2469,7 @@ const App: React.FC = () => {
               logUpdates[`${logKey}/date`] = newDate || existingLogsForKey[logKey].date || '';
           } else {
               const newRef = push(warehouseLogRef);
-              const newId = newRef.key || `it-${Date.now()}-${crypto.randomUUID().substring(0, 8)}`;
+              const newId = newRef.key || generateSafeId('it');
               logUpdates[newId] = {
                   id: newId,
                   type: 'entrada',
@@ -2474,7 +2511,7 @@ const App: React.FC = () => {
         const updated = items.map(it => {
           const original = currentList.find(d => d && clean(d.invoiceNumber) === targetInvoice && (it.id === d.id || (d.id && it.id === d.id) || clean(it.name) === clean(d.itemName || d.item)));
           return {
-            id: it.id || original?.id || `del-${Date.now()}-${crypto.randomUUID().substring(0, 8)}`,
+            id: it.id || original?.id || generateSafeId('del'),
             ...original,
             invoiceNumber: newInvoiceNumber || invoiceNumber,
             date: newDate || original?.date || new Date().toISOString().split('T')[0],
@@ -3269,7 +3306,7 @@ const App: React.FC = () => {
         if (finalInvoiceUrl && (finalInvoiceUrl.startsWith('data:application/pdf') || finalInvoiceUrl.startsWith('data:pdf/') || (finalInvoiceUrl.startsWith('data:') && finalInvoiceUrl.includes('base64')))) {
             console.log("Detectado possível PDF/Arquivo base64, iniciando upload para Storage...");
             try {
-                const invoiceId = `inv_entry_NF${String(payload.invoiceNumber || 'S-N').replace(/[^\w-]/g, '_')}_${Date.now()}_${crypto.randomUUID().substring(0, 4)}.pdf`;
+                const invoiceId = `inv_entry_NF${String(payload.invoiceNumber || 'S-N').replace(/[^\w-]/g, '_')}_${Date.now()}_${generateSafeId('inv').substring(0, 6)}.pdf`;
                 
                 const parts = finalInvoiceUrl.split(',');
                 if (parts.length > 1) {
@@ -4658,7 +4695,13 @@ const App: React.FC = () => {
               setHasError(true);
               setErrorDetails(e?.message || String(e));
             }
-            return null;
+            return (
+              <div className="p-4 bg-red-100 text-red-800 rounded-lg">
+                <h2 className="font-bold">Erro crítico na interface</h2>
+                <p>{e?.message || String(e)}</p>
+                <button onClick={() => window.location.reload()} className="mt-2 bg-red-600 text-white px-4 py-2 rounded">Recarregar</button>
+              </div>
+            );
           }
         })()}
       </div>

@@ -56,7 +56,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
       };
     });
   });
-  const [invoiceUrl, setInvoiceUrl] = useState('');
+  const [invoiceUrl, _setInvoiceUrl] = useState('');
 
   const handleAddDelivery = () => {
     // IMPORTANTE: prefixo new_ para que o handleSaveInvoice no App.tsx reconheça como novo item

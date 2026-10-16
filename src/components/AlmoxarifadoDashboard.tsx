@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import JsBarcode from 'jsbarcode';
 import { Printer, Plus, Trash2, FileText, Barcode as BarcodeIcon, FileIcon, Eye, Search, Save, Database, X, Wrench, Pencil, ArrowRightLeft, Check, AlertTriangle, QrCode, Scale, Utensils, Server } from 'lucide-react';
-import { getDatabase, ref, set, get, push, remove, onValue } from 'firebase/database';
+import { getDatabase, ref, set, get, push, remove, onValue } from '../lib/db';
 import { app } from '../firebaseConfig';
 import { HOLIDAYS_2026 } from '../constants';
 import type { Supplier, WarehouseMovement, ThirdPartyEntryLog, AcquisitionItem, PublicInfo, StandardMenu, DailyMenus, Delivery, MarmitaWeightLog } from '../types';
@@ -16,10 +16,11 @@ import AdminCleaningLog from './AdminCleaningLog';
 import { SegregationTabContent } from './SegregationTabContent';
 import { DirectorPerCapitaTable } from './DirectorPerCapitaTable';
 import { getWeekNumber } from '../lib/supplierUtils';
-import { ensureArray, generateStandardLabelStyles } from '../lib/utils';
+import { ensureArray, generateStandardLabelStyles, generateSafeId } from '../lib/utils';
 import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 import { AdminServidorInternoModal } from './AdminServidorInternoModal';
+import { DesktopAppButton } from './DesktopAppButton';
 import AdminServiceOrder from './AdminServiceOrder';
 import { AdminTaiuvaEnergyAccounting } from './AdminTaiuvaEnergyAccounting';
 
@@ -1608,7 +1609,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                         }
 
                         deliveries.push({
-                            id: d.id || `del-${crypto.randomUUID().substring(0, 8)}`,
+                            id: d.id || generateSafeId('del'),
                             invoiceUrl: d.invoiceUrl || '',
                             date: d.invoiceDate || d.date,
                             timestamp: finalTimestamp,
@@ -1648,7 +1649,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                     finalTimestamp = isNaN(parsedDate.getTime()) ? 0 : parsedDate.getTime();
                                 }
                                 deliveries.push({
-                                    id: d.id || `del-pc-${crypto.randomUUID().substring(0, 8)}`,
+                                    id: d.id || generateSafeId('del-pc'),
                                     invoiceUrl: d.invoiceUrl || '',
                                     date: d.invoiceDate || d.date,
                                     timestamp: finalTimestamp || 0,
@@ -1712,7 +1713,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                     }
 
                     deliveries.push({
-                        id: anyL.id || `log-${crypto.randomUUID().substring(0, 8)}`,
+                        id: anyL.id || generateSafeId('log'),
                         invoiceUrl: anyL.invoiceUrl || '',
                         date: anyL.date,
                         timestamp: finalTimestamp,
@@ -3429,10 +3430,13 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2.5 md:gap-4 max-w-7xl mx-auto">
                     <div className="flex justify-between items-center w-full md:w-auto">
                         <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl overflow-hidden border border-amber-400/80 shadow-sm bg-slate-900 shrink-0">
+                                <img src="/icone-taiuva.png" alt="Penitenciária de Taiúva" className="w-full h-full object-cover" />
+                            </div>
                             <PoliciaPenalLogo className="h-10 w-auto object-contain shrink-0" />
                             <div>
                                 <h1 className="text-base md:text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Módulo de Estoque</h1>
-                                <p className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Gestão de Dados P Taiuva 2026</p>
+                                <p className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Penitenciária de Taiúva • 2026</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2 md:hidden">
@@ -3482,6 +3486,7 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                                 </button>
                             ))}
                         </div>
+                        <DesktopAppButton variant="header" />
                         <button 
                             onClick={() => setShowServerModal(true)} 
                             className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2 px-3 md:px-4 rounded-xl text-[10px] md:text-xs uppercase border border-indigo-500 shadow-sm flex items-center gap-1.5 active:scale-95 transition-all shrink-0 shadow-indigo-100"

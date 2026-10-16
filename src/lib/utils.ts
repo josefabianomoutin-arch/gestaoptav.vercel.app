@@ -461,3 +461,15 @@ export const safeLocalStorageSetItemAsync = (
   }, delay);
 };
 
+export function generateSafeId(prefix: string = 'id'): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch (err) {
+    // Fallback when crypto.randomUUID is not supported
+    void err;
+  }
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+

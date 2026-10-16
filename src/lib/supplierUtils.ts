@@ -137,18 +137,24 @@ export const getCombinedSuppliers = (suppliers: Supplier[], perCapitaConfig: any
     const mappedPereciveis = pereciveis.map(mapToSupplier);
     const mappedEstocaveis = estocaveis.map(mapToSupplier);
 
-    const cleanCpf = (c: any) => String(c || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
+    const cleanDigits = (c: any) => String(c || '').replace(/\D/g, '');
+    const cleanCpf = (c: any) => {
+        const digits = cleanDigits(c);
+        if (digits.length > 0) return digits;
+        return String(c || '').trim().replace(/[.\-/ ]/g, '').toUpperCase();
+    };
     const all = [...suppliers, ...mappedProducers, ...mappedPereciveis, ...mappedEstocaveis];
     const uniqueMap = new Map<string, Supplier>();
     all.forEach(s => {
-        if (s && s.cpf) {
-            const rawKey = cleanCpf(s.cpf);
+        if (s && (s.cpf || (s as any).cpfCnpj)) {
+            const rawKey = cleanCpf(s.cpf || (s as any).cpfCnpj);
             if (!rawKey) return;
 
             // Find matching key (exact, or 11 vs 14 chars starting with same prefix to merge truncated legacy values)
             let key = rawKey;
             for (const existingKey of uniqueMap.keys()) {
                 if (existingKey === rawKey || 
+                    (cleanDigits(existingKey) && cleanDigits(existingKey) === cleanDigits(rawKey)) ||
                     (existingKey.length === 11 && rawKey.length === 14 && rawKey.startsWith(existingKey)) ||
                     (existingKey.length === 14 && rawKey.length === 11 && existingKey.startsWith(rawKey))) {
                     key = existingKey;

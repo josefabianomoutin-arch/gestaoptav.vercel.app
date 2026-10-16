@@ -5,7 +5,7 @@ import { ensureArray } from '../lib/utils';
 
 import type { Supplier, WarehouseMovement, AcquisitionItem } from '../types';
 import { Download, Search, FileCheck, Trash2, RotateCcw, Plus, X, Edit2, Printer, Barcode as BarcodeIcon, Upload, Calendar, FileText, Package, MapPin } from 'lucide-react';
-import { getDatabase, ref, get } from 'firebase/database';
+import { getDatabase, ref, get } from '../lib/db';
 import { app } from '../firebaseConfig';
 import { toast } from 'sonner';
 import ConfirmModal from './ConfirmModal';

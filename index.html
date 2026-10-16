@@ -2,24 +2,43 @@
 <html lang="pt-br">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo-policia-penal.png" />
+    <meta name="description" content="Sistema Profissional de Gestão de Dados, Estoque, Almoxarifado e Infraestrutura P Taiuva." />
+    <meta property="og:title" content="Gestão de Dados P Taiuva" />
+    <meta property="og:description" content="Sistema Profissional de Gestão de Dados, Estoque, Almoxarifado e Infraestrutura P Taiuva." />
+    <meta property="og:image" content="/fachada-penitenciaria-taiuva.jpg" />
+    <link rel="icon" type="image/png" href="/icone-taiuva.png" />
+    <link rel="shortcut icon" href="/icone-taiuva.png" />
+    <link rel="apple-touch-icon" href="/icone-taiuva.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#0f172a" />
+    <meta name="theme-color" content="#0b0f19" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gestão de Dados P Taiuva - 2026</title>
+    <title>Gestão de Dados P Taiuva</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
-        });
-      }
+      // Desregistrar Service Worker e limpar caches para evitar tela branca em iframes e navegadores
+      try {
+        if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then((registrations) => {
+            for (const reg of registrations) {
+              reg.unregister();
+            }
+          }).catch(() => {});
+        }
+      } catch (e) {}
+
+      try {
+        if (typeof window !== 'undefined' && 'caches' in window) {
+          caches.keys().then((keys) => {
+            keys.forEach((key) => caches.delete(key));
+          }).catch(() => {});
+        }
+      } catch (e) {}
     </script>
   </body>
 </html>

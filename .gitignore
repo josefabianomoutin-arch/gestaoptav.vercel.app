@@ -11,6 +11,9 @@ node_modules
 dist
 dist-ssr
 *.local
+servidor-interno-estoque-percapita
+server-data
+uploads
 
 # Editor directories and files
 .vscode/*

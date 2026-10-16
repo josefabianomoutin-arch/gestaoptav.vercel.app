@@ -6,7 +6,7 @@ import ConfirmModal from './ConfirmModal';
 import html2pdf from 'html2pdf.js';
 import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import { FileText, Upload, AlertCircle, X, Download, Trash2, Calendar, Copy, RefreshCw } from 'lucide-react';
-import { ensureArray } from '../lib/utils';
+import { ensureArray, generateSafeId } from '../lib/utils';
 import { calculateAllowedWeeksFromSchedule } from '../lib/supplierUtils';
 
 interface AdminPerCapitaSuppliersProps {
@@ -71,7 +71,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({
                 // Clone supplier
                 const clonedSupplier: PerCapitaSupplier = {
                     ...sup,
-                    id: crypto.randomUUID ? crypto.randomUUID() : `sup_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                    id: generateSafeId('sup'),
                     deliveries: [],
                     contractItems: copyKeepItems 
                         ? (sup.contractItems || []).map(ci => ({ ...ci }))
@@ -216,7 +216,7 @@ const AdminPerCapitaSuppliers: React.FC<AdminPerCapitaSuppliersProps> = ({
         
         const newSupplier: PerCapitaSupplier = {
             ...existing,
-            id: editingId || crypto.randomUUID(),
+            id: editingId || generateSafeId('sup'),
             name: name.toUpperCase(),
             cpfCnpj,
             processNumber,

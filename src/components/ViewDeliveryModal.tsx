@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import type { Delivery } from '../types';
-import { getDatabase, ref, get } from 'firebase/database';
+import { getDatabase, ref, get } from '../lib/db';
 import { app } from '../firebaseConfig';
 import { QRCodeSVG } from 'qrcode.react';
 

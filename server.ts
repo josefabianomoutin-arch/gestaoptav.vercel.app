@@ -11,8 +11,8 @@ async function startServer() {
   console.log(`Environment: ${process.env.NODE_ENV}`);
 
   // API routes FIRST
-  app.use(express.json({ limit: '100mb' }));
-  app.use(express.urlencoded({ limit: '100mb', extended: true }));
+  app.use(express.json({ limit: '200mb' }));
+  app.use(express.urlencoded({ limit: '200mb', extended: true }));
 
   // Pastas de arquivos públicos e uploads locais
   const publicDir = path.join(process.cwd(), 'public');
@@ -23,14 +23,74 @@ async function startServer() {
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
   if (!fs.existsSync(serverDataDir)) fs.mkdirSync(serverDataDir, { recursive: true });
 
-  app.use(express.static(publicDir));
-  app.use('/uploads', express.static(uploadsDir));
+  // Banco de dados em memória para performance, sincronizado com o arquivo
+  let database: any = {};
+  if (fs.existsSync(dbPath)) {
+    try {
+      database = JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
+      console.log(`Banco de dados carregado: ${dbPath} (${(fs.statSync(dbPath).size / (1024 * 1024)).toFixed(2)} MB)`);
+    } catch (e) {
+      console.error("Erro ao carregar banco de dados, iniciando novo:", e);
+    }
+  }
 
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
+  const saveDatabase = () => {
+    try {
+      fs.writeFileSync(dbPath, JSON.stringify(database, null, 2));
+      const internalDbPath = path.join(process.cwd(), 'servidor-interno-estoque-percapita', 'server-data', 'db.json');
+      if (fs.existsSync(path.dirname(internalDbPath))) {
+        fs.writeFileSync(internalDbPath, JSON.stringify(database, null, 2));
+      }
+    } catch (e) {
+      console.error("Erro ao salvar banco de dados:", e);
+    }
+  };
+
+  // Helper para download com Streaming Chunked (Ignora limite de 32MB do Cloud Run)
+  const streamZipFile = (res: express.Response, filePath: string, filename: string) => {
+    let targetPath = filePath;
+    if (!fs.existsSync(targetPath)) {
+      const candidates = [
+        path.join(publicDir, filename),
+        path.join(process.cwd(), filename),
+        path.join(process.cwd(), 'public', filename)
+      ];
+      for (const cand of candidates) {
+        if (fs.existsSync(cand)) {
+          targetPath = cand;
+          break;
+        }
+      }
+    }
+
+    if (!fs.existsSync(targetPath)) {
+      return res.status(404).send(`Arquivo ${filename} não encontrado no servidor.`);
+    }
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.removeHeader('Content-Length'); // Forçar Transfer-Encoding: chunked no Cloud Run
+    const stream = fs.createReadStream(targetPath);
+    stream.on('error', (err) => {
+      console.error(`Erro ao transmitir ${filename}:`, err);
+      if (!res.headersSent) res.status(500).send("Erro na transmissão do arquivo.");
+    });
+    stream.pipe(res);
+  };
+
+  // Rota do Servidor Interno On-Premise 100% Offline (Disponível em ambos os caminhos)
+  app.get(["/download-servidor-interno", "/sistema_estoque_percapita_servidor_interno.zip"], (req, res) => {
+    const filePath = path.join(publicDir, "sistema_estoque_percapita_servidor_interno.zip");
+    streamZipFile(res, filePath, "sistema_estoque_percapita_servidor_interno.zip");
   });
 
-  // Rota de download forçado da planilha com Content-Disposition attachment
+  // Download do Código-Fonte Completo
+  app.get(["/download-codigo-fonte", "/codigo_fonte_completo.zip"], (req, res) => {
+    const filePath = path.join(publicDir, "codigo_fonte_completo.zip");
+    streamZipFile(res, filePath, "codigo_fonte_completo.zip");
+  });
+
+  // Download da Planilha Excel Oficial
   app.get("/download-planilha", (req, res) => {
     const filePath = path.join(publicDir, "Planilha_Ordens_de_Saida_e_Banco_Completo.xlsx");
     if (fs.existsSync(filePath)) {
@@ -38,32 +98,129 @@ async function startServer() {
       res.setHeader("Content-Disposition", 'attachment; filename="Planilha_Ordens_de_Saida_e_Banco_Completo.xlsx"');
       fs.createReadStream(filePath).pipe(res);
     } else {
-      res.status(404).send("Arquivo não encontrado");
+      res.status(404).send("Planilha não encontrada");
     }
   });
 
-  // Download do Servidor Interno On-Premise 100% Offline
-  app.get("/download-servidor-interno", (req, res) => {
-    const filePath = path.join(publicDir, "sistema_estoque_percapita_servidor_interno.zip");
-    if (fs.existsSync(filePath)) {
-      res.setHeader("Content-Type", "application/zip");
-      res.setHeader("Content-Disposition", 'attachment; filename="sistema_estoque_percapita_servidor_interno.zip"');
-      fs.createReadStream(filePath).pipe(res);
-    } else {
-      res.status(404).send("Arquivo ZIP do servidor interno não encontrado");
-    }
+  // Download dos Inicializadores de Desktop
+  app.get("/download-app-linux", (req, res) => {
+    const filePath = path.join(publicDir, "iniciar_como_aplicativo_linux.sh");
+    res.download(filePath, "iniciar_como_aplicativo_linux.sh");
   });
 
-  // Download do Código-Fonte Completo do Projeto
-  app.get("/download-codigo-fonte", (req, res) => {
-    const filePath = path.join(publicDir, "codigo_fonte_completo.zip");
-    if (fs.existsSync(filePath)) {
-      res.setHeader("Content-Type", "application/zip");
-      res.setHeader("Content-Disposition", 'attachment; filename="codigo_fonte_completo.zip"');
-      fs.createReadStream(filePath).pipe(res);
-    } else {
-      res.status(404).send("Arquivo ZIP do código-fonte não encontrado");
+  app.get(["/download-atalho-linux", "/instalar_atalho_area_de_trabalho_linux.sh"], (req, res) => {
+    const filePath = path.join(publicDir, "instalar_atalho_area_de_trabalho_linux.sh");
+    res.download(filePath, "instalar_atalho_area_de_trabalho_linux.sh");
+  });
+
+  app.get("/download-app-windows", (req, res) => {
+    const filePath = path.join(publicDir, "Abrir_Como_Aplicativo_Windows.bat");
+    res.download(filePath, "Abrir_Como_Aplicativo_Windows.bat");
+  });
+
+  app.use(express.static(publicDir));
+  app.use('/uploads', express.static(uploadsDir));
+
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok" });
+  });
+
+  // --- Rotas de Banco de Dados Local (Para Servidor Interno Offline) ---
+  app.get("/api/db", (req, res) => {
+    const { path: dbPathQuery } = req.query;
+    if (!dbPathQuery || dbPathQuery === "/") return res.json(database || {});
+    
+    const parts = (dbPathQuery as string).split('/').filter(Boolean);
+    let current = database;
+    for (const part of parts) {
+      if (current && typeof current === 'object' && part in current) {
+        current = current[part];
+      } else {
+        return res.json(null);
+      }
     }
+    res.json(current !== undefined ? current : null);
+  });
+
+  app.post("/api/db/update", (req, res) => {
+    const { path: dbPathUpdate, data } = req.body;
+    if (!dbPathUpdate) return res.status(400).json({ error: "Caminho obrigatório" });
+
+    const parts = (dbPathUpdate as string).split('/').filter(Boolean);
+    let current = database;
+    
+    // Caminho root
+    if (parts.length === 0) {
+      database = { ...database, ...data };
+    } else {
+      for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i];
+        if (!current[part] || typeof current[part] !== 'object') current[part] = {};
+        current = current[part];
+      }
+      const lastPart = parts[parts.length - 1];
+      if (!current[lastPart] || typeof current[lastPart] !== 'object') {
+        current[lastPart] = data;
+      } else {
+        current[lastPart] = { ...current[lastPart], ...data };
+      }
+    }
+    
+    saveDatabase();
+    res.json({ success: true });
+  });
+
+  app.post("/api/db/set", (req, res) => {
+    const { path: dbPathSet, data } = req.body;
+    if (!dbPathSet) return res.status(400).json({ error: "Caminho obrigatório" });
+
+    const parts = (dbPathSet as string).split('/').filter(Boolean);
+    let current = database;
+    
+    if (parts.length === 0) {
+      database = data === null || data === undefined ? {} : data;
+    } else {
+      for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i];
+        if (!current[part] || typeof current[part] !== 'object') current[part] = {};
+        current = current[part];
+      }
+      const lastKey = parts[parts.length - 1];
+      if (data === null || data === undefined) {
+        if (Array.isArray(current)) {
+          const idx = parseInt(lastKey, 10);
+          if (!isNaN(idx)) current.splice(idx, 1);
+        } else if (typeof current === 'object') {
+          delete current[lastKey];
+        }
+      } else {
+        current[lastKey] = data;
+      }
+    }
+    
+    saveDatabase();
+    res.json({ success: true });
+  });
+
+  app.post("/api/db/push", (req, res) => {
+    const { path: dbPathPush, data } = req.body;
+    const parts = (dbPathPush as string).split('/').filter(Boolean);
+    let current = database;
+    
+    for (const part of parts) {
+      if (!current[part] || typeof current[part] !== 'object') current[part] = {};
+      current = current[part];
+    }
+    
+    const newId = `id_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    if (typeof data === 'object' && data !== null) {
+      current[newId] = { ...data, id: data.id || newId };
+    } else {
+      current[newId] = data;
+    }
+    
+    saveDatabase();
+    res.json({ success: true, id: newId });
   });
 
   // Proxy de upload de arquivos (Salva localmente para o Servidor Interno)
@@ -74,23 +231,20 @@ async function startServer() {
         return res.status(400).json({ success: false, error: "Dados incompletos para upload" });
       }
 
-      // Remover prefixo base64 se existir (ex: data:application/pdf;base64,)
-      const base64Data = base64.split(';base64,').pop();
+      console.log(`Recebendo upload: ${filePath} (${(base64.length / 1024).toFixed(2)} KB)`);
+
+      const base64Data = base64.replace(/^data:.*?;base64,/, "");
       const buffer = Buffer.from(base64Data, 'base64');
 
-      // Sanitizar o caminho e garantir que a pasta existe
-      // Substituir barras por subpastas locais
       const safePath = filePath.replace(/[^a-zA-Z0-9./-]/g, '_');
       const fullLocalPath = path.join(uploadsDir, safePath);
       const dir = path.dirname(fullLocalPath);
 
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-
       fs.writeFileSync(fullLocalPath, buffer);
 
       console.log(`Arquivo salvo localmente: ${fullLocalPath}`);
 
-      // Retornar URL acessível via /uploads/
       const fileUrl = `/uploads/${safePath}`;
       res.json({ success: true, url: fileUrl });
     } catch (error: any) {

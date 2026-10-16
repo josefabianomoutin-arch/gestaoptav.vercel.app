@@ -4,13 +4,14 @@ import {
   Download, 
   CheckCircle2, 
   Copy, 
-  HardDrive, 
   Network, 
   ShieldCheck, 
   Layers, 
   Check, 
   X,
-  FileSpreadsheet
+  Monitor,
+  Laptop,
+  Terminal
 } from 'lucide-react';
 
 interface AdminServidorInternoModalProps {
@@ -19,7 +20,7 @@ interface AdminServidorInternoModalProps {
 }
 
 export const AdminServidorInternoModal: React.FC<AdminServidorInternoModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'linux' | 'systemd' | 'docker' | 'rede' | 'estrutura'>('linux');
+  const [activeTab, setActiveTab] = useState<'app' | 'linux' | 'systemd' | 'docker' | 'rede' | 'estrutura'>('app');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -29,6 +30,13 @@ export const AdminServidorInternoModal: React.FC<AdminServidorInternoModalProps>
     setCopiedCode(id);
     setTimeout(() => setCopiedCode(null), 2500);
   };
+
+  const appLinuxSnippet = `# No terminal Linux (dentro da pasta do sistema):
+# 1. Abrir imediatamente em modo APLICATIVO NATIVO (sem barra de URL):
+./iniciar_como_aplicativo_linux.sh
+
+# 2. Criar ícone com brasão na Área de Trabalho (Desktop):
+./instalar_atalho_area_de_trabalho_linux.sh`;
 
   const linuxSnippet = `# 1. Extrair pacote no servidor
 sudo mkdir -p /opt/estoque
@@ -127,12 +135,32 @@ pm2 startup`;
 
           <div className="flex items-center gap-2.5 w-full md:w-auto flex-wrap">
             <a
-              href="/sistema_estoque_percapita_servidor_interno.zip"
+              href="/download-servidor-interno"
               download="sistema_estoque_percapita_servidor_interno.zip"
               className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase shadow-md active:scale-95 transition"
             >
               <Download className="w-4 h-4" />
-              Baixar Servidor On-Premise (.ZIP)
+              Baixar Servidor Completo (.ZIP)
+            </a>
+
+            <a
+              href="/download-app-linux"
+              download="iniciar_como_aplicativo_linux.sh"
+              className="inline-flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3.5 py-2.5 rounded-xl font-semibold text-xs shadow-sm active:scale-95 transition"
+              title="Baixar inicializador de modo aplicativo para Linux"
+            >
+              <Terminal className="w-4 h-4 text-emerald-600" />
+              <span>App Linux (.SH)</span>
+            </a>
+
+            <a
+              href="/download-app-windows"
+              download="Abrir_Como_Aplicativo_Windows.bat"
+              className="inline-flex items-center justify-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300 px-3.5 py-2.5 rounded-xl font-semibold text-xs shadow-sm active:scale-95 transition"
+              title="Baixar inicializador de modo aplicativo para Windows"
+            >
+              <Laptop className="w-4 h-4 text-sky-600" />
+              <span>App Windows (.BAT)</span>
             </a>
 
             <a
@@ -142,27 +170,7 @@ pm2 startup`;
               title="Baixar código-fonte completo do projeto"
             >
               <Download className="w-4 h-4 text-blue-600" />
-              <span>Código-Fonte (.ZIP)</span>
-            </a>
-
-            <a
-              href="/banco_de_dados_atual.json"
-              download="banco_de_dados_atual.json"
-              className="inline-flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-3.5 py-2.5 rounded-xl font-semibold text-xs shadow-sm active:scale-95 transition"
-              title="Baixar apenas o arquivo JSON do banco de dados para migração"
-            >
-              <HardDrive className="w-4 h-4 text-emerald-600" />
-              <span>Banco (.JSON)</span>
-            </a>
-
-            <a
-              href="/Planilha_Gestao_Almoxarifado_Completa.xlsx"
-              download="Planilha_Gestao_Almoxarifado_Completa.xlsx"
-              className="inline-flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-emerald-700 border border-emerald-200 px-3.5 py-2.5 rounded-xl font-semibold text-xs shadow-sm active:scale-95 transition"
-              title="Baixar planilha Excel oficial"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Excel (.XLSX)</span>
+              <span>Código-Fonte</span>
             </a>
           </div>
         </div>
@@ -183,12 +191,22 @@ pm2 startup`;
           </div>
           <div className="flex items-center gap-2 text-slate-700 font-medium">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Banco Local embutido</span>
+            <span>Modo Janela Aplicativo Nativo</span>
           </div>
         </div>
 
         {/* Body Tabs */}
         <div className="flex border-b border-slate-200 bg-white px-6 pt-3 gap-2 overflow-x-auto text-xs font-bold">
+          <button
+            onClick={() => setActiveTab('app')}
+            className={`pb-3 px-3 border-b-2 transition flex items-center gap-1.5 ${
+              activeTab === 'app'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            🖥️ Modo Aplicativo Desktop (Sem Barra de Internet)
+          </button>
           <button
             onClick={() => setActiveTab('linux')}
             className={`pb-3 px-3 border-b-2 transition flex items-center gap-1.5 ${
@@ -244,6 +262,99 @@ pm2 startup`;
         {/* Tab Content Area */}
         <div className="p-6 overflow-y-auto flex-1 space-y-4 bg-slate-50/50">
           
+          {/* TAB 0: MODO APLICATIVO DESKTOP */}
+          {activeTab === 'app' && (
+            <div className="space-y-4">
+              <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+                    <Monitor className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base">
+                      Executar como Aplicativo Nativo no Computador (Sem Barra de Internet)
+                    </h3>
+                    <p className="text-xs text-slate-600">
+                      Elimine a barra de URL, abas e botões do navegador. O sistema roda em janela exclusiva de software desktop.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  {/* Linux App Box */}
+                  <div className="p-4 bg-slate-900 text-slate-200 rounded-xl border border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-sm text-emerald-400 flex items-center gap-2">
+                        <Terminal className="w-4 h-4" /> 1. No Servidor / Desktop Linux
+                      </span>
+                      <a
+                        href="/download-app-linux"
+                        download="iniciar_como_aplicativo_linux.sh"
+                        className="text-[10px] text-indigo-300 hover:text-white bg-slate-800 px-2 py-1 rounded border border-slate-700 font-bold"
+                      >
+                        Baixar Script .SH
+                      </a>
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                      Execute diretamente dentro da pasta extraída no Linux. Ele inicia o backend e abre a janela do aplicativo nativo sem barra de internet:
+                    </p>
+                    <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-xs text-emerald-400 select-all">
+                      ./iniciar_como_aplicativo_linux.sh
+                    </div>
+                    <p className="text-[11px] text-slate-400 font-sans">
+                      Para criar um ícone fixo na sua Área de Trabalho com o brasão oficial da Polícia Penal:
+                    </p>
+                    <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-xs text-indigo-300 select-all">
+                      ./instalar_atalho_area_de_trabalho_linux.sh
+                    </div>
+                  </div>
+
+                  {/* Windows App Box */}
+                  <div className="p-4 bg-slate-900 text-slate-200 rounded-xl border border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-sm text-sky-400 flex items-center gap-2">
+                        <Laptop className="w-4 h-4" /> 2. Em Computadores Windows
+                      </span>
+                      <a
+                        href="/download-app-windows"
+                        download="Abrir_Como_Aplicativo_Windows.bat"
+                        className="text-[10px] text-sky-300 hover:text-white bg-slate-800 px-2 py-1 rounded border border-slate-700 font-bold"
+                      >
+                        Baixar .BAT
+                      </a>
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                      No Windows (10 ou 11), o Microsoft Edge já vem instalado. O script abre o sistema diretamente como software desktop dedicado sem barra de endereço:
+                    </p>
+                    <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-xs text-sky-300 select-all">
+                      Abrir_Como_Aplicativo_Windows.bat
+                    </div>
+                    <p className="text-[11px] text-slate-400 font-sans">
+                      Basta dar 2 cliques no arquivo .bat para abrir o aplicativo na hora.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Snippet box */}
+              <div className="bg-slate-900 text-slate-200 rounded-xl p-4 font-mono text-xs relative">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-slate-400">
+                  <span>Scripts de Execução em Modo App (Linux):</span>
+                  <button
+                    onClick={() => handleCopy(appLinuxSnippet, 'appLinux')}
+                    className="flex items-center gap-1 text-[11px] bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-slate-300 transition"
+                  >
+                    {copiedCode === 'appLinux' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedCode === 'appLinux' ? 'Copiado!' : 'Copiar Comandos'}</span>
+                  </button>
+                </div>
+                <pre className="overflow-x-auto text-emerald-400 whitespace-pre leading-relaxed">
+                  {appLinuxSnippet}
+                </pre>
+              </div>
+            </div>
+          )}
+
           {/* TAB 1: LINUX IMEDIATO */}
           {activeTab === 'linux' && (
             <div className="space-y-4">

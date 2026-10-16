@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Printer, PenTool, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { generateSafeId } from '../lib/utils';
 
 interface RondaRegistroFormProps {
     systemPasswords?: Record<string, string>;
@@ -393,7 +394,7 @@ const RondaRegistroForm: React.FC<RondaRegistroFormProps> = ({ systemPasswords =
                                         const sig = {
                                             name: signName,
                                             timestamp: now.toLocaleString('pt-BR'),
-                                            hash: crypto.randomUUID().substring(0, 12).toUpperCase()
+                                            hash: generateSafeId('sig').substring(0, 12).toUpperCase()
                                         };
                                         setDigitalSignature(sig);
                                         setIsSignatureModalOpen(false);

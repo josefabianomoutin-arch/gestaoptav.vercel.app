@@ -25,7 +25,7 @@ import AdminEPIControl from './AdminEPIControl';
 import AdminTaiuvaEnergyAccounting from './AdminTaiuvaEnergyAccounting';
 import { AdminServidorInternoModal } from './AdminServidorInternoModal';
 import { PoliciaPenalLogo } from './PoliciaPenalLogo';
-import { Server, Download, HardDrive } from 'lucide-react';
+import { Server } from 'lucide-react';
 import { EnergyAccountingRecord } from '../types';
 
 type AdminTab = 'info' | 'register' | 'contracts' | 'finance' | 'analytics' | 'graphs' | 'schedule' | 'invoices' | 'perCapita' | 'cleaning' | 'vehicleExitOrder' | 'thirdPartyEntry' | 'directorPerCapita' | 'menu' | 'almoxarifado' | 'serviceOrder' | 'publicInfo' | 'epiControl' | 'energyAccounting';
@@ -649,12 +649,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       <aside className="hidden md:flex w-72 flex-col shadow-2xl z-20 transition-all duration-500 bg-zinc-900 border-r border-zinc-800 text-white">
         <div className="p-8 border-b border-white/5">
           <div className="flex items-center gap-3 mb-2">
+            <div className="w-11 h-11 rounded-2xl overflow-hidden border border-amber-400/80 shadow-lg bg-slate-950 flex items-center justify-center shrink-0">
+              <img src="/icone-taiuva.png" alt="Penitenciária de Taiúva" className="w-full h-full object-cover" />
+            </div>
             <div className="bg-white/10 p-1.5 rounded-2xl border border-white/10 shadow-lg flex items-center justify-center shrink-0">
               <PoliciaPenalLogo className="h-9 w-auto object-contain max-w-[36px]" />
             </div>
             <div>
-              <h1 className="text-xl font-black tracking-tighter italic leading-none">GESTAO 2026</h1>
-              <p className="text-[8px] font-bold uppercase tracking-[0.3em] mt-1 text-indigo-400">Administrativo</p>
+              <h1 className="text-base font-black tracking-tight leading-none">P TAIÚVA</h1>
+              <p className="text-[8px] font-bold uppercase tracking-[0.25em] mt-1 text-amber-400">Gestão 2026</p>
             </div>
           </div>
           {isAbrilVerde && (
@@ -739,6 +742,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
         {/* Top Header Bar Desktop */}
         <header className={`hidden md:flex h-20 border-b items-center justify-between px-10 sticky top-0 z-10 transition-all duration-500 ${isAbrilVerde ? 'bg-emerald-950 text-white border-emerald-900 shadow-sm' : 'bg-slate-200/90 border-slate-300'}`}>
           <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl overflow-hidden border border-amber-400/80 shadow-sm bg-slate-900 shrink-0">
+              <img src="/icone-taiuva.png" alt="Penitenciária de Taiúva" className="w-full h-full object-cover" />
+            </div>
             <PoliciaPenalLogo className="h-9 w-auto object-contain shrink-0" />
             <h2 className={`text-lg font-black uppercase tracking-tighter italic transition-colors duration-500 ${isAbrilVerde ? 'text-white' : 'text-zinc-800'}`}>
               {visibleTabs.find(t => t.id === activeTab)?.name || 'Painel'}
@@ -798,6 +804,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           onConfirm={confirmConfig.onConfirm}
           onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
           variant={confirmConfig.variant}
+      />
+
+      <AdminServidorInternoModal 
+          isOpen={showServerModal} 
+          onClose={() => setShowServerModal(false)} 
       />
 
       <style>{`

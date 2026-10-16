@@ -1,10 +1,12 @@
 
 import React, { useState, useMemo } from 'react';
 import { toast } from 'sonner';
+import { Download } from 'lucide-react';
 import PublicInfoPortal from './PublicInfoPortal';
 import InfobarTicker from './InfobarTicker';
 import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import { PublicInfo } from '../types';
+import { DesktopAppButton } from './DesktopAppButton';
 
 interface LoginScreenProps {
   onLogin: (name: string, cpf: string) => boolean | string | Promise<boolean | string>;
@@ -41,40 +43,46 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList, isLo
   const displayInfo = useMemo(() => publicInfoList.filter(info => !info.isConfidential), [publicInfoList]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-100 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col relative overflow-hidden bg-slate-50 selection:bg-indigo-500 selection:text-white">
       {/* Infobar Ticker - Top */}
-      <InfobarTicker 
-        items={displayInfo} 
-        variant="light" 
-        label="Avisos Gerais:" 
-      />
+      <div className="relative z-10">
+        <InfobarTicker 
+          items={displayInfo} 
+          variant="light" 
+          label="Avisos Gerais:" 
+        />
+      </div>
 
-      <div className="flex-grow flex items-center justify-center p-4 relative">
-        <div className="w-full max-w-md p-8 pt-10 space-y-8 bg-[#0b0f19] rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-900/20 relative overflow-hidden">
+      <div className="flex-grow flex items-center justify-center p-4 relative z-10">
+        <div className="w-full max-w-md p-8 pt-8 space-y-6 bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 relative overflow-hidden">
         
+        {/* Title */}
+        <div className="text-center space-y-1 pt-2">
+          <h1 className="text-2xl font-black text-slate-900 leading-tight uppercase tracking-tight">
+            PENITENCIÁRIA DE TAIÚVA
+          </h1>
+          <p className="text-[11px] font-bold text-indigo-600 uppercase tracking-[0.25em]">
+            GESTÃO DE DADOS & ESTOQUE
+          </p>
+          <p className="text-[9px] text-slate-400 uppercase tracking-widest">
+            Monitoramento • Almoxarifado • Per Capita
+          </p>
+        </div>
+
         {/* Portal Button with Policia Penal Logo */}
         <div className="relative">
             <button 
               onClick={() => setIsPortalOpen(true)}
-              className="w-full bg-white/5 border border-white/10 hover:border-indigo-400 p-3 rounded-2xl flex items-center gap-3.5 transition-all group"
+              className="w-full bg-slate-50 border border-slate-200 hover:border-indigo-400/60 p-3 rounded-2xl flex items-center gap-3.5 transition-all group"
             >
-              <div className="bg-indigo-50/90 p-1.5 rounded-2xl border border-indigo-100 shadow-sm flex items-center justify-center flex-shrink-0">
-                <PoliciaPenalLogo className="h-9 w-auto object-contain max-w-[36px]" />
+              <div className="bg-indigo-50 p-1.5 rounded-2xl border border-indigo-100 shadow-sm flex items-center justify-center flex-shrink-0">
+                <PoliciaPenalLogo className="h-8 w-auto object-contain max-w-[32px]" />
               </div>
               <div className="text-left flex-grow">
-                <p className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-0.5">Portal de Informações</p>
-                <p className="text-[9px] font-medium text-slate-300">Atualizações do sistema</p>
+                <p className="text-[10px] font-bold text-indigo-900 uppercase tracking-widest mb-0.5">Portal de Informações</p>
+                <p className="text-[9px] font-medium text-slate-500">Penitenciária de Taiúva • Atualizações</p>
               </div>
             </button>
-        </div>
-
-        {/* Title */}
-        <div className="text-center space-y-2">
-          <div className="w-16 h-1 bg-indigo-500 mx-auto rounded-full mb-4"></div>
-          <h1 className="text-2xl font-black text-white leading-tight uppercase tracking-tight">GESTÃO DE DADOS P TAIUVA</h1>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">
-            Monitoramento • Gestão 1.Q
-          </p>
         </div>
         
         {/* Login Form */}
@@ -87,7 +95,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList, isLo
                   value={loginName} 
                   onChange={(e) => setLoginName(e.target.value.toUpperCase())} 
                   placeholder="NOME OU SETOR" 
-                  className="w-full h-14 px-6 bg-white/5 border border-white/10 placeholder-slate-500 text-white rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold transition-all text-sm"
+                  className="w-full h-14 px-6 bg-slate-50 border border-slate-200 placeholder-slate-400 text-slate-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold transition-all text-sm"
                 />
               <input 
                   type="password" 
@@ -96,14 +104,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList, isLo
                   value={loginCpf} 
                   onChange={(e) => setLoginCpf(e.target.value)}
                   placeholder="CHAVE DE ACESSO" 
-                  className="w-full h-14 px-6 bg-white/5 border border-white/10 placeholder-slate-500 text-white rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold transition-all text-sm"
+                  className="w-full h-14 px-6 bg-slate-50 border border-slate-200 placeholder-slate-400 text-slate-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold transition-all text-sm"
                 />
           </div>
 
           <button 
             type="submit" 
             disabled={isLoading || isSubmitting}
-            className={`w-full h-14 text-sm font-black rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-900/50 transition-all uppercase tracking-widest mt-4 flex items-center justify-center gap-2 ${(isLoading || isSubmitting) ? 'opacity-70 cursor-not-allowed' : ''}`}
+            className={`w-full h-14 text-sm font-black rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/30 transition-all uppercase tracking-widest mt-4 flex items-center justify-center gap-2 ${(isLoading || isSubmitting) ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
               {isSubmitting ? (
                 <>
@@ -127,8 +135,19 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList, isLo
           </button>
         </form>
 
-        <div className="text-center">
-            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
+        <div className="pt-1 space-y-2">
+          <a
+            href="/download-servidor-interno"
+            download="sistema_estoque_percapita_servidor_interno.zip"
+            className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 rounded-2xl flex items-center justify-center gap-2 transition text-xs font-bold shadow-sm group"
+          >
+            <Download className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" />
+            <span>Baixar Pacote do Servidor (.ZIP - 15 MB)</span>
+          </a>
+        </div>
+
+        <div className="text-center pt-2">
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
                 TAIÚVA/SP • 2026
             </p>
         </div>

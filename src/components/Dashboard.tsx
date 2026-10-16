@@ -13,7 +13,7 @@ import EditInvoiceItemsModal from './EditInvoiceItemsModal';
 import { speechService } from '../services/speechService';
 import { HelpCircle, Volume2, Calendar as CalendarIcon, FileText, Search, Download, Plus, Edit2 } from 'lucide-react';
 import { HOLIDAYS_2026 } from '../constants';
-import { getDatabase, ref, get } from 'firebase/database';
+import { getDatabase, ref, get } from '../lib/db';
 import { app } from '../firebaseConfig';
 import { toast } from 'sonner';
 import { PoliciaPenalLogo } from './PoliciaPenalLogo';
@@ -758,6 +758,9 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
       <header className={`shadow-md p-4 flex justify-between items-center sticky top-0 z-50 transition-all duration-500 ${isAbrilVerde ? 'bg-emerald-950 text-white' : 'bg-slate-200/90 border-b border-slate-300'}`}>
         <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl overflow-hidden border border-amber-400/80 shadow-sm bg-slate-900 shrink-0">
+            <img src="/icone-taiuva.png" alt="Penitenciária de Taiúva" className="w-full h-full object-cover" />
+          </div>
           <PoliciaPenalLogo className="h-10 w-auto object-contain shrink-0" />
           <div>
             <h1 className={`text-xl font-black uppercase tracking-tighter italic leading-none ${isAbrilVerde ? 'text-white' : headerColor}`}>Olá, {supplier.name.split(' ')[0]}!</h1>

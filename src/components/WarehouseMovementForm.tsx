@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, X, Package, Calendar, FileText, Barcode, Copy, Printer, Trash2 } from 'lucide-react';
 import type { Supplier, WarehouseMovement } from '../types';
 import { toast } from 'sonner';
-import { safeLocalStorageSetItem, generateStandardLabelStyles } from '../lib/utils';
+import { safeLocalStorageSetItem, generateStandardLabelStyles, generateSafeId } from '../lib/utils';
 
 interface WarehouseMovementFormProps {
     suppliers: Supplier[];
@@ -392,7 +392,7 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
             quantity: qtyVal,
             lot: manualLot || 'UNICO',
             exp: manualExp,
-            barcode: manualBarcode || crypto.randomUUID().substring(0, 10).toUpperCase(),
+            barcode: manualBarcode || generateSafeId('bc').substring(0, 10).toUpperCase(),
             inboundInvoice: manualInboundNf?.number,
             availableBefore: manualInboundNf?.availableQuantity || 0,
             pdNumber: manualPd,
