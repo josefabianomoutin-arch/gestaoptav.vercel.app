@@ -24,7 +24,6 @@ import AdminDirectorPerCapita from './AdminDirectorPerCapita';
 import AdminEPIControl from './AdminEPIControl';
 import AdminTaiuvaEnergyAccounting from './AdminTaiuvaEnergyAccounting';
 import { AdminServidorInternoModal } from './AdminServidorInternoModal';
-import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import { Server } from 'lucide-react';
 import { EnergyAccountingRecord } from '../types';
 
@@ -649,11 +648,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       <aside className="hidden md:flex w-72 flex-col shadow-2xl z-20 transition-all duration-500 bg-zinc-900 border-r border-zinc-800 text-white">
         <div className="p-8 border-b border-white/5">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-11 h-11 rounded-2xl overflow-hidden border border-amber-400/80 shadow-lg bg-slate-950 flex items-center justify-center shrink-0">
-              <img src="/icone-taiuva.png" alt="Penitenciária de Taiúva" className="w-full h-full object-cover" />
-            </div>
-            <div className="bg-white/10 p-1.5 rounded-2xl border border-white/10 shadow-lg flex items-center justify-center shrink-0">
-              <PoliciaPenalLogo className="h-9 w-auto object-contain max-w-[36px]" />
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600/30 border border-indigo-400/40 flex items-center justify-center text-indigo-400 shrink-0 font-black text-xs">
+              PT
             </div>
             <div>
               <h1 className="text-base font-black tracking-tight leading-none">P TAIÚVA</h1>
@@ -704,7 +700,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       {/* Mobile Header */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-16 text-white flex items-center justify-between px-6 z-[100] border-b border-white/5 bg-zinc-900">
         <div className="flex items-center gap-2.5">
-          <PoliciaPenalLogo className="h-8 w-auto object-contain shrink-0" />
+          <div className="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-400/40 flex items-center justify-center text-indigo-400 font-black text-[10px]">PT</div>
           <h1 className="text-sm font-black uppercase italic tracking-tighter">GESTAO 2026</h1>
         </div>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 rounded-lg bg-zinc-800">
@@ -742,10 +738,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
         {/* Top Header Bar Desktop */}
         <header className={`hidden md:flex h-20 border-b items-center justify-between px-10 sticky top-0 z-10 transition-all duration-500 ${isAbrilVerde ? 'bg-emerald-950 text-white border-emerald-900 shadow-sm' : 'bg-slate-200/90 border-slate-300'}`}>
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl overflow-hidden border border-amber-400/80 shadow-sm bg-slate-900 shrink-0">
-              <img src="/icone-taiuva.png" alt="Penitenciária de Taiúva" className="w-full h-full object-cover" />
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-black text-xs shrink-0">
+              PT
             </div>
-            <PoliciaPenalLogo className="h-9 w-auto object-contain shrink-0" />
             <h2 className={`text-lg font-black uppercase tracking-tighter italic transition-colors duration-500 ${isAbrilVerde ? 'text-white' : 'text-zinc-800'}`}>
               {visibleTabs.find(t => t.id === activeTab)?.name || 'Painel'}
             </h2>

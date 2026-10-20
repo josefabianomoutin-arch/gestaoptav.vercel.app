@@ -11,13 +11,11 @@ import SendInvoiceModal from './SendInvoiceModal';
 import ConfirmModal from './ConfirmModal';
 import EditInvoiceItemsModal from './EditInvoiceItemsModal';
 import { speechService } from '../services/speechService';
-import { HelpCircle, Volume2, Calendar as CalendarIcon, FileText, Search, Download, Plus, Edit2 } from 'lucide-react';
+import { HelpCircle, Volume2, Calendar as CalendarIcon, FileText, Search, Download, Plus, Edit2, Truck } from 'lucide-react';
 import { HOLIDAYS_2026 } from '../constants';
 import { getDatabase, ref, get } from '../lib/db';
 import { app } from '../firebaseConfig';
 import { toast } from 'sonner';
-import { PoliciaPenalLogo } from './PoliciaPenalLogo';
-import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 
 // Definindo uma data simulada para garantir que o painel mostre o mês de Maio corretamente
 const SIMULATED_TODAY = new Date('2026-05-07T00:00:00');
@@ -306,14 +304,17 @@ const Dashboard: React.FC<DashboardProps> = ({
         const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
         const formattedDate = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const weekday = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' });
+        const matchDeliveries = bookedDeliveries.filter(d => d.date === dateStr);
+        const deliveryCode = matchDeliveries.find(d => d.code || d.protocol || d.schedulingCode)?.code || matchDeliveries.find(d => d.code || d.protocol || d.schedulingCode)?.protocol || `AGD-${dateStr.replace(/-/g, '')}-${supplier.cpf.slice(-4)}`;
         const codeValue = `CHECKIN_DELIVERY:${supplier.cpf}:${dateStr}`;
         return `
             <div class="qrcode-item">
                 <div class="qrcode-date">${formattedDate}</div>
                 <div class="qrcode-weekday">${weekday}</div>
+                <div style="font-size:11px; font-weight:bold; color:#1e1b4b; margin:4px 0; font-family:monospace; background:#e0e7ff; padding:2px 6px; border-radius:6px;">CÓD: ${deliveryCode}</div>
                 <div class="qrcode-container" data-code="${codeValue}"></div>
                 <div class="barcode-container">
-                    <svg class="barcode-svg" data-code="${codeValue}"></svg>
+                    <svg class="barcode-svg" data-code="${deliveryCode}"></svg>
                 </div>
             </div>
         `;
@@ -321,7 +322,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const qrcodeSectionHtml = uniqueBookedDates.length > 0 ? `
         <div class="qrcode-section">
-            <div class="qrcode-title">CÓDIGOS QR PARA CONFERÊNCIA DE ENTRADA / SAÍDA (PORTARIA)</div>
+            <div class="qrcode-title">CÓDIGOS E QR CODES DE ENTRADA / SAÍDA (PORTARIA)</div>
             <div class="qrcode-grid">
                 ${qrCodesHtml}
             </div>
@@ -749,29 +750,22 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <div className={`min-h-screen text-gray-800 pb-20 transition-colors duration-500 relative overflow-hidden ${isAbrilVerde ? 'bg-[#f0fdf4]' : 'bg-slate-100'}`}>
-      {isAbrilVerde && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none flex flex-col items-center justify-center opacity-[0.015] select-none">
-          <h1 className="text-[20vw] font-black text-emerald-900 rotate-[-12deg] whitespace-nowrap">ABRIL VERDE</h1>
-          <h1 className="text-[15vw] font-black text-emerald-950 rotate-[-12deg] whitespace-nowrap mt-[-5vw]">SEGURANÇA</h1>
-        </div>
-      )}
-      <header className={`shadow-md p-4 flex justify-between items-center sticky top-0 z-50 transition-all duration-500 ${isAbrilVerde ? 'bg-emerald-950 text-white' : 'bg-slate-200/90 border-b border-slate-300'}`}>
+    <div className="min-h-screen text-gray-800 pb-20 relative overflow-hidden bg-white">
+      <header className="shadow-sm p-4 flex justify-between items-center sticky top-0 z-50 bg-white border-b border-slate-200">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl overflow-hidden border border-amber-400/80 shadow-sm bg-slate-900 shrink-0">
-            <img src="/icone-taiuva.png" alt="Penitenciária de Taiúva" className="w-full h-full object-cover" />
+          <div className="w-10 h-10 rounded-xl border border-indigo-100 shadow-sm bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+            <Truck className="w-5 h-5" />
           </div>
-          <PoliciaPenalLogo className="h-10 w-auto object-contain shrink-0" />
           <div>
-            <h1 className={`text-xl font-black uppercase tracking-tighter italic leading-none ${isAbrilVerde ? 'text-white' : headerColor}`}>Olá, {supplier.name.split(' ')[0]}!</h1>
-            <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${isAbrilVerde ? 'text-emerald-400' : 'text-gray-400'}`}>
-              {isAbrilVerde ? 'Campanha Abril Verde 💚' : panelTitle}
+            <h1 className={`text-xl font-black uppercase tracking-tighter italic leading-none ${headerColor}`}>Olá, {supplier.name.split(' ')[0]}!</h1>
+            <p className="text-[10px] font-bold uppercase tracking-widest mt-1 text-slate-400">
+              {panelTitle}
             </p>
           </div>
           <button 
             onClick={handlePlayGeneralHelp}
             disabled={isSpeaking}
-            className={`p-2 rounded-full transition-all ${isSpeaking ? (isAbrilVerde ? 'bg-emerald-800 text-white animate-pulse' : 'bg-indigo-200 text-indigo-800 animate-pulse') : (isAbrilVerde ? 'bg-emerald-900 text-emerald-400 hover:bg-emerald-800' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100')}`}
+            className={`p-2 rounded-full transition-all ${isSpeaking ? 'bg-indigo-200 text-indigo-800 animate-pulse' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
             title="Ajuda por Voz"
           >
             {isSpeaking ? <Volume2 className="h-5 w-5 animate-pulse" /> : <HelpCircle className="h-5 w-5" />}
@@ -922,6 +916,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                               <thead>
                                   <tr className="border-b-2 border-gray-100">
                                       <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Data</th>
+                                      <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Protocolo / Código</th>
                                       <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Número NF</th>
                                       <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Itens</th>
                                       <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Arquivo</th>
@@ -941,6 +936,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                                                       return invoice.date;
                                                   }
                                               })()}
+                                          </td>
+                                          <td className="p-4 font-mono font-bold text-xs">
+                                              <span className="bg-indigo-50 text-indigo-800 px-2.5 py-1 rounded-lg border border-indigo-200">
+                                                {invoice.protocol || invoice.invoiceCode || invoice.items?.find((it: any) => it.invoiceCode || it.protocol)?.invoiceCode || `NF-${invoice.invoiceNumber}`}
+                                              </span>
                                           </td>
                                           <td className={`p-4 font-black font-mono ${invoice.isPending ? 'text-rose-500' : 'text-indigo-600'}`}>
                                               {invoice.invoiceNumber}

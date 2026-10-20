@@ -31,6 +31,11 @@ export interface Delivery {
     exitTime?: string;
     lots?: LotInfo[];
     observations?: string;
+    code?: string;
+    protocol?: string;
+    schedulingCode?: string;
+    invoiceCode?: string;
+    invoiceProtocol?: string;
 }
 
 export interface ContractItem {

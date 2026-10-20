@@ -17,7 +17,6 @@ import { SegregationTabContent } from './SegregationTabContent';
 import { DirectorPerCapitaTable } from './DirectorPerCapitaTable';
 import { getWeekNumber } from '../lib/supplierUtils';
 import { ensureArray, generateStandardLabelStyles, generateSafeId } from '../lib/utils';
-import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import { POLICIA_PENAL_BADGE_B64 } from './policiaPenalData';
 import { AdminServidorInternoModal } from './AdminServidorInternoModal';
 import { DesktopAppButton } from './DesktopAppButton';
@@ -3430,10 +3429,9 @@ const AlmoxarifadoDashboard: React.FC<AlmoxarifadoDashboardProps> = ({
                 <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2.5 md:gap-4 max-w-7xl mx-auto">
                     <div className="flex justify-between items-center w-full md:w-auto">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl overflow-hidden border border-amber-400/80 shadow-sm bg-slate-900 shrink-0">
-                                <img src="/icone-taiuva.png" alt="Penitenciária de Taiúva" className="w-full h-full object-cover" />
+                            <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-black text-xs shrink-0">
+                                EST
                             </div>
-                            <PoliciaPenalLogo className="h-10 w-auto object-contain shrink-0" />
                             <div>
                                 <h1 className="text-base md:text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Módulo de Estoque</h1>
                                 <p className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Penitenciária de Taiúva • 2026</p>

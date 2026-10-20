@@ -174,6 +174,19 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({
                             <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Dados do Agendamento</span>
                             <span className="text-[8px] font-mono text-gray-400">CPF: {supplierCpf}</span>
                           </div>
+
+                          {/* Código Oficial de Agendamento */}
+                          <div className="p-2.5 bg-indigo-50/80 rounded-xl border border-indigo-100 flex items-center justify-between">
+                            <div>
+                              <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest block">Código do Agendamento</span>
+                              <span className="text-xs font-black font-mono text-indigo-900">
+                                {deliveries[0]?.code || deliveries[0]?.protocol || deliveries[0]?.schedulingCode || `AGD-${dateString.replace(/-/g, '')}-${(supplierCpf || '').slice(-4)}`}
+                              </span>
+                            </div>
+                            <span className="text-[9px] font-bold text-indigo-600 bg-white px-2 py-0.5 rounded-md border border-indigo-200 uppercase">
+                              Protocolo Oficial
+                            </span>
+                          </div>
                           
                           <div>
                             <span className="text-[8px] font-bold text-gray-400 block uppercase">Fornecedor</span>
@@ -216,6 +229,11 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({
                                         <div>
                                             <p className="font-black text-blue-900 text-sm uppercase">Agendado p/ {delivery.time}</p>
                                             <p className="text-[10px] text-blue-600 font-bold uppercase mt-1">{!hasInvoice ? 'Aguardando Lançamento NF' : 'Faturado'}</p>
+                                            <div className="mt-1 flex items-center gap-2">
+                                              <span className="text-[9px] font-mono font-bold bg-white/90 text-indigo-800 px-2 py-0.5 rounded border border-blue-200">
+                                                Cód: {delivery.code || delivery.protocol || delivery.schedulingCode || `AGD-${dateString.replace(/-/g, '')}-${(supplierCpf || '').slice(-4)}`}
+                                              </span>
+                                            </div>
                                             {delivery.observations && (
                                                 <p className="text-[10px] text-slate-700 bg-white/70 p-2 rounded-lg mt-2 font-medium italic border border-blue-50 max-w-sm">
                                                     Obs: {delivery.observations}
@@ -252,6 +270,18 @@ const ViewDeliveryModal: React.FC<ViewDeliveryModalProps> = ({
                                     <div>
                                         <p className="font-black text-gray-800 uppercase text-xs">{delivery.item || delivery.itemName || ''}</p>
                                         <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">{(delivery.kg || 0).toFixed(2).replace('.', ',')} Kg</p>
+                                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                          {(delivery.code || delivery.schedulingCode) && (
+                                            <span className="text-[8px] font-mono font-bold bg-white text-indigo-700 px-1.5 py-0.5 rounded border border-gray-200">
+                                              Agendamento: {delivery.code || delivery.schedulingCode}
+                                            </span>
+                                          )}
+                                          {(delivery.invoiceCode || delivery.invoiceProtocol || delivery.protocol) && (
+                                            <span className="text-[8px] font-mono font-bold bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
+                                              Protocolo NF: {delivery.invoiceCode || delivery.invoiceProtocol || delivery.protocol}
+                                            </span>
+                                          )}
+                                        </div>
                                     </div>
                                     <span className="font-black text-green-700 whitespace-nowrap pl-4">{formatCurrency(delivery.value || 0)}</span>
                                 </div>

@@ -130,6 +130,8 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
     }
     setLoading(true);
     try {
+      const randId = Math.floor(100 + Math.random() * 900);
+      const generatedProtocol = `NF-${String(invoiceNumber).replace(/\D/g, '') || '0'}-${Date.now().toString().slice(-4)}-${randId}`;
       const cleanedDeliveries = deliveries.map(d => {
         const matched = normalizedContractItems.find(ci => String(ci.id) === String(d.itemId) || ci.name === d.itemName || ci.name === d.item);
         const finalName = matched?.name || d.itemName || d.item || '';
@@ -140,7 +142,10 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ invoiceInfo, contra
           itemId: matched?.id || d.itemId || finalName,
           invoiceNumber,
           invoiceUrl,
-          invoiceDate
+          invoiceDate,
+          invoiceCode: generatedProtocol,
+          invoiceProtocol: generatedProtocol,
+          protocol: generatedProtocol
         };
       });
       await onSave(invoiceNumber, invoiceUrl, cleanedDeliveries, invoiceDate);

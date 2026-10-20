@@ -4,9 +4,7 @@ import { toast } from 'sonner';
 import { Download } from 'lucide-react';
 import PublicInfoPortal from './PublicInfoPortal';
 import InfobarTicker from './InfobarTicker';
-import { PoliciaPenalLogo } from './PoliciaPenalLogo';
 import { PublicInfo } from '../types';
-import { DesktopAppButton } from './DesktopAppButton';
 
 interface LoginScreenProps {
   onLogin: (name: string, cpf: string) => boolean | string | Promise<boolean | string>;
@@ -43,7 +41,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList, isLo
   const displayInfo = useMemo(() => publicInfoList.filter(info => !info.isConfidential), [publicInfoList]);
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden bg-slate-50 selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen flex flex-col relative overflow-hidden bg-white selection:bg-indigo-500 selection:text-white">
       {/* Infobar Ticker - Top */}
       <div className="relative z-10">
         <InfobarTicker 
@@ -56,8 +54,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList, isLo
       <div className="flex-grow flex items-center justify-center p-4 relative z-10">
         <div className="w-full max-w-md p-8 pt-8 space-y-6 bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 relative overflow-hidden">
         
+        {/* Environment Badge */}
+        <div className="flex justify-center">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-black uppercase tracking-wider">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            Portal Online • Produtores & Fornecedores
+          </span>
+        </div>
+
         {/* Title */}
-        <div className="text-center space-y-1 pt-2">
+        <div className="text-center space-y-1">
           <h1 className="text-2xl font-black text-slate-900 leading-tight uppercase tracking-tight">
             PENITENCIÁRIA DE TAIÚVA
           </h1>
@@ -65,22 +71,24 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList, isLo
             GESTÃO DE DADOS & ESTOQUE
           </p>
           <p className="text-[9px] text-slate-400 uppercase tracking-widest">
-            Monitoramento • Almoxarifado • Per Capita
+            Agendamentos • Envio de Notas • Per Capita
           </p>
         </div>
 
-        {/* Portal Button with Policia Penal Logo */}
+        {/* Portal Button */}
         <div className="relative">
             <button 
               onClick={() => setIsPortalOpen(true)}
               className="w-full bg-slate-50 border border-slate-200 hover:border-indigo-400/60 p-3 rounded-2xl flex items-center gap-3.5 transition-all group"
             >
-              <div className="bg-indigo-50 p-1.5 rounded-2xl border border-indigo-100 shadow-sm flex items-center justify-center flex-shrink-0">
-                <PoliciaPenalLogo className="h-8 w-auto object-contain max-w-[32px]" />
+              <div className="bg-indigo-50 p-2 rounded-2xl border border-indigo-100 shadow-sm flex items-center justify-center flex-shrink-0 text-indigo-600">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
               <div className="text-left flex-grow">
                 <p className="text-[10px] font-bold text-indigo-900 uppercase tracking-widest mb-0.5">Portal de Informações</p>
-                <p className="text-[9px] font-medium text-slate-500">Penitenciária de Taiúva • Atualizações</p>
+                <p className="text-[9px] font-medium text-slate-500">Penitenciária de Taiúva • Editais e Comunicados</p>
               </div>
             </button>
         </div>
