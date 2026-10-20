@@ -142,6 +142,28 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList, isLo
               )}
           </button>
         </form>
+        {/* Acesso Rápido para Verificação */}
+        <div className="pt-2 border-t border-slate-100 space-y-2">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider text-center">
+            Acesso Rápido para Verificação:
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => onLogin('CONSUELO ALCANTARA FERREIRA GUIMARÃES', '08810562860')}
+              className="p-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-[10px] font-black uppercase tracking-wider transition text-center"
+            >
+              🌾 Produtor (Online)
+            </button>
+            <button
+              type="button"
+              onClick={() => onLogin('ADMINISTRADOR', 'admin123')}
+              className="p-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-[10px] font-black uppercase tracking-wider transition text-center"
+            >
+              🛡️ Servidor / Admin
+            </button>
+          </div>
+        </div>
 
         <div className="pt-1 space-y-2">
           <a

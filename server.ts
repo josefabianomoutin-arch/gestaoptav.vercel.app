@@ -25,12 +25,21 @@ async function startServer() {
 
   // Banco de dados em memória para performance, sincronizado com o arquivo
   let database: any = {};
+  const fallbackDbPath = path.join(publicDir, 'banco_de_dados_atual.json');
   if (fs.existsSync(dbPath)) {
     try {
       database = JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
       console.log(`Banco de dados carregado: ${dbPath} (${(fs.statSync(dbPath).size / (1024 * 1024)).toFixed(2)} MB)`);
     } catch (e) {
       console.error("Erro ao carregar banco de dados, iniciando novo:", e);
+    }
+  } else if (fs.existsSync(fallbackDbPath)) {
+    try {
+      database = JSON.parse(fs.readFileSync(fallbackDbPath, 'utf-8'));
+      fs.writeFileSync(dbPath, JSON.stringify(database, null, 2));
+      console.log(`Banco de dados restaurado de ${fallbackDbPath}`);
+    } catch (e) {
+      console.error("Erro ao restaurar banco de dados fallback:", e);
     }
   }
 
