@@ -3917,9 +3917,10 @@ const App: React.FC = () => {
       }
 
       const isSupplierRole = user.role === 'supplier' || user.role === 'producer' || user.role === 'pereciveis_supplier' || user.role === 'estocaveis_supplier';
+      const isOnlineAllowedRole = isSupplierRole || user.role === 'almoxarifado' || user.role === 'financeiro';
       const isClosedServerUnlocked = typeof window !== 'undefined' && localStorage.getItem('servidor_fechado_ativo') === 'true';
 
-      if (!isSupplierRole && !isClosedServerUnlocked) {
+      if (!isOnlineAllowedRole && !isClosedServerUnlocked) {
         return (
           <div className="min-h-screen flex items-center justify-center bg-white p-4">
             <div className="bg-white p-8 md:p-10 rounded-3xl shadow-xl border border-slate-200 text-center max-w-lg space-y-6">
@@ -3937,10 +3938,10 @@ const App: React.FC = () => {
                   Função Desabilitada na Versão Online
                 </h2>
                 <p className="text-slate-500 text-xs font-medium leading-relaxed">
-                  Por diretriz de segurança institucional, as funções administrativas, de almoxarifado, controle financeiro e ordens de saída funcionam <strong>exclusivamente na versão de Servidor Fechado (On-Premise / Intranet Local sem internet)</strong>.
+                  Por diretriz de segurança institucional, as funções administrativas, de infraestrutura e ordens de saída funcionam <strong>exclusivamente na versão de Servidor Fechado (On-Premise / Intranet Local sem internet)</strong>.
                 </p>
                 <p className="text-slate-600 text-xs font-bold leading-relaxed pt-2">
-                  Na versão online da Penitenciária de Taiúva, está habilitada apenas a função de <strong>Agendamento e Envio de Notas Fiscais para Produtores e Fornecedores</strong>.
+                  Na versão online da Penitenciária de Taiúva, estão habilitadas as abas de <strong>Agendamento (Produtores/Fornecedores), Almoxarifado e Entrada/Controle de Notas Fiscais</strong>.
                 </p>
               </div>
 
