@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
 import { toast } from 'sonner';
-import { Download } from 'lucide-react';
 import PublicInfoPortal from './PublicInfoPortal';
 import InfobarTicker from './InfobarTicker';
 import { PublicInfo } from '../types';
@@ -142,40 +141,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, publicInfoList, isLo
               )}
           </button>
         </form>
-        {/* Acesso Rápido para Verificação */}
-        <div className="pt-2 border-t border-slate-100 space-y-2">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider text-center">
-            Acesso Rápido para Verificação:
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => onLogin('CONSUELO ALCANTARA FERREIRA GUIMARÃES', '08810562860')}
-              className="p-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-[10px] font-black uppercase tracking-wider transition text-center"
-            >
-              🌾 Produtor (Online)
-            </button>
-            <button
-              type="button"
-              onClick={() => onLogin('ADMINISTRADOR', 'admin123')}
-              className="p-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-[10px] font-black uppercase tracking-wider transition text-center"
-            >
-              🛡️ Servidor / Admin
-            </button>
-          </div>
-        </div>
-
-        <div className="pt-1 space-y-2">
-          <a
-            href="/download-servidor-interno"
-            download="sistema_estoque_percapita_servidor_interno.zip"
-            className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 rounded-2xl flex items-center justify-center gap-2 transition text-xs font-bold shadow-sm group"
-          >
-            <Download className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" />
-            <span>Baixar Pacote do Servidor (.ZIP - 15 MB)</span>
-          </a>
-        </div>
-
         <div className="text-center pt-2">
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
                 TAIÚVA/SP • 2026
