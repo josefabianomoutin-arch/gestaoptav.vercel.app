@@ -85,6 +85,54 @@ const Dashboard: React.FC<DashboardProps> = ({
       onConfirm: () => {},
   });
 
+  const [invoiceBlockModal, setInvoiceBlockModal] = useState<{
+      isOpen: boolean;
+      targetMonthName: string;
+      pendingMonthsText: string;
+      pendingCount: number;
+  }>({
+      isOpen: false,
+      targetMonthName: '',
+      pendingMonthsText: '',
+      pendingCount: 0,
+  });
+
+  // Função para verificar se há entregas no mês anterior (de Outubro/2026 em diante) sem nota fiscal
+  const getMissingPreviousMonthDeliveries = (targetDate: Date, allDeliveries: Delivery[]): Delivery[] => {
+    const targetYear = targetDate.getFullYear();
+    const targetMonth = targetDate.getMonth(); // 0 = Jan ... 9 = Out, 10 = Nov, 11 = Dez
+    
+    // Regra aplicada somente de Outubro/2026 para frente
+    if (targetYear < 2026 || (targetYear === 2026 && targetMonth < 9)) {
+      return [];
+    }
+
+    const targetMonthKey = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}`;
+
+    // Busca entregas de meses anteriores (a partir de Outubro/2026 e estritamente anteriores ao mês do agendamento)
+    // que não possuem nota fiscal inserida no sistema
+    const missing = ensureArray<Delivery>(allDeliveries).filter(d => {
+      if (!d || !d.date) return false;
+      const dMonthKey = String(d.date).slice(0, 7); // 'YYYY-MM'
+
+      // Avalia apenas entregas a partir de Outubro/2026
+      if (dMonthKey < '2026-10') return false;
+
+      // Deve pertencer a um mês anterior ao mês do agendamento
+      if (dMonthKey >= targetMonthKey) return false;
+
+      // Verifica se a nota fiscal foi inserida
+      const num = d.invoiceNumber ? String(d.invoiceNumber).trim() : '';
+      const url = d.invoiceUrl ? String(d.invoiceUrl).trim() : '';
+      const uploaded = Boolean(d.invoiceUploaded);
+      const hasInvoice = (num !== '' && num.toUpperCase() !== 'PENDENTE') || url !== '' || uploaded;
+
+      return !hasInvoice;
+    });
+
+    return missing;
+  };
+
   const panelTitle = type === 'PRODUTOR' ? 'Painel do Produtor 2026' : 'Painel do Fornecedor 2026';
   const headerColor = type === 'PRODUTOR' ? 'text-green-800' : 'text-indigo-800';
   const bannerColor = type === 'PRODUTOR' ? 'bg-indigo-600 border-indigo-800' : 'bg-emerald-600 border-emerald-800';
@@ -126,6 +174,33 @@ const Dashboard: React.FC<DashboardProps> = ({
         return;
     }
 
+    // Se não há entregas na data, o usuário está tentando abrir um NOVO agendamento:
+    // Bloqueia caso haja entregas no mês anterior (de Outubro/2026 em diante) sem nota fiscal
+    if (deliveriesOnDate.length === 0) {
+      const missingPrevMonthDeliveries = getMissingPreviousMonthDeliveries(date, supplier.deliveries);
+      if (missingPrevMonthDeliveries.length > 0) {
+        const distinctMonths = Array.from(new Set(missingPrevMonthDeliveries.map(d => String(d.date).slice(0, 7))))
+          .map(ym => {
+            const [y, m] = ym.split('-');
+            const d = new Date(parseInt(y), parseInt(m) - 1, 1);
+            return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+          })
+          .join(', ');
+
+        const targetMonthName = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+        setInvoiceBlockModal({
+          isOpen: true,
+          targetMonthName,
+          pendingMonthsText: distinctMonths,
+          pendingCount: missingPrevMonthDeliveries.length
+        });
+
+        toast.error(`Agendamento bloqueado: Consta pendência de envio de Nota Fiscal referente a ${distinctMonths}. Todas as notas de Outubro/2026 em diante devem estar inseridas no sistema.`);
+        return;
+      }
+    }
+
     setSelectedDate(date);
     if (deliveriesOnDate.length > 0) {
       setDeliveriesToShow(deliveriesOnDate);
@@ -137,10 +212,44 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleCloseModal = () => { setIsModalOpen(false); setSelectedDate(null); };
   const handleCloseViewModal = () => { setIsViewModalOpen(false); setDeliveriesToShow([]); setSelectedDate(null); };
-  const handleAddNewFromView = () => { setIsViewModalOpen(false); setDeliveriesToShow([]); setIsModalOpen(true); };
+  const handleAddNewFromView = () => { 
+    if (selectedDate) {
+      const missingPrevMonthDeliveries = getMissingPreviousMonthDeliveries(selectedDate, supplier.deliveries);
+      if (missingPrevMonthDeliveries.length > 0) {
+        setIsViewModalOpen(false);
+        setDeliveriesToShow([]);
+        const distinctMonths = Array.from(new Set(missingPrevMonthDeliveries.map(d => String(d.date).slice(0, 7))))
+          .map(ym => {
+            const [y, m] = ym.split('-');
+            const d = new Date(parseInt(y), parseInt(m) - 1, 1);
+            return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+          })
+          .join(', ');
+        const targetMonthName = selectedDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+        setInvoiceBlockModal({
+          isOpen: true,
+          targetMonthName,
+          pendingMonthsText: distinctMonths,
+          pendingCount: missingPrevMonthDeliveries.length
+        });
+        toast.error(`Agendamento bloqueado: Consta pendência de envio de Nota Fiscal referente a ${distinctMonths}.`);
+        return;
+      }
+    }
+    setIsViewModalOpen(false); 
+    setDeliveriesToShow([]); 
+    setIsModalOpen(true); 
+  };
 
   const handleScheduleSave = (time: string, observations?: string) => {
     if (selectedDate) {
+      const missingPrevMonthDeliveries = getMissingPreviousMonthDeliveries(selectedDate, supplier.deliveries);
+      if (missingPrevMonthDeliveries.length > 0) {
+        toast.error('Agendamento bloqueado: Consta pendência de envio de Nota Fiscal no mês anterior (de Outubro/2026 em diante).');
+        handleCloseModal();
+        return;
+      }
       const dateString = getLocalDateString(selectedDate);
       onScheduleDelivery(supplier.cpf, dateString, time, observations);
     }
@@ -735,6 +844,27 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   }
 
+  const hasOctForwardMissingInvoices = useMemo(() => {
+    const list = ensureArray<Delivery>(supplier.deliveries);
+    return list.some(d => {
+      if (!d || !d.date) return false;
+      const ym = String(d.date).slice(0, 7);
+      if (ym < '2026-10') return false;
+      const today = new Date();
+      const currentYM = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      if (ym >= currentYM) return false;
+      const num = d.invoiceNumber ? String(d.invoiceNumber).trim() : '';
+      const url = d.invoiceUrl ? String(d.invoiceUrl).trim() : '';
+      const uploaded = Boolean(d.invoiceUploaded);
+      const hasInv = (num !== '' && num.toUpperCase() !== 'PENDENTE') || url !== '' || uploaded;
+      return !hasInv;
+    });
+  }, [supplier.deliveries]);
+
+  if (hasOctForwardMissingInvoices) {
+    alertMessages.push("⚠️ AGENDAMENTOS BLOQUEADOS: CONSTA PENDÊNCIA NO ENVIO DE NOTA FISCAL DO MÊS ANTERIOR (DE OUTUBRO EM DIANTE). ENVIE AS NOTAS PARA LIBERAR");
+  }
+
   if (hasPendingSchedulingInCurrentMonth) {
     alertMessages.push("⚠️ ATENÇÃO SEMANA DE ENTREGA REALIZAR O AGENDAMENTO");
   }
@@ -857,6 +987,32 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                 </div>
             </div>
+
+            {/* Banner Informativo de Bloqueio se houver pendência de Outubro em diante */}
+            {hasOctForwardMissingInvoices && (
+              <div className="bg-rose-50 border-2 border-rose-300 p-4 rounded-3xl shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-rose-950 uppercase tracking-tight">
+                      Atenção: Agendamentos Bloqueados no Mês Posterior
+                    </h3>
+                    <p className="text-[11px] font-bold text-rose-700 leading-snug mt-0.5">
+                      Consta pendência de envio de Nota Fiscal de entregas do mês anterior (de Outubro/2026 em diante). Conforme as diretrizes, todas as notas fiscais de entregas já realizadas devem ser inseridas no sistema para liberar novos agendamentos.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveTab('invoices')}
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] uppercase tracking-widest px-5 py-3 rounded-2xl shadow-lg shadow-rose-600/20 transition-all shrink-0 active:scale-95 flex items-center gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  Enviar Notas Pendentes
+                </button>
+              </div>
+            )}
 
             {/* Legenda do Calendário Otimizada */}
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap justify-center gap-6 text-[10px] font-black uppercase tracking-widest text-gray-500">
@@ -1093,6 +1249,20 @@ const Dashboard: React.FC<DashboardProps> = ({
           onConfirm={confirmConfig.onConfirm}
           onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
           variant={confirmConfig.variant}
+      />
+
+      <ConfirmModal 
+          isOpen={invoiceBlockModal.isOpen}
+          title="Agendamento Bloqueado"
+          message={`Não é possível abrir o agendamento para ${invoiceBlockModal.targetMonthName}. Constatamos ${invoiceBlockModal.pendingCount} entrega(s) no mês anterior (${invoiceBlockModal.pendingMonthsText}) com pendência no envio da Nota Fiscal. Conforme determinação da Penitenciária de Taiúva (a partir de Outubro/2026), todas as notas fiscais de entregas já realizadas devem ser inseridas no sistema antes da abertura de novos agendamentos.`}
+          confirmText="Ir para Envio de Notas Fiscais"
+          cancelText="Entendido"
+          onConfirm={() => {
+            setInvoiceBlockModal(prev => ({ ...prev, isOpen: false }));
+            setActiveTab('invoices');
+          }}
+          onCancel={() => setInvoiceBlockModal(prev => ({ ...prev, isOpen: false }))}
+          variant="danger"
       />
     </div>
   );

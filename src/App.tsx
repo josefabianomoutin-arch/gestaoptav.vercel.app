@@ -1780,6 +1780,26 @@ const App: React.FC = () => {
           toast.error(`Agendamento bloqueado: Já existe uma entrega agendada para este fornecedor em ${date} às ${time}.`);
           return;
         }
+
+        // 4. Check if there are pending invoices in previous months (from October/2026 onwards)
+        const targetMonthKey = `${dateParts[0]}-${dateParts[1]}`;
+        if (targetMonthKey >= '2026-10') {
+          const hasMissingPreviousMonthInvoice = existingDeliveries.some((d: any) => {
+            if (!d || !d.date) return false;
+            const dMonth = String(d.date).slice(0, 7);
+            if (dMonth < '2026-10' || dMonth >= targetMonthKey) return false;
+            const num = d.invoiceNumber ? String(d.invoiceNumber).trim() : '';
+            const url = d.invoiceUrl ? String(d.invoiceUrl).trim() : '';
+            const uploaded = Boolean(d.invoiceUploaded);
+            const hasInv = (num !== '' && num.toUpperCase() !== 'PENDENTE') || url !== '' || uploaded;
+            return !hasInv;
+          });
+
+          if (hasMissingPreviousMonthInvoice) {
+            toast.error('Agendamento bloqueado: Consta pendência de envio da Nota Fiscal no mês anterior (a partir de Outubro/2026). Todas as notas devem ser inseridas no sistema.');
+            return;
+          }
+        }
       }
 
       let scheduleSuccess = false;
