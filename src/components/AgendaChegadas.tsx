@@ -1070,18 +1070,36 @@ const AgendaChegadas: React.FC<AgendaChegadasProps> = ({
     };
 
     const currentSupplierItems = useMemo<ContractItem[]>(() => {
-        if (!invoiceInfo) return [];
-        const mainSup = ensureArray(suppliers).find(s => s.cpf === invoiceInfo.supplierCpf);
-        if (mainSup) return ensureArray(mainSup.contractItems);
+        if (!invoiceInfo || !invoiceInfo.supplierCpf) return [];
+        const cleanDigits = (s: any) => String(s || '').replace(/\D/g, '');
+        const targetDigits = cleanDigits(invoiceInfo.supplierCpf);
+        const targetClean = String(invoiceInfo.supplierCpf || '').trim().toUpperCase();
+
+        const matchCpf = (c: any) => {
+            if (!c) return false;
+            const cd = cleanDigits(c);
+            if (cd && targetDigits && (cd === targetDigits || cd.replace(/^0+/, '') === targetDigits.replace(/^0+/, ''))) return true;
+            return String(c).trim().toUpperCase() === targetClean;
+        };
+
+        const mainSup = ensureArray(suppliers).find(s => matchCpf(s.cpf) || matchCpf((s as any).cnpj) || matchCpf(s.id) || (s.name && s.name.trim().toUpperCase() === targetClean));
+        if (mainSup && ensureArray(mainSup.contractItems).length > 0) return ensureArray(mainSup.contractItems);
         
         if (perCapitaConfig) {
-            const allPC = [
-                ...ensureArray(perCapitaConfig.ppaisProducers),
-                ...ensureArray(perCapitaConfig.pereciveisSuppliers),
-                ...ensureArray(perCapitaConfig.estocaveisSuppliers)
+            const pcLists = [
+                'ppaisProducers',
+                'pereciveisSuppliers', 'pereciveisSuppliers1Q', 'pereciveisSuppliers2Q', 'pereciveisSuppliers3Q',
+                'pereciveisSuppliers2027_1Q', 'pereciveisSuppliers2027_2Q', 'pereciveisSuppliers2027_3Q',
+                'estocaveisSuppliers', 'estocaveisSuppliers1Q', 'estocaveisSuppliers2Q', 'estocaveisSuppliers3Q',
+                'estocaveisSuppliers2027_1Q', 'estocaveisSuppliers2027_2Q', 'estocaveisSuppliers2027_3Q'
             ];
-            const pcSup = allPC.find((p: any) => (p.cpfCnpj || p.cpf) === invoiceInfo.supplierCpf);
-            if (pcSup) return ensureArray((pcSup as any).contractItems);
+            for (const listKey of pcLists) {
+                const list = ensureArray(perCapitaConfig[listKey]);
+                const found = list.find((p: any) => p && (matchCpf(p.cpfCnpj) || matchCpf(p.cpf) || matchCpf(p.id) || (p.name && p.name.trim().toUpperCase() === targetClean)));
+                if (found && ensureArray((found as any).contractItems).length > 0) {
+                    return ensureArray((found as any).contractItems);
+                }
+            }
         }
         return [];
     }, [invoiceInfo, suppliers, perCapitaConfig]);

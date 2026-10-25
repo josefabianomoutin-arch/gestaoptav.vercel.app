@@ -80,7 +80,8 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
   });
   
   const [newItem, setNewItem] = useState({ name: '', kg: 0, value: 0, lotNumber: '', expirationDate: '', barcode: '' });
-    const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
+  const [isCustomItem, setIsCustomItem] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
     const [originalInvoiceNumber, setOriginalInvoiceNumber] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -580,8 +581,27 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                 />
                 <Search className="h-3 w-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300" />
             </div>
-            {/* Manual entry button removed per request */}
-
+            
+            <button
+                onClick={() => {
+                  setManualEntryData({ 
+                    supplierCpf: '', 
+                    date: new Date().toISOString().split('T')[0], 
+                    invoiceNumber: '', 
+                    pd: '', 
+                    ne: '',
+                    type: mode === 'warehouse_exit' ? 'saída' : 'entrada',
+                    items: []
+                  });
+                  setNewItem({ name: '', kg: 0, value: 0, lotNumber: '', expirationDate: '', barcode: '' });
+                  setIsCustomItem(false);
+                  setIsManualModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-md active:scale-95 shrink-0"
+            >
+                <Plus className="h-3.5 w-3.5" />
+                <span>{mode === 'warehouse_exit' ? 'Nova Saída' : 'Incluir Nota Fiscal'}</span>
+            </button>
           </div>
         </div>
 
@@ -1002,16 +1022,34 @@ const AdminInvoices: React.FC<AdminInvoicesProps> = ({
                         <div className="bg-slate-50 p-4 rounded-2xl border border-gray-100 space-y-3">
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1">
-                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Item (Contrato)</label>
-                                    <select 
-                                        value={newItem.name} 
-                                        onChange={e => updateNewItemValue(e.target.value, newItem.kg)}
-                                        disabled={!manualEntryData.supplierCpf}
-                                        className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px] uppercase"
-                                    >
-                                        <option value="">Selecione...</option>
-                                        {availableItems.map(it => <option key={it} value={it}>{it}</option>)}
-                                    </select>
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-0.5">Item / Produto</label>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setIsCustomItem(!isCustomItem)} 
+                                            className="text-[7.5px] font-black text-indigo-600 hover:underline uppercase"
+                                        >
+                                            {isCustomItem ? 'Lista de Contrato' : 'Digitar Nome'}
+                                        </button>
+                                    </div>
+                                    {isCustomItem || availableItems.length === 0 ? (
+                                        <input 
+                                            type="text" 
+                                            value={newItem.name} 
+                                            onChange={e => updateNewItemValue(e.target.value, newItem.kg)}
+                                            placeholder="Nome do produto na NF..."
+                                            className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px] uppercase"
+                                        />
+                                    ) : (
+                                        <select 
+                                            value={newItem.name} 
+                                            onChange={e => updateNewItemValue(e.target.value, newItem.kg)}
+                                            className="w-full bg-white border border-gray-100 rounded-lg h-9 px-3 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-[10px] uppercase"
+                                        >
+                                            <option value="">Selecione...</option>
+                                            {availableItems.map(it => <option key={it} value={it}>{it}</option>)}
+                                        </select>
+                                    )}
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest ml-0.5">Código de Barras</label>

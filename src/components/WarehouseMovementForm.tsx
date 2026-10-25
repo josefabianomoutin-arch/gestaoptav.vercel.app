@@ -591,11 +591,11 @@ const WarehouseMovementForm: React.FC<WarehouseMovementFormProps> = ({
 
     const handleRegisterAll = async () => {
         if (!selectedSupplierCpf) {
-            alert('Selecione o Fornecedor.');
+            toast.error('Selecione o Fornecedor.');
             return;
         }
         if (items.length === 0) {
-            alert('Adicione pelo menos um item à lista.');
+            toast.error('Adicione pelo menos um item à lista.');
             return;
         }
 

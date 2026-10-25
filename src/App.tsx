@@ -2384,25 +2384,56 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSaveInvoice = async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string): Promise<void> => {
+  const handleSaveInvoice = async (supplierCpf: string, deliveryIds: string[], invoiceNumber: string, invoiceUrl: string, updatedDeliveries: Delivery[], invoiceDate?: string): Promise<{ success: boolean; message?: string }> => {
     try {
-      const clean = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
-      const match = (a: any, b: any) => {
-        const ca = clean(a);
-        const cb = clean(b);
-        if (!ca || !cb) return false;
-        return ca === cb || (ca.length === 11 && cb.length === 14 && cb.startsWith(ca)) || (cb.length === 11 && ca.length === 14 && ca.startsWith(cb));
+      const cleanDigits = (s: any) => String(s || '').replace(/\D/g, '');
+      const cleanUpper = (s: any) => String(s || '').trim().toUpperCase();
+      const targetDigits = cleanDigits(supplierCpf);
+      const targetClean = cleanUpper(supplierCpf);
+
+      const match = (a: any) => {
+        if (!a) return false;
+        const da = cleanDigits(a);
+        if (da && targetDigits) {
+          if (da === targetDigits) return true;
+          if (da.replace(/^0+/, '') === targetDigits.replace(/^0+/, '')) return true;
+          if (da.length === 11 && targetDigits.length === 14 && targetDigits.startsWith(da)) return true;
+          if (targetDigits.length === 11 && da.length === 14 && da.startsWith(targetDigits)) return true;
+        }
+        const ua = cleanUpper(a);
+        return ua === targetClean;
       };
-      const targetCpf = clean(supplierCpf);
+
+      // Se invoiceUrl for base64 (anexo PDF/imagem), faz upload seguro para o servidor local
+      let finalInvoiceUrl = invoiceUrl || '';
+      if (finalInvoiceUrl && (finalInvoiceUrl.startsWith('data:') || finalInvoiceUrl.length > 5000)) {
+        try {
+          const safeInvNum = String(invoiceNumber || 'NF').replace(/[^a-zA-Z0-9-]/g, '_');
+          const res = await fetch('/api/proxy-storage-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              path: `invoices/NF_${safeInvNum}_${Date.now()}.pdf`,
+              base64: finalInvoiceUrl
+            })
+          });
+          const uploadRes = await res.json();
+          if (uploadRes.success && uploadRes.url) {
+            finalInvoiceUrl = uploadRes.url;
+          }
+        } catch (upErr) {
+          console.warn("Upload do anexo via proxy falhou:", upErr);
+        }
+      }
 
       const randNf = Math.floor(100 + Math.random() * 900);
       const cleanInv = String(invoiceNumber || '').replace(/\D/g, '') || String(Date.now()).slice(-4);
-      const generatedInvoiceProtocol = `NF-${cleanInv}-${targetCpf.slice(-4)}-${randNf}`;
+      const generatedInvoiceProtocol = `NF-${cleanInv}-${(targetDigits || '0000').slice(-4)}-${randNf}`;
 
       const enrichedDeliveries = updatedDeliveries.map(d => ({
         ...d,
         invoiceNumber,
-        invoiceUrl,
+        invoiceUrl: finalInvoiceUrl || d.invoiceUrl || '',
         invoiceCode: d.invoiceCode || generatedInvoiceProtocol,
         invoiceProtocol: d.invoiceProtocol || generatedInvoiceProtocol,
         protocol: d.protocol || d.invoiceCode || generatedInvoiceProtocol,
@@ -2414,41 +2445,49 @@ const App: React.FC = () => {
       }));
 
       // Find Main Supplier or Per Capita Info
-      const mainSupplier = (suppliers || []).find(s => s && match(s.cpf, targetCpf));
-      let pcSup = null;
-      const lists: ('ppaisProducers' | 'pereciveisSuppliers' | 'estocaveisSuppliers')[] = ['ppaisProducers', 'pereciveisSuppliers', 'estocaveisSuppliers'];
+      const mainSupplier = (suppliers || []).find(s => s && (match(s.cpf) || match((s as any).cnpj) || match(s.id) || match(s.name)));
+      let pcSup: any = null;
+      let pcListKey: string | null = null;
+      let pcIdx = -1;
+
+      const lists = [
+        'ppaisProducers',
+        'pereciveisSuppliers', 'pereciveisSuppliers1Q', 'pereciveisSuppliers2Q', 'pereciveisSuppliers3Q',
+        'pereciveisSuppliers2027_1Q', 'pereciveisSuppliers2027_2Q', 'pereciveisSuppliers2027_3Q',
+        'estocaveisSuppliers', 'estocaveisSuppliers1Q', 'estocaveisSuppliers2Q', 'estocaveisSuppliers3Q',
+        'estocaveisSuppliers2027_1Q', 'estocaveisSuppliers2027_2Q', 'estocaveisSuppliers2027_3Q'
+      ];
+
       for (const listKey of lists) {
         const producers = ensureArray(perCapitaConfig[listKey]);
-        const found = producers.find((p: any) => p && (match(p.cpfCnpj, targetCpf) || match(p.cpf, targetCpf)));
-        if (found) {
-          pcSup = found;
+        const idx = producers.findIndex((p: any) => p && (match(p.cpfCnpj) || match(p.cpf) || match(p.id) || match(p.name)));
+        if (idx !== -1) {
+          pcSup = producers[idx];
+          pcListKey = listKey;
+          pcIdx = idx;
           break;
         }
       }
 
       let saveSuccess = false;
 
-      // 1. Try Per Capita FIRST to prioritize Per Capita mappings
-      for (const listKey of lists) {
-        const producers = ensureArray(perCapitaConfig[listKey]);
-        const idx = producers.findIndex((p: any) => p && (match(p.cpfCnpj, targetCpf) || match(p.cpf, targetCpf)));
-        if (idx !== -1) {
-          const deliveriesRef = child(perCapitaConfigRef, `${listKey}/${idx}/deliveries`);
-          await safeRunTransaction(deliveriesRef, (current) => {
-            const list = ensureArray<any>(current)
-              .filter(d => d && typeof d === 'object')
-              .map(d => sanitizeForFirebase(d));
-            const otherDeliveries = list.filter(d => d && !deliveryIds.includes(d.id));
-            return sanitizeForFirebase([...otherDeliveries, ...enrichedDeliveries]);
-          }, producers[idx]?.deliveries || []);
-          saveSuccess = true;
-          break;
-        }
+      // 1. Gravar em PerCapita se encontrado
+      if (pcListKey && pcIdx !== -1) {
+        const deliveriesRef = child(perCapitaConfigRef, `${pcListKey}/${pcIdx}/deliveries`);
+        await safeRunTransaction(deliveriesRef, (current) => {
+          const list = ensureArray<any>(current)
+            .filter(d => d && typeof d === 'object')
+            .map(d => sanitizeForFirebase(d));
+          const otherDeliveries = list.filter(d => d && !deliveryIds.includes(d.id));
+          return sanitizeForFirebase([...otherDeliveries, ...enrichedDeliveries]);
+        }, pcSup?.deliveries || []);
+        saveSuccess = true;
       }
 
-      // 2. Try Main Suppliers
-      if (!saveSuccess && mainSupplier) {
-        const deliveriesRef = child(suppliersRef, `${mainSupplier.id || targetCpf}/deliveries`);
+      // 2. Gravar em Fornecedores Principais (se encontrado ou se não achou em perCapita)
+      if (mainSupplier) {
+        const supKey = mainSupplier.cpf || mainSupplier.id || targetDigits;
+        const deliveriesRef = child(suppliersRef, `${supKey}/deliveries`);
         await safeRunTransaction(deliveriesRef, (current) => {
           const list = ensureArray<any>(current)
             .filter(d => d && typeof d === 'object')
@@ -2457,95 +2496,100 @@ const App: React.FC = () => {
           return sanitizeForFirebase([...otherDeliveries, ...enrichedDeliveries]);
         }, mainSupplier?.deliveries || []);
         saveSuccess = true;
+      } else if (!saveSuccess) {
+        // Fallback: se o fornecedor for avulso/novo, cria o registro sob a chave de CPF
+        const supKey = targetDigits || targetClean || `sup_${Date.now()}`;
+        const deliveriesRef = child(suppliersRef, `${supKey}/deliveries`);
+        await safeRunTransaction(deliveriesRef, (current) => {
+          const list = ensureArray<any>(current)
+            .filter(d => d && typeof d === 'object')
+            .map(d => sanitizeForFirebase(d));
+          const otherDeliveries = list.filter(d => d && !deliveryIds.includes(d.id));
+          return sanitizeForFirebase([...otherDeliveries, ...enrichedDeliveries]);
+        }, []);
+        saveSuccess = true;
       }
 
       if (saveSuccess) {
-        // 3. Synchronize with warehouseLog if there are matching entries
-        if (database && navigator.onLine) {
-          try {
-            const logSnapshot = await get(warehouseLogRef);
-            const allLogs = logSnapshot.val() || {};
-            const targetInvoice = clean(invoiceNumber);
-            const existingLogsForKey: Record<string, any> = {};
-            
-            Object.keys(allLogs).forEach(key => {
-              const entry = allLogs[key];
-              const entryInv = clean(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '');
-              const entryCpf = clean(entry.supplierCpf || '');
-              if (entryCpf === targetCpf && entryInv === targetInvoice) {
-                existingLogsForKey[key] = entry;
-              }
-            });
-
-            const logUpdates: any = {};
-            const usedLogKeys = new Set<string>();
-
-            for (const item of updatedDeliveries) {
-              const itName = clean(item.item || item.itemName || '');
-              const logKey = Object.keys(existingLogsForKey).length > 0 ? Object.keys(existingLogsForKey).find(k => {
-                if (usedLogKeys.has(k)) return false;
-                const logEntry = existingLogsForKey[k];
-                const logName = clean(logEntry.itemName || logEntry.item || '');
-                if (item.id && logEntry.id && item.id === logEntry.id) return true;
-                if (item.id && logEntry.deliveryId && item.id === logEntry.deliveryId) return true;
-                return itName === logName;
-              }) : null;
-
-              if (logKey) {
-                usedLogKeys.add(logKey);
-                logUpdates[`${logKey}/itemName`] = item.item || item.itemName;
-                logUpdates[`${logKey}/item`] = item.item || item.itemName;
-                logUpdates[`${logKey}/quantity`] = Number(item.kg) || 0;
-                logUpdates[`${logKey}/kg`] = Number(item.kg) || 0;
-                logUpdates[`${logKey}/value`] = Number(item.value) || 0;
-              } else {
-                const newRef = push(warehouseLogRef);
-                const newId = newRef.key || `it-${Date.now()}`;
-                logUpdates[newId] = {
-                  id: newId,
-                  type: 'entrada',
-                  timestamp: new Date().toISOString(),
-                  date: invoiceDate || new Date().toISOString().split('T')[0],
-                  itemName: item.item || item.itemName,
-                  supplierName: mainSupplier?.name || pcSup?.name || 'FORNECEDOR',
-                  supplierCpf: supplierCpf,
-                  invoiceNumber: invoiceNumber,
-                  inboundInvoice: invoiceNumber,
-                  quantity: Number(item.kg) || 0,
-                  kg: Number(item.kg) || 0,
-                  value: Number(item.value) || 0,
-                  lotNumber: 'UNICO',
-                  expirationDate: item.expirationDate || '',
-                  barcode: item.barcode || ''
-                };
-              }
+        // 3. Sincronizar com warehouseLog
+        try {
+          const logSnapshot = await get(warehouseLogRef);
+          const allLogs = logSnapshot.val() || {};
+          const cleanInvStr = cleanUpper(invoiceNumber);
+          const existingLogsForKey: Record<string, any> = {};
+          
+          Object.keys(allLogs).forEach(key => {
+            const entry = allLogs[key];
+            const entryInv = cleanUpper(entry.inboundInvoice || entry.outboundInvoice || entry.invoiceNumber || '');
+            const entryCpf = cleanDigits(entry.supplierCpf || '');
+            if ((entryCpf === targetDigits || !entryCpf) && entryInv === cleanInvStr) {
+              existingLogsForKey[key] = entry;
             }
+          });
 
-            // Remove logs that are no longer present in the updated deliveries (only if we had existing logs)
-            if (Object.keys(existingLogsForKey).length > 0) {
-              Object.keys(existingLogsForKey).forEach(k => {
-                if (!usedLogKeys.has(k)) {
-                  logUpdates[k] = null;
-                }
-              });
-            }
+          const logUpdates: any = {};
+          const usedLogKeys = new Set<string>();
 
-            if (Object.keys(logUpdates).length > 0) {
-              await update(warehouseLogRef, logUpdates);
+          for (const item of updatedDeliveries) {
+            const itName = cleanUpper(item.item || item.itemName || '');
+            const logKey = Object.keys(existingLogsForKey).length > 0 ? Object.keys(existingLogsForKey).find(k => {
+              if (usedLogKeys.has(k)) return false;
+              const logEntry = existingLogsForKey[k];
+              const logName = cleanUpper(logEntry.itemName || logEntry.item || '');
+              if (item.id && logEntry.id && item.id === logEntry.id) return true;
+              if (item.id && logEntry.deliveryId && item.id === logEntry.deliveryId) return true;
+              return itName === logName;
+            }) : null;
+
+            if (logKey) {
+              usedLogKeys.add(logKey);
+              logUpdates[`${logKey}/itemName`] = item.item || item.itemName;
+              logUpdates[`${logKey}/item`] = item.item || item.itemName;
+              logUpdates[`${logKey}/quantity`] = Number(item.kg) || 0;
+              logUpdates[`${logKey}/kg`] = Number(item.kg) || 0;
+              logUpdates[`${logKey}/value`] = Number(item.value) || 0;
+              if (finalInvoiceUrl) logUpdates[`${logKey}/invoiceUrl`] = finalInvoiceUrl;
+            } else {
+              const newRef = push(warehouseLogRef);
+              const newId = newRef.key || `it-${Date.now()}`;
+              logUpdates[newId] = {
+                id: newId,
+                type: 'entrada',
+                timestamp: new Date().toISOString(),
+                date: invoiceDate || new Date().toISOString().split('T')[0],
+                itemName: item.item || item.itemName,
+                supplierName: mainSupplier?.name || pcSup?.name || supplierCpf,
+                supplierCpf: supplierCpf,
+                invoiceNumber: invoiceNumber,
+                inboundInvoice: invoiceNumber,
+                quantity: Number(item.kg) || 0,
+                kg: Number(item.kg) || 0,
+                value: Number(item.value) || 0,
+                lotNumber: 'UNICO',
+                expirationDate: item.expirationDate || '',
+                barcode: item.barcode || '',
+                invoiceUrl: finalInvoiceUrl || ''
+              };
             }
-          } catch (err) {
-            console.warn("Error synchronizing warehouseLog:", err);
           }
+
+          if (Object.keys(logUpdates).length > 0) {
+            await update(warehouseLogRef, logUpdates);
+          }
+        } catch (err) {
+          console.warn("Erro ao sincronizar warehouseLog:", err);
         }
 
         toast.success('Nota Fiscal salva com sucesso!');
-        return;
+        return { success: true, message: 'Nota Fiscal salva com sucesso!' };
       }
 
-      toast.error('Fornecedor não encontrado para salvar nota.');
-    } catch (e) {
+      toast.error('Erro ao identificar fornecedor para salvar nota.');
+      return { success: false, message: 'Fornecedor não identificado.' };
+    } catch (e: any) {
       console.error("Error saving invoice:", e);
-      toast.error('Erro ao salvar nota fiscal.');
+      toast.error(e?.message || 'Erro ao salvar nota fiscal.');
+      return { success: false, message: e?.message || 'Erro ao salvar nota fiscal.' };
     }
   };
 
@@ -2967,24 +3011,54 @@ const App: React.FC = () => {
   };
 
   const handleManualInvoiceEntry = async (supplierCpf: string, date: string, invoiceNumber: string, items: { name: string; kg: number; value: number; lotNumber?: string; expirationDate?: string; barcode?: string }[], barcode?: string, receiptTermNumber?: string, invoiceDate?: string, pd?: string, type: 'entrada' | 'saída' = 'entrada', invoiceUrl?: string, ne?: string) => {
-    let supplierName = '';
-    const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
-    const cleanEntryCpf = cleanStr(supplierCpf);
+    const cleanDigits = (s: any) => String(s || '').replace(/\D/g, '');
+    const cleanUpper = (s: any) => String(s || '').trim().toUpperCase();
+    const targetDigits = cleanDigits(supplierCpf);
+    const targetClean = cleanUpper(supplierCpf);
 
-    const mainSupplier = (suppliers || []).find(s => s && cleanStr(s.cpf) === cleanEntryCpf);
+    const match = (a: any) => {
+      if (!a) return false;
+      const da = cleanDigits(a);
+      if (da && targetDigits) {
+        if (da === targetDigits) return true;
+        if (da.replace(/^0+/, '') === targetDigits.replace(/^0+/, '')) return true;
+        if (da.length === 11 && targetDigits.length === 14 && targetDigits.startsWith(da)) return true;
+        if (targetDigits.length === 11 && da.length === 14 && da.startsWith(targetDigits)) return true;
+      }
+      return cleanUpper(a) === targetClean;
+    };
+
+    let supplierName = '';
+    const mainSupplier = (suppliers || []).find(s => s && (match(s.cpf) || match((s as any).cnpj) || match(s.id) || match(s.name)));
     if (mainSupplier) {
       supplierName = mainSupplier.name;
-    } else {
-      const p = (perCapitaConfig.ppaisProducers || []).find(s => (cleanStr(s.cpfCnpj || s.cpf) === cleanEntryCpf)) || 
-                (perCapitaConfig.pereciveisSuppliers || []).find(s => (cleanStr(s.cpfCnpj || s.cpf) === cleanEntryCpf)) ||
-                (perCapitaConfig.estocaveisSuppliers || []).find(s => (cleanStr(s.cpfCnpj || s.cpf) === cleanEntryCpf));
-      if (p) supplierName = p.name;
     }
 
-    if (!supplierName) return { success: false, message: 'Fornecedor não encontrado.' };
+    const allPcLists = [
+      'ppaisProducers',
+      'pereciveisSuppliers', 'pereciveisSuppliers1Q', 'pereciveisSuppliers2Q', 'pereciveisSuppliers3Q',
+      'pereciveisSuppliers2027_1Q', 'pereciveisSuppliers2027_2Q', 'pereciveisSuppliers2027_3Q',
+      'estocaveisSuppliers', 'estocaveisSuppliers1Q', 'estocaveisSuppliers2Q', 'estocaveisSuppliers3Q',
+      'estocaveisSuppliers2027_1Q', 'estocaveisSuppliers2027_2Q', 'estocaveisSuppliers2027_3Q'
+    ];
+
+    let pcFound: { listKey: string; idx: number; producer: any } | null = null;
+    for (const lKey of allPcLists) {
+      const list = ensureArray(perCapitaConfig[lKey]);
+      const idx = list.findIndex((p: any) => p && (match(p.cpfCnpj) || match(p.cpf) || match(p.id) || match(p.name)));
+      if (idx !== -1) {
+        pcFound = { listKey: lKey, idx, producer: list[idx] };
+        if (!supplierName) supplierName = list[idx].name;
+        break;
+      }
+    }
+
+    if (!supplierName) {
+      supplierName = supplierCpf || 'FORNECEDOR';
+    }
 
     try {
-      // 1. Registrar no log do almoxarifado primeiro
+      // 1. Registrar no log do almoxarifado
       const logEntries: { ref: any, entry: any, lotId: string }[] = items.map((item, idx) => {
         const newLogRef = push(warehouseLogRef);
         const lotId = `lot-manual-${Date.now()}-${idx}`;
@@ -2997,13 +3071,14 @@ const App: React.FC = () => {
             supplierName: supplierName,
             supplierCpf: supplierCpf,
             lotNumber: item.lotNumber || 'UNICO',
-            quantity: item.kg,
-            value: item.value || 0,
+            quantity: Number(item.kg) || 0,
+            value: Number(item.value) || 0,
             barcode: item.barcode || barcode || '',
             pdNumber: pd || '',
             neNumber: ne || '',
             lotId: lotId,
-            deliveryId: ''
+            deliveryId: '',
+            invoiceUrl: invoiceUrl || ''
         };
         
         if (type === 'entrada') {
@@ -3016,117 +3091,75 @@ const App: React.FC = () => {
         return { ref: newLogRef, entry, lotId };
       });
 
-      // Salva todos os logs
       await Promise.all(logEntries.map(le => set(le.ref, le.entry)));
 
       // 2. Sincronizar com as entregas do fornecedor
       const entryDate = invoiceDate || date;
-      if (mainSupplier) {
-        const supplierRef = child(suppliersRef, mainSupplier.cpf);
-        await safeRunTransaction(supplierRef, (currentData: Supplier) => {
-          if (!currentData) currentData = { ...mainSupplier };
-          let deliveries = Array.isArray(currentData.deliveries) 
-            ? [...currentData.deliveries] 
-            : Object.values(currentData.deliveries || {});
-          
-          // Remover agendamento pendente do mesmo dia
-          deliveries = deliveries.filter((d: any) => !(d.date === entryDate && d.item === 'AGENDAMENTO PENDENTE'));
+      const deliveriesToAppend = logEntries.map((le, idx) => {
+        const item = items[idx];
+        const newDelivery: any = {
+          id: `manual-${Date.now()}-${idx}`,
+          date: entryDate,
+          time: '08:00',
+          item: item.name,
+          kg: Number(item.kg) || 0,
+          value: Number(item.value) || 0,
+          invoiceUploaded: true,
+          invoiceNumber: String(invoiceNumber || '').trim(),
+          barcode: item.barcode || barcode || '',
+          type: type,
+          status: 'CONCLUÍDO',
+          lots: [{
+            id: le.lotId,
+            lotNumber: item.lotNumber || 'MANUAL',
+            initialQuantity: Number(item.kg) || 0,
+            remainingQuantity: Number(item.kg) || 0
+          }]
+        };
 
-          logEntries.forEach((le, idx) => {
-            const item = items[idx];
-            const newDelivery: any = {
-              id: `manual-${Date.now()}-${idx}`,
-              date: entryDate,
-              time: '08:00',
-              item: item.name,
-              kg: item.kg,
-              value: item.value,
-              invoiceUploaded: true,
-              invoiceNumber: String(invoiceNumber || '').trim(),
-              barcode: item.barcode || barcode || '',
-              type: type,
-              status: 'CONCLUÍDO',
-              lots: [{
-                id: le.lotId,
-                lotNumber: item.lotNumber || 'MANUAL',
-                initialQuantity: item.kg,
-                remainingQuantity: item.kg
-              }]
-            };
+        if (invoiceDate !== undefined) newDelivery.invoiceDate = invoiceDate;
+        if (receiptTermNumber !== undefined) newDelivery.receiptTermNumber = receiptTermNumber;
+        if (pd !== undefined) newDelivery.pd = pd;
+        if (ne !== undefined) newDelivery.ne = ne;
+        if (invoiceUrl !== undefined) newDelivery.invoiceUrl = invoiceUrl;
+        if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
 
-            if (invoiceDate !== undefined) newDelivery.invoiceDate = invoiceDate;
-            if (receiptTermNumber !== undefined) newDelivery.receiptTermNumber = receiptTermNumber;
-            if (pd !== undefined) newDelivery.pd = pd;
-            if (ne !== undefined) newDelivery.ne = ne;
-            if (invoiceUrl !== undefined) newDelivery.invoiceUrl = invoiceUrl;
-            if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
+        return newDelivery;
+      });
 
-            deliveries.push(newDelivery);
-          });
-          currentData.deliveries = deliveries;
-          return currentData;
-        }, mainSupplier);
-      } else {
-        await safeRunTransaction(perCapitaConfigRef, (currentData: PerCapitaConfig) => {
-          if (!currentData) currentData = { ...perCapitaConfig };
-            const findAndAdd = (list: any[] | undefined) => {
-              const s = list?.find(p => (cleanStr(p.cpfCnpj || p.cpf) === cleanEntryCpf));
-              if (s) {
-                let deliveries = Array.isArray(s.deliveries)
-                  ? [...s.deliveries]
-                  : Object.values(s.deliveries || {});
-                
-                // Remover agendamento pendente do mesmo dia
-                deliveries = deliveries.filter((d: any) => !(d.date === entryDate && d.item === 'AGENDAMENTO PENDENTE'));
-
-                logEntries.forEach((le, idx) => {
-                  const item = items[idx];
-                  const newDelivery: any = {
-                    id: `manual-${Date.now()}-${idx}`,
-                    date: entryDate,
-                    time: '08:00',
-                    item: item.name,
-                    kg: item.kg,
-                    value: item.value,
-                    invoiceUploaded: true,
-                    invoiceNumber: String(invoiceNumber || '').trim(),
-                    barcode: item.barcode || barcode || '',
-                    status: 'CONCLUÍDO',
-                    lots: [{
-                      id: le.lotId,
-                      lotNumber: item.lotNumber || 'MANUAL',
-                      initialQuantity: item.kg,
-                      remainingQuantity: item.kg
-                    }]
-                  };
-
-                  if (invoiceDate !== undefined) newDelivery.invoiceDate = invoiceDate;
-                  if (receiptTermNumber !== undefined) newDelivery.receiptTermNumber = receiptTermNumber;
-                  if (pd !== undefined) newDelivery.pd = pd;
-                  if (ne !== undefined) newDelivery.ne = ne;
-                  if (invoiceUrl !== undefined) newDelivery.invoiceUrl = invoiceUrl;
-                  if (item.expirationDate !== undefined) newDelivery.lots[0].expirationDate = item.expirationDate;
-
-                  deliveries.push(newDelivery);
-                });
-                s.deliveries = deliveries;
-                return true;
-              }
-              return false;
-            };
-            if (!findAndAdd(currentData.ppaisProducers)) {
-              if (!findAndAdd(currentData.pereciveisSuppliers)) {
-                 findAndAdd(currentData.estocaveisSuppliers);
-              }
-            }
-          return currentData;
-        }, perCapitaConfig);
+      // Se encontrou em PerCapita, salva na sub-chave do produtor específico
+      if (pcFound) {
+        const deliveriesRef = child(perCapitaConfigRef, `${pcFound.listKey}/${pcFound.idx}/deliveries`);
+        await safeRunTransaction(deliveriesRef, (current) => {
+          let list = Array.isArray(current) ? [...current] : (current ? Object.values(current) : []);
+          list = list.filter((d: any) => !(d.date === entryDate && d.item === 'AGENDAMENTO PENDENTE'));
+          return sanitizeForFirebase([...list, ...deliveriesToAppend]);
+        }, pcFound.producer?.deliveries || []);
       }
 
-      return { success: true };
-    } catch (e) {
+      // Se encontrou em fornecedores principais
+      if (mainSupplier) {
+        const supKey = mainSupplier.cpf || mainSupplier.id || targetDigits;
+        const supplierRef = child(suppliersRef, `${supKey}/deliveries`);
+        await safeRunTransaction(supplierRef, (current) => {
+          let list = Array.isArray(current) ? [...current] : (current ? Object.values(current) : []);
+          list = list.filter((d: any) => !(d.date === entryDate && d.item === 'AGENDAMENTO PENDENTE'));
+          return sanitizeForFirebase([...list, ...deliveriesToAppend]);
+        }, mainSupplier.deliveries || []);
+      } else if (!pcFound) {
+        // Fornecedor novo/avulso: cria deliveries no nó do fornecedor
+        const supKey = targetDigits || targetClean || `sup_${Date.now()}`;
+        const supplierRef = child(suppliersRef, `${supKey}/deliveries`);
+        await safeRunTransaction(supplierRef, (current) => {
+          const list = Array.isArray(current) ? [...current] : [];
+          return sanitizeForFirebase([...list, ...deliveriesToAppend]);
+        }, []);
+      }
+
+      return { success: true, message: 'Nota fiscal registrada com sucesso!' };
+    } catch (e: any) {
       console.error("Erro no lançamento manual:", e);
-      return { success: false, message: 'Falha no lançamento manual.' };
+      return { success: false, message: e?.message || 'Falha no lançamento manual.' };
     }
   };
 
@@ -3585,16 +3618,43 @@ const App: React.FC = () => {
             }
         }
 
-        const cleanStr = (s: any) => String(s || '').trim().replace(/^0+/, '').replace(/[.\-/]/g, '').toUpperCase();
-        const cleanPayloadCpf = cleanStr(payload.supplierCpf);
+        const cleanDigits = (s: any) => String(s || '').replace(/\D/g, '');
+        const cleanUpper = (s: any) => String(s || '').trim().toUpperCase();
+        const targetDigits = cleanDigits(payload.supplierCpf);
+        const targetClean = cleanUpper(payload.supplierCpf);
 
-        // Find supplier in both main list and perCapitaConfig
-        const ppaisProducer = (perCapitaConfig.ppaisProducers || []).find(p => (cleanStr(p.cpfCnpj || p.cpf) === cleanPayloadCpf));
-        const pereciveisSupplier = (perCapitaConfig.pereciveisSuppliers || []).find(p => (cleanStr(p.cpfCnpj || p.cpf) === cleanPayloadCpf));
-        const estocavelSupplier = (perCapitaConfig.estocaveisSuppliers || []).find(p => (cleanStr(p.cpfCnpj || p.cpf) === cleanPayloadCpf));
-        const mainSupplier = (suppliers || []).find(s => cleanStr(s.cpf) === cleanPayloadCpf);
-        
-        const supplier = mainSupplier || ppaisProducer || pereciveisSupplier || estocavelSupplier;
+        const match = (a: any) => {
+          if (!a) return false;
+          const da = cleanDigits(a);
+          if (da && targetDigits) {
+            if (da === targetDigits) return true;
+            if (da.replace(/^0+/, '') === targetDigits.replace(/^0+/, '')) return true;
+            if (da.length === 11 && targetDigits.length === 14 && targetDigits.startsWith(da)) return true;
+            if (targetDigits.length === 11 && da.length === 14 && da.startsWith(targetDigits)) return true;
+          }
+          return cleanUpper(a) === targetClean;
+        };
+
+        const allPcLists = [
+          'ppaisProducers',
+          'pereciveisSuppliers', 'pereciveisSuppliers1Q', 'pereciveisSuppliers2Q', 'pereciveisSuppliers3Q',
+          'pereciveisSuppliers2027_1Q', 'pereciveisSuppliers2027_2Q', 'pereciveisSuppliers2027_3Q',
+          'estocaveisSuppliers', 'estocaveisSuppliers1Q', 'estocaveisSuppliers2Q', 'estocaveisSuppliers3Q',
+          'estocaveisSuppliers2027_1Q', 'estocaveisSuppliers2027_2Q', 'estocaveisSuppliers2027_3Q'
+        ];
+
+        let pcFound: { listKey: string; idx: number; producer: any } | null = null;
+        for (const lKey of allPcLists) {
+          const list = ensureArray(perCapitaConfig[lKey]);
+          const idx = list.findIndex((p: any) => p && (match(p.cpfCnpj) || match(p.cpf) || match(p.id) || match(p.name)));
+          if (idx !== -1) {
+            pcFound = { listKey: lKey, idx, producer: list[idx] };
+            break;
+          }
+        }
+
+        const mainSupplier = (suppliers || []).find(s => s && (match(s.cpf) || match((s as any).cnpj) || match(s.id) || match(s.name)));
+        const supplier = mainSupplier || pcFound?.producer;
 
         const lotId = `lot-${Date.now()}`;
         const entryDate = payload.invoiceDate || payload.date || new Date().toISOString().split('T')[0];
@@ -3604,7 +3664,7 @@ const App: React.FC = () => {
             timestamp: new Date().toISOString(),
             date: entryDate,
             itemName: payload.itemName,
-            supplierName: supplier?.name || 'Desconhecido',
+            supplierName: supplier?.name || payload.supplierName || payload.supplierCpf || 'FORNECEDOR',
             supplierCpf: payload.supplierCpf,
             lotNumber: payload.lotNumber || 'UNICO',
             quantity: Number(payload.quantity || 0),
@@ -3633,8 +3693,8 @@ const App: React.FC = () => {
                 item: payload.itemName,
                 kg: Number(payload.quantity || 0),
                 value: Number(payload.value || 0),
-                invoiceUploaded: true, // Se está registrando a entrada com NF, ela está "carregada" no sistema
-                invoiceNumber: String(payload.invoiceNumber || '').trim(),
+                invoiceUploaded: true,
+                invoiceNumber: String(payload.invoiceNumber || payload.inboundInvoice || '').trim(),
                 barcode: payload.barcode || '',
                 invoiceUrl: finalInvoiceUrl || '',
                 pd: payload.pdNumber || '',
@@ -3649,54 +3709,26 @@ const App: React.FC = () => {
             };
 
             if (mainSupplier) {
-                const deliveriesRef = child(suppliersRef, `${mainSupplier.cpf}/deliveries`);
+                const supKey = mainSupplier.cpf || mainSupplier.id || targetDigits;
+                const deliveriesRef = child(suppliersRef, `${supKey}/deliveries`);
                 await safeRunTransaction(deliveriesRef, (currentDeliveries) => {
                     let deliveries = Array.isArray(currentDeliveries) 
                         ? [...currentDeliveries] 
                         : (currentDeliveries ? Object.values(currentDeliveries) : []);
-                    
-                    // Remover agendamento pendente do mesmo dia
                     deliveries = deliveries.filter((d: any) => !(d.date === entryDate && d.item === 'AGENDAMENTO PENDENTE'));
-                    
                     deliveries.push(newDelivery as any);
                     return deliveries;
                 }, mainSupplier.deliveries || []);
-            } else {
-                // Determine which list and index the producer belongs to
-                let listKey: string | null = null;
-                let producerIdx = -1;
-
-                const ppList = perCapitaConfig.ppaisProducers || [];
-                producerIdx = ppList.findIndex(p => (cleanStr(p.cpfCnpj || p.cpf) === cleanPayloadCpf));
-                if (producerIdx !== -1) {
-                    listKey = 'ppaisProducers';
-                } else {
-                    const perecList = perCapitaConfig.pereciveisSuppliers || [];
-                    producerIdx = perecList.findIndex(p => (cleanStr(p.cpfCnpj || p.cpf) === cleanPayloadCpf));
-                    if (producerIdx !== -1) {
-                        listKey = 'pereciveisSuppliers';
-                    } else {
-                        const estocList = perCapitaConfig.estocaveisSuppliers || [];
-                        producerIdx = estocList.findIndex(p => (cleanStr(p.cpfCnpj || p.cpf) === cleanPayloadCpf));
-                        if (producerIdx !== -1) listKey = 'estocaveisSuppliers';
-                    }
-                }
-
-                if (listKey && producerIdx !== -1) {
-                    // Update only the specific producer's deliveries to avoid locking the entire config
-                    const producerDeliveriesRef = child(perCapitaConfigRef, `${listKey}/${producerIdx}/deliveries`);
-                    await safeRunTransaction(producerDeliveriesRef, (currentDeliveries) => {
-                        let deliveries = Array.isArray(currentDeliveries) 
-                            ? [...currentDeliveries] 
-                            : (currentDeliveries ? Object.values(currentDeliveries) : []);
-                        
-                        // Remover agendamento pendente do mesmo dia
-                        deliveries = deliveries.filter((d: any) => !(d.date === entryDate && d.item === 'AGENDAMENTO PENDENTE'));
-                        
-                        deliveries.push(newDelivery);
-                        return deliveries;
-                    }, []);
-                }
+            } else if (pcFound) {
+                const producerDeliveriesRef = child(perCapitaConfigRef, `${pcFound.listKey}/${pcFound.idx}/deliveries`);
+                await safeRunTransaction(producerDeliveriesRef, (currentDeliveries) => {
+                    let deliveries = Array.isArray(currentDeliveries) 
+                        ? [...currentDeliveries] 
+                        : (currentDeliveries ? Object.values(currentDeliveries) : []);
+                    deliveries = deliveries.filter((d: any) => !(d.date === entryDate && d.item === 'AGENDAMENTO PENDENTE'));
+                    deliveries.push(newDelivery);
+                    return deliveries;
+                }, pcFound.producer?.deliveries || []);
             }
         }
 
