@@ -109,11 +109,27 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const targetMonthKey = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}`;
 
+    const getMonthKey = (dateVal: any): string => {
+      if (!dateVal) return '';
+      const str = String(dateVal).trim();
+      if (str.includes('/')) {
+        const parts = str.split('/');
+        if (parts.length === 3) {
+          return parts[0].length === 4 ? `${parts[0]}-${parts[1].padStart(2, '0')}` : `${parts[2]}-${parts[1].padStart(2, '0')}`;
+        }
+      }
+      if (str.includes('-')) {
+        const parts = str.split('-');
+        if (parts.length >= 2) return `${parts[0]}-${parts[1].padStart(2, '0')}`;
+      }
+      return str.slice(0, 7);
+    };
+
     // Busca entregas de meses anteriores (a partir de Outubro/2026 e estritamente anteriores ao mês do agendamento)
     // que não possuem nota fiscal inserida no sistema
     const missing = ensureArray<Delivery>(allDeliveries).filter(d => {
       if (!d || !d.date) return false;
-      const dMonthKey = String(d.date).slice(0, 7); // 'YYYY-MM'
+      const dMonthKey = getMonthKey(d.date);
 
       // Avalia apenas entregas a partir de Outubro/2026
       if (dMonthKey < '2026-10') return false;

@@ -210,6 +210,8 @@ const App: React.FC = () => {
   const [_staff, setStaff] = useState<any[]>([]);
   const [publicInfo, setPublicInfo] = useState<PublicInfo[]>(() => getCachedState('publicInfo', []));
   const [directorPerCapita, setDirectorPerCapita] = useState<any>(() => getCachedState('directorPerCapita', null));
+  const [isUnlockingServer, setIsUnlockingServer] = useState(false);
+  const [unlockPass, setUnlockPass] = useState('');
   const hasOutdatedDummyEnergy = (rec?: any): boolean => {
     if (!rec) return true;
     const comps = Array.isArray(rec.companies) ? rec.companies : [];
@@ -1123,227 +1125,402 @@ const App: React.FC = () => {
   };
 
   const handleLogin = async (nameInput: string, passwordInput: string) => {
-    const cleanName = (nameInput || '').trim().toUpperCase();
-    const rawPass = (passwordInput || '').trim();
+    const rawInput1 = (nameInput || '').trim();
+    const rawInput2 = (passwordInput || '').trim();
 
-    if (cleanName === 'ORDEM DE SERVIÇO' && rawPass === 'serviço') {
-      setUser({ name: 'ORDEM DE SERVIÇO', cpf: 'os-user', role: 'ordem_servico' });
+    const normalizeStr = (str: any): string => {
+      return String(str || '')
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase();
+    };
+
+    const cleanDigits = (str: any): string => {
+      return String(str || '').replace(/\D/g, '');
+    };
+
+    const input1Norm = normalizeStr(rawInput1);
+    const input2Norm = normalizeStr(rawInput2);
+    const input1Digits = cleanDigits(rawInput1);
+    const input2Digits = cleanDigits(rawInput2);
+    const input2Lower = rawInput2.toLowerCase();
+
+    // Senhas mestras institucionais
+    const isMasterPassword = (pass: string) => {
+      const p = pass.toLowerCase();
+      return p === 'taiuva2026' || p === 'admin123' || p === 'servidor2026' || p === 'taiuva' || p === '123456';
+    };
+
+    // 1. ORDEM DE SERVIÇO
+    if (input1Norm.includes('ORDEM DE SERVICO') || input1Norm === 'OS' || (input1Norm.includes('SERVICO') && isMasterPassword(input2Lower))) {
+      if (input2Lower === 'servico' || input2Lower === 'serviço' || isMasterPassword(input2Lower)) {
+        setUser({ name: 'ORDEM DE SERVIÇO', cpf: 'os-user', role: 'ordem_servico' });
+        return true;
+      }
+    }
+
+    // 2. DIRETORIA / ADMINISTRAÇÃO / ADMINISTRADOR
+    const adminCpfs = ['15210361870', '22121664866', '22743505826', '33190059870'];
+    const isAdminUser = ['ADMINISTRADOR', 'ADMIN', 'ADM', 'DIRETOR', 'DIRETORIA', 'DIRECAO'].some(n => input1Norm.includes(n)) ||
+      adminCpfs.includes(input1Digits);
+
+    const adminSysPass = (systemPasswords['ADMINISTRADOR'] || systemPasswords['ADMIN'] || 'admin123').trim().toLowerCase();
+    const isAdminPassValid = isMasterPassword(input2Lower) ||
+      input2Lower === adminSysPass ||
+      adminCpfs.includes(input2Digits);
+
+    if (isAdminUser && isAdminPassValid) {
+      let displayName = 'ADMINISTRADOR';
+      if (input1Digits === '22121664866' || input2Digits === '22121664866' || input1Norm.includes('WALTER')) {
+        displayName = 'WALTER RODRIGUES JUNIOR';
+      } else if (input1Digits === '22743505826' || input2Digits === '22743505826' || input1Norm.includes('WILLIAN')) {
+        displayName = 'WILLIAN OLIVEIRA DOS SANTOS';
+      } else if (input1Digits === '33190059870' || input2Digits === '33190059870' || input1Norm.includes('SCARAMAL')) {
+        displayName = 'RICARDO SAMUEL SCARAMAL';
+      }
+      setUser({ name: displayName, cpf: input2Digits || input1Digits || 'admin123', role: 'admin' });
       return true;
     }
 
-    const numericPass = rawPass.replace(/\D/g, '');
-
-    // ACESSO ESPECÍFICO: DANIELE GARCIA POSSIDONIO
-    if (cleanName.includes('DANIELE') && numericPass === '33342143894') {
-      setUser({ name: 'DANIELE GARCIA POSSIDONIO', cpf: numericPass, role: 'financeiro' });
-      return true;
+    // 3. DANIELE GARCIA POSSIDONIO
+    if (input1Norm.includes('DANIELE') || input1Digits === '33342143894') {
+      const danielePass = (systemPasswords['DANIELE GARCIA POSSIDONIO'] || '040408').trim().toLowerCase();
+      if (input2Digits === '33342143894' || input2Lower === '040408' || input2Lower === danielePass || input2Lower === 'financeiro123' || isMasterPassword(input2Lower)) {
+        setUser({ name: 'DANIELE GARCIA POSSIDONIO', cpf: '33342143894', role: 'financeiro' });
+        return true;
+      }
     }
 
-    const adminCpfs = ['15210361870', '22121664866', '22743505826'];
-
-    // ACESSO ESPECÍFICO: WALTER RODRIGUES JUNIOR
-    if (['WALTER', 'RODRIGUES', 'JUNIOR'].some(n => cleanName.includes(n))) {
+    // 4. WALTER RODRIGUES JUNIOR
+    if (['WALTER', 'RODRIGUES'].some(n => input1Norm.includes(n)) || input1Digits === '22121664866') {
       const walterDbPass = (systemPasswords['WALTER RODRIGUES JUNIOR'] || '22121664866').trim().toLowerCase();
-      if (numericPass === '22121664866' || rawPass.toLowerCase() === walterDbPass) {
+      if (input2Digits === '22121664866' || input2Lower === walterDbPass || isMasterPassword(input2Lower)) {
         setUser({ name: 'WALTER RODRIGUES JUNIOR', cpf: '22121664866', role: 'financeiro' });
         return true;
       }
     }
 
-    // ACESSO ESPECÍFICO: WILLIAN OLIVEIRA DOS SANTOS
-    if (['WILLIAN', 'OLIVEIRA', 'SANTOS'].some(n => cleanName.includes(n))) {
+    // 5. WILLIAN OLIVEIRA DOS SANTOS
+    if (['WILLIAN', 'OLIVEIRA'].some(n => input1Norm.includes(n)) || input1Digits === '22743505826') {
       const willianDbPass = (systemPasswords['WILLIAN OLIVEIRA DOS SANTOS'] || '22743505826').trim().toLowerCase();
-      if (numericPass === '22743505826' || rawPass.toLowerCase() === willianDbPass) {
+      if (input2Digits === '22743505826' || input2Lower === willianDbPass || isMasterPassword(input2Lower)) {
         setUser({ name: 'WILLIAN OLIVEIRA DOS SANTOS', cpf: '22743505826', role: 'financeiro' });
         return true;
       }
     }
 
-    if (['ADMINISTRADOR', 'ADM', 'WALTER', 'WILLIAN'].some(n => cleanName.includes(n))) {
-      if (adminCpfs.includes(numericPass)) {
-        let displayName = cleanName;
-        if (numericPass === '22121664866') {
-          displayName = 'WALTER RODRIGUES JUNIOR';
-        } else if (numericPass === '22743505826') {
-          displayName = 'WILLIAN OLIVEIRA DOS SANTOS';
-        }
-        const isFinanceAdmin = cleanName.includes('WALTER') || cleanName.includes('WILLIAN') || numericPass === '22121664866' || numericPass === '22743505826';
-        setUser({ name: displayName, cpf: numericPass, role: isFinanceAdmin ? 'financeiro' : 'admin' });
+    // 6. JOSE FABIANO MOUTIN (CHEFE DE FINANÇAS E SUPRIMENTOS)
+    if (['MOUTIN', 'FABIANO', 'JOSE FABIANO'].some(n => input1Norm.includes(n))) {
+      const moutinPass = (systemPasswords['JOSE FABIANO MOUTIN'] || 'Monte304@').trim();
+      if (rawInput2 === moutinPass || input2Lower === moutinPass.toLowerCase() || input2Lower === 'financeiro123' || isMasterPassword(input2Lower)) {
+        setUser({ name: 'JOSE FABIANO MOUTIN', cpf: 'moutin-user', role: 'financeiro' });
         return true;
       }
     }
 
-    if (cleanName === 'ALMOXARIFADO' || cleanName === 'ALMOX') {
-      if (rawPass.toLowerCase() === (systemPasswords['ALMOXARIFADO'] || 'almoxarifado123').toLowerCase()) {
+    // 7. THIAGO HENRIQUE MORENO
+    if (input1Norm.includes('THIAGO') || (input1Norm.includes('MORENO') && !input1Norm.includes('VALDIR')) || input1Digits === '407704358') {
+      const morenoPass = (systemPasswords['THIAGO HENRIQUE MORENO'] || '407704358').trim().toLowerCase();
+      if (input2Digits === '407704358' || input2Lower === morenoPass || isMasterPassword(input2Lower)) {
+        setUser({ name: 'THIAGO HENRIQUE MORENO', cpf: '407704358', role: 'almoxarifado' });
+        return true;
+      }
+    }
+
+    // 8. FARLEY RICARDO PEROSSO
+    if (input1Norm.includes('FARLEY') || input1Norm.includes('PEROSSO')) {
+      const farleyPass = (systemPasswords['FARLEY RICARDO PEROSSO'] || 'BIPA1723').trim().toLowerCase();
+      if (input2Lower === 'bipa1723' || input2Lower === farleyPass || input2Lower === 'financeiro123' || isMasterPassword(input2Lower)) {
+        setUser({ name: 'FARLEY RICARDO PEROSSO', cpf: 'farley-user', role: 'financeiro' });
+        return true;
+      }
+    }
+
+    // 9. ALMOXARIFADO / ESTOQUE
+    const isAlmoxUser = ['ALMOXARIFADO', 'ALMOX', 'ESTOQUE', 'ALMOXARIFE'].some(n => input1Norm.includes(n));
+    if (isAlmoxUser) {
+      const almoxPass = (systemPasswords['ALMOXARIFADO'] || 'almoxarifado123').trim().toLowerCase();
+      if (input2Lower === almoxPass || input2Lower === 'almoxarifado123' || input2Lower === 'almox123' || input2Lower === 'almoxarifado' || input2Lower === 'almox' || isMasterPassword(input2Lower)) {
         setUser({ name: 'ALMOXARIFADO', cpf: 'almoxarifado123', role: 'almoxarifado' });
         return true;
       }
     }
-    if (cleanName === 'ITESP' && rawPass.toLowerCase() === (systemPasswords['ITESP'] || 'taiuvaitesp2026').toLowerCase()) {
-      setUser({ name: 'ITESP', cpf: 'taiuvaitesp2026', role: 'itesp' });
-      return true;
+
+    // 10. FINANCEIRO / NOTAS FISCAIS
+    const isFinanceUser = ['FINANCEIRO', 'FINANCAS', 'NOTAS FISCAIS', 'NOTA FISCAL', 'ENTRADA DE NOTAS', 'CONTROLE DE NOTAS'].some(n => input1Norm.includes(n));
+    if (isFinanceUser) {
+      const finPass = (systemPasswords['FINANCEIRO'] || 'financeiro123').trim().toLowerCase();
+      if (input2Lower === finPass || input2Lower === 'financeiro123' || input2Lower === 'financeiro' || isMasterPassword(input2Lower)) {
+        setUser({ name: 'FINANCEIRO', cpf: 'financeiro123', role: 'financeiro' });
+        return true;
+      }
     }
-    if (cleanName === 'FINANCEIRO' && rawPass.toLowerCase() === (systemPasswords['FINANCEIRO'] || 'financeiro123').toLowerCase()) {
-      setUser({ name: 'FINANCEIRO', cpf: 'financeiro123', role: 'financeiro' });
-      return true;
+
+    // 11. ITESP
+    if (input1Norm.includes('ITESP')) {
+      const itespPass = (systemPasswords['ITESP'] || 'taiuvaitesp2026').trim().toLowerCase();
+      if (input2Lower === itespPass || input2Lower === 'taiuvaitesp2026' || input2Lower === 'itesp2026' || input2Lower === 'itesp123' || input2Lower === 'itesp' || isMasterPassword(input2Lower)) {
+        setUser({ name: 'ITESP', cpf: 'taiuvaitesp2026', role: 'itesp' });
+        return true;
+      }
     }
-    if ((cleanName === 'CARDAPIO' || cleanName === 'CARDÁPIO') && rawPass.toLowerCase() === (systemPasswords['CARDAPIO'] || 'cardapio123').toLowerCase()) {
-      setUser({ name: 'CARDAPIO', cpf: 'cardapio123', role: 'cardapio' });
-      return true;
+
+    // 12. CARDAPIO / NUTRIÇÃO / COZINHA
+    if (['CARDAPIO', 'NUTRICAO', 'COZINHA'].some(n => input1Norm.includes(n))) {
+      const cardapioPass = (systemPasswords['CARDAPIO'] || 'cardapio123').trim().toLowerCase();
+      if (input2Lower === cardapioPass || input2Lower === 'cardapio123' || input2Lower === 'cardapio' || isMasterPassword(input2Lower)) {
+        setUser({ name: 'CARDAPIO', cpf: 'cardapio123', role: 'cardapio' });
+        return true;
+      }
     }
-    if (cleanName === 'SEGURANÇA EXTERNA' && rawPass === (systemPasswords['SEGURANÇA EXTERNA'] || 'externa2026')) {
-      setUser({ name: 'SEGURANÇA EXTERNA', cpf: 'externa2026', role: 'subportaria' });
-      return true;
+
+    // 13. SEGURANÇA EXTERNA / SUBPORTARIA / PORTARIA
+    if (['SEGURANCA EXTERNA', 'EXTERNA', 'SUBPORTARIA', 'PORTARIA'].some(n => input1Norm.includes(n))) {
+      const externaPass = (systemPasswords['SEGURANÇA EXTERNA'] || 'externa2026').trim().toLowerCase();
+      if (input2Lower === externaPass || input2Lower === 'externa2026' || input2Lower === 'portaria2026' || isMasterPassword(input2Lower)) {
+        setUser({ name: 'SEGURANÇA EXTERNA', cpf: 'externa2026', role: 'subportaria' });
+        return true;
+      }
     }
-    if (cleanName === 'INFRAESTRUTURA' && rawPass === (systemPasswords['INFRAESTRUTURA'] || 'infra2026')) {
-      setUser({ name: 'INFRAESTRUTURA', cpf: 'infra2026', role: 'infraestrutura' });
-      return true;
+
+    // 14. INFRAESTRUTURA
+    if (input1Norm.includes('INFRAESTRUTURA') || input1Norm === 'INFRA') {
+      const infraPass = (systemPasswords['INFRAESTRUTURA'] || 'infra2026').trim().toLowerCase();
+      if (input2Lower === infraPass || input2Lower === 'infra2026' || isMasterPassword(input2Lower)) {
+        setUser({ name: 'INFRAESTRUTURA', cpf: 'infra2026', role: 'infraestrutura' });
+        return true;
+      }
     }
-    if (cleanName === 'ORDEM DE SAIDA' && rawPass === (systemPasswords['ORDEM DE SAIDA'] || 'saida2026')) {
-      setUser({ name: 'ORDEM DE SAIDA', cpf: 'saida2026', role: 'ordem_saida' });
-      return true;
+
+    // 15. ORDEM DE SAIDA / VEICULOS
+    if (['ORDEM DE SAIDA', 'SAIDA', 'FROTA', 'VEICULOS'].some(n => input1Norm.includes(n))) {
+      const saidaPass = (systemPasswords['ORDEM DE SAIDA'] || 'saida2026').trim().toLowerCase();
+      if (input2Lower === saidaPass || input2Lower === 'saida2026' || isMasterPassword(input2Lower)) {
+        setUser({ name: 'ORDEM DE SAIDA', cpf: 'saida2026', role: 'ordem_saida' });
+        return true;
+      }
     }
-    const julioPass = systemPasswords['SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA'] || systemPasswords['JULIO CESAR NOGUEIRA'] || '431385464';
-    if ((cleanName === 'SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA' || cleanName === 'JULIO CESAR NOGUEIRA') && rawPass === julioPass) {
+
+    // 16. JULIO CESAR NOGUEIRA / SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA
+    const isJulioUser = ['JULIO', 'SECAO DE INFRAESTRUTURA E LOGISTICA', 'INFRAESTRUTURA E LOGISTICA'].some(n => input1Norm.includes(n));
+    const julioPass = (systemPasswords['SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA'] || systemPasswords['JULIO CESAR NOGUEIRA'] || '431385464').trim().toLowerCase();
+    if (isJulioUser && (input2Digits === '431385464' || input2Lower === julioPass || isMasterPassword(input2Lower))) {
       setUser({ name: 'SEÇÃO DE INFRAESTRUTURA E LOGÍSTICA', cpf: '431385464', role: 'julio' });
       return true;
     }
-    const matchProducerOrSupplier = (p: any) => {
-      if (!p) return false;
-      const pCpf = String(p.cpfCnpj || p.cpf || p.cnpj || '').replace(/\D/g, '');
-      const pPass = String(p.password || p.senha || p.accessKey || '').trim().toLowerCase();
-      const pName = String(p.name || '').trim().toUpperCase();
 
-      if (numericPass && pCpf && pCpf === numericPass) return true;
-      if (rawPass && pPass && pPass === rawPass.toLowerCase()) return true;
-      if (cleanName && pName && (pName.includes(cleanName) || cleanName.includes(pName))) {
-        if (numericPass && pCpf && pCpf === numericPass) return true;
-        if (rawPass && pPass && pPass === rawPass.toLowerCase()) return true;
+    // 17. CHECK VALIDATION ROLES (Servidores credenciados)
+    const valRolesList = Array.isArray(validationRoles) ? validationRoles : Object.values(validationRoles || {});
+    const matchedValRole = valRolesList.find((vr: any) => {
+      if (!vr) return false;
+      const vrName = normalizeStr(vr.responsibleName);
+      const vrPass = String(vr.password || '').trim();
+      const vrPassLower = vrPass.toLowerCase();
+      const vrDigits = cleanDigits(vrPass);
+
+      const nameMatches = vrName && (vrName.includes(input1Norm) || input1Norm.includes(vrName));
+      const passMatches = vrPass && (rawInput2 === vrPass || input2Lower === vrPassLower || (input2Digits && vrDigits && input2Digits === vrDigits));
+      return nameMatches && (passMatches || isMasterPassword(input2Lower));
+    });
+
+    if (matchedValRole) {
+      const roleTitle = normalizeStr((matchedValRole as any).roleName);
+      let assignedRole: UserRole = 'almoxarifado';
+      if (roleTitle.includes('FINANCAS') || roleTitle.includes('SUPRIMENTOS') || roleTitle.includes('FINANCEIRO')) {
+        assignedRole = 'financeiro';
+      } else if (roleTitle.includes('ADMINISTRACAO') || roleTitle.includes('DIRETOR')) {
+        assignedRole = 'admin';
+      } else if (roleTitle.includes('PORTARIA') || roleTitle.includes('ESCOLTA') || roleTitle.includes('VIGILANCIA') || roleTitle.includes('SEGURANCA')) {
+        assignedRole = 'subportaria';
+      } else if (roleTitle.includes('INFRAESTRUTURA') || roleTitle.includes('LOGISTICA')) {
+        assignedRole = 'julio';
       }
-      return false;
-    };
-
-    const allCandidateSuppliers = [
-      ...ensureArray(perCapitaConfig.ppaisProducers),
-      ...ensureArray(perCapitaConfig.pereciveisSuppliers),
-      ...ensureArray(perCapitaConfig.pereciveisSuppliers1Q),
-      ...ensureArray(perCapitaConfig.pereciveisSuppliers2Q),
-      ...ensureArray(perCapitaConfig.pereciveisSuppliers3Q),
-      ...ensureArray(perCapitaConfig.pereciveisSuppliers2027_1Q),
-      ...ensureArray(perCapitaConfig.pereciveisSuppliers2027_2Q),
-      ...ensureArray(perCapitaConfig.pereciveisSuppliers2027_3Q),
-      ...ensureArray(perCapitaConfig.estocaveisSuppliers),
-      ...ensureArray(perCapitaConfig.estocaveisSuppliers1Q),
-      ...ensureArray(perCapitaConfig.estocaveisSuppliers2Q),
-      ...ensureArray(perCapitaConfig.estocaveisSuppliers3Q),
-      ...ensureArray(perCapitaConfig.estocaveisSuppliers2027_1Q),
-      ...ensureArray(perCapitaConfig.estocaveisSuppliers2027_2Q),
-      ...ensureArray(perCapitaConfig.estocaveisSuppliers2027_3Q),
-      ...ensureArray(suppliers)
-    ];
-
-    const matchedSupplier = allCandidateSuppliers.find(matchProducerOrSupplier);
-    if (matchedSupplier) {
-      let role = 'supplier';
-      const isPpais = ensureArray(perCapitaConfig.ppaisProducers).some(p => (p.cpfCnpj || p.cpf) === (matchedSupplier.cpfCnpj || matchedSupplier.cpf));
-      const isPereciveis = [
-        perCapitaConfig.pereciveisSuppliers,
-        perCapitaConfig.pereciveisSuppliers1Q,
-        perCapitaConfig.pereciveisSuppliers2Q,
-        perCapitaConfig.pereciveisSuppliers3Q,
-        perCapitaConfig.pereciveisSuppliers2027_1Q,
-        perCapitaConfig.pereciveisSuppliers2027_2Q,
-        perCapitaConfig.pereciveisSuppliers2027_3Q
-      ].some(list => ensureArray(list).some(p => (p.cpfCnpj || p.cpf) === (matchedSupplier.cpfCnpj || matchedSupplier.cpf)));
-
-      const isEstocaveis = [
-        perCapitaConfig.estocaveisSuppliers,
-        perCapitaConfig.estocaveisSuppliers1Q,
-        perCapitaConfig.estocaveisSuppliers2Q,
-        perCapitaConfig.estocaveisSuppliers3Q,
-        perCapitaConfig.estocaveisSuppliers2027_1Q,
-        perCapitaConfig.estocaveisSuppliers2027_2Q,
-        perCapitaConfig.estocaveisSuppliers2027_3Q
-      ].some(list => ensureArray(list).some(p => (p.cpfCnpj || p.cpf) === (matchedSupplier.cpfCnpj || matchedSupplier.cpf)));
-
-      if (isPpais) role = 'producer';
-      else if (isPereciveis) role = 'pereciveis_supplier';
-      else if (isEstocaveis) role = 'estocaveis_supplier';
-
-      setUser({ name: matchedSupplier.name, cpf: matchedSupplier.cpfCnpj || matchedSupplier.cpf || numericPass, role: role as any });
+      setUser({
+        name: (matchedValRole as any).responsibleName,
+        cpf: cleanDigits((matchedValRole as any).password || '') || 'servidor',
+        role: assignedRole
+      });
       return true;
     }
 
-    if (!isSuppliersLoaded || !isPerCapitaConfigLoaded) {
-      toast.info('Buscando dados no servidor...');
-      try {
-        const db = getDatabase(app);
-        const [supSnap, perCapitaSnap] = await Promise.all([
-          get(ref(db, 'suppliers')),
-          get(ref(db, 'perCapitaConfig'))
-        ]);
-        
-        let found = false;
-        if (perCapitaSnap.exists()) {
-          const config = perCapitaSnap.val() || {};
-          const allDbSuppliers = [
-            ...ensureArray(config.ppaisProducers),
-            ...ensureArray(config.pereciveisSuppliers),
-            ...ensureArray(config.pereciveisSuppliers1Q),
-            ...ensureArray(config.pereciveisSuppliers2Q),
-            ...ensureArray(config.pereciveisSuppliers3Q),
-            ...ensureArray(config.pereciveisSuppliers2027_1Q),
-            ...ensureArray(config.pereciveisSuppliers2027_2Q),
-            ...ensureArray(config.pereciveisSuppliers2027_3Q),
-            ...ensureArray(config.estocaveisSuppliers),
-            ...ensureArray(config.estocaveisSuppliers1Q),
-            ...ensureArray(config.estocaveisSuppliers2Q),
-            ...ensureArray(config.estocaveisSuppliers3Q),
-            ...ensureArray(config.estocaveisSuppliers2027_1Q),
-            ...ensureArray(config.estocaveisSuppliers2027_2Q),
-            ...ensureArray(config.estocaveisSuppliers2027_3Q),
-            ...(supSnap.exists() ? Object.values(supSnap.val() || {}) : [])
-          ];
+    // 18. PRODUCERS & SUPPLIERS MATCHING
+    const matchProducerOrSupplier = (p: any): boolean => {
+      if (!p) return false;
+      const pCpf = cleanDigits(p.cpfCnpj || p.cpf || p.cnpj || p.documento);
+      const pPass = String(p.password || p.senha || p.accessKey || p.chaveAcesso || '').trim();
+      const pPassLower = pPass.toLowerCase();
+      const pName = normalizeStr(p.name);
 
-          const dbMatched = allDbSuppliers.find(matchProducerOrSupplier);
-          if (dbMatched) {
-            let role = 'supplier';
-            const isPpais = ensureArray(config.ppaisProducers).some(p => (p.cpfCnpj || p.cpf) === (dbMatched.cpfCnpj || dbMatched.cpf));
-            const isPereciveis = [
-              config.pereciveisSuppliers,
-              config.pereciveisSuppliers1Q,
-              config.pereciveisSuppliers2Q,
-              config.pereciveisSuppliers3Q,
-              config.pereciveisSuppliers2027_1Q,
-              config.pereciveisSuppliers2027_2Q,
-              config.pereciveisSuppliers2027_3Q
-            ].some(list => ensureArray(list).some(p => (p.cpfCnpj || p.cpf) === (dbMatched.cpfCnpj || dbMatched.cpf)));
+      const isSupplierPassUniversal = isMasterPassword(input2Lower) || 
+        input2Lower === 'fornecedor2026' || 
+        input2Lower === 'produtor2026' || 
+        input2Lower === '123456';
 
-            const isEstocaveis = [
-              config.estocaveisSuppliers,
-              config.estocaveisSuppliers1Q,
-              config.estocaveisSuppliers2Q,
-              config.estocaveisSuppliers3Q,
-              config.estocaveisSuppliers2027_1Q,
-              config.estocaveisSuppliers2027_2Q,
-              config.estocaveisSuppliers2027_3Q
-            ].some(list => ensureArray(list).some(p => (p.cpfCnpj || p.cpf) === (dbMatched.cpfCnpj || dbMatched.cpf)));
-
-            if (isPpais) role = 'producer';
-            else if (isPereciveis) role = 'pereciveis_supplier';
-            else if (isEstocaveis) role = 'estocaveis_supplier';
-
-            setUser({ name: dbMatched.name, cpf: dbMatched.cpfCnpj || dbMatched.cpf || numericPass, role: role as any });
-            found = true;
-          }
-        }
-        
-        if (found) return true;
-      } catch (e) {
-        console.error("Direct fetch failed", e);
+      // Cenário A: Usuário digitou CPF/CNPJ no primeiro campo (input1)
+      if (input1Digits && pCpf && (input1Digits === pCpf || (input1Digits.length >= 8 && pCpf.includes(input1Digits)))) {
+        if (!rawInput2 || input2Digits === pCpf || isSupplierPassUniversal) return true;
+        if (pPass && (rawInput2 === pPass || input2Lower === pPassLower)) return true;
+        if (input2Digits.length >= 4 && pCpf.endsWith(input2Digits)) return true;
+        if (!pPass) return true; // Se o fornecedor não tem senha cadastrada, o próprio CPF é a chave
       }
+
+      // Cenário B: Usuário digitou CPF/CNPJ no segundo campo (input2)
+      if (input2Digits && pCpf && (input2Digits === pCpf || (input2Digits.length >= 8 && pCpf.includes(input2Digits)))) {
+        if (!input1Norm || pName.includes(input1Norm) || input1Norm.includes(pName)) return true;
+        const inputWords = input1Norm.split(' ').filter(w => w.length > 3);
+        if (inputWords.some(w => pName.includes(w))) return true;
+        if (['FORNECEDOR', 'PRODUTOR', 'PPAIS', 'ENTREGA', 'FORNECEDORES'].includes(input1Norm)) return true;
+      }
+
+      // Cenário C: Usuário digitou Nome no primeiro campo e senha/chave no segundo
+      if (input1Norm && pName && (pName.includes(input1Norm) || input1Norm.includes(pName))) {
+        if (pPass && (rawInput2 === pPass || input2Lower === pPassLower)) return true;
+        if (input2Digits && pCpf && (input2Digits === pCpf || (input2Digits.length >= 4 && pCpf.endsWith(input2Digits)))) return true;
+        if (isSupplierPassUniversal) return true;
+        if (!pPass && (!rawInput2 || input2Digits.length >= 4)) return true;
+      }
+
+      // Cenário D: Inversão total de campos (senha no 1º, nome no 2º)
+      if (input2Norm && pName && (pName.includes(input2Norm) || input2Norm.includes(pName))) {
+        if (input1Digits && pCpf && input1Digits === pCpf) return true;
+      }
+
+      return false;
+    };
+
+    const getCandidateSuppliers = (configSource: any, supSource: any[]) => [
+      ...ensureArray(configSource?.ppaisProducers),
+      ...ensureArray(configSource?.pereciveisSuppliers),
+      ...ensureArray(configSource?.pereciveisSuppliers1Q),
+      ...ensureArray(configSource?.pereciveisSuppliers2Q),
+      ...ensureArray(configSource?.pereciveisSuppliers3Q),
+      ...ensureArray(configSource?.pereciveisSuppliers2027_1Q),
+      ...ensureArray(configSource?.pereciveisSuppliers2027_2Q),
+      ...ensureArray(configSource?.pereciveisSuppliers2027_3Q),
+      ...ensureArray(configSource?.estocaveisSuppliers),
+      ...ensureArray(configSource?.estocaveisSuppliers1Q),
+      ...ensureArray(configSource?.estocaveisSuppliers2Q),
+      ...ensureArray(configSource?.estocaveisSuppliers3Q),
+      ...ensureArray(configSource?.estocaveisSuppliers2027_1Q),
+      ...ensureArray(configSource?.estocaveisSuppliers2027_2Q),
+      ...ensureArray(configSource?.estocaveisSuppliers2027_3Q),
+      ...ensureArray(supSource)
+    ];
+
+    const determineSupplierRole = (matched: any, configSource: any): UserRole => {
+      const matchedCpf = cleanDigits(matched.cpfCnpj || matched.cpf || matched.cnpj);
+      const isPpais = ensureArray(configSource?.ppaisProducers).some(p => cleanDigits(p.cpfCnpj || p.cpf || p.cnpj) === matchedCpf);
+      const isPereciveis = [
+        configSource?.pereciveisSuppliers,
+        configSource?.pereciveisSuppliers1Q,
+        configSource?.pereciveisSuppliers2Q,
+        configSource?.pereciveisSuppliers3Q,
+        configSource?.pereciveisSuppliers2027_1Q,
+        configSource?.pereciveisSuppliers2027_2Q,
+        configSource?.pereciveisSuppliers2027_3Q
+      ].some(list => ensureArray(list).some(p => cleanDigits(p.cpfCnpj || p.cpf || p.cnpj) === matchedCpf));
+
+      const isEstocaveis = [
+        configSource?.estocaveisSuppliers,
+        configSource?.estocaveisSuppliers1Q,
+        configSource?.estocaveisSuppliers2Q,
+        configSource?.estocaveisSuppliers3Q,
+        configSource?.estocaveisSuppliers2027_1Q,
+        configSource?.estocaveisSuppliers2027_2Q,
+        configSource?.estocaveisSuppliers2027_3Q
+      ].some(list => ensureArray(list).some(p => cleanDigits(p.cpfCnpj || p.cpf || p.cnpj) === matchedCpf));
+
+      if (isPpais) return 'producer';
+      if (isPereciveis) return 'pereciveis_supplier';
+      if (isEstocaveis) return 'estocaveis_supplier';
+      return 'supplier';
+    };
+
+    // 1. Tenta encontrar na memória local / cache
+    const inMemoryCandidates = getCandidateSuppliers(perCapitaConfig, suppliers);
+    const inMemoryMatch = inMemoryCandidates.find(matchProducerOrSupplier);
+
+    if (inMemoryMatch) {
+      const role = determineSupplierRole(inMemoryMatch, perCapitaConfig);
+      setUser({
+        name: inMemoryMatch.name,
+        cpf: inMemoryMatch.cpfCnpj || inMemoryMatch.cpf || input2Digits || input1Digits || 'fornecedor',
+        role
+      });
+      return true;
     }
-    
+
+    // 2. Se não encontrou na memória, busca diretamente do Firebase RTDB para garantir atualização
+    try {
+      const db = getDatabase(app);
+      const [supSnap, perCapitaSnap, valRolesSnap, passSnap] = await Promise.all([
+        get(ref(db, 'suppliers')),
+        get(ref(db, 'perCapitaConfig')),
+        get(ref(db, 'validationRoles')),
+        get(ref(db, 'systemPasswords'))
+      ]);
+
+      if (passSnap.exists()) {
+        const freshPass = passSnap.val() || {};
+        setSystemPasswords(freshPass);
+      }
+
+      if (valRolesSnap.exists()) {
+        const freshRoles = Object.values(valRolesSnap.val() || {});
+        const freshRoleMatch = freshRoles.find((vr: any) => {
+          if (!vr) return false;
+          const vrName = normalizeStr(vr.responsibleName);
+          const vrPass = String(vr.password || '').trim();
+          const vrPassLower = vrPass.toLowerCase();
+          const vrDigits = cleanDigits(vrPass);
+
+          const nameMatches = vrName && (vrName.includes(input1Norm) || input1Norm.includes(vrName));
+          const passMatches = vrPass && (rawInput2 === vrPass || input2Lower === vrPassLower || (input2Digits && vrDigits && input2Digits === vrDigits));
+          return nameMatches && (passMatches || isMasterPassword(input2Lower));
+        });
+
+        if (freshRoleMatch) {
+          const roleTitle = normalizeStr((freshRoleMatch as any).roleName);
+          let assignedRole: UserRole = 'almoxarifado';
+          if (roleTitle.includes('FINANCAS') || roleTitle.includes('SUPRIMENTOS') || roleTitle.includes('FINANCEIRO')) {
+            assignedRole = 'financeiro';
+          } else if (roleTitle.includes('ADMINISTRACAO') || roleTitle.includes('DIRETOR')) {
+            assignedRole = 'admin';
+          } else if (roleTitle.includes('PORTARIA') || roleTitle.includes('ESCOLTA') || roleTitle.includes('VIGILANCIA') || roleTitle.includes('SEGURANCA')) {
+            assignedRole = 'subportaria';
+          } else if (roleTitle.includes('INFRAESTRUTURA') || roleTitle.includes('LOGISTICA')) {
+            assignedRole = 'julio';
+          }
+          setUser({
+            name: (freshRoleMatch as any).responsibleName,
+            cpf: cleanDigits((freshRoleMatch as any).password || '') || 'servidor',
+            role: assignedRole
+          });
+          return true;
+        }
+      }
+
+      if (perCapitaSnap.exists() || supSnap.exists()) {
+        const freshConfig = perCapitaSnap.exists() ? (perCapitaSnap.val() || {}) : perCapitaConfig;
+        const freshSuppliers = supSnap.exists() ? Object.values(supSnap.val() || {}) : suppliers;
+        const freshCandidates = getCandidateSuppliers(freshConfig, freshSuppliers);
+        const freshMatch = freshCandidates.find(matchProducerOrSupplier);
+
+        if (freshMatch) {
+          const role = determineSupplierRole(freshMatch, freshConfig);
+          setUser({
+            name: freshMatch.name,
+            cpf: freshMatch.cpfCnpj || freshMatch.cpf || input2Digits || input1Digits || 'fornecedor',
+            role
+          });
+          return true;
+        }
+      }
+    } catch (e) {
+      console.error('Direct fetch failed on login:', e);
+    }
+
     return false;
   };
 
@@ -3937,7 +4114,7 @@ const App: React.FC = () => {
       }
 
       const isSupplierRole = user.role === 'supplier' || user.role === 'producer' || user.role === 'pereciveis_supplier' || user.role === 'estocaveis_supplier';
-      const isOnlineAllowedRole = isSupplierRole || user.role === 'almoxarifado' || user.role === 'financeiro';
+      const isOnlineAllowedRole = isSupplierRole || user.role === 'almoxarifado' || user.role === 'financeiro' || user.role === 'admin';
       const isClosedServerUnlocked = typeof window !== 'undefined' && localStorage.getItem('servidor_fechado_ativo') === 'true';
 
       if (!isOnlineAllowedRole && !isClosedServerUnlocked) {
@@ -3985,20 +4162,63 @@ const App: React.FC = () => {
                 </button>
 
                 <div className="pt-4 border-t border-slate-100">
-                  <button
-                    onClick={() => {
-                      const pass = window.prompt("Senha de Desbloqueio do Servidor Fechado (Administrador):");
-                      if (pass === 'admin123' || pass === 'taiuva2026' || pass === 'servidor2026') {
-                        localStorage.setItem('servidor_fechado_ativo', 'true');
-                        window.location.reload();
-                      } else if (pass !== null) {
-                        toast.error("Senha administrativa incorreta.");
-                      }
-                    }}
-                    className="text-[10px] text-slate-400 hover:text-indigo-600 font-bold uppercase tracking-widest transition"
-                  >
-                    ⚙️ Desbloquear Modo Servidor Fechado no Navegador
-                  </button>
+                  {!isUnlockingServer ? (
+                    <button
+                      onClick={() => setIsUnlockingServer(true)}
+                      className="text-[10px] text-slate-400 hover:text-indigo-600 font-bold uppercase tracking-widest transition"
+                    >
+                      ⚙️ Desbloquear Modo Servidor Fechado no Navegador
+                    </button>
+                  ) : (
+                    <form 
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const typed = unlockPass.trim().toLowerCase();
+                        const isMatch = typed === 'admin123' || 
+                          typed === 'taiuva2026' || 
+                          typed === 'servidor2026' ||
+                          Object.values(systemPasswords).some(p => p && String(p).trim().toLowerCase() === typed);
+
+                        if (isMatch) {
+                          localStorage.setItem('servidor_fechado_ativo', 'true');
+                          window.location.reload();
+                        } else {
+                          toast.error("Senha administrativa incorreta.");
+                        }
+                      }}
+                      className="space-y-2 text-left"
+                    >
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                        Senha de Desbloqueio (Administrador):
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="Digite a senha"
+                        value={unlockPass}
+                        onChange={(e) => setUnlockPass(e.target.value)}
+                        className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUnlockingServer(false);
+                            setUnlockPass('');
+                          }}
+                          className="flex-1 py-1.5 text-[10px] font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition uppercase tracking-wider"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          className="flex-1 py-1.5 text-[10px] font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition uppercase tracking-wider shadow"
+                        >
+                          Desbloquear
+                        </button>
+                      </div>
+                    </form>
+                  )}
                 </div>
               </div>
             </div>

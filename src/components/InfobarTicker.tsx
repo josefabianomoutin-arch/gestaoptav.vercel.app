@@ -56,15 +56,28 @@ const InfobarTicker: React.FC<InfobarTickerProps> = ({
             ))}
         </>
     ) : (
-        <p className={`text-[11px] font-bold uppercase tracking-[0.2em] ${isDark ? 'text-slate-500' : 'text-blue-400'}`}>
-            {defaultText} — {defaultText}
-        </p>
+        <div className="flex gap-16 whitespace-nowrap pl-6">
+            <span style={{ color: isDark ? '#94a3b8' : '#1e40af' }} className={`text-[11px] font-bold uppercase tracking-[0.2em] ${isDark ? 'text-slate-400' : 'text-blue-800'}`}>
+                {defaultText}
+            </span>
+            <span style={{ color: isDark ? '#94a3b8' : '#1e40af' }} className={`text-[11px] font-bold uppercase tracking-[0.2em] ${isDark ? 'text-slate-400' : 'text-blue-800'}`}>
+                — {defaultText}
+            </span>
+            <span style={{ color: isDark ? '#94a3b8' : '#1e40af' }} className={`text-[11px] font-bold uppercase tracking-[0.2em] ${isDark ? 'text-slate-400' : 'text-blue-800'}`}>
+                — {defaultText}
+            </span>
+        </div>
     );
 
     return (
-        <div className={`${isDark ? 'bg-indigo-600/10 border-b border-indigo-500/20' : 'bg-blue-50 border-b border-blue-100'} overflow-hidden py-1.5 sm:py-2 backdrop-blur-sm print:hidden no-print`}>
+        <div 
+            style={{ backgroundColor: isDark ? 'rgba(79, 70, 229, 0.1)' : '#eff6ff', borderColor: isDark ? 'rgba(99, 102, 241, 0.2)' : '#dbeafe' }}
+            className={`${isDark ? 'bg-indigo-600/10 border-b border-indigo-500/20' : 'bg-blue-50 border-b border-blue-100'} overflow-hidden py-1.5 sm:py-2 backdrop-blur-sm print:hidden no-print`}
+        >
             <div className="max-w-7xl mx-auto px-2 sm:px-4 flex items-center gap-2 sm:gap-6">
-                <span className={`text-[8px] sm:text-[9px] shrink-0 whitespace-nowrap font-black uppercase px-2.5 sm:px-3 py-1 rounded-full border ${
+                <span 
+                    style={{ backgroundColor: isDark ? 'rgba(99, 102, 241, 0.1)' : '#dbeafe', borderColor: isDark ? 'rgba(99, 102, 241, 0.3)' : '#bfdbfe', color: isDark ? '#a5b4fc' : '#1e40af' }}
+                    className={`text-[8px] sm:text-[9px] shrink-0 whitespace-nowrap font-black uppercase px-2.5 sm:px-3 py-1 rounded-full border ${
                     isDark 
                     ? 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' 
                     : 'text-blue-800 bg-blue-100 border-blue-200'
